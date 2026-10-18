@@ -75,7 +75,8 @@ Docker не потрібен: локально — лише npm run dev прот
       https://github.com/rhutsul/leave-portal/actions/runs/39161424819 (`20261012000000_profiles_and_roles.sql` і
       `supabase/seed.sql`)
 - [x] `npm run users:demo` (синтетичні користувачі з `supabase/demo-users.json`) → `npm run dev` → `http://localhost:3000` →
-      вхід як `admin@example.test` працює локально й на прод-URL — створено `admin@`, `member1@`, `member2@example.test`;
+      вхід як `admin@example.test` працює локально й на прод-URL — створено `admin@example.test`, `member1@example.test`,
+      `member2@example.test` (як у `supabase/demo-users.json`);
       [docs/img/login-prod.png](img/login-prod.png)
 - [x] CI на `main` зелений: `spec`, `app`, `conformance`, `db-check`, `db-deploy` —
       https://github.com/rhutsul/leave-portal/actions/runs/39161424819
