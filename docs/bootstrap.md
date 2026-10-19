@@ -100,8 +100,8 @@ Docker не потрібен: локально — лише npm run dev прот
       `BLOCKED` до зелених перевірок; прямий `git push origin setup/bootstrap:main` відхилено з
       `GH013: Repository rule violations` — [docs/img/push-rejected.png](img/push-rejected.png)
 - [x] Vercel створив preview для PR — https://leave-portal-git-setup-bootstrap-rh-3ddc.vercel.app
-- [x] **Squash and merge** → прод-деплой Vercel пройшов — PR #1 злито через «Create a merge commit» (`5c34f85`;
-      ruleset дозволяє обидва методи, наступні PR — Squash and merge); прод-деплой:
+- [x] Merge PR → прод-деплой Vercel пройшов — PR #1 злито через «Create a merge commit» (`5c34f85`), а не
+      **Squash and merge**, як радить чекліст; ruleset дозволяє обидва методи, наступні PR — Squash and merge; прод-деплой:
       https://vercel.com/rh-3ddc/leave-portal/2GudjrykeehdammoXgjxrQAqJo3C, CI на `main` після merge:
       https://github.com/rhutsul/leave-portal/actions/runs/39214358032
 - [ ] (З першою задачею, що має міграцію) `db-check` зелений, після merge `db-deploy` застосував її у вашу базу — <!-- посилання на run -->
