@@ -93,11 +93,17 @@ Docker не потрібен: локально — лише npm run dev прот
 
 ## 7. Перший PR (перевірка ruleset-у)
 
-- [ ] `git switch -c setup/bootstrap` → цей файл із доказами розділів 1–6 → push → `gh pr create --web` (тип «Реалізація»)
-      → окремим коментарем `@coderabbitai review` — <!-- посилання на PR (наступним PR) -->
-- [ ] Поки перевірки не зелені, кнопка merge заблокована; push у `main` напряму відхиляється — <!-- знімок -->
-- [ ] Vercel створив preview для PR — <!-- посилання на preview (наступним PR) -->
-- [ ] **Squash and merge** → прод-деплой Vercel пройшов — <!-- посилання -->
+- [x] `git switch -c setup/bootstrap` → цей файл із доказами розділів 1–6 → push → `gh pr create --web` (тип «Реалізація»)
+      → окремим коментарем `@coderabbitai review` — https://github.com/rhutsul/leave-portal/pull/1 (PR створено з
+      терміналу `gh pr create`; коментар CodeRabbit виправлено в тому ж PR)
+- [x] Поки перевірки не зелені, кнопка merge заблокована; push у `main` напряму відхиляється — PR #1 мав статус
+      `BLOCKED` до зелених перевірок; прямий `git push origin setup/bootstrap:main` відхилено з
+      `GH013: Repository rule violations` — [docs/img/push-rejected.png](img/push-rejected.png)
+- [x] Vercel створив preview для PR — https://leave-portal-git-setup-bootstrap-rh-3ddc.vercel.app
+- [x] Merge PR → прод-деплой Vercel пройшов — PR #1 злито через «Create a merge commit» (`5c34f85`), а не
+      **Squash and merge**, як радить чекліст; ruleset дозволяє обидва методи, наступні PR — Squash and merge; прод-деплой:
+      https://vercel.com/rh-3ddc/leave-portal/2GudjrykeehdammoXgjxrQAqJo3C, CI на `main` після merge:
+      https://github.com/rhutsul/leave-portal/actions/runs/39214358032
 - [ ] (З першою задачею, що має міграцію) `db-check` зелений, після merge `db-deploy` застосував її у вашу базу — <!-- посилання на run -->
 
 ## 8. Вимоги PM і специфікація
