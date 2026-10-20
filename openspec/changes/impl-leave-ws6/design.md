@@ -61,8 +61,14 @@ where role = 'member'` → default `'employee'` → новий `profiles_role_ch
 | `positions` | посада працівника: `employee_id`, `division_id`, назва, `kind` main/additional (рівно одна main на працівника) | AC-LEAVE-02, AC-LEAVE-03 |
 | `schedule_blocks` | блок розкладу посади: `weekday` 1–7, `start_min`, `end_min` (хвилини від півночі, `start < end`, кратні 5) | AC-LEAVE-06…09, AC-LEAVE-15 |
 | `position_managers` | відповідальні менеджери посади (0–2+) | AC-DECIDE-01, AC-DECIDE-07, AC-DECIDE-08 |
-| `leave_requests` | заявка: `employee_id`, `leave_type`, `relationship` (лише для «Family celebration»), час подання | AC-LEAVE-05, AC-LEAVE-12 |
-| `leave_records` | запис: `request_id`, `position_id`, `employee_id`, `date`, `start_min`, `end_min`, `minutes`, `status`, `manager_comment`, `paid_days`, `unpaid_days` | AC-LEAVE-01…16, AC-DECIDE-*, AC-BALANCE-10 |
+| `leave_requests` | заявка: `employee_id`, `leave_type`, `relationship` (лише для «Family celebration»), коментар працівника, час подання | AC-LEAVE-05, AC-LEAVE-12 |
+| `leave_records` | запис: `request_id`, `position_id`, `employee_id`, `date`, `start_min`, `end_min`, `minutes`, `status`, `leave_type`, `relationship`, коментар працівника (копії з заявки), `manager_comment`, `paid_days`, `unpaid_days` | AC-LEAVE-01…16, AC-DECIDE-*, AC-BALANCE-09, AC-BALANCE-10 |
+
+Тип відпустки, спорідненість і коментар працівника `submit_leave_request` копіює в **кожен** запис заявки (PM:
+коментар «is stored on every record of the request», `requirements/01-leave-request.md`). Тоді все, що менеджер має
+бачити й рахувати на `/decisions` (тип для залишку й попередження AC-BALANCE-09, коментар), є в записі його посади, і
+доступу до заявки чи записів чужих посад йому не потрібно (AC-DECIDE-01). Після подання ці поля не змінюються:
+працівник змінює лише години.
 | `leave_record_events` | історія: `record_id`, `actor_id`, `action`, `comment`, `created_at` | AC-DECIDE-10, AC-DECIDE-15 |
 | `balance_carryovers` | перенесені дні на початок першого навчального року (тестові дані) | AC-BALANCE-11 |
 

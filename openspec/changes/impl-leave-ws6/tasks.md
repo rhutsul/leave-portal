@@ -50,9 +50,15 @@ AC-BALANCE-11, AC-BALANCE-12, AC-BALANCE-13.
 - [ ] 4.2 Міграція з функцією `decide_leave_record` (D4) і сторінка `/decisions` («Awaiting decision», «History»,
       погодити / відхилити / повернути, історія запису); перевірка: тести AC-DECIDE-01, AC-DECIDE-02, AC-DECIDE-03,
       AC-DECIDE-05, AC-DECIDE-10, AC-DECIDE-11, AC-DECIDE-14, AC-DECIDE-15, AC-DECIDE-19
+- [ ] 4.3 Погодження понад залишок — у тому самому PR, щоб погодження без розподілу ніколи не потрапило на прод:
+      `balance.ts` рахує попередження й пропонований розподіл, `decide_leave_record` під `pg_advisory_xact_lock` на
+      працівника перераховує залишок на момент рішення й відхиляє погодження без розподілу, `/decisions` показує
+      попередження й погоджує лише з розподілом; перевірка: тести AC-BALANCE-09, AC-BALANCE-10, AC-BALANCE-14,
+      AC-BALANCE-16
 
 Done when: AC-DECIDE-01, AC-DECIDE-02, AC-DECIDE-03, AC-DECIDE-04, AC-DECIDE-05, AC-DECIDE-07, AC-DECIDE-08,
-AC-DECIDE-09, AC-DECIDE-10, AC-DECIDE-11, AC-DECIDE-14, AC-DECIDE-15, AC-DECIDE-18, AC-DECIDE-19.
+AC-DECIDE-09, AC-DECIDE-10, AC-DECIDE-11, AC-DECIDE-14, AC-DECIDE-15, AC-DECIDE-18, AC-DECIDE-19, AC-BALANCE-09,
+AC-BALANCE-10, AC-BALANCE-14, AC-BALANCE-16.
 
 ## 5. Зміна, повторне подання й скасування працівником (`task/leave-record-edit`)
 
@@ -61,14 +67,12 @@ AC-DECIDE-09, AC-DECIDE-10, AC-DECIDE-11, AC-DECIDE-14, AC-DECIDE-15, AC-DECIDE-
 
 Done when: AC-DECIDE-06, AC-DECIDE-12, AC-DECIDE-13, AC-DECIDE-16, AC-DECIDE-17.
 
-## 6. Перевищення залишку (`task/leave-balance-overflow`)
+## 6. Попередження працівнику про перевищення залишку (`task/leave-balance-warning`)
 
-- [ ] 6.1 Попередження працівнику на підсумку заявки (`balance.ts`, `/requests/new`); перевірка: тести AC-BALANCE-08,
-      AC-BALANCE-15
-- [ ] 6.2 Попередження, розподіл і погодження лише з розподілом на `/decisions` (`decide_leave_record` перераховує
-      залишок на момент рішення); перевірка: тести AC-BALANCE-09, AC-BALANCE-10, AC-BALANCE-14, AC-BALANCE-16
+- [ ] 6.1 Попередження працівнику на підсумку заявки за залишком на момент подання (`balance.ts`, `/requests/new`);
+      заявка все одно створюється; перевірка: тести AC-BALANCE-08, AC-BALANCE-15
 
-Done when: AC-BALANCE-08, AC-BALANCE-09, AC-BALANCE-10, AC-BALANCE-14, AC-BALANCE-15, AC-BALANCE-16.
+Done when: AC-BALANCE-08, AC-BALANCE-15.
 
 ## Workflow follow-up
 
