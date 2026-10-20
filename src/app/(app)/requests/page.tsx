@@ -136,11 +136,14 @@ export default async function MyRequestsPage({ searchParams }: PageProps<"/reque
             <div className="flex flex-col gap-4">
               {[...groups.entries()].map(([requestId, items]) => (
                 <Card key={requestId} className="overflow-hidden">
-                  <header className="flex flex-wrap items-center gap-3 border-b border-line bg-surface-muted px-5 py-3.5">
+                  <header
+                    id={`request-${requestId}`}
+                    className="flex flex-wrap items-center gap-3 border-b border-line bg-surface-muted px-5 py-3.5"
+                  >
                     <LeaveTypeTag type={items[0].leave_type ?? ""} />
                     <span className="text-muted">Submitted {formatKyivDay(items[0].created_at!)}</span>
                   </header>
-                  <table className="w-full border-collapse text-left">
+                  <table aria-labelledby={`request-${requestId}`} className="w-full border-collapse text-left">
                     <thead>
                       <tr className="text-xs text-muted">
                         <th className="w-40 px-5 py-2.5 font-medium">Date</th>

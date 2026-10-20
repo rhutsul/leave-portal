@@ -73,7 +73,7 @@ export default async function Overview() {
           <CardHeader
             title="Upcoming leave"
             action={
-              <Link href="/requests" className="text-[13px] font-medium text-brand hover:text-brand-strong">
+              <Link href="/requests" className="text-[13px] font-medium text-brand-strong underline-offset-2 hover:underline">
                 View all
               </Link>
             }
@@ -127,7 +127,7 @@ export default async function Overview() {
             <span className="text-[26px] font-semibold tracking-tight">{awaiting ?? 0}</span>
             <span className="text-muted">{awaiting === 1 ? "record" : "records"}</span>
           </div>
-          <Link href="/requests?status=awaiting" className="text-[13px] font-medium text-brand hover:text-brand-strong">
+          <Link href="/requests?status=awaiting" className="text-[13px] font-medium text-brand-strong underline-offset-2 hover:underline">
             Open the records
           </Link>
         </Card>

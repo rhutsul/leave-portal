@@ -7,7 +7,7 @@ const BASE =
   "inline-flex min-h-10 items-center justify-center gap-2 rounded-lg px-4 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50";
 
 const VARIANTS: Record<Variant, string> = {
-  primary: "border border-brand bg-brand text-on-brand hover:bg-brand-strong hover:border-brand-strong",
+  primary: "border border-brand bg-brand text-on-brand hover:bg-brand-fill-hover hover:border-brand-fill-hover",
   ghost: "border border-line-strong bg-surface text-ink-2 hover:bg-subtle hover:text-ink",
 };
 

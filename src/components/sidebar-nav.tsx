@@ -31,11 +31,9 @@ export function SidebarNav({ awaiting }: { awaiting: number }) {
             {icon}
             {label}
             {href === "/requests" && awaiting > 0 && (
-              <span
-                className="ml-auto rounded-full bg-awaiting-soft px-2 text-xs font-semibold text-awaiting"
-                aria-label={`${awaiting} awaiting decision`}
-              >
+              <span className="ml-auto rounded-full bg-awaiting-soft px-2 text-xs font-semibold text-awaiting">
                 {awaiting}
+                <span className="sr-only"> awaiting decision</span>
               </span>
             )}
           </Link>

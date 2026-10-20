@@ -21,7 +21,7 @@ export default async function NewRequestPage() {
         description="Each position you include on a date becomes its own record for that position’s manager."
         breadcrumb={
           <>
-            <Link href="/requests" className="text-brand hover:text-brand-strong">
+            <Link href="/requests" className="text-brand-strong underline-offset-2 hover:underline">
               My requests
             </Link>{" "}
             / New request
