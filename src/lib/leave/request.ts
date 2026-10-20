@@ -1,7 +1,17 @@
 // Записи заявки з вибору працівника — чисті функції (D5 openspec/changes/impl-leave-ws6/design.md).
 // Один запис — одна посада на одну дату (глосарій requirements/product.md); «цілий день» — усі блоки посади на дату.
 
-import { checkHours, isoWeekday, parseTime, sortBlocks, TIME_MESSAGES, wholeDay, type TimeBlock } from "./time";
+import {
+  checkHours,
+  formatBlocks,
+  isoWeekday,
+  parseTime,
+  sortBlocks,
+  TIME_MESSAGES,
+  WEEKDAY_SHORT,
+  wholeDay,
+  type TimeBlock,
+} from "./time";
 
 export const LEAVE_TYPES = {
   sick: "Sick leave",
@@ -106,25 +116,56 @@ export type RecordsCheck =
   | { ok: true; records: DraftRecord[] }
   | { ok: false; message: string; positionId?: number };
 
+export type RecordCheck = { ok: true; record: DraftRecord } | { ok: false; message: string };
+
+/** Запис однієї включеної посади: цілий день — усі блоки, інакше години перевіряє checkHours. */
+export function recordForChoice(date: string, position: PositionDay, choice: PositionChoice): RecordCheck {
+  if (choice.wholeDay) return { ok: true, record: { positionId: position.id, date, ...wholeDay(position.blocks) } };
+  const start = parseTime(choice.start ?? "");
+  const end = parseTime(choice.end ?? "");
+  const check = checkHours(position.blocks, start, end);
+  if (!check.ok) return check;
+  return { ok: true, record: { positionId: position.id, date, start: start!, end: end!, minutes: check.minutes } };
+}
+
 /** Записи однієї дати: по одному на кожну включену посаду (AC-LEAVE-01…03), години — за розкладом (AC-LEAVE-04). */
 export function buildDayRecords(date: string, positions: PositionDay[], choices: PositionChoice[]): RecordsCheck {
   const records: DraftRecord[] = [];
   for (const position of positions) {
     const choice = choices.find((c) => c.positionId === position.id);
     if (!choice?.include) continue;
-    if (choice.wholeDay) {
-      const day = wholeDay(position.blocks);
-      records.push({ positionId: position.id, date, ...day });
-      continue;
-    }
-    const start = parseTime(choice.start ?? "");
-    const end = parseTime(choice.end ?? "");
-    const check = checkHours(position.blocks, start, end);
-    if (!check.ok) return { ok: false, message: check.message, positionId: position.id };
-    records.push({ positionId: position.id, date, start: start!, end: end!, minutes: check.minutes });
+    const result = recordForChoice(date, position, choice);
+    if (!result.ok) return { ok: false, message: result.message, positionId: position.id };
+    records.push(result.record);
   }
   if (records.length === 0) return { ok: false, message: REQUEST_MESSAGES.choosePosition };
   return { ok: true, records };
+}
+
+/** Тижневий розклад посади одним рядком: "Mon–Fri 08:30–15:30", "Mon, Wed–Fri 08:30–15:30; Tue 08:30–12:00, …". */
+export function weeklySchedule(blocks: ScheduleBlock[]): string {
+  const byDay = new Map<number, string>();
+  for (let day = 1; day <= 7; day++) {
+    const ofDay = blocks.filter((b) => b.weekday === day);
+    if (ofDay.length) byDay.set(day, formatBlocks(ofDay));
+  }
+  // Дні з однаковими годинами — разом; поспіль ідучі дні — діапазоном.
+  const groups = new Map<string, number[]>();
+  for (const [day, hours] of byDay) groups.set(hours, [...(groups.get(hours) ?? []), day]);
+  return [...groups.entries()]
+    .map(([hours, days]) => {
+      const ranges: string[] = [];
+      for (let i = 0; i < days.length; i++) {
+        let j = i;
+        while (j + 1 < days.length && days[j + 1] === days[j] + 1) j++;
+        const first = WEEKDAY_SHORT[days[i] - 1];
+        const last = WEEKDAY_SHORT[days[j] - 1];
+        ranges.push(j - i >= 2 ? `${first}–${last}` : j > i ? `${first}, ${last}` : first);
+        i = j;
+      }
+      return `${ranges.join(", ")} ${hours}`;
+    })
+    .join("; ");
 }
 
 export type LeaveTypeCheck =

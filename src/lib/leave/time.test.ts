@@ -1,5 +1,19 @@
 import { describe, expect, it } from "vitest";
-import { checkHours, formatDuration, formatTime, isoWeekday, parseTime, type TimeBlock } from "./time";
+import {
+  checkHours,
+  dayAxis,
+  formatDateLong,
+  formatDateShort,
+  formatDuration,
+  formatKyivDay,
+  formatTime,
+  isoWeekday,
+  kyivDate,
+  kyivHour,
+  parseTime,
+  weekdayName,
+  type TimeBlock,
+} from "./time";
 
 // 08:30 = 510, 12:00 = 720, 12:30 = 750, 13:00 = 780, 15:30 = 930.
 const MORNING: TimeBlock[] = [{ start: 510, end: 780 }];
@@ -81,6 +95,25 @@ describe("time helpers", () => {
   it("formats whole hours and minutes only", () => {
     expect(formatDuration(420)).toBe("7 h");
     expect(formatDuration(45)).toBe("45 min");
+  });
+
+  it("formats dates for the interface and today in Kyiv", () => {
+    expect(formatDateLong("2026-11-02")).toBe("Mon, 2 Nov 2026");
+    expect(formatDateShort("2026-11-03")).toBe("Tue 3 Nov");
+    expect(weekdayName("2026-11-07")).toBe("Saturday");
+    // 22:30 UTC 1 листопада — у Києві вже 2 листопада, 00:30.
+    expect(kyivDate(new Date("2026-11-01T22:30:00Z"))).toBe("2026-11-02");
+    expect(kyivHour(new Date("2026-11-01T22:30:00Z"))).toBe(0);
+    expect(formatKyivDay("2026-10-20T18:12:00Z")).toBe("20 Oct 2026");
+  });
+
+  it("builds a whole-hour axis around the day's blocks", () => {
+    expect(dayAxis([{ start: 510, end: 930 }, { start: 945, end: 1020 }])).toEqual({
+      start: 480,
+      end: 1020,
+      ticks: [480, 600, 720, 840, 960],
+    });
+    expect(dayAxis([{ start: 945, end: 1020 }])).toEqual({ start: 900, end: 1020, ticks: [900, 960, 1020] });
   });
 
   it("gives ISO weekdays for calendar dates", () => {

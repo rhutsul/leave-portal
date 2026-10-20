@@ -1,26 +1,182 @@
 @import "tailwindcss";
 
+/*
+ * Палітра інтерфейсу — один раз тут, світла й темна тема. У розмітці — лише назви з @theme нижче
+ * (bg-surface, text-muted, border-line, bg-awaiting-soft …), без hex і без палітри zinc/indigo Tailwind.
+ */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+  --canvas: #f6f6f7;
+  --surface: #ffffff;
+  --surface-muted: #fafafa;
+  --subtle: #f4f4f5;
+  --line: #e4e4e7;
+  --line-strong: #d4d4d8;
+  --line-soft: #f0f0f2;
+  --ink: #18181b;
+  --ink-2: #3f3f46;
+  --muted: #5b5b66;
+  --faint: #6b6b76;
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --brand: #4338ca;
+  --brand-strong: #3730a3;
+  --brand-soft: #eef2ff;
+  --brand-muted: #e0e7ff;
+  --brand-line: #c7d2fe;
+  --brand-hover: #a5b4fc;
+  --on-brand: #ffffff;
+  --ring: #6366f1;
+
+  --danger: #b91c1c;
+  --danger-soft: #fef2f2;
+  --danger-line: #fecaca;
+  --success: #065f46;
+  --success-soft: #ecfdf5;
+  --success-line: #a7f3d0;
+  --info: #1e3a8a;
+  --info-soft: #eff6ff;
+  --info-line: #bfdbfe;
+
+  --awaiting: #92400e;
+  --awaiting-soft: #fef3c7;
+  --awaiting-dot: #d97706;
+  --returned: #1e40af;
+  --returned-soft: #dbeafe;
+  --returned-dot: #2563eb;
+  --approved: #166534;
+  --approved-soft: #dcfce7;
+  --approved-dot: #16a34a;
+  --rejected: #991b1b;
+  --rejected-soft: #fee2e2;
+  --rejected-dot: #dc2626;
+  --cancelled: #3f3f46;
+  --cancelled-soft: #f4f4f5;
+  --cancelled-dot: #a1a1aa;
+
+  --sick: #9f1239;
+  --sick-soft: #fff1f2;
+  --family: #86198f;
+  --family-soft: #fdf4ff;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --canvas: #0b0b0e;
+    --surface: #16161a;
+    --surface-muted: #1b1b20;
+    --subtle: #232329;
+    --line: #2e2e35;
+    --line-strong: #3f3f46;
+    --line-soft: #26262c;
+    --ink: #f4f4f5;
+    --ink-2: #d4d4d8;
+    --muted: #a1a1aa;
+    --faint: #9a9aa4;
+
+    --brand: #4f46e5;
+    --brand-strong: #c7d2fe;
+    --brand-soft: #1e1b4b;
+    --brand-muted: #312e81;
+    --brand-line: #3730a3;
+    --brand-hover: #4f46e5;
+    --on-brand: #ffffff;
+    --ring: #818cf8;
+
+    --danger: #fca5a5;
+    --danger-soft: #2a1215;
+    --danger-line: #7f1d1d;
+    --success: #6ee7b7;
+    --success-soft: #052e22;
+    --success-line: #065f46;
+    --info: #bfdbfe;
+    --info-soft: #0f1e3d;
+    --info-line: #1e3a8a;
+
+    --awaiting: #fcd34d;
+    --awaiting-soft: #3a2a0a;
+    --awaiting-dot: #f59e0b;
+    --returned: #93c5fd;
+    --returned-soft: #102a4c;
+    --returned-dot: #3b82f6;
+    --approved: #86efac;
+    --approved-soft: #0f2e1a;
+    --approved-dot: #22c55e;
+    --rejected: #fca5a5;
+    --rejected-soft: #3b1212;
+    --rejected-dot: #ef4444;
+    --cancelled: #d4d4d8;
+    --cancelled-soft: #27272a;
+    --cancelled-dot: #71717a;
+
+    --sick: #fda4af;
+    --sick-soft: #3b0d18;
+    --family: #f0abfc;
+    --family-soft: #3b0a3f;
   }
 }
 
+@theme inline {
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-subtle: var(--subtle);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-line-soft: var(--line-soft);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
+
+  --color-brand: var(--brand);
+  --color-brand-strong: var(--brand-strong);
+  --color-brand-soft: var(--brand-soft);
+  --color-brand-muted: var(--brand-muted);
+  --color-brand-line: var(--brand-line);
+  --color-brand-hover: var(--brand-hover);
+  --color-on-brand: var(--on-brand);
+  --color-ring: var(--ring);
+
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-danger-line: var(--danger-line);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-success-line: var(--success-line);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+  --color-info-line: var(--info-line);
+
+  --color-awaiting: var(--awaiting);
+  --color-awaiting-soft: var(--awaiting-soft);
+  --color-awaiting-dot: var(--awaiting-dot);
+  --color-returned: var(--returned);
+  --color-returned-soft: var(--returned-soft);
+  --color-returned-dot: var(--returned-dot);
+  --color-approved: var(--approved);
+  --color-approved-soft: var(--approved-soft);
+  --color-approved-dot: var(--approved-dot);
+  --color-rejected: var(--rejected);
+  --color-rejected-soft: var(--rejected-soft);
+  --color-rejected-dot: var(--rejected-dot);
+  --color-cancelled: var(--cancelled);
+  --color-cancelled-soft: var(--cancelled-soft);
+  --color-cancelled-dot: var(--cancelled-dot);
+
+  --color-sick: var(--sick);
+  --color-sick-soft: var(--sick-soft);
+  --color-family: var(--family);
+  --color-family-soft: var(--family-soft);
+
+  --font-sans: var(--font-geist-sans), system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+}
+
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+  background: var(--canvas);
+  color: var(--ink);
+}
+
+:where(a, button, input, select, textarea, summary):focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
 }

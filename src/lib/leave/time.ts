@@ -66,6 +66,65 @@ export function isoWeekday(date: string): number {
   return day === 0 ? 7 : day;
 }
 
+export const WEEKDAY_SHORT = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
+const WEEKDAY_LONG = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"] as const;
+const MONTH_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"] as const;
+
+function dateParts(date: string) {
+  const [y, m, d] = date.split("-").map(Number);
+  return { year: y, month: MONTH_SHORT[m - 1], day: d, weekday: isoWeekday(date) };
+}
+
+/** "Mon, 2 Nov 2026". */
+export function formatDateLong(date: string): string {
+  const p = dateParts(date);
+  return `${WEEKDAY_SHORT[p.weekday - 1]}, ${p.day} ${p.month} ${p.year}`;
+}
+
+/** "Mon 2 Nov". */
+export function formatDateShort(date: string): string {
+  const p = dateParts(date);
+  return `${WEEKDAY_SHORT[p.weekday - 1]} ${p.day} ${p.month}`;
+}
+
+export function weekdayName(date: string): string {
+  return WEEKDAY_LONG[isoWeekday(date) - 1];
+}
+
+export function monthShort(date: string): string {
+  return dateParts(date).month;
+}
+
+const KYIV = "Europe/Kyiv";
+
+/** Календарна дата за Києвом "YYYY-MM-DD" (усі дати PM — Europe/Kyiv). */
+export function kyivDate(now: Date): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: KYIV, year: "numeric", month: "2-digit", day: "2-digit" }).format(
+    now,
+  );
+}
+
+export function kyivHour(now: Date): number {
+  return Number(new Intl.DateTimeFormat("en-GB", { timeZone: KYIV, hour: "2-digit", hourCycle: "h23" }).format(now));
+}
+
+/** Дата моменту за Києвом: "20 Oct 2026". */
+export function formatKyivDay(timestamp: string | Date): string {
+  return new Intl.DateTimeFormat("en-GB", { timeZone: KYIV, day: "numeric", month: "short", year: "numeric" }).format(
+    new Date(timestamp),
+  );
+}
+
+/** Вісь смуги розкладу дня: від цілої години перед першим блоком до цілої години після останнього. */
+export function dayAxis(blocks: TimeBlock[]): { start: number; end: number; ticks: number[] } {
+  const start = Math.floor(Math.min(...blocks.map((b) => b.start)) / 60) * 60;
+  const end = Math.ceil(Math.max(...blocks.map((b) => b.end)) / 60) * 60;
+  const step = end - start > 360 ? 120 : 60;
+  const ticks: number[] = [];
+  for (let t = start; t <= end; t += step) ticks.push(t);
+  return { start, end, ticks };
+}
+
 export function sortBlocks(blocks: TimeBlock[]): TimeBlock[] {
   return [...blocks].sort((a, b) => a.start - b.start);
 }

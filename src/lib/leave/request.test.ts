@@ -5,6 +5,7 @@ import {
   LEAVE_TYPES,
   positionsOnDate,
   toRpcRecords,
+  weeklySchedule,
   type PositionChoice,
   type PositionSchedule,
 } from "./request";
@@ -112,5 +113,19 @@ describe("records of a one-date request", () => {
 
   it("an unknown leave type is rejected", () => {
     expect(checkLeaveType("vacation", "")).toEqual({ ok: false, message: "Choose a leave type" });
+  });
+});
+
+describe("weekly schedule text", () => {
+  it("groups days with the same hours and joins consecutive days", () => {
+    expect(weeklySchedule(MAIN.blocks)).toBe("Mon–Fri 08:30–15:30");
+    expect(weeklySchedule(ADDITIONAL.blocks)).toBe("Mon 15:45–17:00");
+    const withGap = [
+      ...weekdays(510, 930).filter((b) => b.weekday !== 2),
+      { weekday: 2, start: 510, end: 720 },
+      { weekday: 2, start: 750, end: 930 },
+    ];
+    expect(weeklySchedule(withGap)).toBe("Mon, Wed–Fri 08:30–15:30; Tue 08:30–12:00, 12:30–15:30");
+    expect(weeklySchedule([...weekdays(510, 930).slice(0, 2)])).toBe("Mon, Tue 08:30–15:30");
   });
 });

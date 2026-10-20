@@ -1,117 +1,193 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { redirect } from "next/navigation";
-import { isLeaveType, LEAVE_TYPES, positionLabel, RECORD_STATUSES, type RecordStatus } from "@/lib/leave/request";
-import { formatDuration, formatRange, isoWeekday } from "@/lib/leave/time";
+import { ButtonLink } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { CalendarIcon, CheckCircleIcon, CloseIcon, PlusIcon } from "@/components/ui/icons";
+import { LeaveTypeTag } from "@/components/ui/leave-type-tag";
+import { PageHeader } from "@/components/ui/page-header";
+import { isRecordStatus, STATUS_DOT, StatusBadge } from "@/components/ui/status-badge";
+import { positionLabel, type RecordStatus } from "@/lib/leave/request";
+import { formatDuration, formatKyivDay, formatRange, weekdayName } from "@/lib/leave/time";
 import { createClient } from "@/lib/supabase/server";
 
-const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const TABS: { id: string; label: string; statuses: RecordStatus[] | null }[] = [
+  { id: "all", label: "All", statuses: null },
+  { id: "awaiting", label: "Awaiting decision", statuses: ["awaiting"] },
+  { id: "returned", label: "Returned", statuses: ["returned"] },
+  { id: "approved", label: "Approved", statuses: ["approved"] },
+  { id: "closed", label: "Rejected and cancelled", statuses: ["rejected", "cancelled"] },
+];
 
-const STATUS_STYLES: Record<RecordStatus, string> = {
-  awaiting: "bg-amber-50 text-amber-800 ring-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:ring-amber-900",
-  approved: "bg-emerald-50 text-emerald-800 ring-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:ring-emerald-900",
-  rejected: "bg-red-50 text-red-800 ring-red-200 dark:bg-red-950/40 dark:text-red-300 dark:ring-red-900",
-  returned: "bg-sky-50 text-sky-800 ring-sky-200 dark:bg-sky-950/40 dark:text-sky-300 dark:ring-sky-900",
-  cancelled: "bg-zinc-100 text-zinc-600 ring-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:ring-zinc-700",
-};
-
-const isStatus = (value: string): value is RecordStatus => Object.hasOwn(RECORD_STATUSES, value);
+const STATS: { label: string; statuses: RecordStatus[] }[] = [
+  { label: "Awaiting decision", statuses: ["awaiting"] },
+  { label: "Returned for revision", statuses: ["returned"] },
+  { label: "Approved", statuses: ["approved"] },
+  { label: "Rejected or cancelled", statuses: ["rejected", "cancelled"] },
+];
 
 // «My requests» (AC-LEAVE-14): лише власні записи — view public.my_leave_records фільтрує за auth.uid(),
-// бо RLS показує менеджеру ще й записи його посад.
+// бо RLS показує менеджеру ще й записи його посад. Записи згруповано за заявкою; вкладки фільтрують за статусом.
 export default async function MyRequestsPage({ searchParams }: PageProps<"/requests">) {
   const supabase = await createClient();
   const { data } = await supabase.auth.getClaims();
   if (!data?.claims) redirect("/login");
 
-  const { submitted } = await searchParams;
-  const { data: records, error } = await supabase
+  const { submitted, status } = await searchParams;
+  const tab = TABS.find((t) => t.id === status) ?? TABS[0];
+
+  const { data: rows, error } = await supabase
     .from("my_leave_records")
-    .select("id, date, start_min, end_min, minutes, leave_type, status, position_title, division_name")
-    .order("date", { ascending: false })
+    .select("id, request_id, date, start_min, end_min, minutes, leave_type, status, position_title, division_name, created_at")
+    .order("request_id", { ascending: false })
+    .order("date", { ascending: true })
     .order("start_min", { ascending: true });
+
+  const records = (rows ?? []).filter((r) => r.status && isRecordStatus(r.status));
+  const count = (statuses: RecordStatus[] | null) =>
+    records.filter((r) => !statuses || statuses.includes(r.status as RecordStatus)).length;
+  const shown = records.filter((r) => !tab.statuses || tab.statuses.includes(r.status as RecordStatus));
+
+  const groups = new Map<number, typeof shown>();
+  for (const r of shown) groups.set(r.request_id!, [...(groups.get(r.request_id!) ?? []), r]);
 
   return (
     <>
-      <div className="flex items-end justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">My requests</h1>
-          <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-            Each record is one position on one date and is decided separately.
-          </p>
-        </div>
-        <Link
-          href="/requests/new"
-          className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-white"
-        >
-          New request
-        </Link>
-      </div>
+      <PageHeader
+        title="My requests"
+        description="Each record is one position on one date and is decided separately by that position’s manager."
+        actions={
+          <ButtonLink href="/requests/new">
+            <PlusIcon size={16} />
+            New request
+          </ButtonLink>
+        }
+      />
 
       {submitted === "1" && (
-        <p
+        <div
           role="status"
-          className="rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300"
+          className="flex items-center gap-3 rounded-xl border border-success-line bg-success-soft px-4 py-3 text-success"
         >
-          Your request has been submitted. Each record is now awaiting a decision.
-        </p>
+          <CheckCircleIcon />
+          <p className="flex-1">
+            <span className="font-semibold">Request submitted.</span> Each record is now awaiting a decision.
+          </p>
+          <Link
+            href="/requests"
+            aria-label="Dismiss"
+            className="flex size-8 items-center justify-center rounded-lg hover:bg-success-line/40"
+          >
+            <CloseIcon />
+          </Link>
+        </div>
       )}
 
       {error ? (
-        <p role="alert" className="text-sm text-red-600">
+        <p role="alert" className="text-danger">
           The records could not be loaded. Please reload the page.
         </p>
-      ) : !records?.length ? (
-        <div className="rounded-xl border border-dashed border-zinc-300 bg-white p-10 text-center dark:border-zinc-700 dark:bg-zinc-900">
-          <p className="font-medium">No leave records yet</p>
-          <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">Your records will appear here after you submit a request.</p>
-        </div>
+      ) : records.length === 0 ? (
+        <EmptyState
+          title="No leave records yet"
+          text="Your records will appear here after you submit a request."
+          action={<ButtonLink href="/requests/new">New request</ButtonLink>}
+        />
       ) : (
-        <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-          <table className="w-full text-left text-sm">
-            <thead className="bg-zinc-50 text-xs uppercase tracking-wide text-zinc-500 dark:bg-zinc-900/60">
-              <tr>
-                <th className="px-4 py-3 font-medium">Date</th>
-                <th className="px-4 py-3 font-medium">Hours</th>
-                <th className="px-4 py-3 font-medium">Position</th>
-                <th className="px-4 py-3 font-medium">Leave type</th>
-                <th className="px-4 py-3 font-medium">Status</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
-              {records.map((r) => {
-                const status = r.status && isStatus(r.status) ? r.status : null;
-                return (
-                  <tr key={r.id} data-testid="leave-record">
-                    <td className="whitespace-nowrap px-4 py-3 tabular-nums">
-                      {r.date}
-                      {r.date && <span className="ml-2 text-xs text-zinc-500">{WEEKDAYS[isoWeekday(r.date) - 1]}</span>}
-                    </td>
-                    <td className="whitespace-nowrap px-4 py-3 tabular-nums">
-                      {r.start_min !== null && r.end_min !== null ? formatRange(r.start_min, r.end_min) : "—"}
-                      {r.minutes !== null && <span className="ml-2 text-xs text-zinc-500">{formatDuration(r.minutes)}</span>}
-                    </td>
-                    <td className="px-4 py-3">{positionLabel(r.division_name ?? "", r.position_title ?? "")}</td>
-                    <td className="px-4 py-3">
-                      {r.leave_type && isLeaveType(r.leave_type) ? LEAVE_TYPES[r.leave_type] : r.leave_type}
-                    </td>
-                    <td className="px-4 py-3">
-                      {status ? (
-                        <span
-                          className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset ${STATUS_STYLES[status]}`}
-                        >
-                          {RECORD_STATUSES[status]}
-                        </span>
-                      ) : (
-                        r.status
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+        <>
+          <div className="grid grid-cols-4 gap-3.5">
+            {STATS.map((s) => (
+              <Card key={s.label} as="div" className="flex flex-col gap-1.5 px-4.5 py-4">
+                <div className="flex items-center gap-2 text-[13px] text-muted">
+                  <span aria-hidden="true" className={`size-2 rounded-full ${STATUS_DOT[s.statuses[0]]}`} />
+                  {s.label}
+                </div>
+                <div className="text-[26px] font-semibold tracking-tight">{count(s.statuses)}</div>
+              </Card>
+            ))}
+          </div>
+
+          <nav aria-label="Filter by status" className="flex flex-wrap gap-1 border-b border-line">
+            {TABS.map((t) => {
+              const active = t.id === tab.id;
+              return (
+                <Link
+                  key={t.id}
+                  href={t.id === "all" ? "/requests" : `/requests?status=${t.id}`}
+                  aria-current={active ? "page" : undefined}
+                  className={`-mb-px inline-flex items-center gap-2 border-b-2 px-3 py-2.5 ${
+                    active ? "border-brand font-semibold text-ink" : "border-transparent font-medium text-ink-2 hover:text-ink"
+                  }`}
+                >
+                  {t.label}
+                  <span
+                    className={`rounded-full px-1.75 text-xs ${active ? "bg-brand-soft text-brand-strong" : "bg-subtle text-ink-2"}`}
+                  >
+                    {count(t.statuses)}
+                  </span>
+                </Link>
+              );
+            })}
+          </nav>
+
+          {groups.size === 0 ? (
+            <EmptyState title="No records here" text="Records with this status will appear here." />
+          ) : (
+            <div className="flex flex-col gap-4">
+              {[...groups.entries()].map(([requestId, items]) => (
+                <Card key={requestId} className="overflow-hidden">
+                  <header className="flex flex-wrap items-center gap-3 border-b border-line bg-surface-muted px-5 py-3.5">
+                    <LeaveTypeTag type={items[0].leave_type ?? ""} />
+                    <span className="font-semibold">Request #{requestId}</span>
+                    <span className="text-muted">· submitted {formatKyivDay(items[0].created_at!)}</span>
+                  </header>
+                  <table className="w-full border-collapse text-left">
+                    <thead>
+                      <tr className="text-xs text-muted">
+                        <th className="w-40 px-5 py-2.5 font-medium">Date</th>
+                        <th className="w-44 px-3 py-2.5 font-medium">Hours</th>
+                        <th className="px-3 py-2.5 font-medium">Position</th>
+                        <th className="w-48 px-5 py-2.5 font-medium">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {items.map((r) => (
+                        <tr key={r.id} data-testid="leave-record" className="border-t border-line-soft align-top">
+                          <td className="px-5 py-3.5">
+                            <div className="font-medium">{r.date}</div>
+                            <div className="text-xs text-muted">{weekdayName(r.date!)}</div>
+                          </td>
+                          <td className="px-3 py-3.5">
+                            <div className="font-mono text-[13px]">{formatRange(r.start_min!, r.end_min!)}</div>
+                            <div className="text-xs text-muted">{formatDuration(r.minutes!)}</div>
+                          </td>
+                          <td className="px-3 py-3.5">{positionLabel(r.division_name ?? "", r.position_title ?? "")}</td>
+                          <td className="px-5 py-3.5">
+                            <StatusBadge status={r.status as RecordStatus} />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </Card>
+              ))}
+            </div>
+          )}
+        </>
       )}
     </>
+  );
+}
+
+function EmptyState({ title, text, action }: { title: string; text: string; action?: ReactNode }) {
+  return (
+    <Card as="div" className="flex flex-col items-center gap-2.5 border-dashed border-line-strong px-6 py-12 text-center">
+      <span className="flex size-11 items-center justify-center rounded-xl bg-subtle text-ink-2">
+        <CalendarIcon size={22} />
+      </span>
+      <p className="font-semibold">{title}</p>
+      <p className="text-muted">{text}</p>
+      {action}
+    </Card>
   );
 }
