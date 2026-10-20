@@ -158,20 +158,22 @@ export function NewRequestForm({ positions, today }: { positions: PositionSchedu
 
   return (
     <div className="flex flex-col gap-6">
-      <ol className="flex flex-wrap gap-2">
+      {/* Сітка на 4 колонки: картки однакової висоти, підпис в один рядок (повний — у title і для читачів екрана). */}
+      <ol className="grid grid-cols-4 gap-2">
         {STEPS.map((label, i) => {
           const n = (i + 1) as Step;
           const current = n === step;
           const done = n < step || (n <= maxStep && !current);
           const locked = n > maxStep || pending;
           return (
-            <li key={label} className="min-w-44 flex-1">
+            <li key={label} className="min-w-0">
               <button
                 type="button"
                 onClick={() => go(n)}
                 disabled={locked || current}
                 aria-current={current ? "step" : undefined}
-                className={`flex w-full items-center gap-2.5 rounded-xl border px-3 py-2.5 text-left ${
+                title={label}
+                className={`flex h-full w-full items-center gap-2.5 rounded-xl border px-3 py-2.5 text-left ${
                   current ? "border-brand-line bg-surface shadow-xs" : "border-line"
                 } ${locked && !current ? "opacity-60" : ""} ${!locked && !current ? "cursor-pointer hover:bg-surface" : ""}`}
               >
@@ -183,9 +185,9 @@ export function NewRequestForm({ positions, today }: { positions: PositionSchedu
                 >
                   {done ? "✓" : n}
                 </span>
-                <span className="flex flex-col">
+                <span className="flex min-w-0 flex-col">
                   <span className="text-xs text-faint">Step {n}</span>
-                  <span className="font-medium">{label}</span>
+                  <span className="truncate whitespace-nowrap font-medium">{label}</span>
                 </span>
               </button>
             </li>
