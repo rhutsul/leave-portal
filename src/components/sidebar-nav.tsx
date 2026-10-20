@@ -3,13 +3,13 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
-import { HomeIcon, ListIcon, PlusIcon } from "./ui/icons";
+import { ChartIcon, HomeIcon, ListIcon, PlusIcon } from "./ui/icons";
 
-// Balances з'явиться в задачі 3 (task/leave-balance).
 const LINKS: { href: string; label: string; icon: ReactNode }[] = [
   { href: "/", label: "Overview", icon: <HomeIcon /> },
   { href: "/requests/new", label: "New request", icon: <PlusIcon size={18} /> },
   { href: "/requests", label: "My requests", icon: <ListIcon /> },
+  { href: "/balances", label: "Balances", icon: <ChartIcon /> },
 ];
 
 export function SidebarNav({ awaiting }: { awaiting: number }) {

@@ -75,14 +75,14 @@
 | AC-DECIDE-20 | Менеджер бачить коментар | — | — | відкладено (чекає реалізації) |
 | AC-DECIDE-21 | Спроба змінити тип відпустки | — | — | відкладено (чекає реалізації) |
 | AC-DECIDE-22 | Зміна годин перетинає інший запис | — | — | відкладено (чекає реалізації) |
-| AC-BALANCE-01 | Залишки без записів | — | — | відкладено (чекає реалізації) |
-| AC-BALANCE-02 | Погоджено цілий день | — | — | відкладено (чекає реалізації) |
-| AC-BALANCE-04 | Запис чекає рішення | — | — | відкладено (чекає реалізації) |
-| AC-BALANCE-07 | Запис відхилено | — | — | відкладено (чекає реалізації) |
-| AC-BALANCE-03 | Частина дня на одній посаді | — | — | відкладено (чекає реалізації) |
-| AC-BALANCE-05 | Цілий день на двох посадах | — | — | відкладено (чекає реалізації) |
-| AC-BALANCE-06 | Цілий день лише на додатковій посаді | — | — | відкладено (чекає реалізації) |
-| AC-BALANCE-11 | Перенесення 5 днів | — | — | відкладено (чекає реалізації) |
+| AC-BALANCE-01 | Залишки без записів | `src/lib/leave/balance.ts` (computeBalances), `supabase/migrations/20261020214031_balance_inputs.sql` (get_balance_inputs), `src/app/(app)/balances/page.tsx`, `src/components/balance-cards.tsx` | `src/lib/leave/balance.test.ts`, `tests/db/balances.test.ts` | реалізовано |
+| AC-BALANCE-02 | Погоджено цілий день | `src/lib/leave/balance.ts` (dayShare, usedDays) | `src/lib/leave/balance.test.ts` | відкладено (рішення менеджера — задача 4) |
+| AC-BALANCE-04 | Запис чекає рішення | `src/lib/leave/balance.ts` (usedDays), `supabase/migrations/20261020214031_balance_inputs.sql` (get_balance_inputs) | `src/lib/leave/balance.test.ts`, `tests/db/balances.test.ts` | реалізовано |
+| AC-BALANCE-07 | Запис відхилено | `src/lib/leave/balance.ts` (usedDays) | `src/lib/leave/balance.test.ts` | відкладено (рішення менеджера — задача 4) |
+| AC-BALANCE-03 | Частина дня на одній посаді | `src/lib/leave/balance.ts` (dayShare) | `src/lib/leave/balance.test.ts` | відкладено (рішення менеджера — задача 4) |
+| AC-BALANCE-05 | Цілий день на двох посадах | `src/lib/leave/balance.ts` (dayShare, usedDays), `supabase/migrations/20261020214031_balance_inputs.sql` (get_balance_inputs) | `src/lib/leave/balance.test.ts`, `tests/db/balances.test.ts` | відкладено (рішення менеджера — задача 4) |
+| AC-BALANCE-06 | Цілий день лише на додатковій посаді | `src/lib/leave/balance.ts` (dayShare), `supabase/migrations/20261020214031_balance_inputs.sql` (get_balance_inputs) | `src/lib/leave/balance.test.ts`, `tests/db/balances.test.ts` | відкладено (рішення менеджера — задача 4) |
+| AC-BALANCE-11 | Перенесення 5 днів | `src/lib/leave/balance.ts` (computeBalances, schoolYearOf), `supabase/migrations/20261020214031_balance_inputs.sql` (get_balance_inputs, test_balance_carryovers), `src/app/(app)/balances/page.tsx` | `src/lib/leave/balance.test.ts`, `tests/db/balances.test.ts` | реалізовано |
 | AC-BALANCE-08 | Цілий день при залишку 0.50 | — | — | відкладено (чекає реалізації) |
 | AC-BALANCE-15 | Частина дня при залишку 0.20 | — | — | відкладено (чекає реалізації) |
 | AC-BALANCE-17 | Одне попередження на заявку з трьох днів | — | — | відкладено (чекає реалізації) |
@@ -90,8 +90,8 @@
 | AC-BALANCE-14 | Залишок після погодження іншого запису | — | — | відкладено (чекає реалізації) |
 | AC-BALANCE-10 | Погоджено з розподілом | — | — | відкладено (чекає реалізації) |
 | AC-BALANCE-16 | Спроба погодити без розподілу | — | — | відкладено (чекає реалізації) |
-| AC-BALANCE-12 | Менеджер чужих посад | — | — | відкладено (чекає реалізації) |
-| AC-BALANCE-13 | Працівник дивиться чужі залишки | — | — | відкладено (чекає реалізації) |
-| AC-BALANCE-20 | Менеджер додаткової посади бачить повний залишок | — | — | відкладено (чекає реалізації) |
+| AC-BALANCE-12 | Менеджер чужих посад | `supabase/migrations/20261020214031_balance_inputs.sql` (can_view_balances, get_balance_inputs, balance_employees), `src/app/(app)/balances/load-balances.ts`, `src/app/(app)/balances/page.tsx` | `tests/db/balances.test.ts` | реалізовано |
+| AC-BALANCE-13 | Працівник дивиться чужі залишки | `supabase/migrations/20261020214031_balance_inputs.sql` (can_view_balances, get_balance_inputs, balance_employees), `src/app/(app)/balances/load-balances.ts`, `src/app/(app)/balances/page.tsx` | `tests/db/balances.test.ts` | реалізовано |
+| AC-BALANCE-20 | Менеджер додаткової посади бачить повний залишок | `supabase/migrations/20261020214031_balance_inputs.sql` (can_view_balances, get_balance_inputs), `src/app/(app)/balances/page.tsx` | `tests/db/balances.test.ts` | реалізовано |
 | AC-BALANCE-18 | Один запис із розподілом у «My requests» | — | — | відкладено (чекає реалізації) |
 | AC-BALANCE-19 | Розподіл при нульовому залишку | — | — | відкладено (чекає реалізації) |

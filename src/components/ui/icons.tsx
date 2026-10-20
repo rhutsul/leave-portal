@@ -46,7 +46,13 @@ export const ListIcon = ({ size }: IconProps) => (
   </Icon>
 );
 
-export const SignOutIcon = ({ size = 16 }: IconProps) => (
+export const ChartIcon = ({ size }: IconProps) => (
+  <Icon size={size}>
+    <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" />
+  </Icon>
+);
+
+export const SignOutIcon =({ size = 16 }: IconProps) => (
   <Icon size={size}>
     <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />
   </Icon>

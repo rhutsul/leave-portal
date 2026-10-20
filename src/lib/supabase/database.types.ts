@@ -253,6 +253,12 @@ isOneToOne: false
                 }
           }
           Functions: {
+            "balance_employees":
+{ Args: never; Returns: { "email": string,"full_name": string,"id": string }[]
+                           }
+            "get_balance_inputs":
+{ Args: { "p_employee_id": string,"p_school_year": number }; Returns: Json
+                           }
             "submit_leave_request":
 { Args: { "p_comment"?: string,"p_leave_type": string,"p_records": Json,"p_relationship"?: string }; Returns: number
                            }
