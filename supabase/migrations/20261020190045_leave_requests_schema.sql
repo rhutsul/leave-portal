@@ -334,7 +334,7 @@ create policy leave_records_select_own_managed_or_admin
 
 create policy leave_record_events_select_visible_record
   on public.leave_record_events for select to authenticated
-  using (private.can_see_record(record_id));
+  using ((select auth.uid()) is not null and private.can_see_record(record_id));
 
 create policy balance_carryovers_select_own_managed_or_admin
   on public.balance_carryovers for select to authenticated
