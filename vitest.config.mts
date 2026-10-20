@@ -8,6 +8,8 @@ export default defineConfig({
     // Тест без жодної перевірки (порожній it("AC-…", () => {})) падає: ac:coverage рахує тест, тож він має щось перевіряти.
     // Рахуються лише expect(…); assert із vitest чи node:assert — ні (такий тест теж падає).
     expect: { requireAssertions: true },
+    // Тести бази на PGlite (tests/db, ADR 0001): Postgres у WASM повільніший за чисті функції, особливо на раннерах CI.
+    testTimeout: 20000,
     // Лише *.test.ts(x): ac:coverage рахує тести тільки з цих файлів (*.spec.ts тут не запускається).
     include: ["src/**/*.test.{ts,tsx}", "tests/**/*.test.{ts,tsx}"],
     // tests/fixtures — дані для тестів скриптів; файли *.test.ts там НЕ запускаються.

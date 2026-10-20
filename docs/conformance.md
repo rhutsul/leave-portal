@@ -33,25 +33,25 @@
 
 | AC | Що перевіряє | Код | Тест | Статус |
 |---|---|---|---|---|
-| AC-LEAVE-01 | Цілий день на основній посаді | — | — | відкладено (чекає реалізації) |
-| AC-LEAVE-02 | Цілий день на двох посадах | — | — | відкладено (чекає реалізації) |
-| AC-LEAVE-03 | Виключена посада | — | — | відкладено (чекає реалізації) |
+| AC-LEAVE-01 | Цілий день на основній посаді | `src/lib/leave/request.ts` (buildDayRecords), `supabase/migrations/20261020190045_leave_requests_schema.sql` (submit_leave_request), `src/app/(app)/requests/new/new-request-form.tsx` | `src/lib/leave/request.test.ts`, `tests/db/submit-leave-request.test.ts` | реалізовано |
+| AC-LEAVE-02 | Цілий день на двох посадах | `src/lib/leave/request.ts` (buildDayRecords), `supabase/migrations/20261020190045_leave_requests_schema.sql` (submit_leave_request), `src/app/(app)/requests/new/new-request-form.tsx` | `src/lib/leave/request.test.ts`, `tests/db/submit-leave-request.test.ts` | реалізовано |
+| AC-LEAVE-03 | Виключена посада | `src/lib/leave/request.ts` (buildDayRecords), `src/app/(app)/requests/new/new-request-form.tsx` | `src/lib/leave/request.test.ts` | реалізовано |
 | AC-LEAVE-05 | Дві дати в одній заявці | — | — | відкладено (чекає реалізації) |
 | AC-LEAVE-17 | Коментар у кожному записі | — | — | відкладено (чекає реалізації) |
-| AC-LEAVE-04 | Частина дня | — | — | відкладено (чекає реалізації) |
-| AC-LEAVE-15 | Години через перерву між блоками | — | — | відкладено (чекає реалізації) |
-| AC-LEAVE-06 | Субота без розкладу | — | — | відкладено (чекає реалізації) |
-| AC-LEAVE-07 | Початок раніше за розклад | — | — | відкладено (чекає реалізації) |
-| AC-LEAVE-19 | Розклад із кількох блоків | — | — | відкладено (чекає реалізації) |
-| AC-LEAVE-08 | Початок о 13:00 | — | — | відкладено (чекає реалізації) |
-| AC-LEAVE-20 | Початок о кінці першого блоку | — | — | відкладено (чекає реалізації) |
-| AC-LEAVE-09 | Кінець раніше за початок | — | — | відкладено (чекає реалізації) |
-| AC-LEAVE-10 | Усі посади виключено | — | — | відкладено (чекає реалізації) |
+| AC-LEAVE-04 | Частина дня | `src/lib/leave/time.ts` (checkHours, formatDuration), `supabase/migrations/20261020190045_leave_requests_schema.sql` (submit_leave_request) | `src/lib/leave/time.test.ts`, `tests/db/submit-leave-request.test.ts` | реалізовано |
+| AC-LEAVE-15 | Години через перерву між блоками | `src/lib/leave/time.ts` (scheduledMinutes), `supabase/migrations/20261020190045_leave_requests_schema.sql` (submit_leave_request) | `src/lib/leave/time.test.ts`, `tests/db/submit-leave-request.test.ts` | реалізовано |
+| AC-LEAVE-06 | Субота без розкладу | `src/lib/leave/request.ts` (positionsOnDate), `supabase/migrations/20261020190045_leave_requests_schema.sql` (submit_leave_request) | `src/lib/leave/request.test.ts`, `tests/db/submit-leave-request.test.ts` | реалізовано |
+| AC-LEAVE-07 | Початок раніше за розклад | `src/lib/leave/time.ts` (checkHours), `supabase/migrations/20261020190045_leave_requests_schema.sql` (submit_leave_request) | `src/lib/leave/time.test.ts`, `tests/db/submit-leave-request.test.ts` | реалізовано |
+| AC-LEAVE-19 | Розклад із кількох блоків | `src/lib/leave/time.ts` (checkHours, formatBlocks), `supabase/migrations/20261020190045_leave_requests_schema.sql` (submit_leave_request) | `src/lib/leave/time.test.ts` | реалізовано |
+| AC-LEAVE-08 | Початок о 13:00 | `src/lib/leave/time.ts` (checkHours), `supabase/migrations/20261020190045_leave_requests_schema.sql` (submit_leave_request) | `src/lib/leave/time.test.ts` | реалізовано |
+| AC-LEAVE-20 | Початок о кінці першого блоку | `src/lib/leave/time.ts` (checkHours), `supabase/migrations/20261020190045_leave_requests_schema.sql` (submit_leave_request) | `src/lib/leave/time.test.ts`, `tests/db/submit-leave-request.test.ts` | реалізовано |
+| AC-LEAVE-09 | Кінець раніше за початок | `src/lib/leave/time.ts` (checkHours), `supabase/migrations/20261020190045_leave_requests_schema.sql` (submit_leave_request) | `src/lib/leave/time.test.ts` | реалізовано |
+| AC-LEAVE-10 | Усі посади виключено | `src/lib/leave/request.ts` (buildDayRecords), `supabase/migrations/20261020190045_leave_requests_schema.sql` (submit_leave_request) | `src/lib/leave/request.test.ts`, `tests/db/submit-leave-request.test.ts` | реалізовано |
 | AC-LEAVE-11 | Повернення до редагування | — | — | відкладено (чекає реалізації) |
 | AC-LEAVE-12 | Без спорідненості | — | — | відкладено (чекає реалізації) |
 | AC-LEAVE-13 | Перетин із записом, що чекає рішення | — | — | відкладено (чекає реалізації) |
 | AC-LEAVE-16 | Перетин в одній із дат | — | — | відкладено (чекає реалізації) |
-| AC-LEAVE-14 | Лише власні записи | — | — | відкладено (чекає реалізації) |
+| AC-LEAVE-14 | Лише власні записи | `supabase/migrations/20261020190045_leave_requests_schema.sql` (RLS, my_leave_records), `src/app/(app)/requests/page.tsx` | `tests/db/my-requests.test.ts`, `tests/db/submit-leave-request.test.ts` | реалізовано |
 | AC-LEAVE-18 | Коментар із 501 символу | — | — | відкладено (чекає реалізації) |
 | AC-DECIDE-01 | Лише записи своїх посад | — | — | відкладено (чекає реалізації) |
 | AC-DECIDE-11 | Вирішений запис переходить в «History» | — | — | відкладено (чекає реалізації) |

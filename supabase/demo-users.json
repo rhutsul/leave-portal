@@ -5,13 +5,23 @@
     "role": "admin"
   },
   {
-    "email": "member1@example.test",
-    "full_name": "Андрій Демо-Перший",
-    "role": "member"
+    "email": "manager1@example.test",
+    "full_name": "Ірина Демо-Менеджер-Перша",
+    "role": "manager"
   },
   {
-    "email": "member2@example.test",
-    "full_name": "Марія Демо-Друга",
-    "role": "member"
+    "email": "manager2@example.test",
+    "full_name": "Олег Демо-Менеджер-Другий",
+    "role": "manager"
+  },
+  {
+    "email": "teacher1@example.test",
+    "full_name": "Андрій Демо-Вчитель-Перший",
+    "role": "employee"
+  },
+  {
+    "email": "teacher2@example.test",
+    "full_name": "Марія Демо-Вчителька-Друга",
+    "role": "employee"
   }
 ]
