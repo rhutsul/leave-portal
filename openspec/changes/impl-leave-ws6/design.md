@@ -62,7 +62,7 @@ where role = 'member'` → default `'employee'` → новий `profiles_role_ch
 | `schedule_blocks` | блок розкладу посади: `weekday` 1–7, `start_min`, `end_min` (хвилини від півночі, `start < end`, кратні 5) | AC-LEAVE-06…09, AC-LEAVE-15 |
 | `position_managers` | відповідальні менеджери посади (0–2+) | AC-DECIDE-01, AC-DECIDE-07, AC-DECIDE-08 |
 | `leave_requests` | заявка: `employee_id`, `leave_type`, `relationship` (лише для «Family celebration»), коментар працівника, час подання | AC-LEAVE-05, AC-LEAVE-12 |
-| `leave_records` | запис: `request_id`, `position_id`, `employee_id`, `date`, `start_min`, `end_min`, `minutes`, `status`, `leave_type`, `relationship`, коментар працівника (копії з заявки), `manager_comment`, `paid_days`, `unpaid_days` | AC-LEAVE-01…16, AC-DECIDE-*, AC-BALANCE-09, AC-BALANCE-10 |
+| `leave_records` | запис: `request_id`, `position_id`, `employee_id`, `date`, `start_min`, `end_min`, `minutes`, `status`, `leave_type`, `relationship`, коментар працівника (копії з заявки), `manager_comment`, `paid_days`, `unpaid_days` | AC-LEAVE-01…16, AC-DECIDE-01…19 (AC-DECIDE-01, AC-DECIDE-02, AC-DECIDE-03, AC-DECIDE-04, AC-DECIDE-05, AC-DECIDE-06, AC-DECIDE-07, AC-DECIDE-08, AC-DECIDE-09, AC-DECIDE-10, AC-DECIDE-11, AC-DECIDE-12, AC-DECIDE-13, AC-DECIDE-14, AC-DECIDE-15, AC-DECIDE-16, AC-DECIDE-17, AC-DECIDE-18, AC-DECIDE-19), AC-BALANCE-09, AC-BALANCE-10 |
 
 Тип відпустки, спорідненість і коментар працівника `submit_leave_request` копіює в **кожен** запис заявки (PM:
 коментар «is stored on every record of the request», `requirements/01-leave-request.md`). Тоді все, що менеджер має
