@@ -56,7 +56,14 @@ export async function submitLeaveRequest(_prev: SubmitState, formData: FormData)
   const payload = parsePayload(formData.get("payload"));
   if (!payload) return { message: FAILED };
 
-  const day = positionsOnDate(await loadOwnPositions(supabase, claims.sub), payload.date);
+  // Збій читання посад — повідомлення у формі, а не сторінка помилки: введена заявка має лишитися.
+  let positions;
+  try {
+    positions = await loadOwnPositions(supabase, claims.sub);
+  } catch {
+    return { message: FAILED };
+  }
+  const day = positionsOnDate(positions, payload.date);
   if (!day.ok) return { message: day.message };
   const records = buildDayRecords(payload.date, day.positions, payload.choices);
   if (!records.ok) return { message: records.message };
