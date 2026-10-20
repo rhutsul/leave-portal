@@ -139,6 +139,21 @@ describe("submit_leave_request", () => {
     ).rejects.toThrow("12:00 is the end of working time and can only be chosen as the end of leave");
   });
 
+  it("AC-LEAVE-14: an overlap error never reveals another employee's record", async () => {
+    // У teacher1@ — запис на основній посаді в понеділок 2026-12-07.
+    await submit(teacher1, "sick", [{ position_id: mainPosition, date: "2026-12-07", start_min: 510, end_min: 930 }]);
+    // teacher2@ надсилає два власні перетнуті записи, а третім — посаду teacher1@ на ту саму дату.
+    const attempt = submit(teacher2, "personal", [
+      { position_id: teacher2Position, date: "2026-12-09", start_min: 540, end_min: 600 },
+      { position_id: teacher2Position, date: "2026-12-09", start_min: 570, end_min: 630 },
+      { position_id: mainPosition, date: "2026-12-07", start_min: 0, end_min: 1440 },
+    ]);
+    await expect(attempt).rejects.toMatchObject({
+      code: "23P01",
+      message: "Records of this request overlap each other",
+    });
+  });
+
   it("an employee cannot submit a request for another employee's position", async () => {
     await expect(
       submit(teacher2, "sick", [{ position_id: mainPosition, date: "2026-11-30", start_min: 510, end_min: 930 }]),

@@ -51,7 +51,7 @@
 | AC-LEAVE-12 | Без спорідненості | — | — | відкладено (чекає реалізації) |
 | AC-LEAVE-13 | Перетин із записом, що чекає рішення | — | — | відкладено (чекає реалізації) |
 | AC-LEAVE-16 | Перетин в одній із дат | — | — | відкладено (чекає реалізації) |
-| AC-LEAVE-14 | Лише власні записи | `supabase/migrations/20261020190045_leave_requests_schema.sql` (RLS, my_leave_records), `src/app/(app)/requests/page.tsx` | `tests/db/my-requests.test.ts` | реалізовано |
+| AC-LEAVE-14 | Лише власні записи | `supabase/migrations/20261020190045_leave_requests_schema.sql` (RLS, my_leave_records), `src/app/(app)/requests/page.tsx` | `tests/db/my-requests.test.ts`, `tests/db/submit-leave-request.test.ts` | реалізовано |
 | AC-LEAVE-18 | Коментар із 501 символу | — | — | відкладено (чекає реалізації) |
 | AC-DECIDE-01 | Лише записи своїх посад | — | — | відкладено (чекає реалізації) |
 | AC-DECIDE-11 | Вирішений запис переходить в «History» | — | — | відкладено (чекає реалізації) |

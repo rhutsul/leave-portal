@@ -531,7 +531,10 @@ begin
          and r.date = (x.item ->> 'date')::date
          and int4range(r.start_min, r.end_min)
              && int4range((x.item ->> 'start_min')::integer, (x.item ->> 'end_min')::integer)
-       where r.status in ('awaiting', 'returned', 'approved')
+       -- Лише власні записи: функція security definer, RLS тут не діє, а елементи p_records після збою ще не
+       -- перевірено на власника посади — інакше текст помилки розкрив би чужий запис.
+       where r.employee_id = v_uid
+         and r.status in ('awaiting', 'returned', 'approved')
        order by r.date, r.start_min
        limit 1;
       if found then
