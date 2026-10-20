@@ -37,6 +37,14 @@ export const RELATIONSHIPS = ["sibling", "child", "parent", "grandchild", "grand
 
 export type Relationship = (typeof RELATIONSHIPS)[number];
 
+export const RELATIONSHIP_LABELS: Record<Relationship, string> = {
+  sibling: "Sibling",
+  child: "Child",
+  parent: "Parent",
+  grandchild: "Grandchild",
+  grandparent: "Grandparent",
+};
+
 export const REQUEST_MESSAGES = {
   choosePosition: "Choose at least one position",
   relationship:

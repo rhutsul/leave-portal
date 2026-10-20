@@ -7,9 +7,12 @@ import { FieldError } from "@/components/ui/field-error";
 import { LeaveTypeIcon } from "@/components/ui/icons";
 import {
   checkLeaveType,
+  isRelationship,
   LEAVE_TYPES,
   positionsOnDate,
   recordForChoice,
+  RELATIONSHIP_LABELS,
+  RELATIONSHIPS,
   REQUEST_MESSAGES,
   weeklySchedule,
   type DraftRecord,
@@ -50,7 +53,7 @@ interface Evaluated {
 
 // Заявка на одну дату (D6): дата → посади й години → тип → підсумок → підтвердження; праворуч — живий підсумок.
 // Перевірки на кожному кроці — ті самі чисті функції src/lib/leave/, що й у server action; введене зберігається
-// при поверненні назад. Кілька дат, коментар і спорідненість — задача 2.
+// при поверненні назад. Кілька дат і коментар — задача 2.
 export function NewRequestForm({ positions }: { positions: PositionSchedule[] }) {
   const ids = useId();
   const [step, setStep] = useState<Step>(1);
@@ -62,6 +65,7 @@ export function NewRequestForm({ positions }: { positions: PositionSchedule[] })
   const [cardErrors, setCardErrors] = useState<Record<number, string>>({});
   const [positionsError, setPositionsError] = useState<string | null>(null);
   const [leaveType, setLeaveType] = useState<LeaveType | null>(null);
+  const [relationship, setRelationship] = useState("");
   const [typeError, setTypeError] = useState<string | null>(null);
   const [showServerError, setShowServerError] = useState(false);
   const [state, formAction, pending] = useActionState(submitLeaveRequest, INITIAL);
@@ -114,7 +118,7 @@ export function NewRequestForm({ positions }: { positions: PositionSchedule[] })
   }
 
   function nextFromType() {
-    const result = checkLeaveType(leaveType ?? "", "");
+    const result = checkLeaveType(leaveType ?? "", relationship);
     if (!result.ok) {
       setTypeError(result.message);
       return;
@@ -145,7 +149,11 @@ export function NewRequestForm({ positions }: { positions: PositionSchedule[] })
     setShowServerError(true);
   }
 
-  const payload = JSON.stringify({ date, leaveType, relationship: "", choices: Object.values(choices) });
+  const payload = JSON.stringify({ date, leaveType, relationship, choices: Object.values(choices) });
+  const typeLabel = leaveType
+    ? LEAVE_TYPES[leaveType] +
+      (leaveType === "family" && isRelationship(relationship) ? ` (${RELATIONSHIP_LABELS[relationship].toLowerCase()})` : "")
+    : "Not chosen yet";
   const labelOf = (id: number) => dayPositions.find((p) => p.id === id)?.label ?? "";
 
   return (
@@ -284,7 +292,36 @@ export function NewRequestForm({ positions }: { positions: PositionSchedule[] })
                     </label>
                   ))}
                 </div>
-                <FieldError message={typeError} />
+                {leaveType === "family" && (
+                  <div className="flex max-w-90 flex-col gap-1.5">
+                    <label htmlFor={`${ids}-relationship`} className="font-medium">
+                      Relationship to the person
+                    </label>
+                    <select
+                      id={`${ids}-relationship`}
+                      value={relationship}
+                      onChange={(e) => {
+                        setRelationship(e.target.value);
+                        setTypeError(null);
+                        edited(3);
+                      }}
+                      aria-invalid={typeError ? true : undefined}
+                      aria-describedby={`${ids}-relationship-hint${typeError ? ` ${ids}-type-error` : ""}`}
+                      className={inputClass}
+                    >
+                      <option value="">Choose…</option>
+                      {RELATIONSHIPS.map((r) => (
+                        <option key={r} value={r}>
+                          {RELATIONSHIP_LABELS[r]}
+                        </option>
+                      ))}
+                    </select>
+                    <span id={`${ids}-relationship-hint`} className="text-xs text-muted">
+                      Not applicable to cousins, friends, neighbours or siblings-in-law.
+                    </span>
+                  </div>
+                )}
+                <FieldError id={`${ids}-type-error`} message={typeError} />
               </fieldset>
             )}
 
@@ -293,7 +330,7 @@ export function NewRequestForm({ positions }: { positions: PositionSchedule[] })
                 <StepTitle title="Check and confirm" hint="Nothing is saved until you confirm. You can go back and change anything." />
                 <dl className="grid grid-cols-[140px_1fr] gap-x-4 gap-y-2">
                   <dt className="text-muted">Leave type</dt>
-                  <dd className="font-medium">{LEAVE_TYPES[leaveType]}</dd>
+                  <dd className="font-medium">{typeLabel}</dd>
                   <dt className="text-muted">Total</dt>
                   <dd className="font-medium">
                     {formatDuration(totalMinutes)} in {recordCount(records.length)}
@@ -354,7 +391,7 @@ export function NewRequestForm({ positions }: { positions: PositionSchedule[] })
           </div>
           <div className="flex flex-col gap-1">
             <span className="text-xs text-muted">Leave type</span>
-            <span className="font-medium">{leaveType ? LEAVE_TYPES[leaveType] : "Not chosen yet"}</span>
+            <span className="font-medium">{typeLabel}</span>
           </div>
           <div className="h-px bg-line" />
           {records.length === 0 ? (

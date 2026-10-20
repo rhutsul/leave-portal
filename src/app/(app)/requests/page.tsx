@@ -138,8 +138,7 @@ export default async function MyRequestsPage({ searchParams }: PageProps<"/reque
                 <Card key={requestId} className="overflow-hidden">
                   <header className="flex flex-wrap items-center gap-3 border-b border-line bg-surface-muted px-5 py-3.5">
                     <LeaveTypeTag type={items[0].leave_type ?? ""} />
-                    <span className="font-semibold">Request #{requestId}</span>
-                    <span className="text-muted">· submitted {formatKyivDay(items[0].created_at!)}</span>
+                    <span className="text-muted">Submitted {formatKyivDay(items[0].created_at!)}</span>
                   </header>
                   <table className="w-full border-collapse text-left">
                     <thead>
