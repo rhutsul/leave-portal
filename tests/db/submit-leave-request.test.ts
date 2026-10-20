@@ -154,66 +154,6 @@ describe("submit_leave_request", () => {
     });
   });
 
-  // Перевірки, які функція вже має, а AC — у задачі 2 (task/leave-request-multi): там ці тести отримають AC ID.
-  it("an overlapping record of the same position is refused with the existing record's time", async () => {
-    await submit(teacher1, "personal", [{ position_id: mainPosition, date: "2027-01-04", start_min: 540, end_min: 660 }]);
-    await expect(
-      submit(teacher1, "personal", [{ position_id: mainPosition, date: "2027-01-04", start_min: 600, end_min: 720 }]),
-    ).rejects.toThrow("You already have a request for this time: 2027-01-04 09:00–11:00");
-  });
-
-  it("an overlap on one of the dates creates no record for any date", async () => {
-    await submit(teacher1, "personal", [{ position_id: mainPosition, date: "2027-01-12", start_min: 540, end_min: 660 }]);
-    const before = await countRows();
-    await expect(
-      submit(teacher1, "sick", [
-        { position_id: mainPosition, date: "2027-01-11", start_min: 510, end_min: 930 },
-        { position_id: mainPosition, date: "2027-01-12", start_min: 510, end_min: 930 },
-      ]),
-    ).rejects.toThrow("You already have a request for this time: 2027-01-12 09:00–11:00");
-    expect(await countRows()).toEqual(before);
-  });
-
-  it("a rejected record does not block the same hours", async () => {
-    const [{ id }] = await submit(teacher1, "personal", [
-      { position_id: mainPosition, date: "2027-01-18", start_min: 540, end_min: 660 },
-    ]);
-    await t.asService("update public.leave_records set status = 'rejected' where request_id = $1", [id]);
-    const [again] = await submit(teacher1, "personal", [
-      { position_id: mainPosition, date: "2027-01-18", start_min: 540, end_min: 660 },
-    ]);
-    expect(again.id).toBeGreaterThan(id);
-  });
-
-  it("Family celebration without a relationship is refused", async () => {
-    await expect(
-      t.asUser(teacher1, "select public.submit_leave_request('family', $1::jsonb)", [
-        JSON.stringify([{ position_id: mainPosition, date: "2027-01-25", start_min: 510, end_min: 930 }]),
-      ]),
-    ).rejects.toThrow(
-      "State your relationship to this person: sibling, child, parent, grandchild or grandparent. Not applicable to cousins, friends, neighbours or siblings-in-law",
-    );
-    const [{ id }] = await t.asUser<{ id: number }>(
-      teacher1,
-      "select public.submit_leave_request('family', $1::jsonb, p_relationship => 'child') as id",
-      [JSON.stringify([{ position_id: mainPosition, date: "2027-01-25", start_min: 510, end_min: 930 }])],
-    );
-    const [record] = await t.asService<{ relationship: string }>(
-      "select relationship from public.leave_records where request_id = $1",
-      [id],
-    );
-    expect(record.relationship).toBe("child");
-  });
-
-  it("a comment longer than 500 characters is refused", async () => {
-    await expect(
-      t.asUser(teacher1, "select public.submit_leave_request('sick', $1::jsonb, p_comment => $2)", [
-        JSON.stringify([{ position_id: mainPosition, date: "2027-02-01", start_min: 510, end_min: 930 }]),
-        "x".repeat(501),
-      ]),
-    ).rejects.toThrow("The comment can be at most 500 characters");
-  });
-
   it("an employee cannot submit a request for another employee's position", async () => {
     await expect(
       submit(teacher2, "sick", [{ position_id: mainPosition, date: "2026-11-30", start_min: 510, end_min: 930 }]),

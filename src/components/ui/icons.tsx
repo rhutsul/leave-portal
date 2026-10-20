@@ -72,6 +72,18 @@ export const CloseIcon = ({ size = 16 }: IconProps) => (
   </Icon>
 );
 
+export const ChevronLeftIcon = ({ size = 16 }: IconProps) => (
+  <Icon size={size} strokeWidth={2}>
+    <path d="M15 18l-6-6 6-6" />
+  </Icon>
+);
+
+export const ChevronRightIcon = ({ size = 16 }: IconProps) => (
+  <Icon size={size} strokeWidth={2}>
+    <path d="M9 18l6-6-6-6" />
+  </Icon>
+);
+
 export const ClockIcon = ({ size }: IconProps) => (
   <Icon size={size}>
     <circle cx="12" cy="12" r="9" />

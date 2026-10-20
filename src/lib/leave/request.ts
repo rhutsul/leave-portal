@@ -4,6 +4,7 @@
 import {
   checkHours,
   formatBlocks,
+  formatRange,
   isoWeekday,
   parseTime,
   sortBlocks,
@@ -45,11 +46,21 @@ export const RELATIONSHIP_LABELS: Record<Relationship, string> = {
   grandparent: "Grandparent",
 };
 
+/** Статуси, з якими запис блокує ті самі години посади (Assumptions 01-leave-request); як where у leave_records_no_overlap. */
+export const BLOCKING_STATUSES = ["awaiting", "returned", "approved"] as const satisfies readonly RecordStatus[];
+
+export const COMMENT_MAX = 500;
+
 export const REQUEST_MESSAGES = {
   choosePosition: "Choose at least one position",
   relationship:
     "State your relationship to this person: sibling, child, parent, grandchild or grandparent. Not applicable to cousins, friends, neighbours or siblings-in-law",
+  /** Тексти без AC PM — підказки форми. */
   chooseLeaveType: "Choose a leave type",
+  chooseDate: "Choose at least one date",
+  commentTooLong: `The comment can be at most ${COMMENT_MAX} characters`,
+  overlap: (date: string, start: number, end: number) =>
+    `You already have a request for this time: ${date} ${formatRange(start, end)}`,
 } as const;
 
 export interface ScheduleBlock extends TimeBlock {
@@ -148,6 +159,83 @@ export function buildDayRecords(date: string, positions: PositionDay[], choices:
   }
   if (records.length === 0) return { ok: false, message: REQUEST_MESSAGES.choosePosition };
   return { ok: true, records };
+}
+
+/** Вибір для посади на конкретну дату заявки з кількома датами. */
+export interface DateChoice extends PositionChoice {
+  date: string;
+}
+
+export type RequestRecordsCheck =
+  | { ok: true; records: DraftRecord[] }
+  | { ok: false; message: string; date?: string; positionId?: number };
+
+/**
+ * Усі записи заявки: дати × включені посади, в одній заявці (AC-LEAVE-05). Кожна дата — як заявка на одну дату:
+ * без розкладу — AC-LEAVE-06, без жодної посади — AC-LEAVE-10. Перша помилка зупиняє: заявку зберігаємо цілком.
+ */
+export function buildRequestRecords(
+  positions: PositionSchedule[],
+  dates: string[],
+  choices: DateChoice[],
+): RequestRecordsCheck {
+  const unique = [...new Set(dates)].sort();
+  if (unique.length === 0) return { ok: false, message: REQUEST_MESSAGES.chooseDate };
+  const records: DraftRecord[] = [];
+  for (const date of unique) {
+    const day = positionsOnDate(positions, date);
+    if (!day.ok) return { ok: false, message: day.message, date };
+    const result = buildDayRecords(
+      date,
+      day.positions,
+      choices.filter((c) => c.date === date),
+    );
+    if (!result.ok) return { ...result, date };
+    records.push(...result.records);
+  }
+  return { ok: true, records };
+}
+
+/** Наявний запис посади, з яким нова заявка може перетнутися. */
+export interface ExistingRecord {
+  positionId: number;
+  date: string;
+  start: number;
+  end: number;
+  status: string;
+}
+
+/**
+ * Перший (за датою й часом) наявний запис тієї самої посади й дати, з яким перетинається хоч один запис заявки
+ * (AC-LEAVE-13, AC-LEAVE-16). Межі [start, end): суміжні записи не перетинаються. «Rejected» і «Cancelled» не
+ * блокують. Той самий порядок і текст — у private.submit_leave_request (другий рубіж, тримає й одночасні заявки).
+ */
+export function findOverlap(records: DraftRecord[], existing: ExistingRecord[]): ExistingRecord | null {
+  const conflicts = existing.filter(
+    (e) =>
+      (BLOCKING_STATUSES as readonly string[]).includes(e.status) &&
+      records.some((r) => r.positionId === e.positionId && r.date === e.date && r.start < e.end && e.start < r.end),
+  );
+  conflicts.sort((a, b) => a.date.localeCompare(b.date) || a.start - b.start);
+  return conflicts[0] ?? null;
+}
+
+export function overlapMessage(conflict: ExistingRecord): string {
+  return REQUEST_MESSAGES.overlap(conflict.date, conflict.start, conflict.end);
+}
+
+/** Кількість символів так, як її рахує char_length у Postgres (кодові точки, не UTF-16). */
+export function commentLength(comment: string): number {
+  return [...comment.trim()].length;
+}
+
+export type CommentCheck = { ok: true; comment: string | null } | { ok: false; message: string };
+
+/** Необов'язковий коментар заявки до 500 символів (AC-LEAVE-18); порожній — без коментаря, як nullif(btrim(…)) у базі. */
+export function checkComment(comment: string): CommentCheck {
+  const trimmed = comment.trim();
+  if (commentLength(trimmed) > COMMENT_MAX) return { ok: false, message: REQUEST_MESSAGES.commentTooLong };
+  return { ok: true, comment: trimmed === "" ? null : trimmed };
 }
 
 /** Тижневий розклад посади одним рядком: "Mon–Fri 08:30–15:30", "Mon, Wed–Fri 08:30–15:30; Tue 08:30–12:00, …". */

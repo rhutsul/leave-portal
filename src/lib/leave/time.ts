@@ -95,6 +95,45 @@ export function monthShort(date: string): string {
   return dateParts(date).month;
 }
 
+const MONTH_LONG = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+] as const;
+
+/** Місяць календаря "YYYY-MM" плюс n місяців. */
+export function addMonths(month: string, n: number): string {
+  const [y, m] = month.split("-").map(Number);
+  const index = y * 12 + (m - 1) + n;
+  return `${Math.floor(index / 12)}-${String((index % 12) + 1).padStart(2, "0")}`;
+}
+
+/** "November 2026". */
+export function formatMonth(month: string): string {
+  const [y, m] = month.split("-").map(Number);
+  return `${MONTH_LONG[m - 1]} ${y}`;
+}
+
+/** Клітинки місяця для календаря з понеділка: null — порожні клітинки до 1-го числа, далі дати "YYYY-MM-DD". */
+export function monthGrid(month: string): (string | null)[] {
+  const [y, m] = month.split("-").map(Number);
+  const days = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  const blanks = isoWeekday(`${month}-01`) - 1;
+  return [
+    ...Array.from({ length: blanks }, () => null),
+    ...Array.from({ length: days }, (_, i) => `${month}-${String(i + 1).padStart(2, "0")}`),
+  ];
+}
+
 const KYIV = "Europe/Kyiv";
 
 /** Календарна дата за Києвом "YYYY-MM-DD" (усі дати PM — Europe/Kyiv). */
