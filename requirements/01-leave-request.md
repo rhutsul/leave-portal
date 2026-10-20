@@ -1,4 +1,4 @@
-> Джерело: https://github.com/mkozlovskyi-ops/course-staff-management-spec/blob/5e95269a5c062f0f3d95912ec5c576f66d9cca14/docs/requirements/01-leave-request.md · коміт 5e95269 · 2026-10-20
+> Джерело: https://github.com/mkozlovskyi-ops/course-staff-management-spec/blob/a7e59405cfd8f2a60a0de7e43691eee15acf89c4/docs/requirements/01-leave-request.md · коміт a7e5940 · 2026-10-20
 
 # Requirement: an employee requests leave according to their schedule
 
