@@ -54,7 +54,7 @@ describe("new request draft", () => {
     expect(changed.comment).toBe("Doctor's appointment");
   });
 
-  it("the payload sends only the selected dates with a choice for every scheduled position", () => {
+  it("AC-LEAVE-05: the payload sends only the selected dates with a choice for every scheduled position", () => {
     const payload = toPayload(atSummary, positionIdsOn);
     expect(payload).toEqual({
       dates: [MONDAY, TUESDAY],

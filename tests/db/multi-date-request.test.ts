@@ -114,7 +114,7 @@ describe("submit_leave_request with several dates", () => {
     expect(await countRows()).toEqual(before);
   });
 
-  it("a rejected or cancelled record does not block the same hours", async () => {
+  it("AC-LEAVE-13: a rejected or cancelled record does not block the same hours", async () => {
     const [{ id }] = await submit([hours(MONDAY, 540, 660)]);
     await t.asService("update public.leave_records set status = 'rejected' where request_id = $1", [id]);
     const [second] = await submit([hours(MONDAY, 540, 660)]);
