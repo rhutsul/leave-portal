@@ -15,7 +15,7 @@
   працюють з **однією** базою, тож preview PR із новою міграцією бачить стару схему до merge.
 - У supabase-js немає транзакцій: кілька записів або перевірка + запис — однією функцією Postgres через `rpc`.
 - Адмінки немає (WS10): працівників, посади, розклади, менеджерів і перенесені дні створює розробник як тестові дані.
-- PM відповів на Q1–Q4 (mkozlovskyi-ops/course-staff-management-spec#1–#4) і питання команди #5–#7; зміна
+- PM відповів на Q1–Q4 (mkozlovskyi-ops/course-staff-management-spec#1, mkozlovskyi-ops/course-staff-management-spec#2, mkozlovskyi-ops/course-staff-management-spec#3, mkozlovskyi-ops/course-staff-management-spec#4) і питання команди mkozlovskyi-ops/course-staff-management-spec#5, mkozlovskyi-ops/course-staff-management-spec#6, mkozlovskyi-ops/course-staff-management-spec#7; зміна
   специфікації `clarify-leave-ws6` додала 11 AC (AC-LEAVE-17…20, AC-DECIDE-20…22, AC-BALANCE-17…20) — план нижче їх
   враховує.
 
@@ -176,8 +176,8 @@ Server actions викликають ці функції для повідомл�
   проді. Тести через pglite — окремим рішенням (нова залежність).
 - [Два менеджери одночасно погоджують записи одного працівника понад залишок] → `decide_leave_record` бере
   `pg_advisory_xact_lock` на працівника й перераховує розподіл на момент рішення (вимога «Погодження з розподілом»).
-- [Розклади посад одного працівника перекриваються] → знаменник частки дня — об'єднання проміжків, кожна хвилина один
-  раз (власне припущення розробника, `docs/spec-reading.md`); тестові розклади без перекриттів.
+- [Розклади посад одного працівника перекриваються — правило не визначене] → питання PM mkozlovskyi-ops/course-staff-management-spec#8; тестові
+  розклади без перекриттів, тож формула частки дня з AC однозначна; відповідь PM додамо в `balance.ts` до задачі 3.
 
 ## Migration Plan
 

@@ -98,12 +98,14 @@ PM відповів на питання до вимог і змінив вимо
 
 Власні припущення (розробник; журнал `docs/spec-reading.md`):
 
-- (розробник) Якщо розклади посад одного працівника перекриваються, «усі робочі хвилини дати» — об'єднання проміжків:
-  кожна хвилина рахується один раз; тестові дані мають розклади без перекриттів. PM цього не визначав; на AC не
-  впливає.
+- (розробник) Тестові дані мають розклади посад без перекриттів; як рахувати частку дня при перекритті, не фіксуємо до
+  відповіді PM на Q5 (Open questions).
 - (розробник) Робочі припущення до відповідей на Q1–Q4 зі зміни `add-leave-ws6` замінено рішеннями PM вище.
 
 ## Open questions
 
-Немає: PM відповів на Q1–Q4 (mkozlovskyi-ops/course-staff-management-spec#1, #2, #3, #4) і на питання команди
-#5–#7; відповіді — у вимогах PM і журналі `docs/spec-reading.md`.
+PM відповів на Q1–Q4 (mkozlovskyi-ops/course-staff-management-spec#1, mkozlovskyi-ops/course-staff-management-spec#2, mkozlovskyi-ops/course-staff-management-spec#3, mkozlovskyi-ops/course-staff-management-spec#4) і на питання команди
+mkozlovskyi-ops/course-staff-management-spec#5, mkozlovskyi-ops/course-staff-management-spec#6, mkozlovskyi-ops/course-staff-management-spec#7; відповіді — у вимогах PM і журналі `docs/spec-reading.md`.
+
+- Q5. Як рахувати «усі робочі хвилини працівника дати» в частці дня, якщо розклади двох його посад перекриваються —
+  об'єднанням, сумою, чи такого випадку не буває? (AC-BALANCE-06; mkozlovskyi-ops/course-staff-management-spec#8)
