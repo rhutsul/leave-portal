@@ -1,8 +1,8 @@
 import { login } from "./actions";
 
 const ERRORS: Record<string, string> = {
-  missing: "Вкажіть email і пароль.",
-  invalid: "Невірний email або пароль.",
+  missing: "Enter your email and password.",
+  invalid: "Incorrect email or password.",
 };
 
 export default async function LoginPage({ searchParams }: PageProps<"/login">) {
@@ -11,7 +11,8 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
 
   return (
     <main className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center gap-6 px-6 py-16">
-      <h1 className="text-2xl font-semibold">Вхід</h1>
+      <h1 className="text-2xl font-semibold">Leave portal</h1>
+      <p className="-mt-4 text-sm text-zinc-600 dark:text-zinc-400">Sign in with your work email.</p>
       <form action={login} className="flex flex-col gap-4">
         <label className="flex flex-col gap-1 text-sm">
           Email
@@ -24,7 +25,7 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
           />
         </label>
         <label className="flex flex-col gap-1 text-sm">
-          Пароль
+          Password
           <input
             name="password"
             type="password"
@@ -42,7 +43,7 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
           type="submit"
           className="rounded bg-foreground px-4 py-2 font-medium text-background"
         >
-          Увійти
+          Sign in
         </button>
       </form>
     </main>
