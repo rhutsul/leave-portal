@@ -5,21 +5,21 @@
 
 ## 1. Заявка на одну дату й «My requests» (`task/leave-request-day`)
 
-- [ ] 1.1 Міграція ролей `employee` / `manager` / `admin` (зняти check → дані → default → новий check) і нові
+- [x] 1.1 Міграція ролей `employee` / `manager` / `admin` (зняти check → дані → default → новий check) і нові
       користувачі в `supabase/demo-users.json`; перевірка: `db-check` зелений, після merge `npm run users:demo` створює
       `teacher1@`, `teacher2@`, `manager1@`, `manager2@`, `admin@example.test` з новими ролями
-- [ ] 1.2 Міграція таблиць D2 з RLS і політиками `select`, обмеженнями D3 (блоки розкладу працівника не
+- [x] 1.2 Міграція таблиць D2 з RLS і політиками `select`, обмеженнями D3 (блоки розкладу працівника не
       перетинаються; записи однієї посади не перетинаються), функцією `submit_leave_request`
       (`public`-обгортка + `private` `security definer`, D4) і тестовими даними за email (D7: основна Mon–Fri
       08:30–15:30, додаткова Mon 15:45–17:00, блоки Tue 08:30–12:00 і 12:30–15:30, відповідальні менеджери);
       перевірка: `db-check` зелений (тестові дані D7 проходять обидва обмеження), `database.types.ts` з Summary
       прогону в PR
-- [ ] 1.3 `src/lib/leave/time.ts` — хвилини, крок 5 хв, кінець блоку лише як кінець, години в блоках, тривалість без
+- [x] 1.3 `src/lib/leave/time.ts` — хвилини, крок 5 хв, кінець блоку лише як кінець, години в блоках, тривалість без
       перерв, повідомлення з усіма блоками дня; перевірка: тести AC-LEAVE-04, AC-LEAVE-06, AC-LEAVE-07, AC-LEAVE-08,
       AC-LEAVE-09, AC-LEAVE-15, AC-LEAVE-19, AC-LEAVE-20
-- [ ] 1.4 `src/lib/leave/request.ts` для однієї дати — записи з вибору посад, цілий день = усі блоки, одна посада
+- [x] 1.4 `src/lib/leave/request.ts` для однієї дати — записи з вибору посад, цілий день = усі блоки, одна посада
       мінімум; перевірка: тести AC-LEAVE-01, AC-LEAVE-02, AC-LEAVE-03, AC-LEAVE-10
-- [ ] 1.5 Сторінка `/requests/new` для однієї дати (посади й години → тип → підтвердження) і server action з
+- [x] 1.5 Сторінка `/requests/new` для однієї дати (посади й години → тип → підтвердження) і server action з
       `submit_leave_request`; сторінка `/requests` — лише власні записи з датою, годинами, посадою, типом і статусом
       (`access.ts`); перевірка: тест AC-LEAVE-14 на фіксованих даних — 2 записи `teacher1@example.test` і 3 записи
       `teacher2@example.test`, `teacher1@` бачить рівно свої 2; після merge заявка `teacher1@` видна на проді лише йому
