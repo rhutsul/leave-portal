@@ -8,10 +8,12 @@
 - [ ] 1.1 Міграція ролей `employee` / `manager` / `admin` (зняти check → дані → default → новий check) і нові
       користувачі в `supabase/demo-users.json`; перевірка: `db-check` зелений, після merge `npm run users:demo` створює
       `teacher1@`, `teacher2@`, `manager1@`, `manager2@`, `admin@example.test` з новими ролями
-- [ ] 1.2 Міграція таблиць D2 з RLS і політиками `select`, обмеженням перетину D3, функцією `submit_leave_request`
+- [ ] 1.2 Міграція таблиць D2 з RLS і політиками `select`, обмеженнями D3 (блоки розкладу працівника не
+      перетинаються; записи однієї посади не перетинаються), функцією `submit_leave_request`
       (`public`-обгортка + `private` `security definer`, D4) і тестовими даними за email (D7: основна Mon–Fri
       08:30–15:30, додаткова Mon 15:45–17:00, блоки Tue 08:30–12:00 і 12:30–15:30, відповідальні менеджери);
-      перевірка: `db-check` зелений, `database.types.ts` з Summary прогону в PR
+      перевірка: `db-check` зелений (тестові дані D7 проходять обидва обмеження), `database.types.ts` з Summary
+      прогону в PR
 - [ ] 1.3 `src/lib/leave/time.ts` — хвилини, крок 5 хв, кінець блоку лише як кінець, години в блоках, тривалість без
       перерв, повідомлення з усіма блоками дня; перевірка: тести AC-LEAVE-04, AC-LEAVE-06, AC-LEAVE-07, AC-LEAVE-08,
       AC-LEAVE-09, AC-LEAVE-15, AC-LEAVE-19, AC-LEAVE-20

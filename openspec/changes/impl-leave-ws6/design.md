@@ -60,7 +60,7 @@ where role = 'member'` → default `'employee'` → новий `profiles_role_ch
 |---|---|---|
 | `divisions` | підрозділ школи (довідник) | AC-LEAVE-01 |
 | `positions` | посада працівника: `employee_id`, `division_id`, назва, `kind` main/additional (рівно одна main на працівника) | AC-LEAVE-02, AC-LEAVE-03 |
-| `schedule_blocks` | блок розкладу посади: `weekday` 1–7, `start_min`, `end_min` (хвилини від півночі, `start < end`, кратні 5) | AC-LEAVE-06…09, AC-LEAVE-15 |
+| `schedule_blocks` | блок розкладу посади: `position_id`, `employee_id` (копія з посади — для обмеження D3), `weekday` 1–7, `start_min`, `end_min` (хвилини від півночі, `start < end`, кратні 5) | AC-LEAVE-06…09, AC-LEAVE-15, AC-BALANCE-03, AC-BALANCE-05, AC-BALANCE-06 |
 | `position_managers` | відповідальні менеджери посади (0–2+) | AC-DECIDE-01, AC-DECIDE-07, AC-DECIDE-08 |
 | `leave_requests` | заявка: `employee_id`, `leave_type`, `relationship` (лише для «Family celebration»), коментар працівника, час подання | AC-LEAVE-05, AC-LEAVE-12 |
 | `leave_records` | запис: `request_id`, `position_id`, `employee_id`, `date`, `start_min`, `end_min`, `minutes`, `status`, `leave_type`, `relationship`, коментар працівника (копії з заявки), `manager_comment`, `paid_days`, `unpaid_days` | AC-LEAVE-01…16, AC-DECIDE-01…19 (AC-DECIDE-01, AC-DECIDE-02, AC-DECIDE-03, AC-DECIDE-04, AC-DECIDE-05, AC-DECIDE-06, AC-DECIDE-07, AC-DECIDE-08, AC-DECIDE-09, AC-DECIDE-10, AC-DECIDE-11, AC-DECIDE-12, AC-DECIDE-13, AC-DECIDE-14, AC-DECIDE-15, AC-DECIDE-16, AC-DECIDE-17, AC-DECIDE-18, AC-DECIDE-19), AC-BALANCE-09, AC-BALANCE-10 |
@@ -87,13 +87,25 @@ mkozlovskyi-ops/course-staff-management-spec#4; розподіл показан�
 *Альтернатива:* зберігати час як `timestamptz` — ускладнює «цілий день» і блоки розкладу без жодної користі: PM
 працює лише з датами й годинами за Києвом.
 
-### D3. Перетин записів — обмеження бази
+### D3. Перетини — обмеження бази
+
+**Блоки розкладу працівника не перетинаються** — ні блоки різних посад, ні два блоки однієї посади:
+`exclude using gist (employee_id with =, weekday with =, int4range(start_min, end_min) with &&)` на `schedule_blocks`.
+Так база тримає два правила PM: розклади посад одного працівника не перекриваються, тож кожна робоча хвилина дати
+належить рівно одній посаді (`requirements/03-leave-balance.md`, mkozlovskyi-ops/course-staff-management-spec#8), а блоки розкладу йдуть «with gaps
+between blocks» (глосарій `requirements/product.md`). Тому знаменник частки дня — сума хвилин блоків дати — завжди
+дорівнює робочим хвилинам працівника (AC-BALANCE-03, AC-BALANCE-05, AC-BALANCE-06), а адмінка WS10 успадкує
+цю перевірку без змін. `employee_id` у блоці заповнює тригер `before insert or update` з посади, тож він завжди збігається з її
+власником.
+
+**Записи однієї посади не перетинаються:**
 
 `exclude using gist (position_id with =, date with =, int4range(start_min, end_min) with &&) where (status in
 ('awaiting', 'returned', 'approved'))` (розширення `btree_gist`). Перетин неможливий навіть за одночасних заявок;
 функція подання ловить порушення й повертає перший конфліктний запис для повідомлення AC-LEAVE-13 і AC-LEAVE-16.
 
-*Альтернатива:* лише перевірка в коді — пропускає гонку двох одночасних заявок.
+*Альтернатива:* лише перевірка в коді — пропускає гонку двох одночасних заявок і неправильні дані розкладу; формула
+з об'єднанням інтервалів замість суми — складніша й рахувала б випадок, якого за вимогами PM не буває.
 
 ### D4. Зміни даних — лише через функції Postgres (`rpc`)
 
