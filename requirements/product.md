@@ -1,4 +1,4 @@
-> Джерело: https://github.com/mkozlovskyi-ops/course-staff-management-spec/blob/5e95269a5c062f0f3d95912ec5c576f66d9cca14/docs/product.md · коміт 5e95269 · 2026-10-20
+> Джерело: https://github.com/mkozlovskyi-ops/course-staff-management-spec/blob/a7e59405cfd8f2a60a0de7e43691eee15acf89c4/docs/product.md · коміт a7e5940 · 2026-10-20
 
 # Product: school staff leave portal
 
