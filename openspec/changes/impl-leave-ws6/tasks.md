@@ -3,33 +3,34 @@
 Кожна група — одна гілка `task/<коротко>` і один PR «Реалізація». Рядок «Done when» — AC, які PR переводить у
 `реалізовано` в `docs/conformance.md` (тест із AC ID у `*.test.ts` + код).
 
-## 1. Схема бази й правила часу (`task/leave-schema`)
+## 1. Заявка на одну дату й «My requests» (`task/leave-request-day`)
 
 - [ ] 1.1 Міграція ролей `employee` / `manager` / `admin` (зняти check → дані → default → новий check) і нові
       користувачі в `supabase/demo-users.json`; перевірка: `db-check` зелений, після merge `npm run users:demo` створює
       `teacher1@`, `teacher2@`, `manager1@`, `manager2@`, `admin@example.test` з новими ролями
-- [ ] 1.2 Міграція таблиць D2 з RLS, `revoke`, явними `grant`, політиками, обмеженням перетину D3 і функцією
-      `submit_leave_request` (D4); перевірка: `db-check` зелений, `database.types.ts` з Summary прогону в PR
-- [ ] 1.3 `src/lib/leave/time.ts` — хвилини, крок 5 хв, кінець блоку, години в блоках, тривалість без перерв;
-      перевірка: `npm test` — тести AC-LEAVE-04, AC-LEAVE-06, AC-LEAVE-07, AC-LEAVE-08, AC-LEAVE-09, AC-LEAVE-15 зелені
-      (у матриці — «відкладено (UI — задача 2)»)
+- [ ] 1.2 Міграція таблиць D2 з RLS і політиками `select`, обмеженням перетину D3, функцією `submit_leave_request`
+      (`public`-обгортка + `private` `security definer`, D4) і тестовими даними за email (D7: основна Mon–Fri
+      08:30–15:30, додаткова Mon 15:45–17:00, блоки Tue 08:30–12:00 і 12:30–15:30, відповідальні менеджери);
+      перевірка: `db-check` зелений, `database.types.ts` з Summary прогону в PR
+- [ ] 1.3 `src/lib/leave/time.ts` — хвилини, крок 5 хв, кінець блоку лише як кінець, години в блоках, тривалість без
+      перерв; перевірка: тести AC-LEAVE-04, AC-LEAVE-06, AC-LEAVE-07, AC-LEAVE-08, AC-LEAVE-09, AC-LEAVE-15
+- [ ] 1.4 `src/lib/leave/request.ts` для однієї дати — записи з вибору посад, цілий день = усі блоки, одна посада
+      мінімум; перевірка: тести AC-LEAVE-01, AC-LEAVE-02, AC-LEAVE-03, AC-LEAVE-10
+- [ ] 1.5 Сторінка `/requests/new` для однієї дати (посади й години → тип → підтвердження) і server action з
+      `submit_leave_request`; сторінка `/requests` — лише власні записи з датою, годинами, посадою, типом і статусом
+      (`access.ts`); перевірка: тест AC-LEAVE-14, після merge заявка `teacher1@` видна на проді лише йому
 
-Done when: схему застосовано `db-deploy`; тести правил часу зелені (AC переходять у `реалізовано` в задачі 2).
+Done when: AC-LEAVE-01, AC-LEAVE-02, AC-LEAVE-03, AC-LEAVE-04, AC-LEAVE-06, AC-LEAVE-07, AC-LEAVE-08, AC-LEAVE-09,
+AC-LEAVE-10, AC-LEAVE-14, AC-LEAVE-15.
 
-## 2. Подання заявки й «My requests» (`task/leave-request`)
+## 2. Кілька дат, підсумок, сімейне свято й перетин (`task/leave-request-multi`)
 
-- [ ] 2.1 Міграція тестових даних: підрозділи, посади й розклади з AC (основна Mon–Fri 08:30–15:30, додаткова
-      Mon 15:45–17:00, блоки Tue 08:30–12:00 і 12:30–15:30), відповідальні менеджери, перенесені дні — за email,
-      `on conflict do nothing`; перевірка: `db-check` зелений, після merge посади видно на сторінці
-- [ ] 2.2 `src/lib/leave/request.ts` — записи з вибору, одна посада мінімум, спорідненість, перетин; перевірка:
-      тести AC-LEAVE-01, AC-LEAVE-02, AC-LEAVE-03, AC-LEAVE-05, AC-LEAVE-10, AC-LEAVE-12, AC-LEAVE-13, AC-LEAVE-16
-- [ ] 2.3 Сторінка `/requests/new` (дати → посади й години → тип → підсумок) і server action з `submit_leave_request`;
-      перевірка: тест AC-LEAVE-11 (підсумок без підтвердження нічого не створює), заявка видна на preview
-- [ ] 2.4 Сторінка `/requests` — лише власні записи з датою, годинами, посадою, типом і статусом (`access.ts`);
-      перевірка: тест AC-LEAVE-14, `teacher1@` бачить лише свої записи на preview
+- [ ] 2.1 `src/lib/leave/request.ts` — кілька дат в одній заявці, спорідненість для «Family celebration», перетин із
+      записами посади й «заявка цілком»; перевірка: тести AC-LEAVE-05, AC-LEAVE-12, AC-LEAVE-13, AC-LEAVE-16
+- [ ] 2.2 `/requests/new`: вибір кількох дат, крок підсумку з поверненням до редагування без втрати введеного,
+      повідомлення про перетин із бази; перевірка: тест AC-LEAVE-11, заявка на 2 дати видна на preview
 
-Done when: AC-LEAVE-01, AC-LEAVE-02, AC-LEAVE-03, AC-LEAVE-04, AC-LEAVE-05, AC-LEAVE-06, AC-LEAVE-07, AC-LEAVE-08,
-AC-LEAVE-09, AC-LEAVE-10, AC-LEAVE-11, AC-LEAVE-12, AC-LEAVE-13, AC-LEAVE-14, AC-LEAVE-15, AC-LEAVE-16.
+Done when: AC-LEAVE-05, AC-LEAVE-11, AC-LEAVE-12, AC-LEAVE-13, AC-LEAVE-16.
 
 ## 3. Залишки (`task/leave-balance`)
 
