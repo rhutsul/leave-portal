@@ -98,8 +98,8 @@ PM відповів на питання до вимог і змінив вимо
 
 Власні припущення (розробник; журнал `docs/spec-reading.md`):
 
-- (розробник) Тестові дані мають розклади посад без перекриттів; як рахувати частку дня при перекритті, не фіксуємо до
-  відповіді PM на Q5 (Open questions).
+- Розклади посад одного працівника ніколи не перекриваються, тож кожна робоча хвилина дати належить рівно одній посаді;
+  це забезпечує адміністратор (зріз WS10), тестові дані — без перекриттів (відповідь PM на Q5, mkozlovskyi-ops/course-staff-management-spec#8).
 - (розробник) Робочі припущення до відповідей на Q1–Q4 зі зміни `add-leave-ws6` замінено рішеннями PM вище.
 
 ## Open questions
@@ -107,5 +107,6 @@ PM відповів на питання до вимог і змінив вимо
 PM відповів на Q1–Q4 (mkozlovskyi-ops/course-staff-management-spec#1, mkozlovskyi-ops/course-staff-management-spec#2, mkozlovskyi-ops/course-staff-management-spec#3, mkozlovskyi-ops/course-staff-management-spec#4) і на питання команди
 mkozlovskyi-ops/course-staff-management-spec#5, mkozlovskyi-ops/course-staff-management-spec#6, mkozlovskyi-ops/course-staff-management-spec#7; відповіді — у вимогах PM і журналі `docs/spec-reading.md`.
 
-- Q5. Як рахувати «усі робочі хвилини працівника дати» в частці дня, якщо розклади двох його посад перекриваються —
-  об'єднанням, сумою, чи такого випадку не буває? (AC-BALANCE-06; mkozlovskyi-ops/course-staff-management-spec#8)
+- Q5. Як рахувати «усі робочі хвилини працівника дати» в частці дня, якщо розклади двох його посад перекриваються?
+  (AC-BALANCE-06; mkozlovskyi-ops/course-staff-management-spec#8) — **відповідь PM: C**, розклади посад одного працівника не перекриваються; AC без змін,
+  припущення додано у вимогу 03.

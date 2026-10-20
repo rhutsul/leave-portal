@@ -2,7 +2,7 @@
 
 ## Context
 
-Що будуємо — `openspec/specs/leave-request`, `leave-decision`, `leave-balance` (35 вимог, 51 AC). Шаблон уже має:
+Що будуємо — `openspec/specs/leave-request`, `leave-decision`, `leave-balance` (40 вимог, 62 AC). Шаблон уже має:
 вхід email + пароль (`src/app/login`), `src/proxy.ts` для сесії, серверний клієнт Supabase з `getClaims()`
 (`src/lib/supabase/server.ts`), таблицю `public.profiles` з ролями `member` / `admin`, хелпер
 `private.current_app_role()` і тригер `on_auth_user_created` (`supabase/migrations/20261012000000_profiles_and_roles.sql`).
@@ -176,8 +176,8 @@ Server actions викликають ці функції для повідомл�
   проді. Тести через pglite — окремим рішенням (нова залежність).
 - [Два менеджери одночасно погоджують записи одного працівника понад залишок] → `decide_leave_record` бере
   `pg_advisory_xact_lock` на працівника й перераховує розподіл на момент рішення (вимога «Погодження з розподілом»).
-- [Розклади посад одного працівника перекриваються — правило не визначене] → питання PM mkozlovskyi-ops/course-staff-management-spec#8; тестові
-  розклади без перекриттів, тож формула частки дня з AC однозначна; відповідь PM додамо в `balance.ts` до задачі 3.
+- [Розклади посад одного працівника перекриваються] → PM визначив, що такого не буває (mkozlovskyi-ops/course-staff-management-spec#8): тестові
+  дані D7 створюємо без перекриттів, `balance.ts` рахує знаменник як суму хвилин блоків усіх посад дати.
 
 ## Migration Plan
 
