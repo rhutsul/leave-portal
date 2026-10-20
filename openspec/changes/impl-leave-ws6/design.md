@@ -2,7 +2,7 @@
 
 ## Context
 
-Що будуємо — `openspec/specs/leave-request`, `leave-decision`, `leave-balance` (35 вимог, 51 AC). Шаблон уже має:
+Що будуємо — `openspec/specs/leave-request`, `leave-decision`, `leave-balance` (40 вимог, 62 AC). Шаблон уже має:
 вхід email + пароль (`src/app/login`), `src/proxy.ts` для сесії, серверний клієнт Supabase з `getClaims()`
 (`src/lib/supabase/server.ts`), таблицю `public.profiles` з ролями `member` / `admin`, хелпер
 `private.current_app_role()` і тригер `on_auth_user_created` (`supabase/migrations/20261012000000_profiles_and_roles.sql`).
@@ -15,8 +15,9 @@
   працюють з **однією** базою, тож preview PR із новою міграцією бачить стару схему до merge.
 - У supabase-js немає транзакцій: кілька записів або перевірка + запис — однією функцією Postgres через `rpc`.
 - Адмінки немає (WS10): працівників, посади, розклади, менеджерів і перенесені дні створює розробник як тестові дані.
-- Відповіді PM на Q1–Q4 (mkozlovskyi-ops/course-staff-management-spec#1–#4) ще немає: реалізуємо робочі припущення
-  з `proposal.md` зміни `add-leave-ws6`.
+- PM відповів на Q1–Q4 (mkozlovskyi-ops/course-staff-management-spec#1, mkozlovskyi-ops/course-staff-management-spec#2, mkozlovskyi-ops/course-staff-management-spec#3, mkozlovskyi-ops/course-staff-management-spec#4) і питання команди mkozlovskyi-ops/course-staff-management-spec#5, mkozlovskyi-ops/course-staff-management-spec#6, mkozlovskyi-ops/course-staff-management-spec#7; зміна
+  специфікації `clarify-leave-ws6` додала 11 AC (AC-LEAVE-17…20, AC-DECIDE-20…22, AC-BALANCE-17…20) — план нижче їх
+  враховує.
 
 ## Goals / Non-Goals
 
@@ -59,7 +60,7 @@ where role = 'member'` → default `'employee'` → новий `profiles_role_ch
 |---|---|---|
 | `divisions` | підрозділ школи (довідник) | AC-LEAVE-01 |
 | `positions` | посада працівника: `employee_id`, `division_id`, назва, `kind` main/additional (рівно одна main на працівника) | AC-LEAVE-02, AC-LEAVE-03 |
-| `schedule_blocks` | блок розкладу посади: `weekday` 1–7, `start_min`, `end_min` (хвилини від півночі, `start < end`, кратні 5) | AC-LEAVE-06…09, AC-LEAVE-15 |
+| `schedule_blocks` | блок розкладу посади: `position_id`, `employee_id` (копія з посади — для обмеження D3), `weekday` 1–7, `start_min`, `end_min` (хвилини від півночі, `start < end`, кратні 5) | AC-LEAVE-06…09, AC-LEAVE-15, AC-BALANCE-03, AC-BALANCE-05, AC-BALANCE-06 |
 | `position_managers` | відповідальні менеджери посади (0–2+) | AC-DECIDE-01, AC-DECIDE-07, AC-DECIDE-08 |
 | `leave_requests` | заявка: `employee_id`, `leave_type`, `relationship` (лише для «Family celebration»), коментар працівника, час подання | AC-LEAVE-05, AC-LEAVE-12 |
 | `leave_records` | запис: `request_id`, `position_id`, `employee_id`, `date`, `start_min`, `end_min`, `minutes`, `status`, `leave_type`, `relationship`, коментар працівника (копії з заявки), `manager_comment`, `paid_days`, `unpaid_days` | AC-LEAVE-01…16, AC-DECIDE-01…19 (AC-DECIDE-01, AC-DECIDE-02, AC-DECIDE-03, AC-DECIDE-04, AC-DECIDE-05, AC-DECIDE-06, AC-DECIDE-07, AC-DECIDE-08, AC-DECIDE-09, AC-DECIDE-10, AC-DECIDE-11, AC-DECIDE-12, AC-DECIDE-13, AC-DECIDE-14, AC-DECIDE-15, AC-DECIDE-16, AC-DECIDE-17, AC-DECIDE-18, AC-DECIDE-19), AC-BALANCE-09, AC-BALANCE-10 |
@@ -80,19 +81,31 @@ where role = 'member'` → default `'employee'` → новий `profiles_role_ch
 англійські назви PM в інтерфейсі). Типи відпустки — `sick`, `personal`, `unpaid`, `family`. Спорідненість — `check` на
 5 значень (власне припущення розробника, `docs/spec-reading.md`).
 
-Погоджений із розподілом запис лишається **одним** записом з `paid_days` і `unpaid_days` (робоче припущення до
-відповіді на Q4, mkozlovskyi-ops/course-staff-management-spec#4).
+Погоджений із розподілом запис лишається **одним** записом з `paid_days` і `unpaid_days` (рішення PM на Q4,
+mkozlovskyi-ops/course-staff-management-spec#4; розподіл показано на записі — AC-BALANCE-18, AC-BALANCE-19).
 
 *Альтернатива:* зберігати час як `timestamptz` — ускладнює «цілий день» і блоки розкладу без жодної користі: PM
 працює лише з датами й годинами за Києвом.
 
-### D3. Перетин записів — обмеження бази
+### D3. Перетини — обмеження бази
+
+**Блоки розкладу працівника не перетинаються** — ні блоки різних посад, ні два блоки однієї посади:
+`exclude using gist (employee_id with =, weekday with =, int4range(start_min, end_min) with &&)` на `schedule_blocks`.
+Так база тримає два правила PM: розклади посад одного працівника не перекриваються, тож кожна робоча хвилина дати
+належить рівно одній посаді (`requirements/03-leave-balance.md`, mkozlovskyi-ops/course-staff-management-spec#8), а блоки розкладу йдуть «with gaps
+between blocks» (глосарій `requirements/product.md`). Тому знаменник частки дня — сума хвилин блоків дати — завжди
+дорівнює робочим хвилинам працівника (AC-BALANCE-03, AC-BALANCE-05, AC-BALANCE-06), а адмінка WS10 успадкує
+цю перевірку без змін. `employee_id` у блоці заповнює тригер `before insert or update` з посади, тож він завжди збігається з її
+власником.
+
+**Записи однієї посади не перетинаються:**
 
 `exclude using gist (position_id with =, date with =, int4range(start_min, end_min) with &&) where (status in
 ('awaiting', 'returned', 'approved'))` (розширення `btree_gist`). Перетин неможливий навіть за одночасних заявок;
 функція подання ловить порушення й повертає перший конфліктний запис для повідомлення AC-LEAVE-13 і AC-LEAVE-16.
 
-*Альтернатива:* лише перевірка в коді — пропускає гонку двох одночасних заявок.
+*Альтернатива:* лише перевірка в коді — пропускає гонку двох одночасних заявок і неправильні дані розкладу; формула
+з об'єднанням інтервалів замість суми — складніша й рахувала б випадок, якого за вимогами PM не буває.
 
 ### D4. Зміни даних — лише через функції Postgres (`rpc`)
 
@@ -125,11 +138,11 @@ RLS на читання: працівник — свої записи й зая�
 
 | Модуль | Що рахує | AC |
 |---|---|---|
-| `time.ts` | `HH:MM` ↔ хвилини, крок 5 хв, кінець блоку лише як кінець, години в блоках, тривалість без перерв | AC-LEAVE-04, 06, 07, 08, 09, 15 |
-| `request.ts` | записи заявки з вибору (дати × посади, цілий день = усі блоки), одна посада мінімум, спорідненість, перетин | AC-LEAVE-01, 02, 03, 05, 10, 12, 13, 16 |
-| `balance.ts` | навчальний рік, частка дня (хвилини ÷ усі хвилини дати, half-up до 0.01, ≤ 1.00), перенесення, попередження, розподіл | AC-BALANCE-01…11, 14, 15 |
-| `decision.ts` | хто може вирішувати, власний запис, дозволені переходи статусів, коментар при поверненні | AC-DECIDE-04, 07, 08, 09, 12, 17, 18 |
-| `access.ts` | хто бачить чиї записи й залишки | AC-LEAVE-14, AC-DECIDE-01, AC-BALANCE-12, 13 |
+| `time.ts` | `HH:MM` ↔ хвилини, крок 5 хв, кінець блоку лише як кінець, години в блоках, тривалість без перерв | AC-LEAVE-04, 06, 07, 08, 09, 15, 19, 20 |
+| `request.ts` | записи заявки з вибору (дати × посади, цілий день = усі блоки), одна посада мінімум, спорідненість, перетин | AC-LEAVE-01, 02, 03, 05, 10, 12, 13, 16, 17, 18 |
+| `balance.ts` | навчальний рік, частка дня (хвилини ÷ усі хвилини дати, half-up до 0.01, ≤ 1.00), перенесення, попередження, розподіл | AC-BALANCE-01…11, 14, 15, 17, 18, 19 |
+| `decision.ts` | хто може вирішувати, власний запис, дозволені переходи статусів, коментар при поверненні | AC-DECIDE-04, 07, 08, 09, 12, 17, 18, 21, 22 |
+| `access.ts` | хто бачить чиї записи й залишки | AC-LEAVE-14, AC-DECIDE-01, AC-BALANCE-12, 13, 20 |
 
 Server actions викликають ці функції для повідомлень користувачу, а потім `rpc`; функції бази перевіряють те саме
 ще раз як другий рубіж. Тести — `src/lib/leave/*.test.ts`, назва кожного починається з AC ID.
@@ -141,10 +154,10 @@ Server actions викликають ці функції для повідомл�
 
 | Шлях | Хто | AC |
 |---|---|---|
-| `/requests/new` | працівник: дати → посади й години → тип → підсумок → підтвердження | LEAVE-01…13, 15, 16; BALANCE-08, 15 |
-| `/requests` | «My requests»: записи, статуси, коментар, історія, зміна годин, повторне подання, скасування | LEAVE-14; DECIDE-03, 05, 06, 12, 13, 15…17 |
-| `/decisions` | менеджер / адміністратор: «Awaiting decision» і «History», рішення, попередження й розподіл | DECIDE-01…05, 07…11, 14, 18, 19; BALANCE-09, 10, 14, 16 |
-| `/balances` | свої залишки; `?employee=` — для менеджера своїх посад і адміністратора | BALANCE-01…07, 11…13 |
+| `/requests/new` | працівник: дати → посади й години → тип → підсумок → підтвердження | LEAVE-01…13, 15…20; BALANCE-08, 15, 17 |
+| `/requests` | «My requests»: записи, статуси, коментар, історія, зміна годин, повторне подання, скасування | LEAVE-14; DECIDE-03, 05, 06, 12, 13, 15…17, 21, 22; BALANCE-18 |
+| `/decisions` | менеджер / адміністратор: «Awaiting decision» і «History», рішення, попередження й розподіл | DECIDE-01…05, 07…11, 14, 18…20; BALANCE-09, 10, 14, 16, 19 |
+| `/balances` | свої залишки; `?employee=` — для менеджера своїх посад і адміністратора | BALANCE-01…07, 11…13, 20 |
 
 ### D7. Тестові дані — призначення за email
 
@@ -175,8 +188,8 @@ Server actions викликають ці функції для повідомл�
   проді. Тести через pglite — окремим рішенням (нова залежність).
 - [Два менеджери одночасно погоджують записи одного працівника понад залишок] → `decide_leave_record` бере
   `pg_advisory_xact_lock` на працівника й перераховує розподіл на момент рішення (вимога «Погодження з розподілом»).
-- [Відповіді PM на Q1–Q4 змінять поведінку] → робочі припущення ізольовано: коментар працівника не додаємо, змінюються
-  лише години, попередження — для однієї дати як в AC, розподіл — поля одного запису.
+- [Розклади посад одного працівника перекриваються] → PM визначив, що такого не буває (mkozlovskyi-ops/course-staff-management-spec#8): тестові
+  дані D7 створюємо без перекриттів, `balance.ts` рахує знаменник як суму хвилин блоків усіх посад дати.
 
 ## Migration Plan
 
