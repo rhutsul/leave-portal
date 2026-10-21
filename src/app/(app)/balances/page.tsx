@@ -8,7 +8,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { formatSchoolYear, schoolYearOf } from "@/lib/leave/balance";
 import { kyivDate } from "@/lib/leave/time";
 import { createClient } from "@/lib/supabase/server";
-import { balancesQuery, loadBalances } from "./load-balances";
+import { balancesQuery, loadBalances, MAX_SCHOOL_YEAR, MIN_SCHOOL_YEAR } from "./load-balances";
 
 function balancesHref(employee: string | undefined, year: number) {
   const params = new URLSearchParams();
@@ -82,13 +82,16 @@ export default async function BalancesPage({ searchParams }: PageProps<"/balance
           {whose ? `${whose} · ` : ""}School year {formatSchoolYear(year)}
         </h2>
         <nav aria-label="School year" className="flex items-center gap-2">
-          <Link
-            href={balancesHref(employeeParam, year - 1)}
-            className="flex min-h-9 items-center gap-1 rounded-lg border border-line-strong bg-surface px-2.5 text-ink-2 hover:bg-subtle hover:text-ink"
-          >
-            <ChevronLeftIcon />
-            {formatSchoolYear(year - 1)}
-          </Link>
+          {/* На межах діапазону balancesQuery посилання за межу немає: 1999 чи 2100 відкрили б поточний рік. */}
+          {year > MIN_SCHOOL_YEAR && (
+            <Link
+              href={balancesHref(employeeParam, year - 1)}
+              className="flex min-h-9 items-center gap-1 rounded-lg border border-line-strong bg-surface px-2.5 text-ink-2 hover:bg-subtle hover:text-ink"
+            >
+              <ChevronLeftIcon />
+              {formatSchoolYear(year - 1)}
+            </Link>
+          )}
           {year !== currentYear && (
             <Link
               href={balancesHref(employeeParam, currentYear)}
@@ -97,13 +100,15 @@ export default async function BalancesPage({ searchParams }: PageProps<"/balance
               Current year
             </Link>
           )}
-          <Link
-            href={balancesHref(employeeParam, year + 1)}
-            className="flex min-h-9 items-center gap-1 rounded-lg border border-line-strong bg-surface px-2.5 text-ink-2 hover:bg-subtle hover:text-ink"
-          >
-            {formatSchoolYear(year + 1)}
-            <ChevronRightIcon />
-          </Link>
+          {year < MAX_SCHOOL_YEAR && (
+            <Link
+              href={balancesHref(employeeParam, year + 1)}
+              className="flex min-h-9 items-center gap-1 rounded-lg border border-line-strong bg-surface px-2.5 text-ink-2 hover:bg-subtle hover:text-ink"
+            >
+              {formatSchoolYear(year + 1)}
+              <ChevronRightIcon />
+            </Link>
+          )}
         </nav>
       </div>
 

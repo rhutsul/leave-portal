@@ -9,6 +9,10 @@ export type BalancesResult =
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+/** Діапазон `?year=` на /balances — і для розбору параметра, і для посилань «попередній / наступний рік». */
+export const MIN_SCHOOL_YEAR = 2000;
+export const MAX_SCHOOL_YEAR = 2099;
+
 /**
  * Параметри /balances: `employee` — чужі залишки (порожній, як із вибору «My balances» у формі, чи власний id — свої);
  * `year` — рік початку навчального року 2000–2099 (перенесення рахується від першого року до запитаного, тож
@@ -22,7 +26,8 @@ export function balancesQuery(
   const employee = typeof params.employee === "string" && params.employee !== "" && params.employee !== ownId
     ? params.employee
     : undefined;
-  const year = typeof params.year === "string" && /^20\d{2}$/.test(params.year) ? Number(params.year) : currentYear;
+  const asked = typeof params.year === "string" && /^\d{4}$/.test(params.year) ? Number(params.year) : NaN;
+  const year = asked >= MIN_SCHOOL_YEAR && asked <= MAX_SCHOOL_YEAR ? asked : currentYear;
   return { employee, year };
 }
 
