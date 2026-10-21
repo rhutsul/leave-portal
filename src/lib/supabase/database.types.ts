@@ -260,7 +260,7 @@ isOneToOne: false
 { Args: { "p_record_id": number }; Returns: undefined
                            }
             "decide_leave_record":
-{ Args: { "p_comment"?: string,"p_decision": string,"p_record_id": number,"p_split"?: boolean }; Returns: Json
+{ Args: { "p_comment"?: string,"p_decision": string,"p_end_min"?: number,"p_record_id": number,"p_split"?: boolean,"p_start_min"?: number }; Returns: Json
                            }
             "decision_balance":
 { Args: { "p_record_id": number }; Returns: Json

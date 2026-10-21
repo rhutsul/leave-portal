@@ -217,6 +217,24 @@ describe("resubmitting and cancelling", () => {
   });
 });
 
+describe("the manager decides on the hours they saw", () => {
+  it("a decision with hours the employee has changed since is not saved", async () => {
+    const [id] = await submit([{ date: "2026-11-02", ...WHOLE }]);
+    await changeHours(teacher1, id, 540, 720);
+    // Менеджер бачив 08:30–15:30: рішення не зберігається, запис чекає далі.
+    await expect(
+      t.asUser(manager1, "select public.decide_leave_record($1, 'approve', p_start_min => 510, p_end_min => 930)", [id]),
+    ).rejects.toMatchObject({
+      code: "P0001",
+      message: "The employee has changed the hours of this record. Check them again before deciding",
+    });
+    expect((await recordOf(id)).status).toBe("awaiting");
+    // З новими годинами — погоджено.
+    await t.asUser(manager1, "select public.decide_leave_record($1, 'approve', p_start_min => 540, p_end_min => 720)", [id]);
+    expect((await recordOf(id)).status).toBe("approved");
+  });
+});
+
 describe("a date without working hours in a request", () => {
   it("AC-LEAVE-21: Friday 2026-11-06 and Saturday 2026-11-07 whole day — Saturday is not accepted, 1 record for Friday", async () => {
     const ids = await submit([

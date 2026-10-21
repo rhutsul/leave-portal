@@ -50,8 +50,9 @@ export async function decideRecord(_prev: DecideState, formData: FormData): Prom
       : null;
   const check = checkDecision({ id: claims.sub, role: profile.role as Role }, target, decision, comment);
   if (!check.ok) return { message: check.message };
-  // Працівник міг змінити години, поки менеджер дивився запис: рішення — лише щодо тих годин, які він бачив.
-  if (row && formData.get("hours") !== reviewedHours(row.start_min, row.end_min)) {
+  // Працівник міг змінити години, поки менеджер дивився запис: рішення — лише щодо тих годин, які він бачив. Тут —
+  // для повідомлення; ті самі години decide_leave_record ще раз звіряє атомарно в update (одночасна зміна не пройде).
+  if (!row || formData.get("hours") !== reviewedHours(row.start_min, row.end_min)) {
     revalidatePath("/decisions");
     return { message: DECISION_MESSAGES.hoursChanged };
   }
@@ -61,6 +62,8 @@ export async function decideRecord(_prev: DecideState, formData: FormData): Prom
     p_decision: decision,
     p_comment: check.comment ?? undefined,
     p_split: split,
+    p_start_min: row.start_min,
+    p_end_min: row.end_min,
   });
   if (error) {
     // Запис чи залишок змінився з моменту рендеру (інший менеджер вирішив, погодили інший запис — AC-BALANCE-14):
