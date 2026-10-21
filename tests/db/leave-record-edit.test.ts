@@ -218,7 +218,7 @@ describe("resubmitting and cancelling", () => {
 });
 
 describe("the manager decides on the hours they saw", () => {
-  it("a decision with hours the employee has changed since is not saved", async () => {
+  it("AC-DECIDE-16: after the hours change to 09:00–12:00, a decision on the old 08:30–15:30 is not saved", async () => {
     const [id] = await submit([{ date: "2026-11-02", ...WHOLE }]);
     await changeHours(teacher1, id, 540, 720);
     // Менеджер бачив 08:30–15:30: рішення не зберігається, запис чекає далі.
