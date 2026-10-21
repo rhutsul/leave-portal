@@ -1,11 +1,16 @@
 import { describe, expect, it } from "vitest";
 import {
   computeBalances,
+  daysToHundredths,
   dayShare,
   formatDays,
   formatSchoolYear,
+  formatSplit,
+  managerWarning,
   parseBalanceInputs,
   schoolYearOf,
+  splitRequiredMessage,
+  suggestedSplit,
   type BalanceInputs,
   type DayMinutes,
 } from "./balance";
@@ -161,5 +166,49 @@ describe("balance helpers", () => {
       splits: [],
       carryovers: [{ schoolYear: 2026, leaveType: "sick", days: 5 }],
     });
+  });
+});
+
+// Числа ті самі, що в tests/db/leave-decisions.test.ts: там їх рахує decide_leave_record / decision_balance у базі.
+describe("over-balance warning and split", () => {
+  it("AC-BALANCE-09: a whole day (1.00) over remaining 0.50 — warning with 0.50 Personal leave and 0.50 Unpaid leave", () => {
+    expect(managerWarning("personal", 100, 50)).toBe(
+      "This request exceeds the Personal leave balance (0.50 day). Suggested: 0.50 day Personal leave, 0.50 day Unpaid leave",
+    );
+    expect(managerWarning("personal", 100, 100)).toBeNull();
+  });
+
+  it("AC-BALANCE-14: remaining 1.50, after 1.00 is approved the next whole day shows the 0.50 warning", () => {
+    expect(managerWarning("personal", 100, 150)).toBeNull();
+    expect(managerWarning("personal", 100, 150 - 100)).toBe(
+      "This request exceeds the Personal leave balance (0.50 day). Suggested: 0.50 day Personal leave, 0.50 day Unpaid leave",
+    );
+  });
+
+  it("AC-BALANCE-16: approving over the balance without the split is refused with the PM's message", () => {
+    expect(splitRequiredMessage("personal", 50)).toBe(
+      "The Personal leave balance is 0.50 day: approve with the suggested split or reject",
+    );
+  });
+
+  it("AC-BALANCE-10: the suggested split of a whole day over remaining 0.50 is 0.50 paid + 0.50 unpaid", () => {
+    expect(suggestedSplit(100, 50)).toEqual({ paid: 50, unpaid: 50, over: true });
+  });
+
+  it("AC-BALANCE-18: the split shown on the record is “0.50 Personal leave + 0.50 Unpaid leave”", () => {
+    expect(formatSplit("personal", daysToHundredths("0.50"), daysToHundredths(0.5))).toBe(
+      "0.50 Personal leave + 0.50 Unpaid leave",
+    );
+  });
+
+  it("AC-BALANCE-19: with remaining 0.00 the split is “0.00 Personal leave + 1.00 Unpaid leave”", () => {
+    const split = suggestedSplit(100, 0);
+    expect(split).toEqual({ paid: 0, unpaid: 100, over: true });
+    expect(formatSplit("personal", split.paid, split.unpaid)).toBe("0.00 Personal leave + 1.00 Unpaid leave");
+  });
+
+  it("a negative remaining balance is shown as 0.00 and the whole share goes to Unpaid leave", () => {
+    expect(suggestedSplit(36, -20)).toEqual({ paid: 0, unpaid: 36, over: true });
+    expect(splitRequiredMessage("sick", -20)).toBe("The Sick leave balance is 0.00 day: approve with the suggested split or reject");
   });
 });

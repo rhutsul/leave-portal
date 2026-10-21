@@ -256,8 +256,23 @@ isOneToOne: false
             "balance_employees":
 { Args: never; Returns: { "email": string,"full_name": string,"id": string }[]
                            }
+            "decide_leave_record":
+{ Args: { "p_comment"?: string,"p_decision": string,"p_record_id": number,"p_split"?: boolean }; Returns: Json
+                           }
+            "decision_balance":
+{ Args: { "p_record_id": number }; Returns: Json
+                           }
+            "decision_records":
+{ Args: never; Returns: { "can_decide": boolean,"created_at": string,"date": string,"decided_at": string,"decided_by_name": string,"division_name": string,"employee_comment": string,"employee_email": string,"employee_id": string,"employee_name": string,"end_min": number,"id": number,"leave_type": string,"manager_comment": string,"minutes": number,"paid_days": number,"position_kind": string,"position_title": string,"relationship": string,"request_id": number,"start_min": number,"status": string,"unpaid_days": number }[]
+                           }
             "get_balance_inputs":
 { Args: { "p_employee_id": string,"p_school_year": number }; Returns: Json
+                           }
+            "record_histories":
+{ Args: { "p_record_ids": number[] }; Returns: { "action": string,"actor_name": string,"comment": string,"created_at": string,"record_id": number }[]
+                           }
+            "record_history":
+{ Args: { "p_record_id": number }; Returns: { "action": string,"actor_name": string,"comment": string,"created_at": string }[]
                            }
             "submit_leave_request":
 { Args: { "p_comment"?: string,"p_leave_type": string,"p_records": Json,"p_relationship"?: string }; Returns: number

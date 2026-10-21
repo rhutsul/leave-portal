@@ -12,7 +12,17 @@ function initials(name: string) {
 }
 
 /** Бічне меню: назва порталу, розділи, внизу — хто увійшов і вихід. */
-export function Sidebar({ name, email, awaiting }: { name: string; email: string; awaiting: number }) {
+export function Sidebar({
+  name,
+  email,
+  awaiting,
+  canDecide,
+}: {
+  name: string;
+  email: string;
+  awaiting: number;
+  canDecide: boolean;
+}) {
   return (
     <aside className="sticky top-0 flex h-screen w-62 shrink-0 flex-col gap-6 border-r border-line bg-surface px-4 py-5">
       <div className="flex items-center gap-2.5 px-2 py-1">
@@ -22,7 +32,7 @@ export function Sidebar({ name, email, awaiting }: { name: string; email: string
         <span className="text-[15px] font-semibold">Leave portal</span>
       </div>
 
-      <SidebarNav awaiting={awaiting} />
+      <SidebarNav awaiting={awaiting} canDecide={canDecide} />
 
       <div className="mt-auto flex items-center gap-2.5 border-t border-line px-2 pt-4">
         <span

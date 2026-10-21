@@ -46,6 +46,13 @@ export const ListIcon = ({ size }: IconProps) => (
   </Icon>
 );
 
+export const DecisionsIcon = ({ size }: IconProps) => (
+  <Icon size={size}>
+    <rect x="5" y="4" width="14" height="17" rx="2" />
+    <path d="M9 4V3h6v1M9 12l2 2 4-4" />
+  </Icon>
+);
+
 export const ChartIcon = ({ size }: IconProps) => (
   <Icon size={size}>
     <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" />
