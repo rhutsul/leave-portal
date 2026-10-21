@@ -11,7 +11,7 @@
 Для PM це матеріал нотатки «порівняння реалізацій»: де одні вимоги прочитали по-різному.
 -->
 
-Вимоги: mkozlovskyi-ops/course-staff-management-spec · джерело: docs · знімок 2026-10-20
+Вимоги: mkozlovskyi-ops/course-staff-management-spec · джерело: docs · знімок 2026-10-21
 
 ## Скан за таксономією
 
@@ -24,10 +24,10 @@
 | 1 | Функціональний обсяг | Ясно | Out of scope кожної вимоги й roadmap `requirements/product.md`; що працівник змінює до рішення — лише години (Assumptions і AC-DECIDE-21 `requirements/02-leave-decision.md`, відповідь на mkozlovskyi-ops/course-staff-management-spec#2) |
 | 2 | Ролі й доступ | Ясно | Матриця прав `requirements/product.md`; AC-DECIDE-01, -08, -09, -18, -19; AC-BALANCE-12, -13, -20 (менеджер будь-якої посади працівника бачить повний залишок, mkozlovskyi-ops/course-staff-management-spec#6); AC-LEAVE-14 |
 | 3 | Домен і модель даних | Частково | Коментар до заявки визначено (AC-LEAVE-17, -18, AC-DECIDE-20, mkozlovskyi-ops/course-staff-management-spec#1); запис із розподілом — один запис (AC-BALANCE-18, -19, mkozlovskyi-ops/course-staff-management-spec#4); спорідненість для «Family celebration» — список чи текст, не визначено (крок 4 і AC-LEAVE-12; власне припущення) |
-| 4 | Потік взаємодії (UX) | Ясно | Розподіл видно на записі в «My requests» (AC-BALANCE-18); одне попередження на заявку (AC-BALANCE-17); повідомлення з усіма блоками розкладу (AC-LEAVE-19); порожній стан (AC-DECIDE-14) |
+| 4 | Потік взаємодії (UX) | Ясно | Розподіл видно на записі в «My requests» (AC-BALANCE-18); одне попередження на заявку (AC-BALANCE-17); повідомлення з усіма блоками розкладу (AC-LEAVE-19); порожній стан (AC-DECIDE-14); дата без розкладу в заявці на кілька дат не приймається, інші лишаються (AC-LEAVE-21, mkozlovskyi-ops/course-staff-management-spec#9); необов'язковий коментар менеджера при погодженні й відхиленні (AC-DECIDE-23, -24, mkozlovskyi-ops/course-staff-management-spec#10) |
 | 5 | Нефункціональні вимоги | Ясно | Europe/Kyiv, крок 5 хв, час рішення до хвилини, історія рішень (Assumptions 01–03; AC-DECIDE-10, -15) |
 | 6 | Інтеграції й обмеження платформи | Ясно | Листів немає, лише статус і позначка в застосунку (`product.md` Out of scope; `02-leave-decision.md` Out of scope) |
-| 7 | Граничні випадки й збої | Ясно | Перетин запису з собою при зміні годин визначено (AC-DECIDE-22, mkozlovskyi-ops/course-staff-management-spec#2); кінець блоку між блоками (AC-LEAVE-20, mkozlovskyi-ops/course-staff-management-spec#5); розклади посад одного працівника не перекриваються — знаменник частки дня однозначний (Assumptions `requirements/03-leave-balance.md`, mkozlovskyi-ops/course-staff-management-spec#8) |
+| 7 | Граничні випадки й збої | Ясно | Перетин запису з собою при зміні годин визначено (AC-DECIDE-22, mkozlovskyi-ops/course-staff-management-spec#2); кінець блоку між блоками (AC-LEAVE-20, mkozlovskyi-ops/course-staff-management-spec#5); розклади посад одного працівника не перекриваються — знаменник частки дня однозначний (Assumptions `requirements/03-leave-balance.md`, mkozlovskyi-ops/course-staff-management-spec#8); запис рахується в навчальному році своєї дати, пізнє погодження перераховує перенесення (AC-BALANCE-21, -22, mkozlovskyi-ops/course-staff-management-spec#11) |
 | 8 | Обмеження й компроміси | Ясно | 18 + 18 днів, перенесення без ліміту, один тип на заявку, коментар до 500 символів, без обмежень на дати (Assumptions 01, 03) |
 | 9 | Термінологія | Ясно | Коментар працівника тепер є в 01 і 02 (mkozlovskyi-ops/course-staff-management-spec#1); формула частки дня — правило, «цілий день» — її окремий випадок (mkozlovskyi-ops/course-staff-management-spec#7); решта термінів — у глосарії `product.md` |
 | 10 | Сигнали завершеності | Ясно | AC з конкретними датами, годинами, числами й текстами повідомлень у всіх трьох вимогах, зокрема нові AC-LEAVE-17…20, AC-DECIDE-20…22, AC-BALANCE-17…20 |
@@ -48,6 +48,11 @@
 | Q3 | AC-BALANCE-08, AC-BALANCE-15 (`requirements/03-leave-balance.md`) | Яке попередження бачить працівник, якщо перевищує залишок заявка на кілька дат (AC описують лише одну дату)? | A: одне попередження на всю заявку за сумою днів, тим самим текстом | mkozlovskyi-ops/course-staff-management-spec#3 | A — одне попередження на суму всієї заявки; новий AC-BALANCE-17 | зміна `clarify-leave-ws6`: MODIFIED «Попередження працівнику про перевищення» |
 | Q5 | AC-BALANCE-06 (`requirements/03-leave-balance.md`) | Як рахувати «усі робочі хвилини дати» в частці дня, якщо розклади двох посад працівника перекриваються? | C: розклади посад одного працівника не перекриваються — такого випадку не буває | mkozlovskyi-ops/course-staff-management-spec#8 | C — розклади посад одного працівника ніколи не перекриваються; PM додав припущення у вимогу 03 (коміт a7e5940, у `requirements/` — з наступним PR «Оновлення вимог»), AC без змін | специфікацію не змінюємо (формула «Частка дня» однозначна без перекриттів); Q5 у `clarify-leave-ws6` позначено відповіддю; у плані — обмеження бази «блоки розкладу працівника не перетинаються» (D3 `impl-leave-ws6`) |
 | Q4 | AC-BALANCE-10 (`requirements/03-leave-balance.md`) | Яким стає запис після погодження з розподілом на оплачувану й неоплачувану частини (у записі один тип) і що бачить працівник у «My requests»? | A: запис лишається один, тип «Personal leave», статус «Approved», поруч показано розподіл | mkozlovskyi-ops/course-staff-management-spec#4 | A — один запис зі своїм типом і показаним розподілом, і при залишку 0.00; нові AC-BALANCE-18, AC-BALANCE-19 | зміна `clarify-leave-ws6`: нова вимога «Запис після погодження з розподілом»; робоче припущення підтвердилось |
+
+Питання колеги з команди mkozlovskyi-ops/course-staff-management-spec#9, mkozlovskyi-ops/course-staff-management-spec#10 і mkozlovskyi-ops/course-staff-management-spec#11 (знімок 2026-10-20) PM закрив
+рекомендованим варіантом A — нові AC-LEAVE-21, AC-DECIDE-23, AC-DECIDE-24, AC-BALANCE-21, AC-BALANCE-22. Дублікатів
+не ставили; перенесли в специфікацію зміною `clarify-leave-ws6-2` (ADDED і MODIFIED «Заявка цілком», «Рішення щодо
+кожного запису», «Перенесення на наступний навчальний рік»), у матриці нові AC — «відкладено (чекає реалізації)».
 
 ## Власні припущення
 
