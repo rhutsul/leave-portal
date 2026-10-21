@@ -41,7 +41,8 @@ import {
 } from "@/lib/leave/time";
 import { submitLeaveRequest, type SubmitState } from "./actions";
 
-const STEPS = ["Dates", "Positions and hours", "Leave type", "Summary"] as const;
+// Короткі підписи: на ~1080 px картка кроку вміщає близько 120 px тексту.
+const STEPS = ["Dates", "Positions & hours", "Leave type", "Summary"] as const;
 
 const TYPE_HINTS: Record<LeaveType, string> = {
   sick: "Illness, a doctor’s appointment",
