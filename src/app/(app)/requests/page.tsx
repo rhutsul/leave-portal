@@ -9,7 +9,8 @@ import { CheckCircleIcon, CloseIcon, PlusIcon } from "@/components/ui/icons";
 import { LeaveTypeTag } from "@/components/ui/leave-type-tag";
 import { PageHeader } from "@/components/ui/page-header";
 import { isRecordStatus, STATUS_DOT, StatusBadge } from "@/components/ui/status-badge";
-import { daysToHundredths, formatSplit, isLimitedType } from "@/lib/leave/balance";
+import { WarningNote } from "@/components/ui/warning-note";
+import { daysToHundredths, employeeWarning, formatSplit, isLimitedType } from "@/lib/leave/balance";
 import { employeeActions } from "@/lib/leave/decision";
 import { positionLabel, type PositionSchedule, type RecordStatus } from "@/lib/leave/request";
 import {
@@ -49,10 +50,12 @@ export default async function MyRequestsPage({ searchParams }: PageProps<"/reque
   const { data } = await supabase.auth.getClaims();
   if (!data?.claims) redirect("/login");
 
-  const { submitted, status, skipped } = await searchParams;
+  const { submitted, status, skipped, over, balance } = await searchParams;
   const tab = TABS.find((t) => t.id === status) ?? TABS[0];
   // Дати заявки без робочих годин, які не прийнято (AC-LEAVE-21) — з redirect після подання.
   const skippedDates = typeof skipped === "string" ? skipped.split(",").filter(isCalendarDate) : [];
+  // Перевищення залишку на момент подання (AC-BALANCE-08, AC-BALANCE-15, AC-BALANCE-17): "тип:частка:залишок" у сотих.
+  const balanceWarnings = typeof over === "string" ? overWarnings(over) : [];
 
   const [{ data: rows, error }, positions] = await Promise.all([
     supabase
@@ -114,6 +117,9 @@ export default async function MyRequestsPage({ searchParams }: PageProps<"/reque
                 {formatDateLong(d)} was not accepted: {TIME_MESSAGES.noWorkingHours}
               </span>
             ))}
+            {balance === "unchecked" && (
+              <span className="mt-1 block text-ink-2">Your balance could not be checked for this request.</span>
+            )}
           </p>
           <Link
             href="/requests"
@@ -124,6 +130,8 @@ export default async function MyRequestsPage({ searchParams }: PageProps<"/reque
           </Link>
         </div>
       )}
+
+      {submitted === "1" && balanceWarnings.map((w) => <WarningNote key={w}>{w}</WarningNote>)}
 
       {error ? (
         <p role="alert" className="text-danger">
@@ -259,6 +267,16 @@ export default async function MyRequestsPage({ searchParams }: PageProps<"/reque
       )}
     </>
   );
+}
+
+/** Параметр `over` після подання → тексти попереджень; лише числа й обмежені типи, решту відкидаємо. */
+function overWarnings(raw: string): string[] {
+  return raw.split(",").flatMap((item) => {
+    const match = /^(sick|personal):(\d{1,6}):(-?\d{1,6})$/.exec(item);
+    if (!match || !isLimitedType(match[1])) return [];
+    const warning = employeeWarning(match[1], Number(match[2]), Number(match[3]));
+    return warning ? [warning] : [];
+  });
 }
 
 /** Під посадою: розподіл погодженого запису (AC-BALANCE-18, AC-BALANCE-19). */

@@ -7,7 +7,7 @@
 ## Контекст
 
 AC-LEAVE-14: у «My requests» працівник бачить рівно свої записи (`requirements/01-leave-request.md`). RLS на
-`public.leave_records` (D4 `openspec/changes/impl-leave-ws6/design.md`) пускає до запису власника, відповідального
+`public.leave_records` (D4 `openspec/changes/archive/2026-10-21-impl-leave-ws6/design.md`) пускає до запису власника, відповідального
 менеджера посади (AC-DECIDE-01) і адміністратора. Тож якщо «My requests» читає таблицю напряму, менеджер і
 адміністратор побачать там чужі записи: RLS відповідає на питання «що мені можна бачити», а не «що моє».
 

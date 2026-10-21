@@ -2,8 +2,10 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
+import { schoolYearOf } from "@/lib/leave/balance";
 import { kyivDate } from "@/lib/leave/time";
 import { createClient } from "@/lib/supabase/server";
+import { loadRemaining } from "../../balances/load-balances";
 import { loadOwnPositions } from "./load-positions";
 import { NewRequestForm } from "./new-request-form";
 
@@ -13,7 +15,14 @@ export default async function NewRequestPage() {
   const claims = data?.claims;
   if (!claims) redirect("/login");
 
-  const positions = await loadOwnPositions(supabase, claims.sub);
+  // Залишки для попередження на підсумку (AC-BALANCE-08, AC-BALANCE-15, AC-BALANCE-17): поточний навчальний рік і сусідні —
+  // заявки «заднім числом» і наперед. Дати поза ними перевіряє server action під час подання.
+  const today = kyivDate(new Date());
+  const year = schoolYearOf(today);
+  const [positions, remaining] = await Promise.all([
+    loadOwnPositions(supabase, claims.sub),
+    loadRemaining(supabase, claims.sub, [year - 1, year, year + 1]),
+  ]);
 
   return (
     <>
@@ -32,7 +41,11 @@ export default async function NewRequestPage() {
       {positions.length === 0 ? (
         <Card className="border-dashed p-10 text-center text-muted">You have no positions with a schedule yet.</Card>
       ) : (
-        <NewRequestForm positions={positions} today={kyivDate(new Date())} />
+        <NewRequestForm
+          positions={positions}
+          today={today}
+          remaining={remaining && Object.fromEntries(remaining)}
+        />
       )}
     </>
   );

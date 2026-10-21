@@ -1,8 +1,9 @@
-// Залишки відпусток — чисті функції (D5 openspec/changes/impl-leave-ws6/design.md, requirements/03-leave-balance.md).
+// Залишки відпусток — чисті функції (D5 openspec/changes/archive/2026-10-21-impl-leave-ws6/design.md, requirements/03-leave-balance.md).
 // Дані дає функція бази get_balance_inputs (D4): лише підсумки по датах, без деталей записів.
 // Дні рахуємо в сотих (цілі числа): частка дня округлюється half-up до 0.01, тож дробові числа JS тут зайві.
 
 import type { LeaveType } from "./request";
+import { isoWeekday } from "./time";
 
 /** Днів «Sick leave» і «Personal leave» на навчальний рік, окремо (Assumptions 03-leave-balance). */
 export const ANNUAL_DAYS = 18;
@@ -219,4 +220,73 @@ export function formatSplit(type: LimitedType, paid: number, unpaid: number): st
 /** Числа з бази ("0.50" чи 0.5) → соті. */
 export function daysToHundredths(days: number | string): number {
   return toHundredths(Number(days));
+}
+
+// ── Попередження працівнику про перевищення залишку (AC-BALANCE-08, AC-BALANCE-15, AC-BALANCE-17) ──
+
+/** Блок розкладу будь-якої посади працівника: weekday 1 = понеділок … 7 = неділя. */
+export interface WeekdayBlock {
+  weekday: number;
+  start: number;
+  end: number;
+}
+
+/** Усі робочі хвилини працівника на дату за розкладами всіх посад — знаменник частки дня, як working_minutes у базі. */
+export function workingMinutesOn(blocks: readonly WeekdayBlock[], date: string): number {
+  const weekday = isoWeekday(date);
+  return blocks.filter((b) => b.weekday === weekday).reduce((sum, b) => sum + b.end - b.start, 0);
+}
+
+/** Частка заявки в сотих за навчальним роком: для кожної дати — dayShare усіх хвилин заявки на цю дату. */
+export function requestShares(
+  records: readonly { date: string; minutes: number }[],
+  blocks: readonly WeekdayBlock[],
+): Map<number, number> {
+  const perDate = new Map<string, number>();
+  for (const r of records) perDate.set(r.date, (perDate.get(r.date) ?? 0) + r.minutes);
+  const shares = new Map<number, number>();
+  for (const [date, minutes] of perDate) {
+    const year = schoolYearOf(date);
+    shares.set(year, (shares.get(year) ?? 0) + dayShare(minutes, workingMinutesOn(blocks, date)));
+  }
+  return shares;
+}
+
+/**
+ * Одне попередження на всю заявку (AC-BALANCE-17): сума часток заявки понад залишок на момент подання — решта піде як
+ * «Unpaid leave»; заявку все одно створюємо (AC-BALANCE-08, AC-BALANCE-15). share і remaining — у сотих.
+ */
+export function employeeWarning(type: LimitedType, share: number, remaining: number): string | null {
+  const balance = Math.max(remaining, 0);
+  if (share <= balance) return null;
+  return (
+    `Your ${LIMITED_LABELS[type]} balance is ${formatDays(balance)} day. ` +
+    `Another ${formatDays(share - balance)} day will be counted as Unpaid leave`
+  );
+}
+
+/** Перевищення залишку в заявці: по навчальному року дат заявки (зазвичай один рік — одне попередження). */
+export interface RequestOverBalance {
+  schoolYear: number;
+  share: number;
+  remaining: number;
+}
+
+/**
+ * Роки заявки, де її частка більша за залишок. remainingOf — залишок типу на рік у сотих; null — залишку цього року
+ * немає під рукою (рік не перевіряємо). «Unpaid leave» і «Family celebration» не обмежені — порожньо.
+ */
+export function requestOverBalance(
+  leaveType: string,
+  records: readonly { date: string; minutes: number }[],
+  blocks: readonly WeekdayBlock[],
+  remainingOf: (schoolYear: number) => number | null,
+): RequestOverBalance[] {
+  if (!isLimitedType(leaveType)) return [];
+  const over: RequestOverBalance[] = [];
+  for (const [schoolYear, share] of [...requestShares(records, blocks)].sort(([a], [b]) => a - b)) {
+    const remaining = remainingOf(schoolYear);
+    if (remaining !== null && employeeWarning(leaveType, share, remaining)) over.push({ schoolYear, share, remaining });
+  }
+  return over;
 }

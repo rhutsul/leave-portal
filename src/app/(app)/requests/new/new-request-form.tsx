@@ -4,7 +4,9 @@ import { useActionState, useId, useReducer, useState, type FormEvent } from "rea
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { FieldError } from "@/components/ui/field-error";
+import { WarningNote } from "@/components/ui/warning-note";
 import { ChevronLeftIcon, ChevronRightIcon, CloseIcon, LeaveTypeIcon } from "@/components/ui/icons";
+import { employeeWarning, isLimitedType, requestOverBalance, type LimitedType } from "@/lib/leave/balance";
 import { choiceFor, draftReducer, EMPTY_DRAFT, toPayload, type Step } from "@/lib/leave/draft";
 import {
   checkComment,
@@ -67,7 +69,16 @@ interface DaySection {
 // Заявка (D6): дати → посади й години → тип і коментар → підсумок → підтвердження; праворуч — живий підсумок.
 // Стан — draftReducer (src/lib/leave/draft.ts): повернення назад і з підсумку не губить введеного (AC-LEAVE-11).
 // Перевірки на кожному кроці — ті самі чисті функції src/lib/leave/, що й у server action.
-export function NewRequestForm({ positions, today }: { positions: PositionSchedule[]; today: string }) {
+export function NewRequestForm({
+  positions,
+  today,
+  remaining,
+}: {
+  positions: PositionSchedule[];
+  today: string;
+  /** Залишки в сотих за навчальним роком на момент відкриття форми; null — не завантажились. */
+  remaining: Record<number, Record<LimitedType, number>> | null;
+}) {
   const ids = useId();
   const [draft, dispatch] = useReducer(draftReducer, EMPTY_DRAFT);
   const [month, setMonth] = useState(today.slice(0, 7));
@@ -99,6 +110,14 @@ export function NewRequestForm({ positions, today }: { positions: PositionSchedu
   const records: DraftRecord[] =
     step === 1 ? [] : sections.flatMap((s) => s.cards.flatMap((e) => (e.result?.ok ? [e.result.record] : [])));
   const totalMinutes = records.reduce((sum, r) => sum + r.minutes, 0);
+  // Одне попередження на всю заявку за залишком навчального року її дат (AC-BALANCE-08, AC-BALANCE-15, AC-BALANCE-17).
+  // Заявку все одно можна подати; server action ще раз рахує його за залишком на момент подання.
+  const allBlocks = positions.flatMap((p) => p.blocks);
+  const overBalance =
+    leaveType && remaining
+      ? requestOverBalance(leaveType, records, allBlocks, (year) => remaining[year]?.[leaveType as LimitedType] ?? null)
+      : [];
+  const balanceUnchecked = leaveType !== null && isLimitedType(leaveType) && remaining === null;
   const labelOf = (id: number) => positions.find((p) => p.id === id)?.label ?? "";
 
   function pickDate(date: string) {
@@ -407,6 +426,15 @@ export function NewRequestForm({ positions, today }: { positions: PositionSchedu
                     </tbody>
                   </table>
                 </div>
+                {leaveType && isLimitedType(leaveType) &&
+                  overBalance.map((o) => (
+                    <WarningNote key={o.schoolYear}>{employeeWarning(leaveType, o.share, o.remaining)}</WarningNote>
+                  ))}
+                {balanceUnchecked && (
+                  <p role="alert" className="text-[13px] text-danger">
+                    Your balance could not be checked. You can still submit the request.
+                  </p>
+                )}
                 <input type="hidden" name="payload" value={payload} />
                 {showServerError && <FieldError message={state.message} />}
               </div>
