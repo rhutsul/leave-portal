@@ -1,15 +1,19 @@
 import { describe, expect, it } from "vitest";
 import {
+  addMonths,
   checkHours,
   dayAxis,
   formatDateLong,
   formatDateShort,
   formatDuration,
   formatKyivDay,
+  formatMonth,
   formatTime,
+  isCalendarDate,
   isoWeekday,
   kyivDate,
   kyivHour,
+  monthGrid,
   parseTime,
   weekdayName,
   type TimeBlock,
@@ -121,5 +125,34 @@ describe("time helpers", () => {
     expect(isoWeekday("2026-11-03")).toBe(2);
     expect(isoWeekday("2026-11-07")).toBe(6);
     expect(isoWeekday("2026-11-08")).toBe(7);
+  });
+});
+
+describe("calendar month", () => {
+  it("AC-LEAVE-05: the date calendar starts on Monday: November 2026 begins on a Sunday after 6 blank cells", () => {
+    const grid = monthGrid("2026-11");
+    expect(grid.slice(0, 7)).toEqual([null, null, null, null, null, null, "2026-11-01"]);
+    expect(grid.at(-1)).toBe("2026-11-30");
+    expect(monthGrid("2028-02").filter(Boolean)).toHaveLength(29);
+  });
+
+  it("AC-LEAVE-05: the date calendar moves across years and names the month", () => {
+    expect(addMonths("2026-12", 1)).toBe("2027-01");
+    expect(addMonths("2027-01", -1)).toBe("2026-12");
+    expect(formatMonth("2026-11")).toBe("November 2026");
+  });
+});
+
+describe("calendar date check", () => {
+  it("accepts only real dates in YYYY-MM-DD", () => {
+    expect(isCalendarDate("2026-11-02")).toBe(true);
+    expect(isCalendarDate("2028-02-29")).toBe(true);
+    expect(isCalendarDate("2027-02-29")).toBe(false);
+    expect(isCalendarDate("2026-02-30")).toBe(false);
+    expect(isCalendarDate("2026-04-31")).toBe(false);
+    expect(isCalendarDate("2026-13-01")).toBe(false);
+    expect(isCalendarDate("2026-11-00")).toBe(false);
+    expect(isCalendarDate("2026-1-02")).toBe(false);
+    expect(isCalendarDate("")).toBe(false);
   });
 });

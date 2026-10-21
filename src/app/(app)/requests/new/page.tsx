@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
+import { kyivDate } from "@/lib/leave/time";
 import { createClient } from "@/lib/supabase/server";
 import { loadOwnPositions } from "./load-positions";
 import { NewRequestForm } from "./new-request-form";
@@ -31,7 +32,7 @@ export default async function NewRequestPage() {
       {positions.length === 0 ? (
         <Card className="border-dashed p-10 text-center text-muted">You have no positions with a schedule yet.</Card>
       ) : (
-        <NewRequestForm positions={positions} />
+        <NewRequestForm positions={positions} today={kyivDate(new Date())} />
       )}
     </>
   );

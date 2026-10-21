@@ -1,12 +1,16 @@
 "use client";
 
-import { useActionState, useId, useState, type FormEvent } from "react";
+import { useActionState, useId, useReducer, useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { FieldError } from "@/components/ui/field-error";
-import { LeaveTypeIcon } from "@/components/ui/icons";
+import { ChevronLeftIcon, ChevronRightIcon, CloseIcon, LeaveTypeIcon } from "@/components/ui/icons";
+import { choiceFor, draftReducer, EMPTY_DRAFT, toPayload, type Step } from "@/lib/leave/draft";
 import {
+  checkComment,
   checkLeaveType,
+  commentLength,
+  COMMENT_MAX,
   isRelationship,
   LEAVE_TYPES,
   positionsOnDate,
@@ -22,19 +26,23 @@ import {
   type PositionSchedule,
 } from "@/lib/leave/request";
 import {
+  addMonths,
   dayAxis,
   formatBlocks,
   formatDateLong,
   formatDateShort,
   formatDuration,
+  formatMonth,
   formatRange,
   formatTime,
+  monthGrid,
+  WEEKDAY_SHORT,
   type TimeBlock,
 } from "@/lib/leave/time";
 import { submitLeaveRequest, type SubmitState } from "./actions";
 
-const STEPS = ["Date", "Positions and hours", "Leave type", "Summary"] as const;
-type Step = 1 | 2 | 3 | 4;
+// Короткі підписи: на ~1080 px картка кроку вміщає близько 120 px тексту.
+const STEPS = ["Dates", "Positions & hours", "Leave type", "Summary"] as const;
 
 const TYPE_HINTS: Record<LeaveType, string> = {
   sick: "Illness, a doctor’s appointment",
@@ -51,97 +59,90 @@ interface Evaluated {
   result: ReturnType<typeof recordForChoice> | null;
 }
 
-// Заявка на одну дату (D6): дата → посади й години → тип → підсумок → підтвердження; праворуч — живий підсумок.
-// Перевірки на кожному кроці — ті самі чисті функції src/lib/leave/, що й у server action; введене зберігається
-// при поверненні назад. Кілька дат і коментар — задача 2.
-export function NewRequestForm({ positions }: { positions: PositionSchedule[] }) {
+interface DaySection {
+  date: string;
+  cards: Evaluated[];
+}
+
+// Заявка (D6): дати → посади й години → тип і коментар → підсумок → підтвердження; праворуч — живий підсумок.
+// Стан — draftReducer (src/lib/leave/draft.ts): повернення назад і з підсумку не губить введеного (AC-LEAVE-11).
+// Перевірки на кожному кроці — ті самі чисті функції src/lib/leave/, що й у server action.
+export function NewRequestForm({ positions, today }: { positions: PositionSchedule[]; today: string }) {
   const ids = useId();
-  const [step, setStep] = useState<Step>(1);
-  const [maxStep, setMaxStep] = useState<Step>(1);
-  const [date, setDate] = useState("");
+  const [draft, dispatch] = useReducer(draftReducer, EMPTY_DRAFT);
+  const [month, setMonth] = useState(today.slice(0, 7));
   const [dateError, setDateError] = useState<string | null>(null);
-  const [dayPositions, setDayPositions] = useState<PositionDay[]>([]);
-  const [choices, setChoices] = useState<Record<number, PositionChoice>>({});
-  const [cardErrors, setCardErrors] = useState<Record<number, string>>({});
-  const [positionsError, setPositionsError] = useState<string | null>(null);
-  const [leaveType, setLeaveType] = useState<LeaveType | null>(null);
-  const [relationship, setRelationship] = useState("");
+  const [showPositionErrors, setShowPositionErrors] = useState(false);
   const [typeError, setTypeError] = useState<string | null>(null);
+  const [commentError, setCommentError] = useState<string | null>(null);
   const [showServerError, setShowServerError] = useState(false);
   const [state, formAction, pending] = useActionState(submitLeaveRequest, INITIAL);
-
-  // Будь-яка зміна на кроці робить наступні кроки недоступними, доки їх не пройдено знову.
-  const edited = (at: Step) => setMaxStep((m) => (m > at ? at : m));
+  const { step, maxStep, dates, leaveType, relationship, comment } = draft;
 
   const go = (next: Step) => {
     setShowServerError(false);
-    setStep(next);
-    setMaxStep((m) => (next > m ? next : m));
+    dispatch({ type: "go", step: next });
   };
 
-  const evaluated: Evaluated[] = dayPositions.map((position) => {
-    const choice = choices[position.id];
-    return { position, choice, result: choice.include ? recordForChoice(date, position, choice) : null };
-  });
-  const records: DraftRecord[] =
-    step === 1 ? [] : evaluated.flatMap((e) => (e.result?.ok ? [e.result.record] : []));
-  const totalMinutes = records.reduce((sum, r) => sum + r.minutes, 0);
-  const axis = dayPositions.length ? dayAxis(dayPositions.flatMap((p) => p.blocks)) : null;
-
-  function nextFromDate() {
-    if (!date) return;
+  const daysOf = (date: string) => {
     const day = positionsOnDate(positions, date);
-    if (!day.ok) {
-      setDateError(day.message);
+    return day.ok ? day.positions : [];
+  };
+
+  const sections: DaySection[] = dates.map((date) => ({
+    date,
+    cards: daysOf(date).map((position) => {
+      const choice = choiceFor(draft, date, position.id);
+      return { position, choice, result: choice.include ? recordForChoice(date, position, choice) : null };
+    }),
+  }));
+  const records: DraftRecord[] =
+    step === 1 ? [] : sections.flatMap((s) => s.cards.flatMap((e) => (e.result?.ok ? [e.result.record] : [])));
+  const totalMinutes = records.reduce((sum, r) => sum + r.minutes, 0);
+  const labelOf = (id: number) => positions.find((p) => p.id === id)?.label ?? "";
+
+  function pickDate(date: string) {
+    if (!dates.includes(date)) {
+      const day = positionsOnDate(positions, date);
+      if (!day.ok) {
+        setDateError(day.message);
+        return;
+      }
+    }
+    setDateError(null);
+    dispatch({ type: "toggleDate", date });
+  }
+
+  function nextFromDates() {
+    if (dates.length === 0) {
+      setDateError(REQUEST_MESSAGES.chooseDate);
       return;
     }
-    setDayPositions(day.positions);
-    setChoices((prev) => {
-      const next: Record<number, PositionChoice> = {};
-      for (const p of day.positions) {
-        next[p.id] = prev[p.id] ?? { positionId: p.id, include: true, wholeDay: true, start: "", end: "" };
-      }
-      return next;
-    });
-    setCardErrors({});
-    setPositionsError(null);
+    setShowPositionErrors(false);
     go(2);
   }
 
   function nextFromPositions() {
-    const errors: Record<number, string> = {};
-    for (const e of evaluated) if (e.result && !e.result.ok) errors[e.position.id] = e.result.message;
-    setCardErrors(errors);
-    const included = evaluated.some((e) => e.choice.include);
-    setPositionsError(included ? null : REQUEST_MESSAGES.choosePosition);
-    if (included && Object.keys(errors).length === 0) go(3);
+    setShowPositionErrors(true);
+    const valid = sections.every(
+      (s) => s.cards.some((e) => e.choice.include) && s.cards.every((e) => !e.result || e.result.ok),
+    );
+    if (valid) go(3);
   }
 
   function nextFromType() {
-    const result = checkLeaveType(leaveType ?? "", relationship);
-    if (!result.ok) {
-      setTypeError(result.message);
-      return;
-    }
-    go(4);
-  }
-
-  function updateChoice(id: number, patch: Partial<PositionChoice>) {
-    setChoices((prev) => ({ ...prev, [id]: { ...prev[id], ...patch } }));
-    setCardErrors((prev) => {
-      const next = { ...prev };
-      delete next[id];
-      return next;
-    });
-    if (patch.include !== undefined) setPositionsError(null);
-    edited(2);
+    const type = checkLeaveType(leaveType ?? "", relationship);
+    setTypeError(type.ok ? null : type.message);
+    const checked = checkComment(comment);
+    setCommentError(checked.ok ? null : checked.message);
+    if (type.ok && checked.ok) go(4);
   }
 
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     // Enter у полі на кроках 1–3 — це «Continue», а не подання заявки.
     if (step !== 4) {
       event.preventDefault();
-      if (step === 1) nextFromDate();
+      if (step === 1) nextFromDates();
       else if (step === 2) nextFromPositions();
       else nextFromType();
       return;
@@ -149,29 +150,31 @@ export function NewRequestForm({ positions }: { positions: PositionSchedule[] })
     setShowServerError(true);
   }
 
-  const payload = JSON.stringify({ date, leaveType, relationship, choices: Object.values(choices) });
+  const payload = JSON.stringify(toPayload(draft, (date) => daysOf(date).map((p) => p.id)));
   const typeLabel = leaveType
     ? LEAVE_TYPES[leaveType] +
       (leaveType === "family" && isRelationship(relationship) ? ` (${RELATIONSHIP_LABELS[relationship].toLowerCase()})` : "")
     : "Not chosen yet";
-  const labelOf = (id: number) => dayPositions.find((p) => p.id === id)?.label ?? "";
+  const commentChars = commentLength(comment);
 
   return (
     <div className="flex flex-col gap-6">
-      <ol className="flex flex-wrap gap-2">
+      {/* Сітка на 4 колонки: картки однакової висоти, підпис в один рядок (повний — у title і для читачів екрана). */}
+      <ol className="grid grid-cols-4 gap-2">
         {STEPS.map((label, i) => {
           const n = (i + 1) as Step;
           const current = n === step;
           const done = n < step || (n <= maxStep && !current);
           const locked = n > maxStep || pending;
           return (
-            <li key={label} className="min-w-44 flex-1">
+            <li key={label} className="min-w-0">
               <button
                 type="button"
                 onClick={() => go(n)}
                 disabled={locked || current}
                 aria-current={current ? "step" : undefined}
-                className={`flex w-full items-center gap-2.5 rounded-xl border px-3 py-2.5 text-left ${
+                title={label}
+                className={`flex h-full w-full items-center gap-2.5 rounded-xl border px-3 py-2.5 text-left ${
                   current ? "border-brand-line bg-surface shadow-xs" : "border-line"
                 } ${locked && !current ? "opacity-60" : ""} ${!locked && !current ? "cursor-pointer hover:bg-surface" : ""}`}
               >
@@ -183,9 +186,9 @@ export function NewRequestForm({ positions }: { positions: PositionSchedule[] })
                 >
                   {done ? "✓" : n}
                 </span>
-                <span className="flex flex-col">
+                <span className="flex min-w-0 flex-col">
                   <span className="text-xs text-faint">Step {n}</span>
-                  <span className="font-medium">{label}</span>
+                  <span className="truncate whitespace-nowrap font-medium">{label}</span>
                 </span>
               </button>
             </li>
@@ -198,131 +201,175 @@ export function NewRequestForm({ positions }: { positions: PositionSchedule[] })
           <Card>
             {step === 1 && (
               <div className="flex flex-col gap-5 px-7 py-6">
-                <StepTitle title="When do you need leave?" hint="Choose the date of your leave. Past dates are allowed." />
+                <StepTitle
+                  title="When do you need leave?"
+                  hint="Pick one or more dates. Days you work are marked; you can also pick dates in the past."
+                />
                 <div className="flex flex-wrap gap-7">
-                  <div className="flex flex-col gap-1.5">
-                    <label htmlFor={`${ids}-date`} className="font-medium">
-                      Date
-                    </label>
-                    <input
-                      id={`${ids}-date`}
-                      type="date"
-                      value={date}
-                      onChange={(e) => {
-                        setDate(e.target.value);
-                        setDateError(null);
-                        edited(1);
-                      }}
-                      aria-invalid={dateError ? true : undefined}
-                      aria-describedby={dateError ? `${ids}-date-error` : undefined}
-                      className={inputClass}
-                    />
-                    <FieldError id={`${ids}-date-error`} message={dateError} className="mt-1 max-w-xs" />
-                  </div>
-                  <div className="min-w-56 flex-1 rounded-xl border border-line bg-surface-muted px-3.5 py-3 text-[13px] leading-relaxed text-ink-2">
-                    <div className="mb-1 font-medium">Your weekly schedule</div>
-                    {positions.map((p) => (
-                      <div key={p.id}>
-                        {p.label} — {weeklySchedule(p.blocks)}
-                      </div>
-                    ))}
+                  <DateCalendar
+                    month={month}
+                    today={today}
+                    selected={dates}
+                    works={(date) => daysOf(date).length > 0}
+                    onMonth={(delta) => setMonth((m) => addMonths(m, delta))}
+                    onPick={pickDate}
+                  />
+                  <div className="flex min-w-56 flex-1 flex-col gap-2.5">
+                    <div className="font-medium">Selected dates</div>
+                    {dates.length === 0 ? (
+                      <p className="rounded-[10px] border border-dashed border-line-strong p-4 text-muted">
+                        No dates yet — pick them in the calendar.
+                      </p>
+                    ) : (
+                      <ul className="flex flex-wrap gap-2">
+                        {dates.map((d) => (
+                          <li
+                            key={d}
+                            className="inline-flex items-center gap-1.5 rounded-full bg-brand-soft py-1 pr-1.5 pl-3 font-medium text-brand-strong"
+                          >
+                            {formatDateShort(d)}
+                            <button
+                              type="button"
+                              onClick={() => pickDate(d)}
+                              aria-label={`Remove ${formatDateLong(d)}`}
+                              className="flex size-6 items-center justify-center rounded-full hover:bg-brand-muted"
+                            >
+                              <CloseIcon size={14} />
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                    <FieldError id={`${ids}-date-error`} message={dateError} />
+                    <div className="mt-1.5 rounded-xl border border-line bg-surface-muted px-3.5 py-3 text-[13px] leading-relaxed text-ink-2">
+                      <div className="mb-1 font-medium">Your weekly schedule</div>
+                      {positions.map((p) => (
+                        <div key={p.id}>
+                          {p.label} — {weeklySchedule(p.blocks)}
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
               </div>
             )}
 
-            {step === 2 && axis && (
-              <div className="flex flex-col gap-5 px-7 py-6">
+            {step === 2 && (
+              <div className="flex flex-col gap-5.5 px-7 py-6">
                 <StepTitle
                   title="Positions and hours"
-                  hint="Include the positions you will be absent from — for the whole day or for specific hours."
+                  hint="For each date, include the positions you will be absent from — for the whole day or for specific hours."
                 />
-                <div className="flex items-baseline gap-2.5">
-                  <h3 className="text-[15px] font-semibold">{formatDateLong(date)}</h3>
-                  <span className="text-[13px] text-faint">
-                    {evaluated.filter((e) => e.choice.include).length} of {evaluated.length} positions included
-                  </span>
-                </div>
-                <ul className="flex flex-col gap-2.5">
-                  {evaluated.map((e) => (
-                    <PositionCard
-                      key={e.position.id}
-                      idPrefix={`${ids}-${e.position.id}`}
-                      item={e}
-                      axis={axis}
-                      error={cardErrors[e.position.id]}
-                      onChange={(patch) => updateChoice(e.position.id, patch)}
-                    />
-                  ))}
-                </ul>
-                <FieldError message={positionsError} />
+                {sections.map((section) => (
+                  <DaySectionView
+                    key={section.date}
+                    idPrefix={`${ids}-${section.date}`}
+                    section={section}
+                    showErrors={showPositionErrors}
+                    onChange={(positionId, patch) => {
+                      setShowServerError(false);
+                      dispatch({ type: "setChoice", date: section.date, positionId, patch });
+                    }}
+                  />
+                ))}
               </div>
             )}
 
             {step === 3 && (
-              <fieldset className="flex flex-col gap-5 px-7 py-6">
-                <legend className="contents">
-                  <StepTitle title="Leave type" hint="One leave type per request. Different types mean different requests." />
-                </legend>
-                <div className="grid grid-cols-2 gap-3">
-                  {(Object.keys(LEAVE_TYPES) as LeaveType[]).map((type) => (
-                    <label
-                      key={type}
-                      className="flex min-h-18 cursor-pointer items-center gap-3.5 rounded-xl border border-line bg-surface p-4 hover:border-brand-hover has-checked:border-2 has-checked:border-brand has-checked:bg-brand-soft has-focus-visible:outline-2 has-focus-visible:outline-ring"
-                    >
-                      <input
-                        type="radio"
-                        name="leave-type"
-                        value={type}
-                        checked={leaveType === type}
-                        onChange={() => {
-                          setLeaveType(type);
+              <div className="flex flex-col gap-5 px-7 py-6">
+                <fieldset className="flex flex-col gap-5">
+                  <legend className="contents">
+                    <StepTitle title="Leave type" hint="One leave type per request. Different types mean different requests." />
+                  </legend>
+                  <div className="grid grid-cols-2 gap-3">
+                    {(Object.keys(LEAVE_TYPES) as LeaveType[]).map((type) => (
+                      <label
+                        key={type}
+                        className="flex min-h-18 cursor-pointer items-center gap-3.5 rounded-xl border border-line bg-surface p-4 hover:border-brand-hover has-checked:border-2 has-checked:border-brand has-checked:bg-brand-soft has-focus-visible:outline-2 has-focus-visible:outline-ring"
+                      >
+                        <input
+                          type="radio"
+                          name="leave-type"
+                          value={type}
+                          checked={leaveType === type}
+                          onChange={() => {
+                            dispatch({ type: "setLeaveType", leaveType: type });
+                            setTypeError(null);
+                          }}
+                          className="peer sr-only"
+                        />
+                        <span className="flex size-9.5 shrink-0 items-center justify-center rounded-lg bg-subtle text-ink-2 peer-checked:bg-brand peer-checked:text-on-brand">
+                          <LeaveTypeIcon type={type} />
+                        </span>
+                        <span className="flex flex-col gap-0.5">
+                          <span className="font-semibold">{LEAVE_TYPES[type]}</span>
+                          <span className="text-[13px] text-muted">{TYPE_HINTS[type]}</span>
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                  {leaveType === "family" && (
+                    <div className="flex max-w-90 flex-col gap-1.5">
+                      <label htmlFor={`${ids}-relationship`} className="font-medium">
+                        Relationship to the person
+                      </label>
+                      <select
+                        id={`${ids}-relationship`}
+                        value={relationship}
+                        onChange={(e) => {
+                          dispatch({ type: "setRelationship", relationship: e.target.value });
                           setTypeError(null);
-                          edited(3);
                         }}
-                        className="peer sr-only"
-                      />
-                      <span className="flex size-9.5 shrink-0 items-center justify-center rounded-lg bg-subtle text-ink-2 peer-checked:bg-brand peer-checked:text-on-brand">
-                        <LeaveTypeIcon type={type} />
+                        aria-invalid={typeError ? true : undefined}
+                        aria-describedby={`${ids}-relationship-hint${typeError ? ` ${ids}-type-error` : ""}`}
+                        className={inputClass}
+                      >
+                        <option value="">Choose…</option>
+                        {RELATIONSHIPS.map((r) => (
+                          <option key={r} value={r}>
+                            {RELATIONSHIP_LABELS[r]}
+                          </option>
+                        ))}
+                      </select>
+                      <span id={`${ids}-relationship-hint`} className="text-xs text-muted">
+                        Not applicable to cousins, friends, neighbours or siblings-in-law.
                       </span>
-                      <span className="flex flex-col gap-0.5">
-                        <span className="font-semibold">{LEAVE_TYPES[type]}</span>
-                        <span className="text-[13px] text-muted">{TYPE_HINTS[type]}</span>
-                      </span>
+                    </div>
+                  )}
+                  <FieldError id={`${ids}-type-error`} message={typeError} />
+                </fieldset>
+
+                <div className="flex flex-col gap-1.5">
+                  <div className="flex items-baseline justify-between">
+                    <label htmlFor={`${ids}-comment`} className="font-medium">
+                      Comment <span className="font-normal text-faint">(optional)</span>
                     </label>
-                  ))}
-                </div>
-                {leaveType === "family" && (
-                  <div className="flex max-w-90 flex-col gap-1.5">
-                    <label htmlFor={`${ids}-relationship`} className="font-medium">
-                      Relationship to the person
-                    </label>
-                    <select
-                      id={`${ids}-relationship`}
-                      value={relationship}
-                      onChange={(e) => {
-                        setRelationship(e.target.value);
-                        setTypeError(null);
-                        edited(3);
-                      }}
-                      aria-invalid={typeError ? true : undefined}
-                      aria-describedby={`${ids}-relationship-hint${typeError ? ` ${ids}-type-error` : ""}`}
-                      className={inputClass}
+                    <span
+                      id={`${ids}-comment-counter`}
+                      className={`text-xs ${commentChars > COMMENT_MAX ? "font-medium text-danger" : "text-faint"}`}
                     >
-                      <option value="">Choose…</option>
-                      {RELATIONSHIPS.map((r) => (
-                        <option key={r} value={r}>
-                          {RELATIONSHIP_LABELS[r]}
-                        </option>
-                      ))}
-                    </select>
-                    <span id={`${ids}-relationship-hint`} className="text-xs text-muted">
-                      Not applicable to cousins, friends, neighbours or siblings-in-law.
+                      {commentChars} / {COMMENT_MAX}
                     </span>
                   </div>
-                )}
-                <FieldError id={`${ids}-type-error`} message={typeError} />
-              </fieldset>
+                  <textarea
+                    id={`${ids}-comment`}
+                    rows={3}
+                    value={comment}
+                    onChange={(e) => {
+                      dispatch({ type: "setComment", comment: e.target.value });
+                      setCommentError(null);
+                    }}
+                    placeholder="For example: Doctor’s appointment"
+                    aria-invalid={commentError ? true : undefined}
+                    aria-describedby={`${ids}-comment-hint ${ids}-comment-counter${commentError ? ` ${ids}-comment-error` : ""}`}
+                    className="resize-y rounded-lg border border-line-strong bg-surface px-3 py-2.5 text-ink"
+                  />
+                  <span id={`${ids}-comment-hint`} className="text-xs text-muted">
+                    Your managers see this comment on every record of the request.
+                  </span>
+                  <FieldError id={`${ids}-comment-error`} message={commentError} />
+                </div>
+              </div>
             )}
 
             {step === 4 && leaveType && (
@@ -331,6 +378,8 @@ export function NewRequestForm({ positions }: { positions: PositionSchedule[] })
                 <dl className="grid grid-cols-[140px_1fr] gap-x-4 gap-y-2">
                   <dt className="text-muted">Leave type</dt>
                   <dd className="font-medium">{typeLabel}</dd>
+                  <dt className="text-muted">Comment</dt>
+                  <dd className="break-words whitespace-pre-line">{comment.trim() || "—"}</dd>
                   <dt className="text-muted">Total</dt>
                   <dd className="font-medium">
                     {formatDuration(totalMinutes)} in {recordCount(records.length)}
@@ -348,7 +397,7 @@ export function NewRequestForm({ positions }: { positions: PositionSchedule[] })
                     </thead>
                     <tbody>
                       {records.map((r) => (
-                        <tr key={r.positionId} className="border-t border-line">
+                        <tr key={`${r.date}|${r.positionId}`} className="border-t border-line">
                           <td className="whitespace-nowrap px-3.5 py-3">{formatDateLong(r.date)}</td>
                           <td className="px-3.5 py-3">{labelOf(r.positionId)}</td>
                           <td className="px-3.5 py-3 font-mono text-[13px]">{formatRange(r.start, r.end)}</td>
@@ -372,9 +421,7 @@ export function NewRequestForm({ positions }: { positions: PositionSchedule[] })
                 )}
               </div>
               {step < 4 ? (
-                <Button type="submit" disabled={step === 1 && !date}>
-                  Continue
-                </Button>
+                <Button type="submit">Continue</Button>
               ) : (
                 <Button type="submit" disabled={pending}>
                   {pending ? "Submitting…" : "Confirm request"}
@@ -395,11 +442,11 @@ export function NewRequestForm({ positions }: { positions: PositionSchedule[] })
           </div>
           <div className="h-px bg-line" />
           {records.length === 0 ? (
-            <p className="text-muted">Pick a date and positions to see the records here.</p>
+            <p className="text-muted">Pick dates and positions to see the records here.</p>
           ) : (
             <ul className="flex flex-col gap-3">
               {records.map((r) => (
-                <li key={r.positionId} className="flex justify-between gap-3">
+                <li key={`${r.date}|${r.positionId}`} className="flex justify-between gap-3">
                   <div className="min-w-0">
                     <div className="font-medium">
                       {formatDateShort(r.date)} · <span className="font-mono text-[13px]">{formatRange(r.start, r.end)}</span>
@@ -425,20 +472,138 @@ export function NewRequestForm({ positions }: { positions: PositionSchedule[] })
   );
 }
 
+/** Календар місяця з понеділка: робочі дні — з рамкою, вибрані — заливкою; день без розкладу показує AC-LEAVE-06. */
+function DateCalendar({
+  month,
+  today,
+  selected,
+  works,
+  onMonth,
+  onPick,
+}: {
+  month: string;
+  today: string;
+  selected: string[];
+  works: (date: string) => boolean;
+  onMonth: (delta: number) => void;
+  onPick: (date: string) => void;
+}) {
+  return (
+    <div className="shrink-0">
+      <div className="mb-2.5 flex items-center justify-between">
+        <Button variant="ghost" className="min-h-8 px-2" aria-label="Previous month" onClick={() => onMonth(-1)}>
+          <ChevronLeftIcon />
+        </Button>
+        <div className="font-semibold" aria-live="polite">
+          {formatMonth(month)}
+        </div>
+        <Button variant="ghost" className="min-h-8 px-2" aria-label="Next month" onClick={() => onMonth(1)}>
+          <ChevronRightIcon />
+        </Button>
+      </div>
+      <div className="grid w-84 grid-cols-7 gap-1">
+        {WEEKDAY_SHORT.map((w) => (
+          <div key={w} aria-hidden="true" className="py-1 text-center text-xs text-faint">
+            {w}
+          </div>
+        ))}
+        {monthGrid(month).map((date, i) => {
+          if (!date) return <div key={`blank-${i}`} />;
+          const isSelected = selected.includes(date);
+          const working = works(date);
+          return (
+            <button
+              key={date}
+              type="button"
+              onClick={() => onPick(date)}
+              aria-pressed={isSelected}
+              aria-label={`${formatDateLong(date)}${working ? "" : ", no working hours"}`}
+              className={`h-11 rounded-[9px] border text-sm ${
+                isSelected
+                  ? "border-brand bg-brand font-semibold text-on-brand"
+                  : working
+                    ? "border-line-strong bg-surface text-ink hover:border-brand-hover"
+                    : "border-transparent bg-subtle text-faint"
+              } ${date === today && !isSelected ? "font-semibold underline underline-offset-4" : ""}`}
+            >
+              {Number(date.slice(8))}
+            </button>
+          );
+        })}
+      </div>
+      <div className="mt-3 flex gap-3.5 text-xs text-muted">
+        <Legend className="border border-faint bg-surface" label="Working day" />
+        <Legend className="bg-brand" label="Selected" />
+        <Legend className="bg-subtle" label="No schedule" />
+      </div>
+    </div>
+  );
+}
+
+function Legend({ className, label }: { className: string; label: string }) {
+  return (
+    <span className="flex items-center gap-1.5">
+      <span aria-hidden="true" className={`size-2.5 rounded-[3px] ${className}`} />
+      {label}
+    </span>
+  );
+}
+
+function DaySectionView({
+  idPrefix,
+  section,
+  showErrors,
+  onChange,
+}: {
+  idPrefix: string;
+  section: DaySection;
+  showErrors: boolean;
+  onChange: (positionId: number, patch: Partial<PositionChoice>) => void;
+}) {
+  const axis = dayAxis(section.cards.flatMap((e) => e.position.blocks));
+  const included = section.cards.filter((e) => e.choice.include).length;
+  return (
+    <section aria-labelledby={`${idPrefix}-title`} className="flex flex-col gap-2.5">
+      <div className="flex items-baseline gap-2.5">
+        <h3 id={`${idPrefix}-title`} className="text-[15px] font-semibold">
+          {formatDateLong(section.date)}
+        </h3>
+        <span className="text-[13px] text-faint">
+          {included} of {section.cards.length} positions included
+        </span>
+      </div>
+      <ul className="flex flex-col gap-2.5">
+        {section.cards.map((e) => (
+          <PositionCard
+            key={e.position.id}
+            idPrefix={`${idPrefix}-${e.position.id}`}
+            item={e}
+            axis={axis}
+            showError={showErrors || Boolean(e.choice.start && e.choice.end)}
+            onChange={(patch) => onChange(e.position.id, patch)}
+          />
+        ))}
+      </ul>
+      <FieldError message={showErrors && included === 0 ? REQUEST_MESSAGES.choosePosition : null} />
+    </section>
+  );
+}
+
 function PositionCard({
   idPrefix,
   item,
   axis,
-  error,
+  showError,
   onChange,
 }: {
   idPrefix: string;
   item: Evaluated;
   axis: { start: number; end: number; ticks: number[] };
-  error: string | undefined;
+  showError: boolean;
   onChange: (patch: Partial<PositionChoice>) => void;
 }) {
   const { position, choice, result } = item;
+  const error = showError && result && !result.ok ? result.message : null;
   const pct = (m: number) => ((m - axis.start) / (axis.end - axis.start)) * 100;
   const selected: TimeBlock[] =
     result?.ok

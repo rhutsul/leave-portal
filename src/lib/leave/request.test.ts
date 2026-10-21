@@ -1,11 +1,18 @@
 import { describe, expect, it } from "vitest";
 import {
   buildDayRecords,
+  buildRequestRecords,
+  checkComment,
   checkLeaveType,
+  commentLength,
+  findOverlap,
   LEAVE_TYPES,
+  overlapMessage,
   positionsOnDate,
   toRpcRecords,
   weeklySchedule,
+  type DraftRecord,
+  type ExistingRecord,
   type PositionChoice,
   type PositionSchedule,
 } from "./request";
@@ -106,6 +113,22 @@ describe("records of a one-date request", () => {
     });
   });
 
+  it("a date that does not exist in the calendar is refused like a day without a schedule", () => {
+    // 2026-02-30 → Date.UTC дав би 2026-03-02, понеділок із розкладом.
+    for (const date of ["2026-02-30", "2026-11-31", "2026-13-02", "2026-00-10", "2026-11-00", "2026-11-2"]) {
+      expect(positionsOnDate([MAIN, ADDITIONAL], date)).toEqual({
+        ok: false,
+        message: "You have no working hours on this day",
+      });
+    }
+    expect(buildRequestRecords([MAIN], ["2026-02-30"], [{ ...whole(1), date: "2026-02-30" }])).toEqual({
+      ok: false,
+      message: "You have no working hours on this day",
+      date: "2026-02-30",
+    });
+    expect(positionsOnDate([MAIN], "2028-02-29").ok).toBe(true);
+  });
+
   it("Tuesday shows only positions scheduled on Tuesday", () => {
     const day = positionsOnDate([MAIN, ADDITIONAL], "2026-11-03");
     expect(day.ok && day.positions.map((p) => p.id)).toEqual([1]);
@@ -113,6 +136,108 @@ describe("records of a one-date request", () => {
 
   it("an unknown leave type is rejected", () => {
     expect(checkLeaveType("vacation", "")).toEqual({ ok: false, message: "Choose a leave type" });
+  });
+});
+
+describe("a request with several dates, a comment and overlaps", () => {
+  const TUESDAY = "2026-11-03";
+
+  it("AC-LEAVE-05: the whole day on 2026-11-02 and 2026-11-03 gives 2 records of one request, one per date", () => {
+    const result = buildRequestRecords(
+      [MAIN],
+      [TUESDAY, MONDAY],
+      [
+        { ...whole(1), date: MONDAY },
+        { ...whole(1), date: TUESDAY },
+      ],
+    );
+    expect(result).toEqual({
+      ok: true,
+      records: [
+        { positionId: 1, date: MONDAY, start: 510, end: 930, minutes: 420 },
+        { positionId: 1, date: TUESDAY, start: 510, end: 930, minutes: 420 },
+      ],
+    });
+  });
+
+  it("AC-LEAVE-05: a date without positions or without a schedule stops the whole request", () => {
+    expect(
+      buildRequestRecords(
+        [MAIN, ADDITIONAL],
+        [MONDAY, TUESDAY],
+        [
+          { ...whole(1), date: MONDAY },
+          { ...whole(1, false), date: TUESDAY },
+        ],
+      ),
+    ).toEqual({ ok: false, message: "Choose at least one position", date: TUESDAY });
+    expect(buildRequestRecords([MAIN], [MONDAY, SATURDAY], [{ ...whole(1), date: MONDAY }])).toEqual({
+      ok: false,
+      message: "You have no working hours on this day",
+      date: SATURDAY,
+    });
+    expect(buildRequestRecords([MAIN], [], [])).toEqual({ ok: false, message: "Choose at least one date" });
+  });
+
+  it("AC-LEAVE-12: Family celebration without a relationship gives the PM message; with one it passes", () => {
+    expect(checkLeaveType("family", "")).toEqual({
+      ok: false,
+      message:
+        "State your relationship to this person: sibling, child, parent, grandchild or grandparent. Not applicable to cousins, friends, neighbours or siblings-in-law",
+    });
+    expect(checkLeaveType("family", "cousin")).toMatchObject({ ok: false });
+    expect(checkLeaveType("family", "sibling")).toEqual({ ok: true, leaveType: "family", relationship: "sibling" });
+  });
+
+  const existing = (date: string, start: number, end: number, status = "awaiting"): ExistingRecord => ({
+    positionId: 1,
+    date,
+    start,
+    end,
+    status,
+  });
+
+  it("AC-LEAVE-13: 10:00–12:00 over an awaiting 09:00–11:00 record of the same position gives the PM message", () => {
+    const draft: DraftRecord[] = [{ positionId: 1, date: MONDAY, start: 600, end: 720, minutes: 120 }];
+    const conflict = findOverlap(draft, [existing(MONDAY, 540, 660)]);
+    expect(conflict && overlapMessage(conflict)).toBe("You already have a request for this time: 2026-11-02 09:00–11:00");
+  });
+
+  it("AC-LEAVE-13: rejected or cancelled records, other positions and adjacent hours do not overlap", () => {
+    const draft: DraftRecord[] = [{ positionId: 1, date: MONDAY, start: 600, end: 720, minutes: 120 }];
+    expect(findOverlap(draft, [existing(MONDAY, 540, 660, "rejected"), existing(MONDAY, 540, 660, "cancelled")])).toBeNull();
+    expect(findOverlap(draft, [{ ...existing(MONDAY, 540, 660), positionId: 2 }])).toBeNull();
+    expect(findOverlap(draft, [existing(MONDAY, 720, 780), existing(MONDAY, 510, 600)])).toBeNull();
+    expect(findOverlap(draft, [existing(MONDAY, 540, 660, "returned")])).not.toBeNull();
+    expect(findOverlap(draft, [existing(MONDAY, 540, 660, "approved")])).not.toBeNull();
+  });
+
+  it("AC-LEAVE-16: a whole-day request for 2026-11-02 and 2026-11-03 names the record on 2026-11-03", () => {
+    const result = buildRequestRecords(
+      [MAIN],
+      [MONDAY, TUESDAY],
+      [
+        { ...whole(1), date: MONDAY },
+        { ...whole(1), date: TUESDAY },
+      ],
+    );
+    if (!result.ok) throw new Error(result.message);
+    const conflict = findOverlap(result.records, [existing(TUESDAY, 540, 660), existing("2026-11-04", 540, 660)]);
+    expect(conflict && overlapMessage(conflict)).toBe("You already have a request for this time: 2026-11-03 09:00–11:00");
+  });
+
+  it("AC-LEAVE-18: a comment of 501 characters gives the PM message; 500 characters and no comment pass", () => {
+    expect(checkComment("x".repeat(501))).toEqual({ ok: false, message: "The comment can be at most 500 characters" });
+    expect(checkComment("x".repeat(500))).toEqual({ ok: true, comment: "x".repeat(500) });
+    expect(checkComment("   ")).toEqual({ ok: true, comment: null });
+    // Як char_length у Postgres: емодзі — один символ, а не два UTF-16.
+    expect(commentLength("🙂".repeat(500))).toBe(500);
+    expect(checkComment("🙂".repeat(500))).toMatchObject({ ok: true });
+  });
+
+  // Копію в кожному записі перевіряє tests/db/multi-date-request.test.ts.
+  it("AC-LEAVE-17: the request comment \"Doctor's appointment\" is passed on as typed, without edge spaces", () => {
+    expect(checkComment("  Doctor's appointment ")).toEqual({ ok: true, comment: "Doctor's appointment" });
   });
 });
 

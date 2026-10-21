@@ -38,7 +38,9 @@ export default async function MyRequestsPage({ searchParams }: PageProps<"/reque
 
   const { data: rows, error } = await supabase
     .from("my_leave_records")
-    .select("id, request_id, date, start_min, end_min, minutes, leave_type, status, position_title, division_name, created_at")
+    .select(
+      "id, request_id, date, start_min, end_min, minutes, leave_type, status, position_title, division_name, employee_comment, created_at",
+    )
     .order("request_id", { ascending: false })
     .order("date", { ascending: true })
     .order("start_min", { ascending: true });
@@ -142,6 +144,12 @@ export default async function MyRequestsPage({ searchParams }: PageProps<"/reque
                   >
                     <LeaveTypeTag type={items[0].leave_type ?? ""} />
                     <span className="text-muted">Submitted {formatKyivDay(items[0].created_at!)}</span>
+                    {items[0].employee_comment && (
+                      <p className="w-full break-words whitespace-pre-line text-ink-2">
+                        <span className="text-muted">Comment: </span>
+                        {items[0].employee_comment}
+                      </p>
+                    )}
                   </header>
                   <table aria-labelledby={`request-${requestId}`} className="w-full border-collapse text-left">
                     <thead>
