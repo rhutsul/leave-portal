@@ -8,7 +8,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { formatSchoolYear, schoolYearOf } from "@/lib/leave/balance";
 import { kyivDate } from "@/lib/leave/time";
 import { createClient } from "@/lib/supabase/server";
-import { loadBalances } from "./load-balances";
+import { balancesQuery, loadBalances } from "./load-balances";
 
 function balancesHref(employee: string | undefined, year: number) {
   const params = new URLSearchParams();
@@ -27,10 +27,8 @@ export default async function BalancesPage({ searchParams }: PageProps<"/balance
   if (!claims) redirect("/login");
 
   const params = await searchParams;
-  const employeeParam = typeof params.employee === "string" && params.employee !== claims.sub ? params.employee : undefined;
   const currentYear = schoolYearOf(kyivDate(new Date()));
-  const yearParam = typeof params.year === "string" && /^\d{4}$/.test(params.year) ? Number(params.year) : NaN;
-  const year = Number.isNaN(yearParam) ? currentYear : yearParam;
+  const { employee: employeeParam, year } = balancesQuery(params, claims.sub, currentYear);
 
   const [result, { data: employees }] = await Promise.all([
     loadBalances(supabase, employeeParam ?? claims.sub, year),

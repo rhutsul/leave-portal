@@ -181,6 +181,31 @@ describe("get_balance_inputs", () => {
   });
 });
 
+describe("get_balance_inputs data", () => {
+  it("returns only approved totals, so a manager of another position learns nothing about awaiting or rejected records", async () => {
+    const [{ id: awaiting }] = await submit(teacher1, "sick", [
+      { position_id: teacher1Main, date: "2026-11-03", start_min: 510, end_min: 930 },
+    ]);
+    const [{ id: rejected }] = await submit(teacher1, "personal", [
+      { position_id: teacher1Main, date: "2026-11-04", start_min: 510, end_min: 930 },
+    ]);
+    await setStatus(rejected, "rejected");
+    const [row] = await t.asUser<{ inputs: { days: unknown[] } }>(
+      manager2,
+      "select public.get_balance_inputs($1, 2026) as inputs",
+      [teacher1],
+    );
+    expect(row.inputs.days).toEqual([]);
+    await setStatus(awaiting, "approved");
+    const [after] = await t.asUser<{ inputs: { days: { date: string; status: string }[] } }>(
+      manager2,
+      "select public.get_balance_inputs($1, 2026) as inputs",
+      [teacher1],
+    );
+    expect(after.inputs.days.map((d) => [d.date, d.status])).toEqual([["2026-11-03", "approved"]]);
+  });
+});
+
 describe("balance_employees", () => {
   it("lists the employees whose balances a manager or the administrator may open", async () => {
     const emails = async (userId: string) =>

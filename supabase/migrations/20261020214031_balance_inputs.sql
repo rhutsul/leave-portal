@@ -32,8 +32,8 @@ grant execute on function private.can_view_balances(uuid) to authenticated;
 -- перенесене в рік рахуємо із залишків попередніх років (AC-BALANCE-11).
 -- {
 --   "employee":   {"id", "full_name", "email"},
---   "days":       [{"date", "working_minutes", "leave_type", "status", "minutes"}]  — записи без розподілу,
---                 сума хвилин за датою, типом і статусом; working_minutes — усі робочі хвилини працівника на дату
+--   "days":       [{"date", "working_minutes", "leave_type", "status", "minutes"}]  — погоджені записи без
+--                 розподілу, сума хвилин за датою й типом; working_minutes — усі робочі хвилини працівника на дату
 --                 за розкладами всіх посад (знаменник частки дня, AC-BALANCE-05, AC-BALANCE-06);
 --   "splits":     [{"date", "leave_type", "paid_days", "unpaid_days"}]              — погоджені з розподілом (задача 4);
 --   "carryovers": [{"school_year", "leave_type", "days"}]                           — перенесені дні першого року
@@ -79,7 +79,9 @@ begin
       from (
         select lr.date, lr.leave_type, lr.status, sum(lr.minutes)::integer as minutes
         from public.leave_records as lr
-        where lr.employee_id = p_employee_id and lr.date < v_until and lr.paid_days is null
+        -- Лише погоджені: інші статуси залишок не змінюють (AC-BALANCE-04, AC-BALANCE-07), а менеджер додаткової
+        -- посади не має дізнаватися про записи, що чекають рішення чи відхилені на чужих посадах (AC-DECIDE-01).
+        where lr.employee_id = p_employee_id and lr.date < v_until and lr.status = 'approved' and lr.paid_days is null
         group by lr.date, lr.leave_type, lr.status
       ) as r
       left join (
