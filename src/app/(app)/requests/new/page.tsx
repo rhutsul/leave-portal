@@ -21,7 +21,7 @@ export default async function NewRequestPage() {
   const year = schoolYearOf(today);
   const [positions, remaining] = await Promise.all([
     loadOwnPositions(supabase, claims.sub),
-    loadRemaining(supabase, claims.sub, [year - 1, year, year + 1]),
+    loadRemaining(supabase, claims.sub, [year - 1, year, year + 1]).catch(() => null),
   ]);
 
   return (

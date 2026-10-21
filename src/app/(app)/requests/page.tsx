@@ -10,7 +10,7 @@ import { LeaveTypeTag } from "@/components/ui/leave-type-tag";
 import { PageHeader } from "@/components/ui/page-header";
 import { isRecordStatus, STATUS_DOT, StatusBadge } from "@/components/ui/status-badge";
 import { WarningNote } from "@/components/ui/warning-note";
-import { daysToHundredths, employeeWarning, formatSplit, isLimitedType } from "@/lib/leave/balance";
+import { daysToHundredths, formatSplit, isLimitedType, overBalanceWarnings } from "@/lib/leave/balance";
 import { employeeActions } from "@/lib/leave/decision";
 import { positionLabel, type PositionSchedule, type RecordStatus } from "@/lib/leave/request";
 import {
@@ -55,7 +55,7 @@ export default async function MyRequestsPage({ searchParams }: PageProps<"/reque
   // Дати заявки без робочих годин, які не прийнято (AC-LEAVE-21) — з redirect після подання.
   const skippedDates = typeof skipped === "string" ? skipped.split(",").filter(isCalendarDate) : [];
   // Перевищення залишку на момент подання (AC-BALANCE-08, AC-BALANCE-15, AC-BALANCE-17): "тип:частка:залишок" у сотих.
-  const balanceWarnings = typeof over === "string" ? overWarnings(over) : [];
+  const balanceWarnings = typeof over === "string" ? overBalanceWarnings(over) : [];
 
   const [{ data: rows, error }, positions] = await Promise.all([
     supabase
@@ -131,7 +131,12 @@ export default async function MyRequestsPage({ searchParams }: PageProps<"/reque
         </div>
       )}
 
-      {submitted === "1" && balanceWarnings.map((w) => <WarningNote key={w}>{w}</WarningNote>)}
+      {submitted === "1" &&
+        balanceWarnings.map((w, i) => (
+          <WarningNote key={i} live>
+            {w}
+          </WarningNote>
+        ))}
 
       {error ? (
         <p role="alert" className="text-danger">
@@ -267,16 +272,6 @@ export default async function MyRequestsPage({ searchParams }: PageProps<"/reque
       )}
     </>
   );
-}
-
-/** Параметр `over` після подання → тексти попереджень; лише числа й обмежені типи, решту відкидаємо. */
-function overWarnings(raw: string): string[] {
-  return raw.split(",").flatMap((item) => {
-    const match = /^(sick|personal):(\d{1,6}):(-?\d{1,6})$/.exec(item);
-    if (!match || !isLimitedType(match[1])) return [];
-    const warning = employeeWarning(match[1], Number(match[2]), Number(match[3]));
-    return warning ? [warning] : [];
-  });
 }
 
 /** Під посадою: розподіл погодженого запису (AC-BALANCE-18, AC-BALANCE-19). */

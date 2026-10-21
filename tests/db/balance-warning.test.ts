@@ -9,8 +9,8 @@ import {
   employeeWarning,
   parseBalanceInputs,
   requestOverBalance,
-  type WeekdayBlock,
 } from "@/lib/leave/balance";
+import type { ScheduleBlock } from "@/lib/leave/request";
 import { createLeaveDb, type LeaveDb } from "./supabase-pglite";
 
 let t: LeaveDb;
@@ -35,7 +35,7 @@ const blocksOf = async (userId: string) =>
       "select weekday, start_min, end_min from public.schedule_blocks where employee_id = $1",
       [userId],
     )
-  ).map((b): WeekdayBlock => ({ weekday: b.weekday, start: b.start_min, end: b.end_min }));
+  ).map((b): ScheduleBlock => ({ weekday: b.weekday, start: b.start_min, end: b.end_min }));
 
 const submit = (userId: string, records: RecordInput[]) =>
   t.asUser<{ id: number }>(userId, "select public.submit_leave_request('personal', $1::jsonb) as id", [

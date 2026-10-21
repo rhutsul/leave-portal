@@ -4,16 +4,19 @@ import {
   daysToHundredths,
   dayShare,
   employeeWarning,
+  encodeOverBalance,
   formatDays,
   formatSchoolYear,
   formatSplit,
   managerWarning,
+  overBalanceWarnings,
   parseBalanceInputs,
   requestOverBalance,
   requestShares,
   schoolYearOf,
   splitRequiredMessage,
   suggestedSplit,
+  uncheckedYears,
   workingMinutesOn,
   type BalanceInputs,
   type DayMinutes,
@@ -247,6 +250,10 @@ describe("the employee's warning about exceeding the balance", () => {
     expect(employeeWarning("personal", over[0].share, over[0].remaining)).toBe(
       "Your Personal leave balance is 1.50 day. Another 1.50 day will be counted as Unpaid leave",
     );
+    // Те саме попередження після redirect із server action на «My requests»: параметр over → текст.
+    expect(overBalanceWarnings(encodeOverBalance("personal", over))).toEqual([
+      "Your Personal leave balance is 1.50 day. Another 1.50 day will be counted as Unpaid leave",
+    ]);
   });
 
   it("no warning within the balance, for unlimited types, or for a school year whose balance is unknown", () => {
@@ -273,5 +280,26 @@ describe("the employee's warning about exceeding the balance", () => {
         [2027, 42],
       ]),
     );
+  });
+
+  it("the over parameter rejects forged or incomplete values", () => {
+    for (const raw of ["", "unpaid:300:0", "personal:300", "personal:abc:50", "personal:1e3:50", "<b>:1:0"]) {
+      expect(overBalanceWarnings(raw)).toEqual([]);
+    }
+    // Не понад залишок — попередження немає.
+    expect(overBalanceWarnings("personal:50:100")).toEqual([]);
+  });
+
+  it("a request over two school years is checked against each year's balance", () => {
+    const records = [
+      { date: "2027-08-31", minutes: 420 },
+      { date: "2027-09-07", minutes: 420 },
+    ];
+    const remaining = new Map([[2026, 50]]);
+    const remainingOf = (year: number) => remaining.get(year) ?? null;
+    expect(requestOverBalance("personal", records, TUESDAY_ONLY, remainingOf)).toEqual([
+      { schoolYear: 2026, share: 100, remaining: 50 },
+    ]);
+    expect(uncheckedYears(records, remainingOf)).toEqual([2027]);
   });
 });

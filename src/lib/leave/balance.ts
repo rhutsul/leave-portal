@@ -2,7 +2,7 @@
 // Дані дає функція бази get_balance_inputs (D4): лише підсумки по датах, без деталей записів.
 // Дні рахуємо в сотих (цілі числа): частка дня округлюється half-up до 0.01, тож дробові числа JS тут зайві.
 
-import type { LeaveType } from "./request";
+import type { LeaveType, ScheduleBlock } from "./request";
 import { isoWeekday } from "./time";
 
 /** Днів «Sick leave» і «Personal leave» на навчальний рік, окремо (Assumptions 03-leave-balance). */
@@ -224,15 +224,11 @@ export function daysToHundredths(days: number | string): number {
 
 // ── Попередження працівнику про перевищення залишку (AC-BALANCE-08, AC-BALANCE-15, AC-BALANCE-17) ──
 
-/** Блок розкладу будь-якої посади працівника: weekday 1 = понеділок … 7 = неділя. */
-export interface WeekdayBlock {
-  weekday: number;
-  start: number;
-  end: number;
-}
-
-/** Усі робочі хвилини працівника на дату за розкладами всіх посад — знаменник частки дня, як working_minutes у базі. */
-export function workingMinutesOn(blocks: readonly WeekdayBlock[], date: string): number {
+/**
+ * Усі робочі хвилини працівника на дату за розкладами всіх посад (blocks — блоки всіх його посад) — знаменник частки
+ * дня; те саме правило, що private.working_minutes у базі.
+ */
+export function workingMinutesOn(blocks: readonly ScheduleBlock[], date: string): number {
   const weekday = isoWeekday(date);
   return blocks.filter((b) => b.weekday === weekday).reduce((sum, b) => sum + b.end - b.start, 0);
 }
@@ -240,7 +236,7 @@ export function workingMinutesOn(blocks: readonly WeekdayBlock[], date: string):
 /** Частка заявки в сотих за навчальним роком: для кожної дати — dayShare усіх хвилин заявки на цю дату. */
 export function requestShares(
   records: readonly { date: string; minutes: number }[],
-  blocks: readonly WeekdayBlock[],
+  blocks: readonly ScheduleBlock[],
 ): Map<number, number> {
   const perDate = new Map<string, number>();
   for (const r of records) perDate.set(r.date, (perDate.get(r.date) ?? 0) + r.minutes);
@@ -279,7 +275,7 @@ export interface RequestOverBalance {
 export function requestOverBalance(
   leaveType: string,
   records: readonly { date: string; minutes: number }[],
-  blocks: readonly WeekdayBlock[],
+  blocks: readonly ScheduleBlock[],
   remainingOf: (schoolYear: number) => number | null,
 ): RequestOverBalance[] {
   if (!isLimitedType(leaveType)) return [];
@@ -289,4 +285,31 @@ export function requestOverBalance(
     if (remaining !== null && employeeWarning(leaveType, share, remaining)) over.push({ schoolYear, share, remaining });
   }
   return over;
+}
+
+/** Навчальні роки дат заявки, для яких залишку немає під рукою: на підсумку їх перевірить лише подання. */
+export function uncheckedYears(
+  records: readonly { date: string }[],
+  remainingOf: (schoolYear: number) => number | null,
+): number[] {
+  const years = new Set(records.map((r) => schoolYearOf(r.date)));
+  return [...years].filter((y) => remainingOf(y) === null).sort((a, b) => a - b);
+}
+
+/**
+ * Перевищення після подання — у параметр `over` для «My requests» (redirect з server action): лише числа,
+ * "personal:300:150" через кому; текст будує employeeWarning на сторінці.
+ */
+export function encodeOverBalance(type: LimitedType, over: readonly RequestOverBalance[]): string {
+  return over.map((o) => `${type}:${o.share}:${o.remaining}`).join(",");
+}
+
+/** Параметр `over` → тексти попереджень. Підроблене чи неповне значення відкидаємо. */
+export function overBalanceWarnings(raw: string): string[] {
+  return raw.split(",").flatMap((item) => {
+    const match = /^(sick|personal):(\d{1,6}):(-?\d{1,6})$/.exec(item);
+    if (!match || !isLimitedType(match[1])) return [];
+    const warning = employeeWarning(match[1], Number(match[2]), Number(match[3]));
+    return warning ? [warning] : [];
+  });
 }

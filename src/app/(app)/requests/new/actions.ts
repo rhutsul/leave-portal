@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { isLimitedType, requestOverBalance, schoolYearOf } from "@/lib/leave/balance";
+import { encodeOverBalance, isLimitedType, requestOverBalance, schoolYearOf } from "@/lib/leave/balance";
 import type { RequestPayload } from "@/lib/leave/draft";
 import {
   BLOCKING_STATUSES,
@@ -105,7 +105,7 @@ export async function submitLeaveRequest(_prev: SubmitState, formData: FormData)
         supabase,
         claims.sub,
         records.records.map((r) => schoolYearOf(r.date)),
-      )
+      ).catch(() => null)
     : null;
 
   const { error } = await supabase.rpc("submit_leave_request", {
@@ -133,7 +133,7 @@ export async function submitLeaveRequest(_prev: SubmitState, formData: FormData)
       positions.flatMap((p) => p.blocks),
       (year) => remaining.get(year)?.[limitedType] ?? null,
     );
-    if (over.length) params.set("over", over.map((o) => `${limitedType}:${o.share}:${o.remaining}`).join(","));
+    if (over.length) params.set("over", encodeOverBalance(limitedType, over));
   }
   redirect(`/requests?${params}`);
 }

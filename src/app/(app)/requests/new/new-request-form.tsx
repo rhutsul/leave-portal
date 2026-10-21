@@ -6,7 +6,13 @@ import { Card } from "@/components/ui/card";
 import { FieldError } from "@/components/ui/field-error";
 import { WarningNote } from "@/components/ui/warning-note";
 import { ChevronLeftIcon, ChevronRightIcon, CloseIcon, LeaveTypeIcon } from "@/components/ui/icons";
-import { employeeWarning, isLimitedType, requestOverBalance, type LimitedType } from "@/lib/leave/balance";
+import {
+  employeeWarning,
+  isLimitedType,
+  requestOverBalance,
+  uncheckedYears,
+  type LimitedType,
+} from "@/lib/leave/balance";
 import { choiceFor, draftReducer, EMPTY_DRAFT, toPayload, type Step } from "@/lib/leave/draft";
 import {
   checkComment,
@@ -113,11 +119,11 @@ export function NewRequestForm({
   // Одне попередження на всю заявку за залишком навчального року її дат (AC-BALANCE-08, AC-BALANCE-15, AC-BALANCE-17).
   // Заявку все одно можна подати; server action ще раз рахує його за залишком на момент подання.
   const allBlocks = positions.flatMap((p) => p.blocks);
-  const overBalance =
-    leaveType && remaining
-      ? requestOverBalance(leaveType, records, allBlocks, (year) => remaining[year]?.[leaveType as LimitedType] ?? null)
-      : [];
-  const balanceUnchecked = leaveType !== null && isLimitedType(leaveType) && remaining === null;
+  const remainingOf = (year: number) =>
+    leaveType && isLimitedType(leaveType) ? (remaining?.[year]?.[leaveType] ?? null) : null;
+  const overBalance = leaveType ? requestOverBalance(leaveType, records, allBlocks, remainingOf) : [];
+  // Залишок не завантажився або дати поза завантаженими роками — кажемо, що перевірка буде під час подання.
+  const balanceUnchecked = leaveType !== null && isLimitedType(leaveType) && uncheckedYears(records, remainingOf).length > 0;
   const labelOf = (id: number) => positions.find((p) => p.id === id)?.label ?? "";
 
   function pickDate(date: string) {
@@ -431,8 +437,8 @@ export function NewRequestForm({
                     <WarningNote key={o.schoolYear}>{employeeWarning(leaveType, o.share, o.remaining)}</WarningNote>
                   ))}
                 {balanceUnchecked && (
-                  <p role="alert" className="text-[13px] text-danger">
-                    Your balance could not be checked. You can still submit the request.
+                  <p className="text-[13px] text-muted">
+                    Your balance will be checked when you submit; if it is exceeded, you will see a warning.
                   </p>
                 )}
                 <input type="hidden" name="payload" value={payload} />
