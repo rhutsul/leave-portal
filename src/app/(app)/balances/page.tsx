@@ -36,23 +36,15 @@ export default async function BalancesPage({ searchParams }: PageProps<"/balance
   ]);
 
   const others = employees ?? [];
-  const title = employeeParam && result.ok ? `Balances · ${result.employee.name}` : "Balances";
+  // Шапка однакова для своїх і чужих залишків: вибір працівника завжди праворуч угорі, а чиї це залишки —
+  // в описі й у рядку навчального року (довгий заголовок з іменем переносив вибір під себе).
+  const whose = employeeParam && result.ok ? result.employee.name : null;
 
   return (
     <>
       <PageHeader
-        title={title}
-        description="Days, to 0.01. Only approved records count."
-        breadcrumb={
-          employeeParam ? (
-            <>
-              <Link href="/balances" className="text-brand-strong underline-offset-2 hover:underline">
-                My balances
-              </Link>{" "}
-              / Employee
-            </>
-          ) : undefined
-        }
+        title="Balances"
+        description={`${whose ? `${whose}. ` : ""}Days, to 0.01. Only approved records count.`}
         actions={
           others.length > 0 ? (
             <form action="/balances" className="flex items-end gap-2">
@@ -81,7 +73,9 @@ export default async function BalancesPage({ searchParams }: PageProps<"/balance
       />
 
       <div className="flex items-center justify-between gap-4">
-        <h2 className="text-[17px] font-semibold">School year {formatSchoolYear(year)}</h2>
+        <h2 className="text-[17px] font-semibold">
+          {whose ? `${whose} · ` : ""}School year {formatSchoolYear(year)}
+        </h2>
         <nav aria-label="School year" className="flex items-center gap-2">
           <Link
             href={balancesHref(employeeParam, year - 1)}
