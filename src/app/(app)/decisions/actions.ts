@@ -3,7 +3,14 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { isRecordStatus } from "@/components/ui/status-badge";
-import { checkDecision, DECISION_MESSAGES, isDecision, parseRecordId, type Role } from "@/lib/leave/decision";
+import {
+  checkDecision,
+  DECISION_MESSAGES,
+  isDecision,
+  parseRecordId,
+  reviewedHours,
+  type Role,
+} from "@/lib/leave/decision";
 import { createClient } from "@/lib/supabase/server";
 
 export interface DecideState {
@@ -43,6 +50,11 @@ export async function decideRecord(_prev: DecideState, formData: FormData): Prom
       : null;
   const check = checkDecision({ id: claims.sub, role: profile.role as Role }, target, decision, comment);
   if (!check.ok) return { message: check.message };
+  // Працівник міг змінити години, поки менеджер дивився запис: рішення — лише щодо тих годин, які він бачив.
+  if (row && formData.get("hours") !== reviewedHours(row.start_min, row.end_min)) {
+    revalidatePath("/decisions");
+    return { message: DECISION_MESSAGES.hoursChanged };
+  }
 
   const { error } = await supabase.rpc("decide_leave_record", {
     p_record_id: recordId,

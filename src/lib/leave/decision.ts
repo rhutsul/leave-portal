@@ -34,7 +34,14 @@ export const DECISION_MESSAGES = {
   noAccess: "You can't decide on this record",
   cancelled: "This record was cancelled by the employee",
   commentTooLong: `The comment can be at most ${COMMENT_MAX} characters`,
+  /** Працівник змінив години, поки менеджер дивився запис (зміна годин до рішення — задача 5). */
+  hoursChanged: "The employee has changed the hours of this record. Check them again before deciding",
 } as const;
+
+/** Години запису, які бачив менеджер, — у прихованому полі форми рішення: "540-720". */
+export function reviewedHours(start: number, end: number): string {
+  return `${start}-${end}`;
+}
 
 export interface Actor {
   id: string;

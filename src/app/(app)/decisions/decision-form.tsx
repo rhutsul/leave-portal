@@ -12,7 +12,16 @@ const INITIAL: DecideState = { message: "" };
  * поверненні (AC-DECIDE-04, AC-DECIDE-23, AC-DECIDE-24). Поле кероване, тож після помилки введене лишається.
  * split — запис понад залишок: «Approve» погоджує лише з пропонованим розподілом (AC-BALANCE-10, AC-BALANCE-16).
  */
-export function DecisionForm({ recordId, split = false }: { recordId: number; split?: boolean }) {
+export function DecisionForm({
+  recordId,
+  hours,
+  split = false,
+}: {
+  recordId: number;
+  /** Години, які бачить менеджер (reviewedHours): рішення стосується саме їх. */
+  hours: string;
+  split?: boolean;
+}) {
   const [state, action, pending] = useActionState(decideRecord, INITIAL);
   const [comment, setComment] = useState("");
   const commentId = `comment-${recordId}`;
@@ -21,6 +30,7 @@ export function DecisionForm({ recordId, split = false }: { recordId: number; sp
   return (
     <form action={action} className="flex flex-col gap-2.5">
       <input type="hidden" name="record_id" value={recordId} />
+      <input type="hidden" name="hours" value={hours} />
       {split && <input type="hidden" name="split" value="1" />}
       <label htmlFor={commentId} className="text-[13px] font-medium">
         Comment for the employee{" "}

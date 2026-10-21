@@ -10,6 +10,7 @@ import {
   isDecision,
   parseRecordId,
   RECORD_EDIT_MESSAGES,
+  reviewedHours,
   type Actor,
   type DecisionTarget,
   type OwnRecord,
@@ -275,5 +276,12 @@ describe("the employee changes, resubmits or cancels their own record", () => {
   it("a record id from the form is a positive integer, anything else is refused", () => {
     expect(parseRecordId("42")).toBe(42);
     for (const raw of [null, "", "0", "-1", "1.5", "1e3", " 7", "9999999999999999"]) expect(parseRecordId(raw)).toBeNull();
+  });
+});
+
+describe("the decision is about the hours the manager saw", () => {
+  it("the decision form carries the reviewed hours, so a change by the employee is caught", () => {
+    expect(reviewedHours(540, 720)).toBe("540-720");
+    expect(reviewedHours(540, 720)).not.toBe(reviewedHours(510, 930));
   });
 });
