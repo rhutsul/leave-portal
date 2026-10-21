@@ -17,6 +17,8 @@ security definer
 set search_path = ''
 as $$
   select (select auth.uid()) is not null
+    -- Неіснуючий працівник — та сама відмова, що й недоступний (ADR 0003), і для адміністратора теж.
+    and exists (select 1 from public.profiles as p where p.id = p_employee_id)
     and (
       p_employee_id = (select auth.uid())
       or private.manages_employee(p_employee_id)

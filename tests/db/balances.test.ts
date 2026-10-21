@@ -152,6 +152,15 @@ describe("get_balance_inputs", () => {
     await expect(balancesAs(manager1, teacher2)).rejects.toMatchObject({ code: "42501" });
   });
 
+  it("AC-BALANCE-12: balances of an employee that does not exist are not shown, not even to the administrator", async () => {
+    const unknown = "a0000000-0000-0000-0000-0000000000ff";
+    await expect(balancesAs(admin, unknown)).rejects.toMatchObject({
+      code: "42501",
+      message: "Balances are not available",
+    });
+    await expect(balancesAs(manager1, unknown)).rejects.toMatchObject({ code: "42501" });
+  });
+
   it("AC-BALANCE-13: teacher1@ is not shown another employee's balances", async () => {
     await expect(balancesAs(teacher1, teacher2)).rejects.toMatchObject({
       code: "42501",
