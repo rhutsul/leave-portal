@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { isRecordStatus } from "@/components/ui/status-badge";
-import { checkDecision, DECISION_MESSAGES, isDecision, type Role } from "@/lib/leave/decision";
+import { checkDecision, DECISION_MESSAGES, isDecision, parseRecordId, type Role } from "@/lib/leave/decision";
 import { createClient } from "@/lib/supabase/server";
 
 export interface DecideState {
@@ -12,13 +12,6 @@ export interface DecideState {
 
 const FAILED = "The decision could not be saved. Please try again.";
 const ROLES: readonly string[] = ["employee", "manager", "admin"] satisfies Role[];
-
-/** id запису з форми: лише додатне ціле; інше — як запис без доступу. */
-function parseRecordId(raw: FormDataEntryValue | null): number | null {
-  if (typeof raw !== "string" || !/^[1-9]\d{0,14}$/.test(raw)) return null;
-  const id = Number(raw);
-  return Number.isSafeInteger(id) ? id : null;
-}
 
 // Рішення щодо запису (/decisions). Спершу ті самі правила, що й decide_leave_record, чистими функціями
 // (src/lib/leave/decision.ts) — для повідомлення; потім rpc, де база перевіряє все ще раз, сама рахує розподіл понад

@@ -78,11 +78,11 @@ AC-BALANCE-10, AC-BALANCE-14, AC-BALANCE-16, AC-BALANCE-18, AC-BALANCE-19, AC-BA
 
 ## 5. Зміна, повторне подання й скасування працівником (`task/leave-record-edit`)
 
-- [ ] 5.1 Міграція з функціями `update_leave_record_hours`, `resubmit_leave_record`, `cancel_leave_record` (D4) і дії
+- [x] 5.1 Міграція з функціями `update_leave_record_hours`, `resubmit_leave_record`, `cancel_leave_record` (D4) і дії
       на `/requests` — змінюються лише години, перетин перевіряється з іншими записами посади, але не з самим записом;
       перевірка: тести AC-DECIDE-06, AC-DECIDE-12, AC-DECIDE-13, AC-DECIDE-16, AC-DECIDE-17, AC-DECIDE-21,
       AC-DECIDE-22
-- [ ] 5.2 `/requests/new` і подання заявки на кілька дат: дату без робочих годин не прийнято з повідомленням
+- [x] 5.2 `/requests/new` і подання заявки на кілька дат: дату без робочих годин не прийнято з повідомленням
       "You have no working hours on this day", а записи інших дат створено («усі або жоден» — для прийнятих дат);
       перевірка: тест AC-LEAVE-21
 

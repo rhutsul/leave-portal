@@ -238,7 +238,7 @@ isOneToOne: false
           Views: {
             "my_leave_records": {
                   Row: {
-                    "created_at": string | null,"date": string | null,"division_name": string | null,"employee_comment": string | null,"end_min": number | null,"id": number | null,"leave_type": string | null,"manager_comment": string | null,"minutes": number | null,"paid_days": number | null,"position_kind": string | null,"position_title": string | null,"relationship": string | null,"request_id": number | null,"start_min": number | null,"status": string | null,"unpaid_days": number | null
+                    "created_at": string | null,"date": string | null,"division_name": string | null,"employee_comment": string | null,"end_min": number | null,"id": number | null,"leave_type": string | null,"manager_comment": string | null,"minutes": number | null,"paid_days": number | null,"position_id": number | null,"position_kind": string | null,"position_title": string | null,"relationship": string | null,"request_id": number | null,"start_min": number | null,"status": string | null,"unpaid_days": number | null
                   }
                   ComputedFields: never
                   Relationships: [
@@ -255,6 +255,9 @@ isOneToOne: false
           Functions: {
             "balance_employees":
 { Args: never; Returns: { "email": string,"full_name": string,"id": string }[]
+                           }
+            "cancel_leave_record":
+{ Args: { "p_record_id": number }; Returns: undefined
                            }
             "decide_leave_record":
 { Args: { "p_comment"?: string,"p_decision": string,"p_record_id": number,"p_split"?: boolean }; Returns: Json
@@ -274,8 +277,14 @@ isOneToOne: false
             "record_history":
 { Args: { "p_record_id": number }; Returns: { "action": string,"actor_name": string,"comment": string,"created_at": string }[]
                            }
+            "resubmit_leave_record":
+{ Args: { "p_record_id": number }; Returns: undefined
+                           }
             "submit_leave_request":
 { Args: { "p_comment"?: string,"p_leave_type": string,"p_records": Json,"p_relationship"?: string }; Returns: number
+                           }
+            "update_leave_record_hours":
+{ Args: { "p_end_min": number,"p_record_id": number,"p_start_min": number }; Returns: undefined
                            }
           }
           Enums: {

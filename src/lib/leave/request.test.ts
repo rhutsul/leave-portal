@@ -157,10 +157,27 @@ describe("a request with several dates, a comment and overlaps", () => {
         { positionId: 1, date: MONDAY, start: 510, end: 930, minutes: 420 },
         { positionId: 1, date: TUESDAY, start: 510, end: 930, minutes: 420 },
       ],
+      skipped: [],
     });
   });
 
-  it("AC-LEAVE-05: a date without positions or without a schedule stops the whole request", () => {
+  it("AC-LEAVE-21: Friday 2026-11-06 and Saturday 2026-11-07 — Saturday is not accepted, 1 record for Friday", () => {
+    const FRIDAY = "2026-11-06";
+    expect(buildRequestRecords([MAIN], [FRIDAY, SATURDAY], [{ ...whole(1), date: FRIDAY }])).toEqual({
+      ok: true,
+      records: [{ positionId: 1, date: FRIDAY, start: 510, end: 930, minutes: 420 }],
+      skipped: [SATURDAY],
+    });
+    expect(positionsOnDate([MAIN], SATURDAY)).toEqual({ ok: false, message: "You have no working hours on this day" });
+    // Лише дати без робочих годин — заявки немає (AC-LEAVE-06).
+    expect(buildRequestRecords([MAIN], [SATURDAY], [])).toEqual({
+      ok: false,
+      message: "You have no working hours on this day",
+      date: SATURDAY,
+    });
+  });
+
+  it("AC-LEAVE-05: a date without positions stops the whole request", () => {
     expect(
       buildRequestRecords(
         [MAIN, ADDITIONAL],
@@ -171,11 +188,6 @@ describe("a request with several dates, a comment and overlaps", () => {
         ],
       ),
     ).toEqual({ ok: false, message: "Choose at least one position", date: TUESDAY });
-    expect(buildRequestRecords([MAIN], [MONDAY, SATURDAY], [{ ...whole(1), date: MONDAY }])).toEqual({
-      ok: false,
-      message: "You have no working hours on this day",
-      date: SATURDAY,
-    });
     expect(buildRequestRecords([MAIN], [], [])).toEqual({ ok: false, message: "Choose at least one date" });
   });
 

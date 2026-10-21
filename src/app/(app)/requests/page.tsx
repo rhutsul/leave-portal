@@ -10,9 +10,22 @@ import { LeaveTypeTag } from "@/components/ui/leave-type-tag";
 import { PageHeader } from "@/components/ui/page-header";
 import { isRecordStatus, STATUS_DOT, StatusBadge } from "@/components/ui/status-badge";
 import { daysToHundredths, formatSplit, isLimitedType } from "@/lib/leave/balance";
-import { positionLabel, type RecordStatus } from "@/lib/leave/request";
-import { formatDuration, formatKyivDay, formatRange, weekdayName } from "@/lib/leave/time";
+import { employeeActions } from "@/lib/leave/decision";
+import { positionLabel, type PositionSchedule, type RecordStatus } from "@/lib/leave/request";
+import {
+  formatBlocks,
+  formatDateLong,
+  formatDuration,
+  formatKyivDay,
+  formatRange,
+  isCalendarDate,
+  isoWeekday,
+  TIME_MESSAGES,
+  weekdayName,
+} from "@/lib/leave/time";
 import { createClient } from "@/lib/supabase/server";
+import { loadOwnPositions } from "./new/load-positions";
+import { RecordActions } from "./record-actions";
 
 const TABS: { id: string; label: string; statuses: RecordStatus[] | null }[] = [
   { id: "all", label: "All", statuses: null },
@@ -36,17 +49,28 @@ export default async function MyRequestsPage({ searchParams }: PageProps<"/reque
   const { data } = await supabase.auth.getClaims();
   if (!data?.claims) redirect("/login");
 
-  const { submitted, status } = await searchParams;
+  const { submitted, status, skipped } = await searchParams;
   const tab = TABS.find((t) => t.id === status) ?? TABS[0];
+  // Дати заявки без робочих годин, які не прийнято (AC-LEAVE-21) — з redirect після подання.
+  const skippedDates = typeof skipped === "string" ? skipped.split(",").filter(isCalendarDate) : [];
 
-  const { data: rows, error } = await supabase
-    .from("my_leave_records")
-    .select(
-      "id, request_id, date, start_min, end_min, minutes, leave_type, status, position_title, division_name, employee_comment, manager_comment, paid_days, unpaid_days, created_at",
-    )
-    .order("request_id", { ascending: false })
-    .order("date", { ascending: true })
-    .order("start_min", { ascending: true });
+  const [{ data: rows, error }, positions] = await Promise.all([
+    supabase
+      .from("my_leave_records")
+      .select(
+        "id, request_id, position_id, date, start_min, end_min, minutes, leave_type, status, position_title, division_name, employee_comment, manager_comment, paid_days, unpaid_days, created_at",
+      )
+      .order("request_id", { ascending: false })
+      .order("date", { ascending: true })
+      .order("start_min", { ascending: true }),
+    // Розклад дня у формі зміни годин; збій — форма каже, що розклад не завантажився (години перевірить server action).
+    loadOwnPositions(supabase, data.claims.sub).catch((): PositionSchedule[] | null => null),
+  ]);
+  const scheduleOf = (positionId: number, date: string) => {
+    if (!positions) return { failed: true as const };
+    const blocks = positions.find((p) => p.id === positionId)?.blocks.filter((b) => b.weekday === isoWeekday(date));
+    return { failed: false as const, text: blocks?.length ? formatBlocks(blocks) : null };
+  };
 
   const records = (rows ?? []).filter((r) => r.status && isRecordStatus(r.status));
   const count = (statuses: RecordStatus[] | null) =>
@@ -85,6 +109,11 @@ export default async function MyRequestsPage({ searchParams }: PageProps<"/reque
           <CheckCircleIcon />
           <p className="flex-1">
             <span className="font-semibold">Request submitted.</span> Each record is now awaiting a decision.
+            {skippedDates.map((d) => (
+              <span key={d} className="mt-1 block text-ink-2">
+                {formatDateLong(d)} was not accepted: {TIME_MESSAGES.noWorkingHours}
+              </span>
+            ))}
           </p>
           <Link
             href="/requests"
@@ -165,11 +194,14 @@ export default async function MyRequestsPage({ searchParams }: PageProps<"/reque
                   <table aria-labelledby={`request-${requestId}`} className="w-full border-collapse text-left">
                     <thead>
                       <tr className="text-xs text-muted">
-                        <th className="w-40 px-5 py-2.5 font-medium">Date</th>
-                        <th className="w-44 px-3 py-2.5 font-medium">Hours</th>
+                        <th className="w-32 px-5 py-2.5 font-medium">Date</th>
+                        <th className="w-36 px-3 py-2.5 font-medium">Hours</th>
                         <th className="px-3 py-2.5 font-medium">Position</th>
-                        <th className="w-48 px-3 py-2.5 font-medium">Status</th>
-                        <th className="w-56 px-5 py-2.5 font-medium">History</th>
+                        <th className="w-44 px-3 py-2.5 font-medium">Status</th>
+                        <th className="w-44 px-3 py-2.5 font-medium">History</th>
+                        <th className="px-5 py-2.5 text-right font-medium">
+                          <span className="sr-only">Actions</span>
+                        </th>
                       </tr>
                     </thead>
                     <tbody>
@@ -191,13 +223,23 @@ export default async function MyRequestsPage({ searchParams }: PageProps<"/reque
                             <td className="px-3 py-3.5">
                               <StatusBadge status={r.status as RecordStatus} />
                             </td>
-                            <td className="px-5 py-3.5">
+                            <td className="px-3 py-3.5">
                               <RecordHistory history={histories ? (histories.get(r.id!) ?? []) : null} />
+                            </td>
+                            <td className="px-5 py-2">
+                              <RecordActions
+                                recordId={r.id!}
+                                label={`${r.date} ${formatRange(r.start_min!, r.end_min!)}`}
+                                actions={employeeActions(r.status as RecordStatus)}
+                                start={r.start_min!}
+                                end={r.end_min!}
+                                schedule={scheduleOf(r.position_id!, r.date!)}
+                              />
                             </td>
                           </tr>
                           {r.manager_comment && (
                             <tr data-testid="manager-comment">
-                              <td colSpan={5} className="px-5 pb-3.5">
+                              <td colSpan={6} className="px-5 pb-3.5">
                                 <p className="break-words whitespace-pre-line rounded-lg border border-line bg-surface-muted px-3 py-2 text-[13px] text-ink-2">
                                   <span className="font-medium text-ink">Manager comment: </span>
                                   {r.manager_comment}

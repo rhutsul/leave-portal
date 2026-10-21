@@ -223,7 +223,8 @@ function RecordCard({
               <dd className="break-words whitespace-pre-line">{r.manager_comment}</dd>
             </>
           )}
-          {r.decided_at && (
+          {/* Повторно поданий запис знову чекає рішення: попереднє повернення — лише в історії. */}
+          {r.decided_at && r.status !== "awaiting" && (
             <>
               <dt className="text-muted">Decided</dt>
               <dd>
