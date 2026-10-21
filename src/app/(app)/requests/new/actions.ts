@@ -12,6 +12,7 @@ import {
   overlapMessage,
   toRpcRecords,
 } from "@/lib/leave/request";
+import { isCalendarDate } from "@/lib/leave/time";
 import { createClient } from "@/lib/supabase/server";
 import { loadOwnPositions } from "./load-positions";
 
@@ -54,7 +55,8 @@ function parsePayload(raw: FormDataEntryValue | null): RequestPayload | null {
 }
 
 // Подання заявки після підсумку. Записи будуємо заново з розкладу в базі (клієнту не довіряємо), перевіряємо тими
-// самими чистими функціями, що й форма, а submit_leave_request перевіряє все ще раз і створює заявку цілком або нічого.
+// самими чистими функціями, що й форма, а submit_leave_request перевіряє все ще раз і створює записи прийнятих дат
+// цілком або нічого. Дату без робочих годин не приймаємо, інші дати лишаються (AC-LEAVE-21).
 export async function submitLeaveRequest(_prev: SubmitState, formData: FormData): Promise<SubmitState> {
   const supabase = await createClient();
   const { data } = await supabase.auth.getClaims();
@@ -105,5 +107,8 @@ export async function submitLeaveRequest(_prev: SubmitState, formData: FormData)
   }
 
   revalidatePath("/requests");
-  redirect("/requests?submitted=1");
+  // Дати без робочих годин не прийнято (AC-LEAVE-21): «My requests» показує їх із текстом PM поруч з успіхом.
+  const skippedDates = records.skipped.filter(isCalendarDate);
+  const skipped = skippedDates.length ? `&skipped=${skippedDates.join(",")}` : "";
+  redirect(`/requests?submitted=1${skipped}`);
 }

@@ -3,7 +3,14 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { isRecordStatus } from "@/components/ui/status-badge";
-import { checkDecision, DECISION_MESSAGES, isDecision, type Role } from "@/lib/leave/decision";
+import {
+  checkDecision,
+  DECISION_MESSAGES,
+  isDecision,
+  parseRecordId,
+  reviewedHours,
+  type Role,
+} from "@/lib/leave/decision";
 import { createClient } from "@/lib/supabase/server";
 
 export interface DecideState {
@@ -12,13 +19,6 @@ export interface DecideState {
 
 const FAILED = "The decision could not be saved. Please try again.";
 const ROLES: readonly string[] = ["employee", "manager", "admin"] satisfies Role[];
-
-/** id запису з форми: лише додатне ціле; інше — як запис без доступу. */
-function parseRecordId(raw: FormDataEntryValue | null): number | null {
-  if (typeof raw !== "string" || !/^[1-9]\d{0,14}$/.test(raw)) return null;
-  const id = Number(raw);
-  return Number.isSafeInteger(id) ? id : null;
-}
 
 // Рішення щодо запису (/decisions). Спершу ті самі правила, що й decide_leave_record, чистими функціями
 // (src/lib/leave/decision.ts) — для повідомлення; потім rpc, де база перевіряє все ще раз, сама рахує розподіл понад
@@ -50,12 +50,20 @@ export async function decideRecord(_prev: DecideState, formData: FormData): Prom
       : null;
   const check = checkDecision({ id: claims.sub, role: profile.role as Role }, target, decision, comment);
   if (!check.ok) return { message: check.message };
+  // Працівник міг змінити години, поки менеджер дивився запис: рішення — лише щодо тих годин, які він бачив. Тут —
+  // для повідомлення; ті самі години decide_leave_record ще раз звіряє атомарно в update (одночасна зміна не пройде).
+  if (!row || formData.get("hours") !== reviewedHours(row.start_min, row.end_min)) {
+    revalidatePath("/decisions");
+    return { message: DECISION_MESSAGES.hoursChanged };
+  }
 
   const { error } = await supabase.rpc("decide_leave_record", {
     p_record_id: recordId,
     p_decision: decision,
     p_comment: check.comment ?? undefined,
     p_split: split,
+    p_start_min: row.start_min,
+    p_end_min: row.end_min,
   });
   if (error) {
     // Запис чи залишок змінився з моменту рендеру (інший менеджер вирішив, погодили інший запис — AC-BALANCE-14):

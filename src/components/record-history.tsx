@@ -35,7 +35,12 @@ export function RecordHistory({ history }: { history: readonly HistoryRow[] | nu
           return (
             <li key={i}>
               <span className="font-mono">{line.at}</span> · {line.who} · <span className="font-medium">{line.what}</span>
-              {h.comment && <span className="block break-words whitespace-pre-line text-muted">“{h.comment}”</span>}
+              {/* У «Hours changed» коментар — попередні й нові години від бази, а не слова людини: без лапок. */}
+              {h.comment && (
+                <span className="block break-words whitespace-pre-line text-muted">
+                  {h.action === "hours_changed" ? h.comment : `“${h.comment}”`}
+                </span>
+              )}
             </li>
           );
         })}

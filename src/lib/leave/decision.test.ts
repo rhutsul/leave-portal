@@ -2,11 +2,18 @@ import { describe, expect, it } from "vitest";
 import {
   checkAccess,
   checkDecision,
+  checkEmployeeAction,
+  checkRecordEdit,
   DECISION_MESSAGES,
+  employeeActions,
   historyLine,
   isDecision,
+  parseRecordId,
+  RECORD_EDIT_MESSAGES,
+  reviewedHours,
   type Actor,
   type DecisionTarget,
+  type OwnRecord,
 } from "./decision";
 
 // Ідентифікатори як у demo-users: працівник із основною посадою manager1@ і додатковою manager2@.
@@ -159,5 +166,122 @@ describe("record history", () => {
       who: "Unknown user",
       what: "Returned for revision",
     });
+  });
+});
+
+describe("the employee changes, resubmits or cancels their own record", () => {
+  // Основна посада teacher1@ у понеділок 2026-11-02: один блок 08:30–15:30.
+  const MONDAY_BLOCKS = [{ start: 510, end: 930 }];
+  const record = (over: Partial<OwnRecord> = {}): OwnRecord => ({
+    id: 2,
+    positionId: 1,
+    date: "2026-11-02",
+    leaveType: "sick",
+    status: "awaiting",
+    ...over,
+  });
+  const other = (id: number, start: number, end: number, status = "awaiting") => ({
+    id,
+    positionId: 1,
+    date: "2026-11-02",
+    start,
+    end,
+    status,
+  });
+
+  it("AC-DECIDE-16: a record awaiting decision changes from 08:30–15:30 to 09:00–12:00 and keeps its status", () => {
+    expect(employeeActions("awaiting")).toEqual(["changeHours", "cancel"]);
+    expect(checkRecordEdit(record(), { start: "09:00", end: "12:00" }, MONDAY_BLOCKS, [other(2, 510, 930)])).toEqual({
+      ok: true,
+      start: 540,
+      end: 720,
+      minutes: 180,
+    });
+  });
+
+  it("AC-DECIDE-06: a returned record can change its hours to 09:00–12:00 and be resubmitted", () => {
+    expect(employeeActions("returned")).toEqual(["changeHours", "resubmit", "cancel"]);
+    expect(checkRecordEdit(record({ status: "returned" }), { start: "09:00", end: "12:00" }, MONDAY_BLOCKS, [])).toEqual({
+      ok: true,
+      start: 540,
+      end: 720,
+      minutes: 180,
+    });
+    expect(checkEmployeeAction("returned", "resubmit")).toEqual({ ok: true });
+  });
+
+  it("AC-DECIDE-12: an approved record cannot change its hours", () => {
+    expect(employeeActions("approved")).toEqual([]);
+    expect(checkRecordEdit(record({ status: "approved" }), { start: "09:00", end: "12:00" }, MONDAY_BLOCKS, [])).toEqual({
+      ok: false,
+      message: "This record is already approved and cannot be changed",
+    });
+  });
+
+  it("AC-DECIDE-13: a record awaiting decision can be cancelled", () => {
+    expect(checkEmployeeAction("awaiting", "cancel")).toEqual({ ok: true });
+  });
+
+  it("AC-DECIDE-17: a returned record can be cancelled, and a cancelled record cannot be resubmitted", () => {
+    expect(checkEmployeeAction("returned", "cancel")).toEqual({ ok: true });
+    expect(employeeActions("cancelled")).toEqual([]);
+    expect(checkEmployeeAction("cancelled", "resubmit")).toEqual({ ok: false, message: RECORD_EDIT_MESSAGES.cancelled });
+  });
+
+  it("AC-DECIDE-21: changing the leave type from Sick leave to Personal leave is refused with the PM message", () => {
+    expect(checkRecordEdit(record(), { start: "08:30", end: "15:30", leaveType: "personal" }, MONDAY_BLOCKS, [])).toEqual({
+      ok: false,
+      message:
+        "Only the hours can be changed. To change the date, position or leave type, cancel this record and submit a new request",
+    });
+    // Дата й посада — так само; ті самі значення, що в записі, — це не зміна.
+    expect(checkRecordEdit(record(), { start: "08:30", end: "15:30", date: "2026-11-03" }, MONDAY_BLOCKS, [])).toEqual({
+      ok: false,
+      message: RECORD_EDIT_MESSAGES.onlyHours,
+    });
+    expect(checkRecordEdit(record(), { start: "08:30", end: "15:30", positionId: 9 }, MONDAY_BLOCKS, [])).toEqual({
+      ok: false,
+      message: RECORD_EDIT_MESSAGES.onlyHours,
+    });
+    const same = { start: "08:30", end: "15:30", leaveType: "sick", date: "2026-11-02", positionId: 1 };
+    expect(checkRecordEdit(record(), same, MONDAY_BLOCKS, []).ok).toBe(true);
+  });
+
+  it("AC-DECIDE-22: changing the second record to 09:00–15:30 overlaps the first one 08:30–10:00", () => {
+    const records = [other(1, 510, 600), other(2, 780, 930)];
+    expect(checkRecordEdit(record({ id: 2 }), { start: "09:00", end: "15:30" }, MONDAY_BLOCKS, records)).toEqual({
+      ok: false,
+      message: "You already have a request for this time: 2026-11-02 08:30–10:00",
+    });
+    // Сам із собою запис не перетинається: 13:00–15:30 → 12:00–15:30 проходить.
+    expect(checkRecordEdit(record({ id: 2 }), { start: "12:00", end: "15:30" }, MONDAY_BLOCKS, records).ok).toBe(true);
+  });
+
+  it("new hours follow the same schedule rules as a new request", () => {
+    expect(checkRecordEdit(record(), { start: "08:00", end: "10:00" }, MONDAY_BLOCKS, [])).toEqual({
+      ok: false,
+      message: "Hours must be within your schedule: 08:30–15:30",
+    });
+    expect(checkRecordEdit(record(), { start: "11:00", end: "10:00" }, MONDAY_BLOCKS, [])).toEqual({
+      ok: false,
+      message: "The end must be later than the start",
+    });
+  });
+
+  it("a rejected record cannot change, and only a returned record can be resubmitted", () => {
+    expect(checkEmployeeAction("rejected", "cancel")).toEqual({ ok: false, message: RECORD_EDIT_MESSAGES.rejected });
+    expect(checkEmployeeAction("awaiting", "resubmit")).toEqual({ ok: false, message: RECORD_EDIT_MESSAGES.notReturned });
+  });
+
+  it("a record id from the form is a positive integer, anything else is refused", () => {
+    expect(parseRecordId("42")).toBe(42);
+    for (const raw of [null, "", "0", "-1", "1.5", "1e3", " 7", "9999999999999999"]) expect(parseRecordId(raw)).toBeNull();
+  });
+});
+
+describe("the decision is about the hours the manager saw", () => {
+  it("the decision form carries the reviewed hours, so a change by the employee is caught", () => {
+    expect(reviewedHours(540, 720)).toBe("540-720");
+    expect(reviewedHours(540, 720)).not.toBe(reviewedHours(510, 930));
   });
 });

@@ -8,7 +8,7 @@ import { LeaveTypeTag } from "@/components/ui/leave-type-tag";
 import { PageHeader } from "@/components/ui/page-header";
 import { isRecordStatus, StatusBadge } from "@/components/ui/status-badge";
 import { daysToHundredths, formatSplit, isLimitedType, managerWarning } from "@/lib/leave/balance";
-import { DECISION_MESSAGES } from "@/lib/leave/decision";
+import { DECISION_MESSAGES, reviewedHours } from "@/lib/leave/decision";
 import {
   isRelationship,
   positionLabel,
@@ -223,7 +223,8 @@ function RecordCard({
               <dd className="break-words whitespace-pre-line">{r.manager_comment}</dd>
             </>
           )}
-          {r.decided_at && (
+          {/* Повторно поданий запис знову чекає рішення: попереднє повернення — лише в історії. */}
+          {r.decided_at && r.status !== "awaiting" && (
             <>
               <dt className="text-muted">Decided</dt>
               <dd>
@@ -252,7 +253,11 @@ function RecordCard({
           )}
           {status === "awaiting" &&
             (r.can_decide ? (
-              <DecisionForm recordId={r.id} split={warning !== null && warning !== "error"} />
+              <DecisionForm
+                recordId={r.id}
+                hours={reviewedHours(r.start_min, r.end_min)}
+                split={warning !== null && warning !== "error"}
+              />
             ) : (
               <p className="rounded-lg border border-line bg-subtle px-3 py-2 text-ink-2">{DECISION_MESSAGES.ownRecord}</p>
             ))}

@@ -171,12 +171,14 @@ export interface DateChoice extends PositionChoice {
 }
 
 export type RequestRecordsCheck =
-  | { ok: true; records: DraftRecord[] }
+  | { ok: true; records: DraftRecord[]; skipped: string[] }
   | { ok: false; message: string; date?: string; positionId?: number };
 
 /**
- * Усі записи заявки: дати × включені посади, в одній заявці (AC-LEAVE-05). Кожна дата — як заявка на одну дату:
- * без розкладу — AC-LEAVE-06, без жодної посади — AC-LEAVE-10. Перша помилка зупиняє: заявку зберігаємо цілком.
+ * Усі записи заявки: дати × включені посади, в одній заявці (AC-LEAVE-05). Дата без робочих годин не приймається
+ * (TIME_MESSAGES.noWorkingHours), а інші дати лишаються — вона потрапляє в skipped (AC-LEAVE-21); якщо не прийнято
+ * жодної — помилка AC-LEAVE-06. Прийнята дата без жодної посади — AC-LEAVE-10; помилка в прийнятій даті зупиняє
+ * всю заявку: прийняті дати зберігаємо цілком (Assumptions 01-leave-request).
  */
 export function buildRequestRecords(
   positions: PositionSchedule[],
@@ -186,9 +188,15 @@ export function buildRequestRecords(
   const unique = [...new Set(dates)].sort();
   if (unique.length === 0) return { ok: false, message: REQUEST_MESSAGES.chooseDate };
   const records: DraftRecord[] = [];
+  const skipped: string[] = [];
   for (const date of unique) {
+    // Нечитабельна дата — помилка, а не пропуск: пропускаємо лише справжню дату без робочих годин.
+    if (!isCalendarDate(date)) return { ok: false, message: TIME_MESSAGES.noWorkingHours, date };
     const day = positionsOnDate(positions, date);
-    if (!day.ok) return { ok: false, message: day.message, date };
+    if (!day.ok) {
+      skipped.push(date);
+      continue;
+    }
     const result = buildDayRecords(
       date,
       day.positions,
@@ -197,7 +205,8 @@ export function buildRequestRecords(
     if (!result.ok) return { ...result, date };
     records.push(...result.records);
   }
-  return { ok: true, records };
+  if (records.length === 0) return { ok: false, message: TIME_MESSAGES.noWorkingHours, date: skipped[0] };
+  return { ok: true, records, skipped };
 }
 
 /** Наявний запис посади, з яким нова заявка може перетнутися. */

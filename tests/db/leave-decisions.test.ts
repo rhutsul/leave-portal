@@ -45,12 +45,19 @@ async function submit(userId: string, leaveType: string, records: RecordInput[],
   return { requestId: id, recordIds: rows.map((r) => r.id) };
 }
 
-const decide = (userId: string, recordId: number, decision: string, comment: string | null = null, split = false) =>
-  t.asUser<{ result: { status: string; paid_days: number | null; unpaid_days: number | null } }>(
+/** Рішення щодо годин, які менеджер бачить зараз (на /decisions їх передає форма). */
+async function decide(userId: string, recordId: number, decision: string, comment: string | null = null, split = false) {
+  const [hours] = await t.asService<{ start_min: number; end_min: number }>(
+    "select start_min, end_min from public.leave_records where id = $1",
+    [recordId],
+  );
+  const [row] = await t.asUser<{ result: { status: string; paid_days: number | null; unpaid_days: number | null } }>(
     userId,
-    "select public.decide_leave_record($1, $2, $3, $4) as result",
-    [recordId, decision, comment, split],
-  ).then(([row]) => row.result);
+    "select public.decide_leave_record($1, $2, $3, $4, $5, $6) as result",
+    [recordId, decision, hours?.start_min ?? 510, hours?.end_min ?? 930, comment, split],
+  );
+  return row.result;
+}
 
 const statusOf = async (recordId: number) =>
   (await t.asService<{ status: string }>("select status from public.leave_records where id = $1", [recordId]))[0].status;
@@ -160,7 +167,7 @@ describe("who decides", () => {
       code: "42501",
       message: "You can't decide on this record",
     });
-    await expect(t.asAnon("select public.decide_leave_record(1, 'approve')")).rejects.toMatchObject({ code: "42501" });
+    await expect(t.asAnon("select public.decide_leave_record(1, 'approve', 510, 930)")).rejects.toMatchObject({ code: "42501" });
   });
 
   it("AC-DECIDE-18: manager1@ cannot approve their own record of a position they manage", async () => {
