@@ -83,7 +83,8 @@ AC-BALANCE-10, AC-BALANCE-14, AC-BALANCE-16, AC-BALANCE-18, AC-BALANCE-19, AC-BA
       перевірка: тести AC-DECIDE-06, AC-DECIDE-12, AC-DECIDE-13, AC-DECIDE-16, AC-DECIDE-17, AC-DECIDE-21,
       AC-DECIDE-22
 - [ ] 5.2 `/requests/new` і подання заявки на кілька дат: дату без робочих годин не прийнято з повідомленням
-      AC-LEAVE-06, а записи інших дат створено («усі або жоден» — для прийнятих дат); перевірка: тест AC-LEAVE-21
+      "You have no working hours on this day", а записи інших дат створено («усі або жоден» — для прийнятих дат);
+      перевірка: тест AC-LEAVE-21
 
 Done when: AC-DECIDE-06, AC-DECIDE-12, AC-DECIDE-13, AC-DECIDE-16, AC-DECIDE-17, AC-DECIDE-21, AC-DECIDE-22,
 AC-LEAVE-21.
