@@ -234,9 +234,13 @@ describe("decisions and comments", () => {
 
   it("AC-DECIDE-04: returning without a comment is refused with “Tell the employee what to fix”", async () => {
     const { recordIds } = await submit(teacher1, "sick", [{ position_id: teacher1Main, date: "2026-11-03", ...WHOLE }]);
-    await expect(decide(manager1, recordIds[0], "return", "  ")).rejects.toMatchObject({
-      message: "Tell the employee what to fix",
-    });
+    // Лише пробільні символи — теж без коментаря, і в базі (rpc доступна напряму, не лише через форму):
+    // пробіли; переніс рядка + табуляція; пробіл, CR, LF, пробіл.
+    for (const blank of ["  ", String.fromCharCode(10, 9), String.fromCharCode(32, 13, 10, 32)]) {
+      await expect(decide(manager1, recordIds[0], "return", blank)).rejects.toMatchObject({
+        message: "Tell the employee what to fix",
+      });
+    }
     expect(await statusOf(recordIds[0])).toBe("awaiting");
   });
 
@@ -315,6 +319,18 @@ describe("Awaiting decision and History", () => {
     // Менеджер чужої посади й неіснуючий запис — порожньо, однаково.
     expect(await line(manager2)).toEqual([]);
     expect(await t.asUser(teacher1, "select * from public.record_history(999999)")).toEqual([]);
+    // Пакетна історія для списків — ті самі рядки й та сама перевірка доступу.
+    const batch = async (userId: string) =>
+      t.asUser<{ record_id: number; action: string }>(
+        userId,
+        "select record_id, action from public.record_histories($1::bigint[])",
+        [[recordIds[0], 999999]],
+      );
+    expect(await batch(teacher1)).toEqual([
+      { record_id: recordIds[0], action: "submitted" },
+      { record_id: recordIds[0], action: "approved" },
+    ]);
+    expect(await batch(manager2)).toEqual([]);
   });
 });
 

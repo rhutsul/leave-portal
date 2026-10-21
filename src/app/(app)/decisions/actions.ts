@@ -58,6 +58,9 @@ export async function decideRecord(_prev: DecideState, formData: FormData): Prom
     p_split: split,
   });
   if (error) {
+    // Запис чи залишок змінився з моменту рендеру (інший менеджер вирішив, погодили інший запис — AC-BALANCE-14):
+    // оновлюємо сторінку, щоб попередження й кнопка «Approve with split» відповідали стану бази.
+    revalidatePath("/decisions");
     // P0001 — тексти PM з функції бази (той самий другий рубіж); 42501 — без доступу; решту не показуємо.
     if (error.code === "P0001") return { message: error.message };
     if (error.code === "42501") return { message: DECISION_MESSAGES.noAccess };

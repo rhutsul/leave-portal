@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { type HistoryRow, RecordHistory } from "@/components/record-history";
+import { groupHistories, type HistoryRow, RecordHistory } from "@/components/record-history";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { AlertIcon, CheckCircleIcon, CloseIcon } from "@/components/ui/icons";
@@ -66,16 +66,13 @@ export default async function DecisionsPage({ searchParams }: PageProps<"/decisi
     .sort((a, b) => (b.decided_at ?? "").localeCompare(a.decided_at ?? ""));
   const shown = tab === "awaiting" ? awaiting : history;
 
-  // Історія кожного показаного запису з іменами (public.record_history); збій — повідомлення в цьому записі.
+  // Історія показаних записів з іменами — одним запитом (public.record_histories); збій — повідомлення в записах.
   // Для записів, які користувач може вирішити, — залишок на цей момент (public.decision_balance): той самий, за яким
   // decide_leave_record порахує розподіл, з урахуванням погоджень після відкриття сторінки (AC-BALANCE-14).
-  const [histories, warnings] = await Promise.all([
-    Promise.all(
-      shown.map(async (r) => {
-        const { data: lines, error: historyError } = await supabase.rpc("record_history", { p_record_id: r.id });
-        return historyError ? null : (lines ?? []);
-      }),
-    ),
+  const [historyResult, warnings] = await Promise.all([
+    shown.length > 0
+      ? supabase.rpc("record_histories", { p_record_ids: shown.map((r) => r.id) })
+      : Promise.resolve({ data: [], error: null }),
     Promise.all(
       shown.map(async (r): Promise<BalanceWarning> => {
         if (r.status !== "awaiting" || !r.can_decide || !isLimitedType(r.leave_type)) return null;
@@ -84,6 +81,7 @@ export default async function DecisionsPage({ searchParams }: PageProps<"/decisi
       }),
     ),
   ]);
+  const histories = historyResult.error ? null : groupHistories(historyResult.data ?? []);
 
   return (
     <>
@@ -153,7 +151,7 @@ export default async function DecisionsPage({ searchParams }: PageProps<"/decisi
       ) : (
         <div className="flex flex-col gap-4">
           {shown.map((r, i) => (
-            <RecordCard key={r.id} record={r} history={histories[i]} warning={warnings[i]} />
+            <RecordCard key={r.id} record={r} history={histories ? (histories.get(r.id) ?? []) : null} warning={warnings[i]} />
           ))}
         </div>
       )}

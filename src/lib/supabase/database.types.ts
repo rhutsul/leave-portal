@@ -268,6 +268,9 @@ isOneToOne: false
             "get_balance_inputs":
 { Args: { "p_employee_id": string,"p_school_year": number }; Returns: Json
                            }
+            "record_histories":
+{ Args: { "p_record_ids": number[] }; Returns: { "action": string,"actor_name": string,"comment": string,"created_at": string,"record_id": number }[]
+                           }
             "record_history":
 { Args: { "p_record_id": number }; Returns: { "action": string,"actor_name": string,"comment": string,"created_at": string }[]
                            }

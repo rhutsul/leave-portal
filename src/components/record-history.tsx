@@ -8,9 +8,16 @@ export interface HistoryRow {
 }
 
 /**
- * Історія запису з public.record_history: дата й час до хвилини за Києвом, хто, що, коментар (AC-DECIDE-15).
+ * Історія запису з public.record_histories: дата й час до хвилини за Києвом, хто, що, коментар (AC-DECIDE-15).
  * null — історію не вдалося завантажити: показуємо це, а не порожній список.
  */
+/** Рядки public.record_histories (кількох записів одним запитом) → історія кожного запису за його id. */
+export function groupHistories(rows: readonly (HistoryRow & { record_id: number })[]): Map<number, HistoryRow[]> {
+  const byRecord = new Map<number, HistoryRow[]>();
+  for (const row of rows) byRecord.set(row.record_id, [...(byRecord.get(row.record_id) ?? []), row]);
+  return byRecord;
+}
+
 export function RecordHistory({ history }: { history: readonly HistoryRow[] | null }) {
   if (history === null) {
     return (

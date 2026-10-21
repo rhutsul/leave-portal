@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Fragment } from "react";
 import { redirect } from "next/navigation";
-import { RecordHistory } from "@/components/record-history";
+import { groupHistories, RecordHistory } from "@/components/record-history";
 import { ButtonLink } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -53,16 +53,13 @@ export default async function MyRequestsPage({ searchParams }: PageProps<"/reque
     records.filter((r) => !statuses || statuses.includes(r.status as RecordStatus)).length;
   const shown = records.filter((r) => !tab.statuses || tab.statuses.includes(r.status as RecordStatus));
 
-  // Історія кожного показаного запису з іменами тих, хто вирішував (public.record_history, AC-DECIDE-15):
-  // profiles за RLS показує лише власний профіль. Збій — повідомлення в цьому записі, а не порожня історія.
-  const histories = new Map(
-    await Promise.all(
-      shown.map(async (r) => {
-        const { data: lines, error: historyError } = await supabase.rpc("record_history", { p_record_id: r.id! });
-        return [r.id!, historyError ? null : (lines ?? [])] as const;
-      }),
-    ),
-  );
+  // Історія показаних записів з іменами тих, хто вирішував, одним запитом (public.record_histories, AC-DECIDE-15):
+  // profiles за RLS показує лише власний профіль. Збій — повідомлення в записах, а не порожня історія.
+  const historyResult =
+    shown.length > 0
+      ? await supabase.rpc("record_histories", { p_record_ids: shown.map((r) => r.id!) })
+      : { data: [], error: null };
+  const histories = historyResult.error ? null : groupHistories(historyResult.data ?? []);
 
   const groups = new Map<number, typeof shown>();
   for (const r of shown) groups.set(r.request_id!, [...(groups.get(r.request_id!) ?? []), r]);
@@ -195,7 +192,7 @@ export default async function MyRequestsPage({ searchParams }: PageProps<"/reque
                               <StatusBadge status={r.status as RecordStatus} />
                             </td>
                             <td className="px-5 py-3.5">
-                              <RecordHistory history={histories.get(r.id!) ?? null} />
+                              <RecordHistory history={histories ? (histories.get(r.id!) ?? []) : null} />
                             </td>
                           </tr>
                           {r.manager_comment && (

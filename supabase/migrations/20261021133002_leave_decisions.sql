@@ -194,7 +194,8 @@ declare
   v_role text;
   v_record public.leave_records%rowtype;
   v_status text;
-  v_comment text := nullif(btrim(coalesce(p_comment, '')), '');
+  -- Усі крайові пробільні символи (переноси рядків, табуляції), як trim() у checkDecision: rpc доступна й напряму.
+  v_comment text := nullif(regexp_replace(coalesce(p_comment, ''), '^\s+|\s+$', '', 'g'), '');
   v_share integer;
   v_remaining integer;
   v_paid integer;
@@ -474,3 +475,37 @@ $$;
 
 revoke execute on function public.record_history(bigint) from public, anon;
 grant execute on function public.record_history(bigint) to authenticated;
+
+-- Історія кількох записів одним запитом — для списків /decisions і «My requests» (без запиту на кожен запис).
+-- Та сама перевірка, що й у record_history: записи, яких користувач не бачить, просто не потрапляють у результат.
+create or replace function private.record_histories(p_record_ids bigint[])
+returns table (record_id bigint, created_at timestamptz, action text, comment text, actor_name text)
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select ev.record_id, ev.created_at, ev.action, ev.comment, a.full_name
+  from public.leave_record_events as ev
+  left join public.profiles as a on a.id = ev.actor_id
+  where (select auth.uid()) is not null
+    and ev.record_id = any(p_record_ids)
+    and private.can_see_record(ev.record_id)
+  order by ev.record_id, ev.created_at, ev.id;
+$$;
+
+revoke execute on function private.record_histories(bigint[]) from public, anon;
+grant execute on function private.record_histories(bigint[]) to authenticated;
+
+create or replace function public.record_histories(p_record_ids bigint[])
+returns table (record_id bigint, created_at timestamptz, action text, comment text, actor_name text)
+language sql
+stable
+security invoker
+set search_path = ''
+as $$
+  select * from private.record_histories(p_record_ids);
+$$;
+
+revoke execute on function public.record_histories(bigint[]) from public, anon;
+grant execute on function public.record_histories(bigint[]) to authenticated;
