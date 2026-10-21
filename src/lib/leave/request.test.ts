@@ -113,6 +113,22 @@ describe("records of a one-date request", () => {
     });
   });
 
+  it("a date that does not exist in the calendar is refused like a day without a schedule", () => {
+    // 2026-02-30 → Date.UTC дав би 2026-03-02, понеділок із розкладом.
+    for (const date of ["2026-02-30", "2026-11-31", "2026-13-02", "2026-00-10", "2026-11-00", "2026-11-2"]) {
+      expect(positionsOnDate([MAIN, ADDITIONAL], date)).toEqual({
+        ok: false,
+        message: "You have no working hours on this day",
+      });
+    }
+    expect(buildRequestRecords([MAIN], ["2026-02-30"], [{ ...whole(1), date: "2026-02-30" }])).toEqual({
+      ok: false,
+      message: "You have no working hours on this day",
+      date: "2026-02-30",
+    });
+    expect(positionsOnDate([MAIN], "2028-02-29").ok).toBe(true);
+  });
+
   it("Tuesday shows only positions scheduled on Tuesday", () => {
     const day = positionsOnDate([MAIN, ADDITIONAL], "2026-11-03");
     expect(day.ok && day.positions.map((p) => p.id)).toEqual([1]);

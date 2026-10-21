@@ -59,6 +59,17 @@ export function formatDuration(minutes: number): string {
   return `${h} h ${m} min`;
 }
 
+/**
+ * Чи "YYYY-MM-DD" — справжня календарна дата. Date.UTC нормалізує 2026-02-30 у 2026-03-02, тож рік, місяць і день
+ * мають збігтися з UTC-датою; інакше така дата з підробленого payload дійшла б до бази й упала б там загальною помилкою.
+ */
+export function isCalendarDate(date: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return false;
+  const [y, m, d] = date.split("-").map(Number);
+  const utc = new Date(Date.UTC(y, m - 1, d));
+  return utc.getUTCFullYear() === y && utc.getUTCMonth() === m - 1 && utc.getUTCDate() === d;
+}
+
 /** День тижня календарної дати "YYYY-MM-DD": 1 = понеділок … 7 = неділя (як weekday у schedule_blocks). */
 export function isoWeekday(date: string): number {
   const [y, m, d] = date.split("-").map(Number);

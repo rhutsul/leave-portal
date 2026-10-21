@@ -5,6 +5,7 @@ import {
   checkHours,
   formatBlocks,
   formatRange,
+  isCalendarDate,
   isoWeekday,
   parseTime,
   sortBlocks,
@@ -96,9 +97,12 @@ export function isRelationship(value: string): value is Relationship {
 
 export type DateCheck = { ok: true; positions: PositionDay[] } | { ok: false; message: string };
 
-/** Посади, що мають розклад у день тижня дати, з їхніми блоками; основна — першою. Немає жодної — AC-LEAVE-06. */
+/**
+ * Посади, що мають розклад у день тижня дати, з їхніми блоками; основна — першою. Немає жодної — AC-LEAVE-06.
+ * Неіснуюча дата (2026-02-30) — та сама відповідь, що й день без розкладу: у такий день робочих годин немає.
+ */
 export function positionsOnDate(positions: PositionSchedule[], date: string): DateCheck {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return { ok: false, message: TIME_MESSAGES.noWorkingHours };
+  if (!isCalendarDate(date)) return { ok: false, message: TIME_MESSAGES.noWorkingHours };
   const weekday = isoWeekday(date);
   const onDate = positions
     .map((p) => ({

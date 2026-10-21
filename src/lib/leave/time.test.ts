@@ -9,6 +9,7 @@ import {
   formatKyivDay,
   formatMonth,
   formatTime,
+  isCalendarDate,
   isoWeekday,
   kyivDate,
   kyivHour,
@@ -139,5 +140,19 @@ describe("calendar month", () => {
     expect(addMonths("2026-12", 1)).toBe("2027-01");
     expect(addMonths("2027-01", -1)).toBe("2026-12");
     expect(formatMonth("2026-11")).toBe("November 2026");
+  });
+});
+
+describe("calendar date check", () => {
+  it("accepts only real dates in YYYY-MM-DD", () => {
+    expect(isCalendarDate("2026-11-02")).toBe(true);
+    expect(isCalendarDate("2028-02-29")).toBe(true);
+    expect(isCalendarDate("2027-02-29")).toBe(false);
+    expect(isCalendarDate("2026-02-30")).toBe(false);
+    expect(isCalendarDate("2026-04-31")).toBe(false);
+    expect(isCalendarDate("2026-13-01")).toBe(false);
+    expect(isCalendarDate("2026-11-00")).toBe(false);
+    expect(isCalendarDate("2026-1-02")).toBe(false);
+    expect(isCalendarDate("")).toBe(false);
   });
 });
