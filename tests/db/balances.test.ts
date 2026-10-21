@@ -182,7 +182,7 @@ describe("get_balance_inputs", () => {
 });
 
 describe("get_balance_inputs data", () => {
-  it("returns only approved totals, so a manager of another position learns nothing about awaiting or rejected records", async () => {
+  it("AC-BALANCE-20: returns only approved totals, so a manager of another position learns nothing about awaiting or rejected records", async () => {
     const [{ id: awaiting }] = await submit(teacher1, "sick", [
       { position_id: teacher1Main, date: "2026-11-03", start_min: 510, end_min: 930 },
     ]);
@@ -207,7 +207,7 @@ describe("get_balance_inputs data", () => {
 });
 
 describe("balance_employees", () => {
-  it("lists the employees whose balances a manager or the administrator may open", async () => {
+  it("AC-BALANCE-20: lists the employees whose balances a manager or the administrator may open", async () => {
     const emails = async (userId: string) =>
       (await t.asUser<{ email: string }>(userId, "select email from public.balance_employees()")).map((r) => r.email).sort();
     expect(await emails(manager1)).toEqual(["teacher1@example.test"]);
@@ -220,7 +220,7 @@ describe("balance_employees", () => {
     ]);
   });
 
-  it("without signing in nothing is callable", async () => {
+  it("AC-BALANCE-13: without signing in no balances or employee list are shown", async () => {
     await expect(t.asAnon("select public.get_balance_inputs($1, 2026)", [teacher1])).rejects.toMatchObject({ code: "42501" });
     await expect(t.asAnon("select * from public.balance_employees()")).rejects.toMatchObject({ code: "42501" });
   });
