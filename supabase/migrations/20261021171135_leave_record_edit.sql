@@ -439,7 +439,7 @@ where r.employee_id = (select auth.uid());
 -- отримує очікувані години (p_start_min, p_end_min — ті, що менеджер бачив на /decisions). Вони перевіряються в тому
 -- самому update … where, що й «перше рішення»: рядок блокується, умову перевіряє вже нова версія рядка, тож зміна годин
 -- між переглядом і рішенням не пройде навіть одночасно. Порядок блокувань той самий: спершу pg_advisory_xact_lock на
--- працівника (як у update_leave_record_hours), потім рядок. null — без перевірки годин (сумісність викликів без них).
+-- працівника (як у update_leave_record_hours), потім рядок. Години обов'язкові: без них рішення не приймається.
 -- Нова сигнатура — тож старі функції прибираємо (drop лише функцій, даних не зачіпає) і створюємо заново з тими самими
 -- правами.
 drop function public.decide_leave_record(bigint, text, text, boolean);
@@ -493,6 +493,10 @@ begin
   if p_decision is null or p_decision not in ('approve', 'reject', 'return') then
     raise exception 'Unknown decision' using errcode = '22023';
   end if;
+  -- Рішення — лише щодо конкретних годин: rpc доступна й напряму, тож без них відмова, а не рішення без перевірки.
+  if p_start_min is null or p_end_min is null then
+    raise exception 'The reviewed hours are required' using errcode = '22023';
+  end if;
   if v_record.status = 'cancelled' then
     raise exception 'This record was cancelled by the employee';
   elsif v_record.status <> 'awaiting' then
@@ -530,8 +534,7 @@ begin
       unpaid_days = case when v_paid is null then null else (v_share - v_paid) / 100.0 end,
       updated_at = now()
   where r.id = p_record_id and r.status = 'awaiting'
-    and (p_start_min is null or r.start_min = p_start_min)
-    and (p_end_min is null or r.end_min = p_end_min)
+    and r.start_min = p_start_min and r.end_min = p_end_min
   returning r.status into v_status;
 
   if v_status is null then
@@ -561,10 +564,10 @@ grant execute on function private.decide_leave_record(bigint, text, text, boolea
 create function public.decide_leave_record(
   p_record_id bigint,
   p_decision text,
+  p_start_min integer,
+  p_end_min integer,
   p_comment text default null,
-  p_split boolean default false,
-  p_start_min integer default null,
-  p_end_min integer default null
+  p_split boolean default false
 )
 returns jsonb
 language sql
@@ -574,5 +577,5 @@ as $$
   select private.decide_leave_record(p_record_id, p_decision, p_comment, p_split, p_start_min, p_end_min);
 $$;
 
-revoke execute on function public.decide_leave_record(bigint, text, text, boolean, integer, integer) from public, anon;
-grant execute on function public.decide_leave_record(bigint, text, text, boolean, integer, integer) to authenticated;
+revoke execute on function public.decide_leave_record(bigint, text, integer, integer, text, boolean) from public, anon;
+grant execute on function public.decide_leave_record(bigint, text, integer, integer, text, boolean) to authenticated;

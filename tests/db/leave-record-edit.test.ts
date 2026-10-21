@@ -166,7 +166,7 @@ describe("changing the hours of an own record", () => {
 describe("resubmitting and cancelling", () => {
   it("AC-DECIDE-06: a returned record changed to 09:00–12:00 and resubmitted is again in manager1@'s Awaiting decision list", async () => {
     const [id] = await submit([{ date: "2026-11-02", ...WHOLE }]);
-    await t.asUser(manager1, "select public.decide_leave_record($1, 'return', 'Enter hours instead of a whole day')", [id]);
+    await t.asUser(manager1, "select public.decide_leave_record($1, 'return', 510, 930, 'Enter hours instead of a whole day')", [id]);
     expect(await awaitingFor(manager1)).toEqual([]);
 
     await changeHours(teacher1, id, 540, 720);
@@ -228,6 +228,12 @@ describe("the manager decides on the hours they saw", () => {
       code: "P0001",
       message: "The employee has changed the hours of this record. Check them again before deciding",
     });
+    expect((await recordOf(id)).status).toBe("awaiting");
+    // Без годин — відмова, а не рішення без перевірки (rpc доступна й напряму).
+    await expect(
+      t.asUser(manager1, "select public.decide_leave_record($1, 'approve', null, null)", [id]),
+    ).rejects.toMatchObject({ code: "22023" });
+    await expect(t.asUser(manager1, "select public.decide_leave_record($1, 'approve')", [id])).rejects.toThrow();
     expect((await recordOf(id)).status).toBe("awaiting");
     // З новими годинами — погоджено.
     await t.asUser(manager1, "select public.decide_leave_record($1, 'approve', p_start_min => 540, p_end_min => 720)", [id]);
