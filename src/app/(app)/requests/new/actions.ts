@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { encodeOverBalance, isLimitedType, requestOverBalance, schoolYearOf } from "@/lib/leave/balance";
 import type { RequestPayload } from "@/lib/leave/draft";
 import {
   BLOCKING_STATUSES,
@@ -14,6 +15,7 @@ import {
 } from "@/lib/leave/request";
 import { isCalendarDate } from "@/lib/leave/time";
 import { createClient } from "@/lib/supabase/server";
+import { loadRemaining } from "../../balances/load-balances";
 import { loadOwnPositions } from "./load-positions";
 
 export interface SubmitState {
@@ -95,6 +97,17 @@ export async function submitLeaveRequest(_prev: SubmitState, formData: FormData)
   );
   if (conflict) return { message: overlapMessage(conflict) };
 
+  // Залишок на момент подання — для одного попередження на всю заявку (AC-BALANCE-08, AC-BALANCE-15, AC-BALANCE-17).
+  // Попередження не зупиняє подання; якщо залишок не завантажився, «My requests» скаже, що його не перевірено.
+  const limitedType = isLimitedType(type.leaveType) ? type.leaveType : null;
+  const remaining = limitedType
+    ? await loadRemaining(
+        supabase,
+        claims.sub,
+        records.records.map((r) => schoolYearOf(r.date)),
+      ).catch(() => null)
+    : null;
+
   const { error } = await supabase.rpc("submit_leave_request", {
     p_leave_type: type.leaveType,
     p_records: toRpcRecords(records.records),
@@ -107,8 +120,20 @@ export async function submitLeaveRequest(_prev: SubmitState, formData: FormData)
   }
 
   revalidatePath("/requests");
-  // Дати без робочих годин не прийнято (AC-LEAVE-21): «My requests» показує їх із текстом PM поруч з успіхом.
+  // Дати без робочих годин не прийнято (AC-LEAVE-21): «My requests» показує їх із текстом PM поруч з успіхом,
+  // а перевищення залишку — попередженням (лише числа: текст будує employeeWarning на сторінці).
+  const params = new URLSearchParams({ submitted: "1" });
   const skippedDates = records.skipped.filter(isCalendarDate);
-  const skipped = skippedDates.length ? `&skipped=${skippedDates.join(",")}` : "";
-  redirect(`/requests?submitted=1${skipped}`);
+  if (skippedDates.length) params.set("skipped", skippedDates.join(","));
+  if (limitedType && !remaining) params.set("balance", "unchecked");
+  if (limitedType && remaining) {
+    const over = requestOverBalance(
+      limitedType,
+      records.records,
+      positions.flatMap((p) => p.blocks),
+      (year) => remaining.get(year)?.[limitedType] ?? null,
+    );
+    if (over.length) params.set("over", encodeOverBalance(limitedType, over));
+  }
+  redirect(`/requests?${params}`);
 }

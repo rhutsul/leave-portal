@@ -3,14 +3,21 @@ import {
   computeBalances,
   daysToHundredths,
   dayShare,
+  employeeWarning,
+  encodeOverBalance,
   formatDays,
   formatSchoolYear,
   formatSplit,
   managerWarning,
+  overBalanceWarnings,
   parseBalanceInputs,
+  requestOverBalance,
+  requestShares,
   schoolYearOf,
   splitRequiredMessage,
   suggestedSplit,
+  uncheckedYears,
+  workingMinutesOn,
   type BalanceInputs,
   type DayMinutes,
 } from "./balance";
@@ -210,5 +217,89 @@ describe("over-balance warning and split", () => {
   it("a negative remaining balance is shown as 0.00 and the whole share goes to Unpaid leave", () => {
     expect(suggestedSplit(36, -20)).toEqual({ paid: 0, unpaid: 36, over: true });
     expect(splitRequiredMessage("sick", -20)).toBe("The Sick leave balance is 0.00 day: approve with the suggested split or reject");
+  });
+});
+
+describe("the employee's warning about exceeding the balance", () => {
+  // Одна посада: Tue 08:30–15:30 (420 хв) — AC-BALANCE-08, AC-BALANCE-15; Mon–Fri 08:30–15:30 — AC-BALANCE-17.
+  const TUESDAY_ONLY = [{ weekday: 2, start: 510, end: 930 }];
+  const MON_FRI = [1, 2, 3, 4, 5].map((weekday) => ({ weekday, start: 510, end: 930 }));
+
+  it("AC-BALANCE-08: a whole day 2026-11-03 with a Personal leave balance of 0.50 warns about 0.50 day unpaid", () => {
+    const records = [{ date: "2026-11-03", minutes: 420 }];
+    const over = requestOverBalance("personal", records, TUESDAY_ONLY, () => 50);
+    expect(over).toEqual([{ schoolYear: 2026, share: 100, remaining: 50 }]);
+    expect(employeeWarning("personal", over[0].share, over[0].remaining)).toBe(
+      "Your Personal leave balance is 0.50 day. Another 0.50 day will be counted as Unpaid leave",
+    );
+  });
+
+  it("AC-BALANCE-15: 09:00–11:30 (0.36 day) with a balance of 0.20 warns about 0.16 day unpaid", () => {
+    const records = [{ date: "2026-11-03", minutes: 150 }];
+    expect(requestShares(records, TUESDAY_ONLY)).toEqual(new Map([[2026, 36]]));
+    const [over] = requestOverBalance("personal", records, TUESDAY_ONLY, () => 20);
+    expect(employeeWarning("personal", over.share, over.remaining)).toBe(
+      "Your Personal leave balance is 0.20 day. Another 0.16 day will be counted as Unpaid leave",
+    );
+  });
+
+  it("AC-BALANCE-17: three whole days with a balance of 1.50 give one warning for the whole request", () => {
+    const records = ["2026-11-02", "2026-11-03", "2026-11-04"].map((date) => ({ date, minutes: 420 }));
+    const over = requestOverBalance("personal", records, MON_FRI, () => 150);
+    expect(over).toHaveLength(1);
+    expect(employeeWarning("personal", over[0].share, over[0].remaining)).toBe(
+      "Your Personal leave balance is 1.50 day. Another 1.50 day will be counted as Unpaid leave",
+    );
+    // Те саме попередження після redirect із server action на «My requests»: параметр over → текст.
+    expect(overBalanceWarnings(encodeOverBalance("personal", over))).toEqual([
+      "Your Personal leave balance is 1.50 day. Another 1.50 day will be counted as Unpaid leave",
+    ]);
+  });
+
+  it("no warning within the balance, for unlimited types, or for a school year whose balance is unknown", () => {
+    const records = [{ date: "2026-11-03", minutes: 420 }];
+    expect(requestOverBalance("personal", records, TUESDAY_ONLY, () => 100)).toEqual([]);
+    expect(requestOverBalance("unpaid", records, TUESDAY_ONLY, () => 0)).toEqual([]);
+    expect(requestOverBalance("sick", records, TUESDAY_ONLY, () => null)).toEqual([]);
+    expect(employeeWarning("sick", 100, -30)).toBe(
+      "Your Sick leave balance is 0.00 day. Another 1.00 day will be counted as Unpaid leave",
+    );
+  });
+
+  it("the day share uses the working minutes of all positions on that weekday, per school year of each date", () => {
+    const blocks = [...TUESDAY_ONLY, { weekday: 2, start: 945, end: 1020 }];
+    expect(workingMinutesOn(blocks, "2026-11-03")).toBe(495);
+    expect(workingMinutesOn(blocks, "2026-11-04")).toBe(0);
+    const records = [
+      { date: "2027-08-31", minutes: 420 },
+      { date: "2027-09-07", minutes: 210 },
+    ];
+    expect(requestShares(records, blocks)).toEqual(
+      new Map([
+        [2026, 85],
+        [2027, 42],
+      ]),
+    );
+  });
+
+  it("the over parameter rejects forged or incomplete values", () => {
+    for (const raw of ["", "unpaid:300:0", "personal:300", "personal:abc:50", "personal:1e3:50", "<b>:1:0"]) {
+      expect(overBalanceWarnings(raw)).toEqual([]);
+    }
+    // Не понад залишок — попередження немає.
+    expect(overBalanceWarnings("personal:50:100")).toEqual([]);
+  });
+
+  it("a request over two school years is checked against each year's balance", () => {
+    const records = [
+      { date: "2027-08-31", minutes: 420 },
+      { date: "2027-09-07", minutes: 420 },
+    ];
+    const remaining = new Map([[2026, 50]]);
+    const remainingOf = (year: number) => remaining.get(year) ?? null;
+    expect(requestOverBalance("personal", records, TUESDAY_ONLY, remainingOf)).toEqual([
+      { schoolYear: 2026, share: 100, remaining: 50 },
+    ]);
+    expect(uncheckedYears(records, remainingOf)).toEqual([2027]);
   });
 });

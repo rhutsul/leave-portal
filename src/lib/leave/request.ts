@@ -1,4 +1,4 @@
-// Записи заявки з вибору працівника — чисті функції (D5 openspec/changes/impl-leave-ws6/design.md).
+// Записи заявки з вибору працівника — чисті функції (D5 openspec/changes/archive/2026-10-21-impl-leave-ws6/design.md).
 // Один запис — одна посада на одну дату (глосарій requirements/product.md); «цілий день» — усі блоки посади на дату.
 
 import {

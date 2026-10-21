@@ -1,5 +1,5 @@
 // Рішення менеджера щодо запису й дії працівника із власним записом до рішення — чисті функції (D5
-// openspec/changes/impl-leave-ws6/design.md). Ті самі правила ще раз перевіряють функції бази (decide_leave_record,
+// openspec/changes/archive/2026-10-21-impl-leave-ws6/design.md). Ті самі правила ще раз перевіряють функції бази (decide_leave_record,
 // update_leave_record_hours, resubmit_leave_record, cancel_leave_record); тут — для повідомлень і кнопок.
 
 import {

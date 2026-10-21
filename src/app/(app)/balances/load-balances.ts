@@ -1,4 +1,4 @@
-import { computeBalances, parseBalanceInputs, type Balances } from "@/lib/leave/balance";
+import { computeBalances, parseBalanceInputs, type Balances, type LimitedType } from "@/lib/leave/balance";
 import type { createClient } from "@/lib/supabase/server";
 
 type Supabase = Awaited<ReturnType<typeof createClient>>;
@@ -54,4 +54,23 @@ export async function loadBalances(supabase: Supabase, employeeId: string, schoo
       email: employee?.email ?? "",
     },
   };
+}
+
+/** Залишки «Sick leave» і «Personal leave» у сотих за навчальним роком. */
+export type RemainingByYear = Map<number, Record<LimitedType, number>>;
+
+/**
+ * Власні залишки за кількома навчальними роками — для попередження працівнику про перевищення (AC-BALANCE-08,
+ * AC-BALANCE-15, AC-BALANCE-17). null — хоч один рік не завантажився: тоді попередження не показуємо мовчки, а кажемо,
+ * що залишок не перевірено.
+ */
+export async function loadRemaining(supabase: Supabase, employeeId: string, years: number[]): Promise<RemainingByYear | null> {
+  const results = await Promise.all([...new Set(years)].map((year) => loadBalances(supabase, employeeId, year)));
+  const remaining: RemainingByYear = new Map();
+  for (const result of results) {
+    if (!result.ok) return null;
+    const { schoolYear, limited } = result.balances;
+    remaining.set(schoolYear, { sick: limited.sick.remaining, personal: limited.personal.remaining });
+  }
+  return remaining;
 }

@@ -11,7 +11,7 @@
 mkozlovskyi-ops/course-staff-management-spec#6); менеджер без жодної посади працівника — нічого (AC-BALANCE-12);
 адміністратор — усіх.
 
-План (D5 `openspec/changes/impl-leave-ws6/design.md`, задача 3.2 `tasks.md`) відводив це правило чистій функції
+План (D5 `openspec/changes/archive/2026-10-21-impl-leave-ws6/design.md`, задача 3.2 `tasks.md`) відводив це правило чистій функції
 `access.ts`, а дані — функції бази `get_balance_inputs` (D4), яка працює як `security definer` і RLS не підлягає.
 Тобто функція бази в будь-якому разі мусить перевіряти право сама: інакше будь-хто, хто ввійшов, отримав би залишки
 будь-кого через Data API. Чиста `access.ts` тоді лише копіювала б ту саму перевірку, і тест перевіряв би копію, а не
