@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Fragment } from "react";
 import { redirect } from "next/navigation";
 import { RecordHistory } from "@/components/record-history";
 import { ButtonLink } from "@/components/ui/button";
@@ -176,26 +177,38 @@ export default async function MyRequestsPage({ searchParams }: PageProps<"/reque
                     </thead>
                     <tbody>
                       {items.map((r) => (
-                        <tr key={r.id} data-testid="leave-record" className="border-t border-line-soft align-top">
-                          <td className="px-5 py-3.5">
-                            <div className="font-medium">{r.date}</div>
-                            <div className="text-xs text-muted">{weekdayName(r.date!)}</div>
-                          </td>
-                          <td className="px-3 py-3.5">
-                            <div className="font-mono text-[13px]">{formatRange(r.start_min!, r.end_min!)}</div>
-                            <div className="text-xs text-muted">{formatDuration(r.minutes!)}</div>
-                          </td>
-                          <td className="px-3 py-3.5">
-                            <div>{positionLabel(r.division_name ?? "", r.position_title ?? "")}</div>
-                            <RecordDecision record={r} />
-                          </td>
-                          <td className="px-3 py-3.5">
-                            <StatusBadge status={r.status as RecordStatus} />
-                          </td>
-                          <td className="px-5 py-3.5">
-                            <RecordHistory history={histories.get(r.id!) ?? null} />
-                          </td>
-                        </tr>
+                        <Fragment key={r.id}>
+                          <tr data-testid="leave-record" className="border-t border-line-soft align-top">
+                            <td className="px-5 py-3.5">
+                              <div className="font-medium">{r.date}</div>
+                              <div className="text-xs text-muted">{weekdayName(r.date!)}</div>
+                            </td>
+                            <td className="px-3 py-3.5">
+                              <div className="font-mono text-[13px]">{formatRange(r.start_min!, r.end_min!)}</div>
+                              <div className="text-xs text-muted">{formatDuration(r.minutes!)}</div>
+                            </td>
+                            <td className="px-3 py-3.5">
+                              <div>{positionLabel(r.division_name ?? "", r.position_title ?? "")}</div>
+                              <RecordSplit record={r} />
+                            </td>
+                            <td className="px-3 py-3.5">
+                              <StatusBadge status={r.status as RecordStatus} />
+                            </td>
+                            <td className="px-5 py-3.5">
+                              <RecordHistory history={histories.get(r.id!) ?? null} />
+                            </td>
+                          </tr>
+                          {r.manager_comment && (
+                            <tr data-testid="manager-comment">
+                              <td colSpan={5} className="px-5 pb-3.5">
+                                <p className="break-words whitespace-pre-line rounded-lg border border-line bg-surface-muted px-3 py-2 text-[13px] text-ink-2">
+                                  <span className="font-medium text-ink">Manager comment: </span>
+                                  {r.manager_comment}
+                                </p>
+                              </td>
+                            </tr>
+                          )}
+                        </Fragment>
                       ))}
                     </tbody>
                   </table>
@@ -209,8 +222,8 @@ export default async function MyRequestsPage({ searchParams }: PageProps<"/reque
   );
 }
 
-/** Під посадою: розподіл погодженого запису (AC-BALANCE-18, AC-BALANCE-19) і коментар менеджера (AC-DECIDE-05, -23, -24). */
-function RecordDecision({
+/** Під посадою: розподіл погодженого запису (AC-BALANCE-18, AC-BALANCE-19). */
+function RecordSplit({
   record: r,
 }: {
   record: {
@@ -218,7 +231,6 @@ function RecordDecision({
     leave_type: string | null;
     paid_days: number | null;
     unpaid_days: number | null;
-    manager_comment: string | null;
   };
 }) {
   const unpaid = r.unpaid_days == null ? 0 : daysToHundredths(r.unpaid_days);
@@ -226,15 +238,5 @@ function RecordDecision({
     r.status === "approved" && unpaid > 0 && r.leave_type && isLimitedType(r.leave_type)
       ? formatSplit(r.leave_type, daysToHundredths(r.paid_days ?? 0), unpaid)
       : null;
-  return (
-    <>
-      {split && <div className="mt-1 text-[13px] text-ink-2">Split: {split}</div>}
-      {r.manager_comment && (
-        <p className="mt-1 break-words whitespace-pre-line text-[13px] text-ink-2">
-          <span className="text-muted">Manager: </span>
-          {r.manager_comment}
-        </p>
-      )}
-    </>
-  );
+  return split && <div className="mt-1 text-[13px] text-ink-2">Split: {split}</div>;
 }

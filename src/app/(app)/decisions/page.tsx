@@ -89,7 +89,11 @@ export default async function DecisionsPage({ searchParams }: PageProps<"/decisi
     <>
       <PageHeader
         title="Decisions"
-        description="Records of the positions you are responsible for. Each record is decided separately."
+        description={
+          profile.role === "admin"
+            ? "All records awaiting a decision, of every position. Each record is decided separately."
+            : "Records of the positions you are responsible for. Each record is decided separately."
+        }
       />
 
       {decided && isRecordStatus(decided) && (
