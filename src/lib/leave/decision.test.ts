@@ -3,6 +3,7 @@ import {
   checkAccess,
   checkDecision,
   DECISION_MESSAGES,
+  historyLine,
   isDecision,
   type Actor,
   type DecisionTarget,
@@ -143,5 +144,20 @@ describe("manager comment", () => {
     expect(["approve", "reject", "return"].every(isDecision)).toBe(true);
     expect(isDecision("cancel")).toBe(false);
     expect(isDecision("")).toBe(false);
+  });
+});
+
+describe("record history", () => {
+  it("AC-DECIDE-15: a history line shows the decision time to the minute in Kyiv, who decided and “Approved”", () => {
+    // 16:12 UTC 20 жовтня 2026 — 19:12 за Києвом (EEST, UTC+3).
+    expect(
+      historyLine({ createdAt: "2026-10-20T16:12:45Z", action: "approved", actorName: "Manager One", comment: null }),
+    ).toEqual({ at: "2026-10-20 19:12", who: "Manager One", what: "Approved" });
+    // Після переходу на зимовий час (25 жовтня) — UTC+2.
+    expect(historyLine({ createdAt: "2026-11-02T08:05:00Z", action: "returned", actorName: null, comment: "x" })).toEqual({
+      at: "2026-11-02 10:05",
+      who: "Unknown user",
+      what: "Returned for revision",
+    });
   });
 });

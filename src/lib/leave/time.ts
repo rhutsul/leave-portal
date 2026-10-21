@@ -158,6 +158,17 @@ export function kyivHour(now: Date): number {
   return Number(new Intl.DateTimeFormat("en-GB", { timeZone: KYIV, hour: "2-digit", hourCycle: "h23" }).format(now));
 }
 
+/** Момент за Києвом до хвилини: "2026-10-20 18:12" (час рішення — Assumptions 02-leave-decision). */
+export function formatKyivDateTime(timestamp: string | Date): string {
+  const time = new Intl.DateTimeFormat("en-GB", {
+    timeZone: KYIV,
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).format(new Date(timestamp));
+  return `${kyivDate(new Date(timestamp))} ${time}`;
+}
+
 /** Дата моменту за Києвом: "20 Oct 2026". */
 export function formatKyivDay(timestamp: string | Date): string {
   return new Intl.DateTimeFormat("en-GB", { timeZone: KYIV, day: "numeric", month: "short", year: "numeric" }).format(

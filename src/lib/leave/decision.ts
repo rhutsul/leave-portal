@@ -2,6 +2,7 @@
 // Ті самі правила ще раз перевіряє private.decide_leave_record у базі; тут — для повідомлень і кнопок на /decisions.
 
 import { COMMENT_MAX, RECORD_STATUSES, commentLength, type RecordStatus } from "./request";
+import { formatKyivDateTime } from "./time";
 
 export type Role = "employee" | "manager" | "admin";
 
@@ -36,6 +37,33 @@ export interface DecisionTarget {
   employeeId: string;
   status: RecordStatus;
   managerIds: readonly string[];
+}
+
+/** Дії в історії запису (leave_record_events.action) назвами для людини. */
+export const HISTORY_ACTIONS: Record<string, string> = {
+  submitted: "Submitted",
+  approved: RECORD_STATUSES.approved,
+  rejected: RECORD_STATUSES.rejected,
+  returned: RECORD_STATUSES.returned,
+  resubmitted: "Resubmitted",
+  hours_changed: "Hours changed",
+  cancelled: RECORD_STATUSES.cancelled,
+};
+
+export interface HistoryEvent {
+  createdAt: string;
+  action: string;
+  actorName: string | null;
+  comment: string | null;
+}
+
+/** Рядок історії: дата й час рішення до хвилини за Києвом, хто, що (AC-DECIDE-15). */
+export function historyLine(event: HistoryEvent): { at: string; who: string; what: string } {
+  return {
+    at: formatKyivDateTime(event.createdAt),
+    who: event.actorName ?? "Unknown user",
+    what: HISTORY_ACTIONS[event.action] ?? event.action,
+  };
 }
 
 export function isDecision(value: string): value is Decision {

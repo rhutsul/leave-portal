@@ -1,9 +1,9 @@
 import Link from "next/link";
-import type { ReactNode } from "react";
 import { redirect } from "next/navigation";
 import { ButtonLink } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { CalendarIcon, CheckCircleIcon, CloseIcon, PlusIcon } from "@/components/ui/icons";
+import { EmptyState } from "@/components/ui/empty-state";
+import { CheckCircleIcon, CloseIcon, PlusIcon } from "@/components/ui/icons";
 import { LeaveTypeTag } from "@/components/ui/leave-type-tag";
 import { PageHeader } from "@/components/ui/page-header";
 import { isRecordStatus, STATUS_DOT, StatusBadge } from "@/components/ui/status-badge";
@@ -186,18 +186,5 @@ export default async function MyRequestsPage({ searchParams }: PageProps<"/reque
         </>
       )}
     </>
-  );
-}
-
-function EmptyState({ title, text, action }: { title: string; text: string; action?: ReactNode }) {
-  return (
-    <Card as="div" className="flex flex-col items-center gap-2.5 border-dashed border-line-strong px-6 py-12 text-center">
-      <span className="flex size-11 items-center justify-center rounded-xl bg-subtle text-ink-2">
-        <CalendarIcon size={22} />
-      </span>
-      <p className="font-semibold">{title}</p>
-      <p className="text-muted">{text}</p>
-      {action}
-    </Card>
   );
 }

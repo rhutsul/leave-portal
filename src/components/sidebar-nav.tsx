@@ -3,21 +3,23 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
-import { ChartIcon, HomeIcon, ListIcon, PlusIcon } from "./ui/icons";
+import { ChartIcon, DecisionsIcon, HomeIcon, ListIcon, PlusIcon } from "./ui/icons";
 
-const LINKS: { href: string; label: string; icon: ReactNode }[] = [
+const LINKS: { href: string; label: string; icon: ReactNode; deciders?: true }[] = [
   { href: "/", label: "Overview", icon: <HomeIcon /> },
   { href: "/requests/new", label: "New request", icon: <PlusIcon size={18} /> },
   { href: "/requests", label: "My requests", icon: <ListIcon /> },
+  { href: "/decisions", label: "Decisions", icon: <DecisionsIcon />, deciders: true },
   { href: "/balances", label: "Balances", icon: <ChartIcon /> },
 ];
 
-export function SidebarNav({ awaiting }: { awaiting: number }) {
+/** canDecide — роль manager чи admin: лише їм пункт «Decisions» (матриця прав requirements/product.md). */
+export function SidebarNav({ awaiting, canDecide }: { awaiting: number; canDecide: boolean }) {
   const pathname = usePathname();
 
   return (
     <nav aria-label="Main" className="flex flex-col gap-0.5">
-      {LINKS.map(({ href, label, icon }) => {
+      {LINKS.filter((l) => !l.deciders || canDecide).map(({ href, label, icon }) => {
         const active = pathname === href;
         return (
           <Link
