@@ -1,13 +1,16 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { BalanceCards } from "@/components/balance-cards";
 import { ButtonLink } from "@/components/ui/button";
 import { Card, CardHeader } from "@/components/ui/card";
 import { ClockIcon, PlusIcon } from "@/components/ui/icons";
 import { PageHeader } from "@/components/ui/page-header";
 import { isRecordStatus, StatusBadge } from "@/components/ui/status-badge";
+import { formatSchoolYear, schoolYearOf } from "@/lib/leave/balance";
 import { isLeaveType, LEAVE_TYPES, positionLabel, type RecordStatus } from "@/lib/leave/request";
 import { formatDateLong, formatRange, kyivDate, kyivHour, monthShort } from "@/lib/leave/time";
 import { createClient } from "@/lib/supabase/server";
+import { loadBalances } from "./balances/load-balances";
 
 const UPCOMING_LIMIT = 5;
 
@@ -17,8 +20,8 @@ function greeting(hour: number) {
   return "Good evening";
 }
 
-// Overview: найближчі відпустки (власні записи, що ще діють) і скільки записів чекає рішення.
-// Залишки з'являться в задачі 3 (task/leave-balance).
+// Overview: найближчі відпустки (власні записи, що ще діють), скільки записів чекає рішення, і власні залишки
+// за поточний навчальний рік.
 export default async function Overview() {
   const supabase = await createClient();
   const { data } = await supabase.auth.getClaims();
@@ -27,8 +30,9 @@ export default async function Overview() {
 
   const now = new Date();
   const today = kyivDate(now);
+  const schoolYear = schoolYearOf(today);
 
-  const [{ data: profile }, { data: upcoming }, { count: awaiting }] = await Promise.all([
+  const [{ data: profile }, { data: upcoming }, { count: awaiting }, balances] = await Promise.all([
     supabase.from("profiles").select("full_name").eq("id", claims.sub).maybeSingle(),
     supabase
       .from("my_leave_records")
@@ -39,6 +43,7 @@ export default async function Overview() {
       .order("start_min", { ascending: true })
       .limit(20),
     supabase.from("my_leave_records").select("id", { count: "exact", head: true }).eq("status", "awaiting"),
+    loadBalances(supabase, claims.sub, schoolYear),
   ]);
 
   // Одна заявка на одну дату — один рядок, навіть якщо в ній кілька посад.
@@ -132,6 +137,28 @@ export default async function Overview() {
           </Link>
         </Card>
       </div>
+
+      <section aria-labelledby="balances-title" className="flex flex-col gap-3.5">
+        <div className="flex items-baseline justify-between gap-4">
+          <h2 id="balances-title" className="text-[17px] font-semibold">
+            Balances · {formatSchoolYear(schoolYear)}
+          </h2>
+          <span className="text-[13px] text-muted">
+            Days, to 0.01. Only approved records count.{" "}
+            <Link href="/balances" className="font-medium text-brand-strong underline-offset-2 hover:underline">
+              All balances
+            </Link>
+          </span>
+        </div>
+        {balances.ok ? (
+          <BalanceCards balances={balances.balances} />
+        ) : (
+          // Власні залишки видно завжди, тож тут можливий лише збій завантаження.
+          <p role="alert" className="text-danger">
+            The balances could not be loaded. Please reload the page.
+          </p>
+        )}
+      </section>
     </>
   );
 }
