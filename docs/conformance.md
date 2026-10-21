@@ -88,7 +88,7 @@
 | AC-BALANCE-17 | Одне попередження на заявку з трьох днів | — | — | відкладено (чекає реалізації) |
 | AC-BALANCE-09 | Менеджер відкриває запис понад залишок | — | — | відкладено (чекає реалізації) |
 | AC-BALANCE-14 | Залишок після погодження іншого запису | — | — | відкладено (чекає реалізації) |
-| AC-BALANCE-10 | Погоджено з розподілом | — | — | відкладено (чекає реалізації) |
+| AC-BALANCE-10 | Погоджено з розподілом | `src/lib/leave/balance.ts` (usedDays, computeBalances), `supabase/migrations/20261020214031_balance_inputs.sql` (get_balance_inputs splits) | `src/lib/leave/balance.test.ts` | відкладено (рішення менеджера — задача 4) |
 | AC-BALANCE-16 | Спроба погодити без розподілу | — | — | відкладено (чекає реалізації) |
 | AC-BALANCE-12 | Менеджер чужих посад | `supabase/migrations/20261020214031_balance_inputs.sql` (can_view_balances, get_balance_inputs, balance_employees), `src/app/(app)/balances/load-balances.ts`, `src/app/(app)/balances/page.tsx` | `tests/db/balances.test.ts` | реалізовано |
 | AC-BALANCE-13 | Працівник дивиться чужі залишки | `supabase/migrations/20261020214031_balance_inputs.sql` (can_view_balances, get_balance_inputs, balance_employees), `src/app/(app)/balances/load-balances.ts`, `src/app/(app)/balances/page.tsx` | `tests/db/balances.test.ts` | реалізовано |

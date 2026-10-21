@@ -132,12 +132,19 @@ describe("balance helpers", () => {
     expect(formatDays(b.limited.sick.used)).toBe("0.00");
   });
 
-  it("counts a split record as paid days of its type plus unpaid days", () => {
-    const b = computeBalances(
-      { ...NONE, splits: [{ date: "2026-11-03", leaveType: "personal", paidDays: 0.5, unpaidDays: 0.5 }] },
-      YEAR,
-    );
-    expect([formatDays(b.limited.personal.used), formatDays(b.unlimited.unpaid)]).toEqual(["0.50", "0.50"]);
+  it("AC-BALANCE-10: a record approved with the split 0.50 + 0.50 at used 17.50 gives Personal used 18.00, remaining 0.00, Unpaid used 0.50", () => {
+    // Used 17.50 до рішення: 17 цілих днів і половина дня Personal leave.
+    const before = [
+      ...Array.from({ length: 17 }, (_, i) => day(420, "personal", "approved", `2026-10-${String(i + 1).padStart(2, "0")}`)),
+      day(210, "personal", "approved", "2026-10-20"),
+    ];
+    expect(shown({ ...NONE, days: before }).personal.used).toBe("17.50");
+    const after = shown({
+      ...NONE,
+      days: before,
+      splits: [{ date: "2026-11-03", leaveType: "personal", paidDays: 0.5, unpaidDays: 0.5 }],
+    });
+    expect([after.personal.used, after.personal.remaining, after.unpaid]).toEqual(["18.00", "0.00", "0.50"]);
   });
 
   it("formats school years and parses the database answer", () => {
