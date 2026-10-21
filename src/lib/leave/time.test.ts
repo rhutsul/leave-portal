@@ -129,14 +129,14 @@ describe("time helpers", () => {
 });
 
 describe("calendar month", () => {
-  it("starts on Monday: November 2026 begins on a Sunday after 6 blank cells", () => {
+  it("AC-LEAVE-05: the date calendar starts on Monday: November 2026 begins on a Sunday after 6 blank cells", () => {
     const grid = monthGrid("2026-11");
     expect(grid.slice(0, 7)).toEqual([null, null, null, null, null, null, "2026-11-01"]);
     expect(grid.at(-1)).toBe("2026-11-30");
     expect(monthGrid("2028-02").filter(Boolean)).toHaveLength(29);
   });
 
-  it("moves across years and names the month", () => {
+  it("AC-LEAVE-05: the date calendar moves across years and names the month", () => {
     expect(addMonths("2026-12", 1)).toBe("2027-01");
     expect(addMonths("2027-01", -1)).toBe("2026-12");
     expect(formatMonth("2026-11")).toBe("November 2026");
