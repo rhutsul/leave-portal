@@ -51,10 +51,10 @@ Done when: AC-BALANCE-01, AC-BALANCE-04, AC-BALANCE-11, AC-BALANCE-12, AC-BALANC
 
 ## 4. Рішення менеджера (`task/leave-decision`)
 
-- [ ] 4.1 `src/lib/leave/decision.ts` — хто вирішує, власний запис менеджера, переходи статусів, коментар
+- [x] 4.1 `src/lib/leave/decision.ts` — хто вирішує, власний запис менеджера, переходи статусів, коментар
       обов'язковий лише при поверненні (при погодженні й відхиленні — необов'язковий); перевірка: тести AC-DECIDE-04,
       AC-DECIDE-07, AC-DECIDE-08, AC-DECIDE-09, AC-DECIDE-18
-- [ ] 4.2 Міграція з функцією `decide_leave_record` (D4) і сторінка `/decisions` («Awaiting decision», «History»,
+- [x] 4.2 Міграція з функцією `decide_leave_record` (D4) і сторінка `/decisions` («Awaiting decision», «History»,
       погодити / відхилити з необов'язковим коментарем, повернути з коментарем, коментар працівника, історія запису);
       коментар менеджера видно працівнику в «My requests»; перевірка: тести AC-DECIDE-01, AC-DECIDE-02, AC-DECIDE-03,
       AC-DECIDE-05, AC-DECIDE-10, AC-DECIDE-11, AC-DECIDE-14, AC-DECIDE-15, AC-DECIDE-19, AC-DECIDE-20, AC-DECIDE-23,
@@ -62,7 +62,7 @@ Done when: AC-BALANCE-01, AC-BALANCE-04, AC-BALANCE-11, AC-BALANCE-12, AC-BALANC
       AC-BALANCE-02, AC-BALANCE-03, AC-BALANCE-05, AC-BALANCE-06, AC-BALANCE-07 переходять у «реалізовано»; запис
       зменшує залишок навчального року своєї дати, хоч би коли його погоджено, а перенесення наступного року
       перераховується — тести AC-BALANCE-21, AC-BALANCE-22
-- [ ] 4.3 Погодження понад залишок — у тому самому PR, щоб погодження без розподілу ніколи не потрапило на прод:
+- [x] 4.3 Погодження понад залишок — у тому самому PR, щоб погодження без розподілу ніколи не потрапило на прод:
       `balance.ts` рахує попередження й пропонований розподіл; `decide_leave_record` під `pg_advisory_xact_lock` на
       працівника **сам** визначає `paid_days` і `unpaid_days` за актуальним залишком навчального року дати запису на
       момент рішення (розподіл із форми не приймає) і відхиляє погодження понад залишок без розподілу; `/decisions`
