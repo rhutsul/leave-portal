@@ -63,7 +63,7 @@ where role = 'member'` → default `'employee'` → новий `profiles_role_ch
 | `schedule_blocks` | блок розкладу посади: `position_id`, `employee_id` (копія з посади — для обмеження D3), `weekday` 1–7, `start_min`, `end_min` (хвилини від півночі, `start < end`, кратні 5) | AC-LEAVE-06…09, AC-LEAVE-15, AC-BALANCE-03, AC-BALANCE-05, AC-BALANCE-06 |
 | `position_managers` | відповідальні менеджери посади (0–2+) | AC-DECIDE-01, AC-DECIDE-07, AC-DECIDE-08 |
 | `leave_requests` | заявка: `employee_id`, `leave_type`, `relationship` (лише для «Family celebration»), коментар працівника, час подання | AC-LEAVE-05, AC-LEAVE-12 |
-| `leave_records` | запис: `request_id`, `position_id`, `employee_id`, `date`, `start_min`, `end_min`, `minutes`, `status`, `leave_type`, `relationship`, коментар працівника (копії з заявки), `manager_comment`, `paid_days`, `unpaid_days` | AC-LEAVE-01…16, AC-DECIDE-01…19 (AC-DECIDE-01, AC-DECIDE-02, AC-DECIDE-03, AC-DECIDE-04, AC-DECIDE-05, AC-DECIDE-06, AC-DECIDE-07, AC-DECIDE-08, AC-DECIDE-09, AC-DECIDE-10, AC-DECIDE-11, AC-DECIDE-12, AC-DECIDE-13, AC-DECIDE-14, AC-DECIDE-15, AC-DECIDE-16, AC-DECIDE-17, AC-DECIDE-18, AC-DECIDE-19), AC-BALANCE-09, AC-BALANCE-10 |
+| `leave_records` | запис: `request_id`, `position_id`, `employee_id`, `date`, `start_min`, `end_min`, `minutes`, `status`, `leave_type`, `relationship`, коментар працівника (копії з заявки), `manager_comment`, `paid_days`, `unpaid_days` | AC-LEAVE-01…16, AC-DECIDE-01…19 (AC-DECIDE-01, AC-DECIDE-02, AC-DECIDE-03, AC-DECIDE-04, AC-DECIDE-05, AC-DECIDE-06, AC-DECIDE-07, AC-DECIDE-08, AC-DECIDE-09, AC-DECIDE-10, AC-DECIDE-11, AC-DECIDE-12, AC-DECIDE-13, AC-DECIDE-14, AC-DECIDE-15, AC-DECIDE-16, AC-DECIDE-17, AC-DECIDE-18, AC-DECIDE-19), AC-DECIDE-23, AC-DECIDE-24, AC-BALANCE-09, AC-BALANCE-10 |
 
 Тип відпустки, спорідненість і коментар працівника `submit_leave_request` копіює в **кожен** запис заявки (PM:
 коментар «is stored on every record of the request», `requirements/01-leave-request.md`). Тоді все, що менеджер має
@@ -111,10 +111,10 @@ between blocks» (глосарій `requirements/product.md`). Тому знам
 
 | Функція | Що робить | AC |
 |---|---|---|
-| `submit_leave_request(payload)` | перевіряє блоки розкладу, створює заявку й усі записи або жоден (одна транзакція) | AC-LEAVE-01…16 |
-| `decide_leave_record(record_id, decision, comment, split)` | право вирішувати, власний запис менеджера, «перше рішення» (`update … where status = 'awaiting'`), рядок історії | AC-DECIDE-01…05, 07…11, 14, 15, 18, 19; AC-BALANCE-10, 16 |
+| `submit_leave_request(payload)` | перевіряє блоки розкладу, створює заявку й усі записи прийнятих дат або жоден (одна транзакція) | AC-LEAVE-01…16, AC-LEAVE-21 |
+| `decide_leave_record(record_id, decision, comment, split)` | право вирішувати, власний запис менеджера, «перше рішення» (`update … where status = 'awaiting'`), `comment` — у `leave_records.manager_comment` (його бачить працівник у «My requests») і в рядок історії; коментар обов'язковий лише при поверненні; розподіл — за залишком навчального року дати запису | AC-DECIDE-01…05, 07…11, 14, 15, 18, 19, 23, 24; AC-BALANCE-10, 16, 21, 22 |
 | `update_leave_record_hours(record_id, start, end)` / `resubmit_leave_record` / `cancel_leave_record` | зміна годин до рішення, повторне подання, скасування | AC-DECIDE-06, 12, 13, 16, 17 |
-| `get_balance_inputs(employee_id, school_year)` | лише підсумки по датах — без деталей чужих записів: усі робочі хвилини працівника дати; хвилини записів за типом і статусом; для погоджених записів — суми `paid_days` і `unpaid_days` за типом; перенесені дні | AC-BALANCE-01…16 |
+| `get_balance_inputs(employee_id, school_year)` | лише підсумки по датах — без деталей чужих записів: усі робочі хвилини працівника дати; хвилини записів за типом і статусом; для погоджених записів — суми `paid_days` і `unpaid_days` за типом; перенесені дні | AC-BALANCE-01…16, AC-BALANCE-21, AC-BALANCE-22 |
 
 **Привілейований шлях запису.** `authenticated` не має `insert` / `update` / `delete` на жодній таблиці зрізу —
 працівник не змінить собі статус і не запише чужий рядок напряму. Тому **кожна** функція з таблиці вище складається з
@@ -139,9 +139,9 @@ RLS на читання: працівник — свої записи й зая�
 | Модуль | Що рахує | AC |
 |---|---|---|
 | `time.ts` | `HH:MM` ↔ хвилини, крок 5 хв, кінець блоку лише як кінець, години в блоках, тривалість без перерв | AC-LEAVE-04, 06, 07, 08, 09, 15, 19, 20 |
-| `request.ts` | записи заявки з вибору (дати × посади, цілий день = усі блоки), одна посада мінімум, спорідненість, перетин | AC-LEAVE-01, 02, 03, 05, 10, 12, 13, 16, 17, 18 |
-| `balance.ts` | навчальний рік, частка дня (хвилини ÷ усі хвилини дати, half-up до 0.01, ≤ 1.00), перенесення, попередження, розподіл | AC-BALANCE-01…11, 14, 15, 17, 18, 19 |
-| `decision.ts` | хто може вирішувати, власний запис, дозволені переходи статусів, коментар при поверненні | AC-DECIDE-04, 07, 08, 09, 12, 17, 18, 21, 22 |
+| `request.ts` | записи заявки з вибору (дати × посади, цілий день = усі блоки), одна посада мінімум, спорідненість, перетин, дата без розкладу не входить у заявку | AC-LEAVE-01, 02, 03, 05, 10, 12, 13, 16, 17, 18, 21 |
+| `balance.ts` | навчальний рік дати запису, частка дня (хвилини ÷ усі хвилини дати, half-up до 0.01, ≤ 1.00), перенесення з погоджених записів попереднього року, попередження, розподіл | AC-BALANCE-01…11, 14, 15, 17, 18, 19, 21, 22 |
+| `decision.ts` | хто може вирішувати, власний запис, дозволені переходи статусів, коментар обов'язковий лише при поверненні | AC-DECIDE-04, 07, 08, 09, 12, 17, 18, 21, 22, 23, 24 |
 | `access.ts` | хто бачить чиї записи й залишки | AC-LEAVE-14, AC-DECIDE-01, AC-BALANCE-12, 13, 20 |
 
 Server actions викликають ці функції для повідомлень користувачу, а потім `rpc`; функції бази перевіряють те саме
@@ -154,10 +154,10 @@ Server actions викликають ці функції для повідомл�
 
 | Шлях | Хто | AC |
 |---|---|---|
-| `/requests/new` | працівник: дати → посади й години → тип → підсумок → підтвердження | LEAVE-01…13, 15…20; BALANCE-08, 15, 17 |
-| `/requests` | «My requests»: записи, статуси, коментар, історія, зміна годин, повторне подання, скасування | LEAVE-14; DECIDE-03, 05, 06, 12, 13, 15…17, 21, 22; BALANCE-18 |
-| `/decisions` | менеджер / адміністратор: «Awaiting decision» і «History», рішення, попередження й розподіл | DECIDE-01…05, 07…11, 14, 18…20; BALANCE-09, 10, 14, 16, 19 |
-| `/balances` | свої залишки; `?employee=` — для менеджера своїх посад і адміністратора | BALANCE-01…07, 11…13, 20 |
+| `/requests/new` | працівник: дати → посади й години → тип → підсумок → підтвердження | AC-LEAVE-01…13, 15…21; AC-BALANCE-08, 15, 17 |
+| `/requests` | «My requests»: записи, статуси, коментар, історія, зміна годин, повторне подання, скасування | AC-LEAVE-14; AC-DECIDE-03, 05, 06, 12, 13, 15…17, 21…24; AC-BALANCE-18 |
+| `/decisions` | менеджер / адміністратор: «Awaiting decision» і «History», рішення, попередження й розподіл | AC-DECIDE-01…05, 07…11, 14, 18…20, 23, 24; AC-BALANCE-09, 10, 14, 16, 19 |
+| `/balances` | свої залишки; `?employee=` — для менеджера своїх посад і адміністратора | AC-BALANCE-01…07, 11…13, 20…22 |
 
 ### D7. Тестові дані — призначення за email
 

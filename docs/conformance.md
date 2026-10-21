@@ -51,6 +51,7 @@
 | AC-LEAVE-12 | Без спорідненості | `src/lib/leave/request.ts` (checkLeaveType), `supabase/migrations/20261020190045_leave_requests_schema.sql` (submit_leave_request), `src/app/(app)/requests/new/new-request-form.tsx` | `src/lib/leave/request.test.ts`, `tests/db/multi-date-request.test.ts` | реалізовано |
 | AC-LEAVE-13 | Перетин із записом, що чекає рішення | `src/lib/leave/request.ts` (findOverlap), `src/app/(app)/requests/new/actions.ts`, `supabase/migrations/20261020190045_leave_requests_schema.sql` (leave_records_no_overlap, submit_leave_request) | `src/lib/leave/request.test.ts`, `tests/db/multi-date-request.test.ts` | реалізовано |
 | AC-LEAVE-16 | Перетин в одній із дат | `src/lib/leave/request.ts` (buildRequestRecords, findOverlap), `src/app/(app)/requests/new/actions.ts`, `supabase/migrations/20261020190045_leave_requests_schema.sql` (submit_leave_request) | `src/lib/leave/request.test.ts`, `tests/db/multi-date-request.test.ts` | реалізовано |
+| AC-LEAVE-21 | Субота в заявці разом із п'ятницею | — | — | відкладено (чекає реалізації) |
 | AC-LEAVE-14 | Лише власні записи | `supabase/migrations/20261020190045_leave_requests_schema.sql` (RLS, my_leave_records), `src/app/(app)/requests/page.tsx` | `tests/db/my-requests.test.ts`, `tests/db/submit-leave-request.test.ts` | реалізовано |
 | AC-LEAVE-18 | Коментар із 501 символу | `src/lib/leave/request.ts` (checkComment), `supabase/migrations/20261020190045_leave_requests_schema.sql` (submit_leave_request), `src/app/(app)/requests/new/new-request-form.tsx` | `src/lib/leave/request.test.ts`, `tests/db/multi-date-request.test.ts` | реалізовано |
 | AC-DECIDE-01 | Лише записи своїх посад | — | — | відкладено (чекає реалізації) |
@@ -58,6 +59,8 @@
 | AC-DECIDE-14 | Порожній список | — | — | відкладено (чекає реалізації) |
 | AC-DECIDE-02 | Погоджено один запис із двох | — | — | відкладено (чекає реалізації) |
 | AC-DECIDE-03 | Відхилення | — | — | відкладено (чекає реалізації) |
+| AC-DECIDE-23 | Відхилення з коментарем | — | — | відкладено (чекає реалізації) |
+| AC-DECIDE-24 | Погодження з коментарем | — | — | відкладено (чекає реалізації) |
 | AC-DECIDE-05 | Повернення з коментарем | — | — | відкладено (чекає реалізації) |
 | AC-DECIDE-04 | Повернення без коментаря | — | — | відкладено (чекає реалізації) |
 | AC-DECIDE-06 | Повторне подання поверненого запису | — | — | відкладено (чекає реалізації) |
@@ -83,6 +86,8 @@
 | AC-BALANCE-05 | Цілий день на двох посадах | `src/lib/leave/balance.ts` (dayShare, usedDays), `supabase/migrations/20261020214031_balance_inputs.sql` (get_balance_inputs) | `src/lib/leave/balance.test.ts`, `tests/db/balances.test.ts` | відкладено (рішення менеджера — задача 4) |
 | AC-BALANCE-06 | Цілий день лише на додатковій посаді | `src/lib/leave/balance.ts` (dayShare), `supabase/migrations/20261020214031_balance_inputs.sql` (get_balance_inputs) | `src/lib/leave/balance.test.ts`, `tests/db/balances.test.ts` | відкладено (рішення менеджера — задача 4) |
 | AC-BALANCE-11 | Перенесення 5 днів | `src/lib/leave/balance.ts` (computeBalances, schoolYearOf), `supabase/migrations/20261020214031_balance_inputs.sql` (get_balance_inputs, test_balance_carryovers), `src/app/(app)/balances/page.tsx` | `src/lib/leave/balance.test.ts`, `tests/db/balances.test.ts` | реалізовано |
+| AC-BALANCE-21 | Пізнє погодження запису минулого навчального року | — | — | відкладено (чекає реалізації) |
+| AC-BALANCE-22 | Заявка на дати двох навчальних років | — | — | відкладено (чекає реалізації) |
 | AC-BALANCE-08 | Цілий день при залишку 0.50 | — | — | відкладено (чекає реалізації) |
 | AC-BALANCE-15 | Частина дня при залишку 0.20 | — | — | відкладено (чекає реалізації) |
 | AC-BALANCE-17 | Одне попередження на заявку з трьох днів | — | — | відкладено (чекає реалізації) |
