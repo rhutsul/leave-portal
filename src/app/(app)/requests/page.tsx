@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { RecordHistory } from "@/components/record-history";
 import { ButtonLink } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -7,6 +8,7 @@ import { CheckCircleIcon, CloseIcon, PlusIcon } from "@/components/ui/icons";
 import { LeaveTypeTag } from "@/components/ui/leave-type-tag";
 import { PageHeader } from "@/components/ui/page-header";
 import { isRecordStatus, STATUS_DOT, StatusBadge } from "@/components/ui/status-badge";
+import { daysToHundredths, formatSplit, isLimitedType } from "@/lib/leave/balance";
 import { positionLabel, type RecordStatus } from "@/lib/leave/request";
 import { formatDuration, formatKyivDay, formatRange, weekdayName } from "@/lib/leave/time";
 import { createClient } from "@/lib/supabase/server";
@@ -39,7 +41,7 @@ export default async function MyRequestsPage({ searchParams }: PageProps<"/reque
   const { data: rows, error } = await supabase
     .from("my_leave_records")
     .select(
-      "id, request_id, date, start_min, end_min, minutes, leave_type, status, position_title, division_name, employee_comment, created_at",
+      "id, request_id, date, start_min, end_min, minutes, leave_type, status, position_title, division_name, employee_comment, manager_comment, paid_days, unpaid_days, created_at",
     )
     .order("request_id", { ascending: false })
     .order("date", { ascending: true })
@@ -49,6 +51,17 @@ export default async function MyRequestsPage({ searchParams }: PageProps<"/reque
   const count = (statuses: RecordStatus[] | null) =>
     records.filter((r) => !statuses || statuses.includes(r.status as RecordStatus)).length;
   const shown = records.filter((r) => !tab.statuses || tab.statuses.includes(r.status as RecordStatus));
+
+  // Історія кожного показаного запису з іменами тих, хто вирішував (public.record_history, AC-DECIDE-15):
+  // profiles за RLS показує лише власний профіль. Збій — повідомлення в цьому записі, а не порожня історія.
+  const histories = new Map(
+    await Promise.all(
+      shown.map(async (r) => {
+        const { data: lines, error: historyError } = await supabase.rpc("record_history", { p_record_id: r.id! });
+        return [r.id!, historyError ? null : (lines ?? [])] as const;
+      }),
+    ),
+  );
 
   const groups = new Map<number, typeof shown>();
   for (const r of shown) groups.set(r.request_id!, [...(groups.get(r.request_id!) ?? []), r]);
@@ -157,7 +170,8 @@ export default async function MyRequestsPage({ searchParams }: PageProps<"/reque
                         <th className="w-40 px-5 py-2.5 font-medium">Date</th>
                         <th className="w-44 px-3 py-2.5 font-medium">Hours</th>
                         <th className="px-3 py-2.5 font-medium">Position</th>
-                        <th className="w-48 px-5 py-2.5 font-medium">Status</th>
+                        <th className="w-48 px-3 py-2.5 font-medium">Status</th>
+                        <th className="w-56 px-5 py-2.5 font-medium">History</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -171,9 +185,15 @@ export default async function MyRequestsPage({ searchParams }: PageProps<"/reque
                             <div className="font-mono text-[13px]">{formatRange(r.start_min!, r.end_min!)}</div>
                             <div className="text-xs text-muted">{formatDuration(r.minutes!)}</div>
                           </td>
-                          <td className="px-3 py-3.5">{positionLabel(r.division_name ?? "", r.position_title ?? "")}</td>
-                          <td className="px-5 py-3.5">
+                          <td className="px-3 py-3.5">
+                            <div>{positionLabel(r.division_name ?? "", r.position_title ?? "")}</div>
+                            <RecordDecision record={r} />
+                          </td>
+                          <td className="px-3 py-3.5">
                             <StatusBadge status={r.status as RecordStatus} />
+                          </td>
+                          <td className="px-5 py-3.5">
+                            <RecordHistory history={histories.get(r.id!) ?? null} />
                           </td>
                         </tr>
                       ))}
@@ -184,6 +204,36 @@ export default async function MyRequestsPage({ searchParams }: PageProps<"/reque
             </div>
           )}
         </>
+      )}
+    </>
+  );
+}
+
+/** Під посадою: розподіл погодженого запису (AC-BALANCE-18, AC-BALANCE-19) і коментар менеджера (AC-DECIDE-05, -23, -24). */
+function RecordDecision({
+  record: r,
+}: {
+  record: {
+    status: string | null;
+    leave_type: string | null;
+    paid_days: number | null;
+    unpaid_days: number | null;
+    manager_comment: string | null;
+  };
+}) {
+  const unpaid = r.unpaid_days == null ? 0 : daysToHundredths(r.unpaid_days);
+  const split =
+    r.status === "approved" && unpaid > 0 && r.leave_type && isLimitedType(r.leave_type)
+      ? formatSplit(r.leave_type, daysToHundredths(r.paid_days ?? 0), unpaid)
+      : null;
+  return (
+    <>
+      {split && <div className="mt-1 text-[13px] text-ink-2">Split: {split}</div>}
+      {r.manager_comment && (
+        <p className="mt-1 break-words whitespace-pre-line text-[13px] text-ink-2">
+          <span className="text-muted">Manager: </span>
+          {r.manager_comment}
+        </p>
       )}
     </>
   );

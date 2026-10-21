@@ -178,3 +178,45 @@ export function parseBalanceInputs(raw: unknown): BalanceInputs {
     })),
   };
 }
+
+const LIMITED_LABELS: Record<LimitedType, string> = { sick: "Sick leave", personal: "Personal leave" };
+
+export function isLimitedType(value: string): value is LimitedType {
+  return (LIMITED_TYPES as readonly string[]).includes(value);
+}
+
+/**
+ * Пропонований розподіл запису понад залишок у сотих: оплачувана частина — до залишку (не менше 0), решта — «Unpaid
+ * leave» (AC-BALANCE-09, AC-BALANCE-19). share — частка запису на момент рішення, remaining — залишок року його дати;
+ * обидва числа дає public.decision_balance, тож тут та сама арифметика, що й у decide_leave_record.
+ */
+export function suggestedSplit(share: number, remaining: number): { paid: number; unpaid: number; over: boolean } {
+  const paid = Math.min(share, Math.max(remaining, 0));
+  return { paid, unpaid: share - paid, over: share > remaining };
+}
+
+/** Попередження менеджеру, коли запис перевищує залишок (AC-BALANCE-09, AC-BALANCE-14). */
+export function managerWarning(type: LimitedType, share: number, remaining: number): string | null {
+  const split = suggestedSplit(share, remaining);
+  if (!split.over) return null;
+  const label = LIMITED_LABELS[type];
+  return (
+    `This request exceeds the ${label} balance (${formatDays(Math.max(remaining, 0))} day). ` +
+    `Suggested: ${formatDays(split.paid)} day ${label}, ${formatDays(split.unpaid)} day Unpaid leave`
+  );
+}
+
+/** Відмова погодити понад залишок без розподілу (AC-BALANCE-16) — той самий текст повертає decide_leave_record. */
+export function splitRequiredMessage(type: LimitedType, remaining: number): string {
+  return `The ${LIMITED_LABELS[type]} balance is ${formatDays(Math.max(remaining, 0))} day: approve with the suggested split or reject`;
+}
+
+/** Розподіл на погодженому записі: "0.50 Personal leave + 0.50 Unpaid leave" (AC-BALANCE-18, AC-BALANCE-19). */
+export function formatSplit(type: LimitedType, paid: number, unpaid: number): string {
+  return `${formatDays(paid)} ${LIMITED_LABELS[type]} + ${formatDays(unpaid)} Unpaid leave`;
+}
+
+/** Числа з бази ("0.50" чи 0.5) → соті. */
+export function daysToHundredths(days: number | string): number {
+  return toHundredths(Number(days));
+}

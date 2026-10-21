@@ -1,12 +1,14 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { type HistoryRow, RecordHistory } from "@/components/record-history";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
-import { CheckCircleIcon, CloseIcon } from "@/components/ui/icons";
+import { AlertIcon, CheckCircleIcon, CloseIcon } from "@/components/ui/icons";
 import { LeaveTypeTag } from "@/components/ui/leave-type-tag";
 import { PageHeader } from "@/components/ui/page-header";
 import { isRecordStatus, StatusBadge } from "@/components/ui/status-badge";
-import { DECISION_MESSAGES, historyLine } from "@/lib/leave/decision";
+import { daysToHundredths, formatSplit, isLimitedType, managerWarning } from "@/lib/leave/balance";
+import { DECISION_MESSAGES } from "@/lib/leave/decision";
 import {
   isRelationship,
   positionLabel,
@@ -20,7 +22,6 @@ import type { Database } from "@/lib/supabase/database.types";
 import { DecisionForm } from "./decision-form";
 
 type DecisionRow = Database["public"]["Functions"]["decision_records"]["Returns"][number];
-type HistoryRow = Database["public"]["Functions"]["record_history"]["Returns"][number];
 
 const TABS = [
   { id: "awaiting", label: "Awaiting decision" },
@@ -31,6 +32,16 @@ const TABS = [
 const DECIDED: RecordStatus[] = ["approved", "rejected", "returned"];
 
 const first = (value: string | string[] | undefined) => (Array.isArray(value) ? value[0] : value);
+
+/** Попередження про перевищення залишку: null — у межах залишку або тип без ліміту; "error" — не вдалося порахувати. */
+type BalanceWarning = string | null | "error";
+
+/** Відповідь public.decision_balance → текст попередження PM (AC-BALANCE-09, AC-BALANCE-14). */
+function warningFrom(raw: unknown): string | null {
+  const value = raw as { leave_type?: string; share?: number | string; remaining?: number | string } | null;
+  if (!value || !value.leave_type || !isLimitedType(value.leave_type)) return null;
+  return managerWarning(value.leave_type, daysToHundredths(value.share ?? 0), daysToHundredths(value.remaining ?? 0));
+}
 
 // «Awaiting decision» і «History» менеджера (requirements/02-leave-decision.md). Записи й імена дає
 // public.decision_records: менеджеру — лише записи посад, за які він відповідає (AC-DECIDE-01), адміністратору — усі.
@@ -56,12 +67,23 @@ export default async function DecisionsPage({ searchParams }: PageProps<"/decisi
   const shown = tab === "awaiting" ? awaiting : history;
 
   // Історія кожного показаного запису з іменами (public.record_history); збій — повідомлення в цьому записі.
-  const histories = await Promise.all(
-    shown.map(async (r) => {
-      const { data: lines, error: historyError } = await supabase.rpc("record_history", { p_record_id: r.id });
-      return historyError ? null : (lines ?? []);
-    }),
-  );
+  // Для записів, які користувач може вирішити, — залишок на цей момент (public.decision_balance): той самий, за яким
+  // decide_leave_record порахує розподіл, з урахуванням погоджень після відкриття сторінки (AC-BALANCE-14).
+  const [histories, warnings] = await Promise.all([
+    Promise.all(
+      shown.map(async (r) => {
+        const { data: lines, error: historyError } = await supabase.rpc("record_history", { p_record_id: r.id });
+        return historyError ? null : (lines ?? []);
+      }),
+    ),
+    Promise.all(
+      shown.map(async (r): Promise<BalanceWarning> => {
+        if (r.status !== "awaiting" || !r.can_decide || !isLimitedType(r.leave_type)) return null;
+        const { data: balance, error: balanceError } = await supabase.rpc("decision_balance", { p_record_id: r.id });
+        return balanceError ? "error" : warningFrom(balance);
+      }),
+    ),
+  ]);
 
   return (
     <>
@@ -127,7 +149,7 @@ export default async function DecisionsPage({ searchParams }: PageProps<"/decisi
       ) : (
         <div className="flex flex-col gap-4">
           {shown.map((r, i) => (
-            <RecordCard key={r.id} record={r} history={histories[i]} />
+            <RecordCard key={r.id} record={r} history={histories[i]} warning={warnings[i]} />
           ))}
         </div>
       )}
@@ -135,10 +157,23 @@ export default async function DecisionsPage({ searchParams }: PageProps<"/decisi
   );
 }
 
-function RecordCard({ record: r, history }: { record: DecisionRow; history: HistoryRow[] | null }) {
+function RecordCard({
+  record: r,
+  history,
+  warning,
+}: {
+  record: DecisionRow;
+  history: HistoryRow[] | null;
+  warning: BalanceWarning;
+}) {
   const headingId = `record-${r.id}`;
   const status = r.status as RecordStatus;
   const relationship = r.relationship && isRelationship(r.relationship) ? RELATIONSHIP_LABELS[r.relationship] : null;
+  const unpaid = r.unpaid_days == null ? 0 : daysToHundredths(r.unpaid_days);
+  const split =
+    status === "approved" && unpaid > 0 && isLimitedType(r.leave_type)
+      ? formatSplit(r.leave_type, daysToHundredths(r.paid_days ?? 0), unpaid)
+      : null;
 
   return (
     <Card as="article" aria-labelledby={headingId} className="overflow-hidden">
@@ -174,6 +209,12 @@ function RecordCard({ record: r, history }: { record: DecisionRow; history: Hist
           <dd>{positionLabel(r.division_name, r.position_title)}</dd>
           <dt className="text-muted">Employee comment</dt>
           <dd className="break-words whitespace-pre-line">{r.employee_comment || <span className="text-muted">—</span>}</dd>
+          {split && (
+            <>
+              <dt className="text-muted">Split</dt>
+              <dd>{split}</dd>
+            </>
+          )}
           {r.manager_comment && (
             <>
               <dt className="text-muted">Manager comment</dt>
@@ -191,9 +232,25 @@ function RecordCard({ record: r, history }: { record: DecisionRow; history: Hist
         </dl>
 
         <div className="flex flex-col gap-3">
+          {warning === "error" && (
+            <p role="alert" className="text-[13px] text-danger">
+              The balance could not be checked. Please reload the page before approving.
+            </p>
+          )}
+          {warning && warning !== "error" && (
+            <p
+              role="note"
+              className="flex items-start gap-2 rounded-lg border border-awaiting-dot/30 bg-awaiting-soft px-3 py-2 text-awaiting"
+            >
+              <span className="mt-0.5 shrink-0">
+                <AlertIcon />
+              </span>
+              {warning}
+            </p>
+          )}
           {status === "awaiting" &&
             (r.can_decide ? (
-              <DecisionForm recordId={r.id} />
+              <DecisionForm recordId={r.id} split={warning !== null && warning !== "error"} />
             ) : (
               <p className="rounded-lg border border-line bg-subtle px-3 py-2 text-ink-2">{DECISION_MESSAGES.ownRecord}</p>
             ))}
@@ -201,32 +258,5 @@ function RecordCard({ record: r, history }: { record: DecisionRow; history: Hist
         </div>
       </div>
     </Card>
-  );
-}
-
-/** Історія запису: дата й час до хвилини за Києвом, хто, що (AC-DECIDE-15). */
-function RecordHistory({ history }: { history: HistoryRow[] | null }) {
-  if (history === null) {
-    return (
-      <p role="alert" className="text-[13px] text-danger">
-        The history could not be loaded.
-      </p>
-    );
-  }
-  return (
-    <details className="text-[13px]">
-      <summary className="cursor-pointer font-medium text-brand-strong">History</summary>
-      <ol className="mt-2 flex flex-col gap-1 text-ink-2">
-        {history.map((h, i) => {
-          const line = historyLine({ createdAt: h.created_at, action: h.action, actorName: h.actor_name, comment: h.comment });
-          return (
-            <li key={i}>
-              <span className="font-mono">{line.at}</span> · {line.who} · <span className="font-medium">{line.what}</span>
-              {h.comment && <span className="block break-words whitespace-pre-line text-muted">“{h.comment}”</span>}
-            </li>
-          );
-        })}
-      </ol>
-    </details>
   );
 }
