@@ -138,22 +138,27 @@ export default async function Overview() {
         </Card>
       </div>
 
-      {balances.ok && (
-        <section aria-labelledby="balances-title" className="flex flex-col gap-3.5">
-          <div className="flex items-baseline justify-between gap-4">
-            <h2 id="balances-title" className="text-[17px] font-semibold">
-              Balances · {formatSchoolYear(schoolYear)}
-            </h2>
-            <span className="text-[13px] text-muted">
-              Days, to 0.01. Only approved records count.{" "}
-              <Link href="/balances" className="font-medium text-brand-strong underline-offset-2 hover:underline">
-                All balances
-              </Link>
-            </span>
-          </div>
+      <section aria-labelledby="balances-title" className="flex flex-col gap-3.5">
+        <div className="flex items-baseline justify-between gap-4">
+          <h2 id="balances-title" className="text-[17px] font-semibold">
+            Balances · {formatSchoolYear(schoolYear)}
+          </h2>
+          <span className="text-[13px] text-muted">
+            Days, to 0.01. Only approved records count.{" "}
+            <Link href="/balances" className="font-medium text-brand-strong underline-offset-2 hover:underline">
+              All balances
+            </Link>
+          </span>
+        </div>
+        {balances.ok ? (
           <BalanceCards balances={balances.balances} />
-        </section>
-      )}
+        ) : (
+          // Власні залишки видно завжди, тож тут можливий лише збій завантаження.
+          <p role="alert" className="text-danger">
+            The balances could not be loaded. Please reload the page.
+          </p>
+        )}
+      </section>
     </>
   );
 }

@@ -30,7 +30,7 @@ export default async function BalancesPage({ searchParams }: PageProps<"/balance
   const currentYear = schoolYearOf(kyivDate(new Date()));
   const { employee: employeeParam, year } = balancesQuery(params, claims.sub, currentYear);
 
-  const [result, { data: employees }] = await Promise.all([
+  const [result, { data: employees, error: employeesError }] = await Promise.all([
     loadBalances(supabase, employeeParam ?? claims.sub, year),
     supabase.rpc("balance_employees"),
   ]);
@@ -59,7 +59,7 @@ export default async function BalancesPage({ searchParams }: PageProps<"/balance
                   <option value="">My balances</option>
                   {others.map((e) => (
                     <option key={e.id} value={e.id}>
-                      {e.full_name ?? e.email}
+                      {e.full_name || e.email || "Employee"}
                     </option>
                   ))}
                 </select>
@@ -68,6 +68,11 @@ export default async function BalancesPage({ searchParams }: PageProps<"/balance
                 Show
               </Button>
             </form>
+          ) : employeesError ? (
+            // Без списку менеджер не відкриє залишки працівника — кажемо чому, а не ховаємо вибір мовчки.
+            <p role="alert" className="text-[13px] text-danger">
+              The list of employees could not be loaded. Please reload the page.
+            </p>
           ) : undefined
         }
       />

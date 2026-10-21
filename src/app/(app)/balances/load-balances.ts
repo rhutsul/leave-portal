@@ -44,7 +44,8 @@ export async function loadBalances(supabase: Supabase, employeeId: string, schoo
     balances: computeBalances(parseBalanceInputs(data), schoolYear),
     employee: {
       id: employeeId,
-      name: employee?.full_name ?? employee?.email ?? "",
+      // Порожні full_name і email — усе одно є що показати, чиї це залишки.
+      name: employee?.full_name || employee?.email || "Employee",
       email: employee?.email ?? "",
     },
   };
