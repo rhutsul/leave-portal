@@ -31,6 +31,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { LEAVE_TYPES } from "@/lib/leave/request";
 
 export const metadata: Metadata = { title: "Design system · Leave portal" };
 
@@ -61,6 +62,8 @@ const SURFACES = [
   ["leave-unpaid", "bg-leave-unpaid text-leave-unpaid-foreground"],
   ["leave-family", "bg-leave-family text-leave-family-foreground"],
 ] as const;
+
+const LEAVE_TYPE_ITEMS = Object.entries(LEAVE_TYPES).map(([value, label]) => ({ value, label }));
 
 const LINES = [
   ["border", "border-border"],
@@ -140,7 +143,7 @@ export default function DesignPage() {
           <Button variant="link">View history</Button>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Button disabled>
+          <Button disabled aria-busy="true">
             <span aria-hidden="true" className="size-3.5 animate-spin rounded-full border-2 border-current border-r-transparent" />
             Submitting…
           </Button>
@@ -175,15 +178,16 @@ export default function DesignPage() {
             </div>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="ds-type">Leave type</Label>
-              <Select defaultValue="personal">
+              <Select defaultValue="personal" items={LEAVE_TYPE_ITEMS}>
                 <SelectTrigger id="ds-type" className="w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="sick">Sick leave</SelectItem>
-                  <SelectItem value="personal">Personal leave</SelectItem>
-                  <SelectItem value="unpaid">Unpaid leave</SelectItem>
-                  <SelectItem value="family">Family celebration</SelectItem>
+                  {LEAVE_TYPE_ITEMS.map((item) => (
+                    <SelectItem key={item.value} value={item.value}>
+                      {item.label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
