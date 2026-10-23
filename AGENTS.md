@@ -154,7 +154,9 @@ shadcn/ui (CLI 4.22.1, Base UI) + `tw-animate-css` + `lucide-react` — диза
   `border-input`, `bg-status-awaiting`…); жодних hex, `bg-[#…]`, сирих палітр (`zinc-500`, `bg-white`) і кольорів в
   inline style.
 - Компоненти — лише з `@/components/ui` (shadcn/ui і наші доменні; змінюються в цій теці). Сторінки не мають власних
-  `<button>`, `<input>`, `<select>`, `<textarea>`, `<table>` зі стилями. Нових кольорів у компонентах не вигадуй і не
+  `<button>`, `<input>`, `<select>`, `<textarea>`, `<table>` зі стилями. Сторінки зрізу 1 переносяться на компоненти
+  поступово (`legacy-button`, `legacy-card` і власні елементи там — тимчасово, до PR сторінок дизайн-системи): нову
+  розмітку пиши одразу на `@/components/ui`, старі `legacy-*` не розширюй. Нових кольорів у компонентах не вигадуй і не
   переноси сирі класи в `src/components/ui`, щоб сховати їх від перевірки.
 - Новий токен: `DESIGN.md` (таблиця й контраст) → `:root` і `@media (prefers-color-scheme: dark)` у
   `src/app/globals.css` → `--color-<назва>` у `@theme inline`. Темна тема — лише за системою: без класу `.dark` і без

@@ -26,6 +26,7 @@ export function CalendarDay({
   return (
     <button
       type="button"
+      {...props}
       aria-pressed={state === "selected"}
       disabled={unavailable || props.disabled}
       className={cn(
@@ -33,7 +34,6 @@ export function CalendarDay({
         DAY[state],
         className,
       )}
-      {...props}
     >
       {day}
     </button>

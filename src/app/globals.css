@@ -236,7 +236,7 @@
   body {
     @apply bg-background text-foreground;
   }
-  :where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  :where(a, button, input, select, textarea, summary, [tabindex]:not([tabindex="-1"])):focus-visible {
     outline: 2px solid var(--ring);
     outline-offset: 2px;
   }

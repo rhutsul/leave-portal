@@ -106,7 +106,7 @@ export default async function DecisionsPage({ searchParams }: PageProps<"/decisi
           <Link
             href={tab === "history" ? "/decisions?tab=history" : "/decisions"}
             aria-label="Dismiss"
-            className="flex size-8 items-center justify-center rounded-lg hover:bg-status-approved-foreground/40"
+            className="flex size-8 items-center justify-center rounded-lg hover:bg-status-approved-foreground/10"
           >
             <CloseIcon />
           </Link>
@@ -123,7 +123,7 @@ export default async function DecisionsPage({ searchParams }: PageProps<"/decisi
               href={t.id === "awaiting" ? "/decisions" : "/decisions?tab=history"}
               aria-current={active ? "page" : undefined}
               className={`-mb-px inline-flex items-center gap-2 border-b-2 px-3 py-2.5 ${
-                active ? "border-primary font-semibold text-foreground" : "border-transparent font-medium text-foreground hover:text-foreground"
+                active ? "border-primary font-semibold text-foreground" : "border-transparent font-medium text-muted-foreground hover:text-foreground"
               }`}
             >
               {t.label}
