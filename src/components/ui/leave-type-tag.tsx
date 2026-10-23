@@ -1,10 +1,10 @@
 import { isLeaveType, LEAVE_TYPES, type LeaveType } from "@/lib/leave/request";
 
 const STYLES: Record<LeaveType, string> = {
-  sick: "bg-sick-soft text-sick",
-  personal: "bg-brand-soft text-brand-strong",
-  unpaid: "bg-subtle text-ink-2",
-  family: "bg-family-soft text-family",
+  sick: "bg-leave-sick text-leave-sick-foreground",
+  personal: "bg-accent text-primary",
+  unpaid: "bg-muted text-foreground",
+  family: "bg-leave-family text-leave-family-foreground",
 };
 
 /** Тип відпустки назвою PM на кольоровій мітці. */

@@ -21,7 +21,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
   const email = profile?.email ?? claims.email ?? "";
 
   return (
-    <div className="flex min-h-full flex-1 bg-canvas text-sm text-ink">
+    <div className="flex min-h-full flex-1 bg-background text-sm text-foreground">
       <Sidebar
         name={profile?.full_name ?? email}
         email={email}

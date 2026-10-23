@@ -7,8 +7,8 @@ const BASE =
   "inline-flex min-h-10 items-center justify-center gap-2 rounded-lg px-4 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50";
 
 const VARIANTS: Record<Variant, string> = {
-  primary: "border border-brand bg-brand text-on-brand hover:bg-brand-fill-hover hover:border-brand-fill-hover",
-  ghost: "border border-line-strong bg-surface text-ink-2 hover:bg-subtle hover:text-ink",
+  primary: "border border-primary bg-primary text-primary-foreground hover:bg-primary/90 hover:border-primary/90",
+  ghost: "border border-input bg-card text-foreground hover:bg-muted hover:text-foreground",
 };
 
 export function buttonClass(variant: Variant = "primary", className = "") {

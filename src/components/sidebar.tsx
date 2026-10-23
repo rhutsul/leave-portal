@@ -24,9 +24,9 @@ export function Sidebar({
   canDecide: boolean;
 }) {
   return (
-    <aside className="sticky top-0 flex h-screen w-62 shrink-0 flex-col gap-6 border-r border-line bg-surface px-4 py-5">
+    <aside className="sticky top-0 flex h-screen w-62 shrink-0 flex-col gap-6 border-r border-border bg-card px-4 py-5">
       <div className="flex items-center gap-2.5 px-2 py-1">
-        <span className="flex size-8 items-center justify-center rounded-lg bg-brand text-on-brand">
+        <span className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
           <CalendarIcon />
         </span>
         <span className="text-[15px] font-semibold">Leave portal</span>
@@ -34,10 +34,10 @@ export function Sidebar({
 
       <SidebarNav awaiting={awaiting} canDecide={canDecide} />
 
-      <div className="mt-auto flex items-center gap-2.5 border-t border-line px-2 pt-4">
+      <div className="mt-auto flex items-center gap-2.5 border-t border-border px-2 pt-4">
         <span
           aria-hidden="true"
-          className="flex size-8.5 shrink-0 items-center justify-center rounded-full bg-brand-muted text-[13px] font-semibold text-brand-strong"
+          className="flex size-8.5 shrink-0 items-center justify-center rounded-full bg-accent text-[13px] font-semibold text-primary"
         >
           {initials(name)}
         </span>
@@ -45,7 +45,7 @@ export function Sidebar({
           <div data-testid="user-name" className="truncate text-[13px] font-medium">
             {name}
           </div>
-          <div data-testid="user-email" className="truncate text-xs text-muted">
+          <div data-testid="user-email" className="truncate text-xs text-muted-foreground">
             {email}
           </div>
         </div>
@@ -54,7 +54,7 @@ export function Sidebar({
             type="submit"
             aria-label="Sign out"
             title="Sign out"
-            className="flex size-8.5 items-center justify-center rounded-lg border border-line-strong bg-surface text-ink-2 hover:bg-subtle hover:text-ink"
+            className="flex size-8.5 items-center justify-center rounded-lg border border-input bg-card text-foreground hover:bg-muted hover:text-foreground"
           >
             <SignOutIcon />
           </button>

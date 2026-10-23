@@ -200,19 +200,19 @@ export function NewRequestForm({
                 aria-current={current ? "step" : undefined}
                 title={label}
                 className={`flex h-full w-full items-center gap-2.5 rounded-xl border px-3 py-2.5 text-left ${
-                  current ? "border-brand-line bg-surface shadow-xs" : "border-line"
-                } ${locked && !current ? "opacity-60" : ""} ${!locked && !current ? "cursor-pointer hover:bg-surface" : ""}`}
+                  current ? "border-ring bg-card shadow-xs" : "border-border"
+                } ${locked && !current ? "opacity-60" : ""} ${!locked && !current ? "cursor-pointer hover:bg-card" : ""}`}
               >
                 <span
                   aria-hidden="true"
                   className={`flex size-6.5 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${
-                    current ? "bg-brand text-on-brand" : done ? "bg-brand-muted text-brand-strong" : "bg-subtle text-ink-2"
+                    current ? "bg-primary text-primary-foreground" : done ? "bg-accent text-primary" : "bg-muted text-foreground"
                   }`}
                 >
                   {done ? "✓" : n}
                 </span>
                 <span className="flex min-w-0 flex-col">
-                  <span className="text-xs text-faint">Step {n}</span>
+                  <span className="text-xs text-muted-foreground">Step {n}</span>
                   <span className="truncate whitespace-nowrap font-medium">{label}</span>
                 </span>
               </button>
@@ -242,7 +242,7 @@ export function NewRequestForm({
                   <div className="flex min-w-56 flex-1 flex-col gap-2.5">
                     <div className="font-medium">Selected dates</div>
                     {dates.length === 0 ? (
-                      <p className="rounded-[10px] border border-dashed border-line-strong p-4 text-muted">
+                      <p className="rounded-[10px] border border-dashed border-input p-4 text-muted-foreground">
                         No dates yet — pick them in the calendar.
                       </p>
                     ) : (
@@ -250,14 +250,14 @@ export function NewRequestForm({
                         {dates.map((d) => (
                           <li
                             key={d}
-                            className="inline-flex items-center gap-1.5 rounded-full bg-brand-soft py-1 pr-1.5 pl-3 font-medium text-brand-strong"
+                            className="inline-flex items-center gap-1.5 rounded-full bg-accent py-1 pr-1.5 pl-3 font-medium text-primary"
                           >
                             {formatDateShort(d)}
                             <button
                               type="button"
                               onClick={() => pickDate(d)}
                               aria-label={`Remove ${formatDateLong(d)}`}
-                              className="flex size-6 items-center justify-center rounded-full hover:bg-brand-muted"
+                              className="flex size-6 items-center justify-center rounded-full hover:bg-accent"
                             >
                               <CloseIcon size={14} />
                             </button>
@@ -266,7 +266,7 @@ export function NewRequestForm({
                       </ul>
                     )}
                     <FieldError id={`${ids}-date-error`} message={dateError} />
-                    <div className="mt-1.5 rounded-xl border border-line bg-surface-muted px-3.5 py-3 text-[13px] leading-relaxed text-ink-2">
+                    <div className="mt-1.5 rounded-xl border border-border bg-muted px-3.5 py-3 text-[13px] leading-relaxed text-foreground">
                       <div className="mb-1 font-medium">Your weekly schedule</div>
                       {positions.map((p) => (
                         <div key={p.id}>
@@ -310,7 +310,7 @@ export function NewRequestForm({
                     {(Object.keys(LEAVE_TYPES) as LeaveType[]).map((type) => (
                       <label
                         key={type}
-                        className="flex min-h-18 cursor-pointer items-center gap-3.5 rounded-xl border border-line bg-surface p-4 hover:border-brand-hover has-checked:border-2 has-checked:border-brand has-checked:bg-brand-soft has-focus-visible:outline-2 has-focus-visible:outline-ring"
+                        className="flex min-h-18 cursor-pointer items-center gap-3.5 rounded-xl border border-border bg-card p-4 hover:border-ring has-checked:border-2 has-checked:border-primary has-checked:bg-accent has-focus-visible:outline-2 has-focus-visible:outline-ring"
                       >
                         <input
                           type="radio"
@@ -323,12 +323,12 @@ export function NewRequestForm({
                           }}
                           className="peer sr-only"
                         />
-                        <span className="flex size-9.5 shrink-0 items-center justify-center rounded-lg bg-subtle text-ink-2 peer-checked:bg-brand peer-checked:text-on-brand">
+                        <span className="flex size-9.5 shrink-0 items-center justify-center rounded-lg bg-muted text-foreground peer-checked:bg-primary peer-checked:text-primary-foreground">
                           <LeaveTypeIcon type={type} />
                         </span>
                         <span className="flex flex-col gap-0.5">
                           <span className="font-semibold">{LEAVE_TYPES[type]}</span>
-                          <span className="text-[13px] text-muted">{TYPE_HINTS[type]}</span>
+                          <span className="text-[13px] text-muted-foreground">{TYPE_HINTS[type]}</span>
                         </span>
                       </label>
                     ))}
@@ -356,7 +356,7 @@ export function NewRequestForm({
                           </option>
                         ))}
                       </select>
-                      <span id={`${ids}-relationship-hint`} className="text-xs text-muted">
+                      <span id={`${ids}-relationship-hint`} className="text-xs text-muted-foreground">
                         Not applicable to cousins, friends, neighbours or siblings-in-law.
                       </span>
                     </div>
@@ -367,11 +367,11 @@ export function NewRequestForm({
                 <div className="flex flex-col gap-1.5">
                   <div className="flex items-baseline justify-between">
                     <label htmlFor={`${ids}-comment`} className="font-medium">
-                      Comment <span className="font-normal text-faint">(optional)</span>
+                      Comment <span className="font-normal text-muted-foreground">(optional)</span>
                     </label>
                     <span
                       id={`${ids}-comment-counter`}
-                      className={`text-xs ${commentChars > COMMENT_MAX ? "font-medium text-danger" : "text-faint"}`}
+                      className={`text-xs ${commentChars > COMMENT_MAX ? "font-medium text-destructive" : "text-muted-foreground"}`}
                     >
                       {commentChars} / {COMMENT_MAX}
                     </span>
@@ -387,9 +387,9 @@ export function NewRequestForm({
                     placeholder="For example: Doctor’s appointment"
                     aria-invalid={commentError ? true : undefined}
                     aria-describedby={`${ids}-comment-hint ${ids}-comment-counter${commentError ? ` ${ids}-comment-error` : ""}`}
-                    className="resize-y rounded-lg border border-line-strong bg-surface px-3 py-2.5 text-ink"
+                    className="resize-y rounded-lg border border-input bg-card px-3 py-2.5 text-foreground"
                   />
-                  <span id={`${ids}-comment-hint`} className="text-xs text-muted">
+                  <span id={`${ids}-comment-hint`} className="text-xs text-muted-foreground">
                     Your managers see this comment on every record of the request.
                   </span>
                   <FieldError id={`${ids}-comment-error`} message={commentError} />
@@ -401,19 +401,19 @@ export function NewRequestForm({
               <div className="flex flex-col gap-4.5 px-7 py-6">
                 <StepTitle title="Check and confirm" hint="Nothing is saved until you confirm. You can go back and change anything." />
                 <dl className="grid grid-cols-[140px_1fr] gap-x-4 gap-y-2">
-                  <dt className="text-muted">Leave type</dt>
+                  <dt className="text-muted-foreground">Leave type</dt>
                   <dd className="font-medium">{typeLabel}</dd>
-                  <dt className="text-muted">Comment</dt>
+                  <dt className="text-muted-foreground">Comment</dt>
                   <dd className="break-words whitespace-pre-line">{comment.trim() || "—"}</dd>
-                  <dt className="text-muted">Total</dt>
+                  <dt className="text-muted-foreground">Total</dt>
                   <dd className="font-medium">
                     {formatDuration(totalMinutes)} in {recordCount(records.length)}
                   </dd>
                 </dl>
-                <div className="overflow-hidden rounded-xl border border-line">
+                <div className="overflow-hidden rounded-xl border border-border">
                   <table className="w-full border-collapse text-left">
                     <thead>
-                      <tr className="bg-surface-muted text-xs text-muted">
+                      <tr className="bg-muted text-xs text-muted-foreground">
                         <th className="px-3.5 py-2.5 font-medium">Date</th>
                         <th className="px-3.5 py-2.5 font-medium">Position</th>
                         <th className="px-3.5 py-2.5 font-medium">Hours</th>
@@ -422,7 +422,7 @@ export function NewRequestForm({
                     </thead>
                     <tbody>
                       {records.map((r) => (
-                        <tr key={`${r.date}|${r.positionId}`} className="border-t border-line">
+                        <tr key={`${r.date}|${r.positionId}`} className="border-t border-border">
                           <td className="whitespace-nowrap px-3.5 py-3">{formatDateLong(r.date)}</td>
                           <td className="px-3.5 py-3">{labelOf(r.positionId)}</td>
                           <td className="px-3.5 py-3 font-mono text-[13px]">{formatRange(r.start, r.end)}</td>
@@ -437,7 +437,7 @@ export function NewRequestForm({
                     <WarningNote key={o.schoolYear}>{employeeWarning(leaveType, o.share, o.remaining)}</WarningNote>
                   ))}
                 {balanceUnchecked && (
-                  <p className="text-[13px] text-muted">
+                  <p className="text-[13px] text-muted-foreground">
                     Your balance will be checked when you submit; if it is exceeded, you will see a warning.
                   </p>
                 )}
@@ -446,7 +446,7 @@ export function NewRequestForm({
               </div>
             )}
 
-            <div className="flex items-center justify-between gap-3 rounded-b-2xl border-t border-line bg-surface-muted px-7 py-4">
+            <div className="flex items-center justify-between gap-3 rounded-b-2xl border-t border-border bg-muted px-7 py-4">
               <div>
                 {step > 1 && (
                   <Button variant="ghost" onClick={() => go((step - 1) as Step)} disabled={pending}>
@@ -468,15 +468,15 @@ export function NewRequestForm({
         <Card as="aside" aria-label="Your request" className="sticky top-8 flex max-w-full flex-[1_1_280px] flex-col gap-3.5 p-5">
           <div className="flex items-center justify-between">
             <h2 className="text-[15px] font-semibold">Your request</h2>
-            <span className="text-xs text-muted">{recordCount(records.length)}</span>
+            <span className="text-xs text-muted-foreground">{recordCount(records.length)}</span>
           </div>
           <div className="flex flex-col gap-1">
-            <span className="text-xs text-muted">Leave type</span>
+            <span className="text-xs text-muted-foreground">Leave type</span>
             <span className="font-medium">{typeLabel}</span>
           </div>
-          <div className="h-px bg-line" />
+          <div className="h-px bg-border" />
           {records.length === 0 ? (
-            <p className="text-muted">Pick dates and positions to see the records here.</p>
+            <p className="text-muted-foreground">Pick dates and positions to see the records here.</p>
           ) : (
             <ul className="flex flex-col gap-3">
               {records.map((r) => (
@@ -485,19 +485,19 @@ export function NewRequestForm({
                     <div className="font-medium">
                       {formatDateShort(r.date)} · <span className="font-mono text-[13px]">{formatRange(r.start, r.end)}</span>
                     </div>
-                    <div className="text-[13px] text-muted">{labelOf(r.positionId)}</div>
+                    <div className="text-[13px] text-muted-foreground">{labelOf(r.positionId)}</div>
                   </div>
-                  <div className="whitespace-nowrap text-ink-2">{formatDuration(r.minutes)}</div>
+                  <div className="whitespace-nowrap text-foreground">{formatDuration(r.minutes)}</div>
                 </li>
               ))}
             </ul>
           )}
-          <div className="h-px bg-line" />
+          <div className="h-px bg-border" />
           <div className="flex justify-between font-semibold">
             <span>Total</span>
             <span>{totalMinutes ? formatDuration(totalMinutes) : "—"}</span>
           </div>
-          <p className="text-xs leading-normal text-muted">
+          <p className="text-xs leading-normal text-muted-foreground">
             Each record goes to the manager of its position and is decided separately.
           </p>
         </Card>
@@ -537,7 +537,7 @@ function DateCalendar({
       </div>
       <div className="grid w-84 grid-cols-7 gap-1">
         {WEEKDAY_SHORT.map((w) => (
-          <div key={w} aria-hidden="true" className="py-1 text-center text-xs text-faint">
+          <div key={w} aria-hidden="true" className="py-1 text-center text-xs text-muted-foreground">
             {w}
           </div>
         ))}
@@ -554,10 +554,10 @@ function DateCalendar({
               aria-label={`${formatDateLong(date)}${working ? "" : ", no working hours"}`}
               className={`h-11 rounded-[9px] border text-sm ${
                 isSelected
-                  ? "border-brand bg-brand font-semibold text-on-brand"
+                  ? "border-primary bg-primary font-semibold text-primary-foreground"
                   : working
-                    ? "border-line-strong bg-surface text-ink hover:border-brand-hover"
-                    : "border-transparent bg-subtle text-faint"
+                    ? "border-input bg-card text-foreground hover:border-ring"
+                    : "border-transparent bg-muted text-muted-foreground"
               } ${date === today && !isSelected ? "font-semibold underline underline-offset-4" : ""}`}
             >
               {Number(date.slice(8))}
@@ -565,10 +565,10 @@ function DateCalendar({
           );
         })}
       </div>
-      <div className="mt-3 flex gap-3.5 text-xs text-muted">
-        <Legend className="border border-faint bg-surface" label="Working day" />
-        <Legend className="bg-brand" label="Selected" />
-        <Legend className="bg-subtle" label="No schedule" />
+      <div className="mt-3 flex gap-3.5 text-xs text-muted-foreground">
+        <Legend className="border border-input bg-card" label="Working day" />
+        <Legend className="bg-primary" label="Selected" />
+        <Legend className="bg-muted" label="No schedule" />
       </div>
     </div>
   );
@@ -602,7 +602,7 @@ function DaySectionView({
         <h3 id={`${idPrefix}-title`} className="text-[15px] font-semibold">
           {formatDateLong(section.date)}
         </h3>
-        <span className="text-[13px] text-faint">
+        <span className="text-[13px] text-muted-foreground">
           {included} of {section.cards.length} positions included
         </span>
       </div>
@@ -650,7 +650,7 @@ function PositionCard({
   return (
     <li
       className={`rounded-xl border px-4.5 py-4 ${
-        error ? "border-danger-line" : choice.include ? "border-brand-line bg-surface" : "border-line bg-surface-muted"
+        error ? "border-destructive/50" : choice.include ? "border-ring bg-card" : "border-border bg-muted"
       }`}
     >
       <div className="flex items-start gap-3">
@@ -659,38 +659,38 @@ function PositionCard({
           type="checkbox"
           checked={choice.include}
           onChange={(e) => onChange({ include: e.target.checked })}
-          className="mt-0.5 size-4.5 accent-brand"
+          className="mt-0.5 size-4.5 accent-primary"
         />
         <label htmlFor={`${idPrefix}-include`} className="flex-1 cursor-pointer">
           <span className="flex flex-wrap items-center gap-2">
             <span className="font-semibold">{position.label}</span>
-            <span className="rounded-md bg-subtle px-2 py-0.5 text-xs font-medium text-ink-2">
+            <span className="rounded-md bg-muted px-2 py-0.5 text-xs font-medium text-foreground">
               {position.kind === "main" ? "Main" : "Additional"}
             </span>
           </span>
-          <span className="mt-0.5 block text-[13px] text-muted">Schedule: {formatBlocks(position.blocks)}</span>
+          <span className="mt-0.5 block text-[13px] text-muted-foreground">Schedule: {formatBlocks(position.blocks)}</span>
         </label>
-        <span className="font-mono text-[13px] text-ink-2">{duration}</span>
+        <span className="font-mono text-[13px] text-foreground">{duration}</span>
       </div>
 
       <div className={`mt-3.5 ml-7.5 ${choice.include ? "" : "opacity-60"}`} aria-hidden="true">
-        <div className="relative h-3.5 rounded bg-subtle">
+        <div className="relative h-3.5 rounded bg-muted">
           {position.blocks.map((b) => (
             <div
               key={b.start}
-              className={`absolute inset-y-0 rounded ${choice.include ? "bg-brand-line" : "bg-line-strong"}`}
+              className={`absolute inset-y-0 rounded ${choice.include ? "bg-ring" : "bg-input"}`}
               style={{ left: `${pct(b.start)}%`, width: `${pct(b.end) - pct(b.start)}%` }}
             />
           ))}
           {selected.map((s) => (
             <div
               key={s.start}
-              className="absolute inset-y-0 rounded bg-brand"
+              className="absolute inset-y-0 rounded bg-primary"
               style={{ left: `${pct(s.start)}%`, width: `${pct(s.end) - pct(s.start)}%` }}
             />
           ))}
         </div>
-        <div className="relative mt-1 h-4 text-[11px] text-faint">
+        <div className="relative mt-1 h-4 text-[11px] text-muted-foreground">
           {axis.ticks.map((t) => (
             <span key={t} className="absolute -translate-x-1/2" style={{ left: `${pct(t)}%` }}>
               {formatTime(t)}
@@ -701,7 +701,7 @@ function PositionCard({
 
       {choice.include && (
         <div className="mt-3 ml-7.5 flex flex-wrap items-center gap-4.5">
-          <fieldset className="inline-flex rounded-[9px] bg-subtle p-0.75">
+          <fieldset className="inline-flex rounded-[9px] bg-muted p-0.75">
             <legend className="sr-only">Hours for {position.label}</legend>
             {[
               { whole: true, label: "Whole day" },
@@ -709,7 +709,7 @@ function PositionCard({
             ].map((option) => (
               <label
                 key={option.label}
-                className="cursor-pointer rounded-[7px] px-3 py-1.5 text-[13px] text-ink-2 has-checked:bg-surface has-checked:font-medium has-checked:text-ink has-checked:shadow-xs has-focus-visible:outline-2 has-focus-visible:outline-ring"
+                className="cursor-pointer rounded-[7px] px-3 py-1.5 text-[13px] text-foreground has-checked:bg-card has-checked:font-medium has-checked:text-foreground has-checked:shadow-xs has-focus-visible:outline-2 has-focus-visible:outline-ring"
               >
                 <input
                   type="radio"
@@ -724,7 +724,7 @@ function PositionCard({
           </fieldset>
           {!choice.wholeDay && (
             <div className="flex items-center gap-2">
-              <label htmlFor={`${idPrefix}-from`} className="text-ink-2">
+              <label htmlFor={`${idPrefix}-from`} className="text-foreground">
                 From
               </label>
               <input
@@ -736,7 +736,7 @@ function PositionCard({
                 aria-invalid={error ? true : undefined}
                 className={`${inputClass} h-9`}
               />
-              <label htmlFor={`${idPrefix}-to`} className="text-ink-2">
+              <label htmlFor={`${idPrefix}-to`} className="text-foreground">
                 to
               </label>
               <input
@@ -758,7 +758,7 @@ function PositionCard({
   );
 }
 
-const inputClass = "h-10 rounded-lg border border-line-strong bg-surface px-2.5 text-ink";
+const inputClass = "h-10 rounded-lg border border-input bg-card px-2.5 text-foreground";
 
 function recordCount(n: number) {
   return n === 1 ? "1 record" : `${n} records`;
@@ -768,7 +768,7 @@ function StepTitle({ title, hint }: { title: string; hint: string }) {
   return (
     <div>
       <h2 className="text-[17px] font-semibold">{title}</h2>
-      <p className="mt-1 text-muted">{hint}</p>
+      <p className="mt-1 text-muted-foreground">{hint}</p>
     </div>
   );
 }

@@ -1,11 +1,11 @@
 import { RECORD_STATUSES, type RecordStatus } from "@/lib/leave/request";
 
 const STYLES: Record<RecordStatus, { badge: string; dot: string }> = {
-  awaiting: { badge: "bg-awaiting-soft text-awaiting", dot: "bg-awaiting-dot" },
-  returned: { badge: "bg-returned-soft text-returned", dot: "bg-returned-dot" },
-  approved: { badge: "bg-approved-soft text-approved", dot: "bg-approved-dot" },
-  rejected: { badge: "bg-rejected-soft text-rejected", dot: "bg-rejected-dot" },
-  cancelled: { badge: "bg-cancelled-soft text-cancelled", dot: "bg-cancelled-dot" },
+  awaiting: { badge: "bg-status-awaiting text-status-awaiting-foreground", dot: "bg-status-awaiting-foreground" },
+  returned: { badge: "bg-status-returned text-status-returned-foreground", dot: "bg-status-returned-foreground" },
+  approved: { badge: "bg-status-approved text-status-approved-foreground", dot: "bg-status-approved-foreground" },
+  rejected: { badge: "bg-status-rejected text-status-rejected-foreground", dot: "bg-status-rejected-foreground" },
+  cancelled: { badge: "bg-status-cancelled text-status-cancelled-foreground", dot: "bg-status-cancelled-foreground" },
 };
 
 export const STATUS_DOT = Object.fromEntries(Object.entries(STYLES).map(([k, v]) => [k, v.dot])) as Record<

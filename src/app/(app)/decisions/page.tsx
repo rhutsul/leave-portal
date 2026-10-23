@@ -97,7 +97,7 @@ export default async function DecisionsPage({ searchParams }: PageProps<"/decisi
       {decided && isRecordStatus(decided) && (
         <div
           role="status"
-          className="flex items-center gap-3 rounded-xl border border-success-line bg-success-soft px-4 py-3 text-success"
+          className="flex items-center gap-3 rounded-xl border border-status-approved-foreground/40 bg-status-approved px-4 py-3 text-status-approved-foreground"
         >
           <CheckCircleIcon />
           <p className="flex-1">
@@ -106,14 +106,14 @@ export default async function DecisionsPage({ searchParams }: PageProps<"/decisi
           <Link
             href={tab === "history" ? "/decisions?tab=history" : "/decisions"}
             aria-label="Dismiss"
-            className="flex size-8 items-center justify-center rounded-lg hover:bg-success-line/40"
+            className="flex size-8 items-center justify-center rounded-lg hover:bg-status-approved-foreground/40"
           >
             <CloseIcon />
           </Link>
         </div>
       )}
 
-      <nav aria-label="Decision lists" className="flex flex-wrap gap-1 border-b border-line">
+      <nav aria-label="Decision lists" className="flex flex-wrap gap-1 border-b border-border">
         {TABS.map((t) => {
           const active = t.id === tab;
           const count = t.id === "awaiting" ? awaiting.length : history.length;
@@ -123,12 +123,12 @@ export default async function DecisionsPage({ searchParams }: PageProps<"/decisi
               href={t.id === "awaiting" ? "/decisions" : "/decisions?tab=history"}
               aria-current={active ? "page" : undefined}
               className={`-mb-px inline-flex items-center gap-2 border-b-2 px-3 py-2.5 ${
-                active ? "border-brand font-semibold text-ink" : "border-transparent font-medium text-ink-2 hover:text-ink"
+                active ? "border-primary font-semibold text-foreground" : "border-transparent font-medium text-foreground hover:text-foreground"
               }`}
             >
               {t.label}
               <span
-                className={`rounded-full px-1.75 text-xs ${active ? "bg-brand-soft text-brand-strong" : "bg-subtle text-ink-2"}`}
+                className={`rounded-full px-1.75 text-xs ${active ? "bg-accent text-primary" : "bg-muted text-foreground"}`}
               >
                 {count}
                 <span className="sr-only"> records</span>
@@ -139,7 +139,7 @@ export default async function DecisionsPage({ searchParams }: PageProps<"/decisi
       </nav>
 
       {error ? (
-        <p role="alert" className="text-danger">
+        <p role="alert" className="text-destructive">
           The records could not be loaded. Please reload the page.
         </p>
       ) : shown.length === 0 ? (
@@ -179,16 +179,16 @@ function RecordCard({
 
   return (
     <Card as="article" aria-labelledby={headingId} className="overflow-hidden">
-      <header className="flex flex-wrap items-center gap-3 border-b border-line bg-surface-muted px-5 py-3.5">
+      <header className="flex flex-wrap items-center gap-3 border-b border-border bg-muted px-5 py-3.5">
         <h2 id={headingId} className="font-semibold">
           {r.employee_name || r.employee_email}
           <span className="sr-only">
             , {r.date}, {RECORD_STATUSES[status]}
           </span>
         </h2>
-        <span className="text-muted">{r.employee_email}</span>
+        <span className="text-muted-foreground">{r.employee_email}</span>
         <LeaveTypeTag type={r.leave_type} />
-        {relationship && <span className="text-xs text-muted">Relationship: {relationship}</span>}
+        {relationship && <span className="text-xs text-muted-foreground">Relationship: {relationship}</span>}
         {status !== "awaiting" && (
           <span className="ml-auto">
             <StatusBadge status={status} />
@@ -198,35 +198,35 @@ function RecordCard({
 
       <div className="grid gap-5 px-5 py-4 md:grid-cols-[1fr_1.4fr]">
         <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2">
-          <dt className="text-muted">Date</dt>
+          <dt className="text-muted-foreground">Date</dt>
           <dd>
-            <span className="font-medium">{r.date}</span> <span className="text-muted">{weekdayName(r.date)}</span>
+            <span className="font-medium">{r.date}</span> <span className="text-muted-foreground">{weekdayName(r.date)}</span>
           </dd>
-          <dt className="text-muted">Hours</dt>
+          <dt className="text-muted-foreground">Hours</dt>
           <dd>
             <span className="font-mono text-[13px]">{formatRange(r.start_min, r.end_min)}</span>{" "}
-            <span className="text-muted">· {formatDuration(r.minutes)}</span>
+            <span className="text-muted-foreground">· {formatDuration(r.minutes)}</span>
           </dd>
-          <dt className="text-muted">Position</dt>
+          <dt className="text-muted-foreground">Position</dt>
           <dd>{positionLabel(r.division_name, r.position_title)}</dd>
-          <dt className="text-muted">Employee comment</dt>
-          <dd className="break-words whitespace-pre-line">{r.employee_comment || <span className="text-muted">—</span>}</dd>
+          <dt className="text-muted-foreground">Employee comment</dt>
+          <dd className="break-words whitespace-pre-line">{r.employee_comment || <span className="text-muted-foreground">—</span>}</dd>
           {split && (
             <>
-              <dt className="text-muted">Split</dt>
+              <dt className="text-muted-foreground">Split</dt>
               <dd>{split}</dd>
             </>
           )}
           {r.manager_comment && (
             <>
-              <dt className="text-muted">Manager comment</dt>
+              <dt className="text-muted-foreground">Manager comment</dt>
               <dd className="break-words whitespace-pre-line">{r.manager_comment}</dd>
             </>
           )}
           {/* Повторно поданий запис знову чекає рішення: попереднє повернення — лише в історії. */}
           {r.decided_at && r.status !== "awaiting" && (
             <>
-              <dt className="text-muted">Decided</dt>
+              <dt className="text-muted-foreground">Decided</dt>
               <dd>
                 {formatKyivDateTime(r.decided_at)} · {r.decided_by_name || "Unknown user"}
               </dd>
@@ -236,14 +236,14 @@ function RecordCard({
 
         <div className="flex flex-col gap-3">
           {warning === "error" && (
-            <p role="alert" className="text-[13px] text-danger">
+            <p role="alert" className="text-[13px] text-destructive">
               The balance could not be checked. Please reload the page before approving.
             </p>
           )}
           {warning && warning !== "error" && (
             <p
               role="note"
-              className="flex items-start gap-2 rounded-lg border border-awaiting-dot/30 bg-awaiting-soft px-3 py-2 text-awaiting"
+              className="flex items-start gap-2 rounded-lg border border-status-awaiting-foreground/30 bg-status-awaiting px-3 py-2 text-status-awaiting-foreground"
             >
               <span className="mt-0.5 shrink-0">
                 <AlertIcon />
@@ -259,7 +259,7 @@ function RecordCard({
                 split={warning !== null && warning !== "error"}
               />
             ) : (
-              <p className="rounded-lg border border-line bg-subtle px-3 py-2 text-ink-2">{DECISION_MESSAGES.ownRecord}</p>
+              <p className="rounded-lg border border-border bg-muted px-3 py-2 text-foreground">{DECISION_MESSAGES.ownRecord}</p>
             ))}
           <RecordHistory history={history} />
         </div>

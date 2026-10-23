@@ -31,7 +31,7 @@ export default async function NewRequestPage() {
         description="Each position you include on a date becomes its own record for that position’s manager."
         breadcrumb={
           <>
-            <Link href="/requests" className="text-brand-strong underline-offset-2 hover:underline">
+            <Link href="/requests" className="text-primary underline-offset-2 hover:underline">
               My requests
             </Link>{" "}
             / New request
@@ -39,7 +39,7 @@ export default async function NewRequestPage() {
         }
       />
       {positions.length === 0 ? (
-        <Card className="border-dashed p-10 text-center text-muted">You have no positions with a schedule yet.</Card>
+        <Card className="border-dashed p-10 text-center text-muted-foreground">You have no positions with a schedule yet.</Card>
       ) : (
         <NewRequestForm
           positions={positions}

@@ -21,15 +21,15 @@ export function groupHistories(rows: readonly (HistoryRow & { record_id: number 
 export function RecordHistory({ history }: { history: readonly HistoryRow[] | null }) {
   if (history === null) {
     return (
-      <p role="alert" className="text-[13px] text-danger">
+      <p role="alert" className="text-[13px] text-destructive">
         The history could not be loaded.
       </p>
     );
   }
   return (
     <details className="text-[13px]">
-      <summary className="cursor-pointer font-medium text-brand-strong">History</summary>
-      <ol className="mt-2 flex flex-col gap-1 text-ink-2">
+      <summary className="cursor-pointer font-medium text-primary">History</summary>
+      <ol className="mt-2 flex flex-col gap-1 text-foreground">
         {history.map((h, i) => {
           const line = historyLine({ createdAt: h.created_at, action: h.action, actorName: h.actor_name, comment: h.comment });
           return (
@@ -37,7 +37,7 @@ export function RecordHistory({ history }: { history: readonly HistoryRow[] | nu
               <span className="font-mono">{line.at}</span> · {line.who} · <span className="font-medium">{line.what}</span>
               {/* У «Hours changed» коментар — попередні й нові години від бази, а не слова людини: без лапок. */}
               {h.comment && (
-                <span className="block break-words whitespace-pre-line text-muted">
+                <span className="block break-words whitespace-pre-line text-muted-foreground">
                   {h.action === "hours_changed" ? h.comment : `“${h.comment}”`}
                 </span>
               )}

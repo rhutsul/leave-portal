@@ -34,7 +34,7 @@ export function DecisionForm({
       {split && <input type="hidden" name="split" value="1" />}
       <label htmlFor={commentId} className="text-[13px] font-medium">
         Comment for the employee{" "}
-        <span className="font-normal text-muted">(optional; required to return for revision)</span>
+        <span className="font-normal text-muted-foreground">(optional; required to return for revision)</span>
       </label>
       <textarea
         id={commentId}
@@ -43,7 +43,7 @@ export function DecisionForm({
         value={comment}
         onChange={(e) => setComment(e.target.value)}
         aria-describedby={state.message ? errorId : undefined}
-        className="w-full resize-y rounded-lg border border-line-strong bg-surface px-3 py-2 text-sm text-ink placeholder:text-muted focus-visible:outline-2 focus-visible:outline-brand"
+        className="w-full resize-y rounded-lg border border-input bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-2 focus-visible:outline-ring"
       />
       <FieldError id={errorId} message={state.message} />
       <div className="flex flex-wrap gap-2">
