@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui/legacy-button";
 import { FieldError } from "@/components/ui/field-error";
 import { decideRecord, type DecideState } from "./actions";
 

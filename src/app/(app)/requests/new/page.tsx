@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Card } from "@/components/ui/card";
+import { Card } from "@/components/ui/legacy-card";
 import { PageHeader } from "@/components/ui/page-header";
 import { schoolYearOf } from "@/lib/leave/balance";
 import { kyivDate } from "@/lib/leave/time";

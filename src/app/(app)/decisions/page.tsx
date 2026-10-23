@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { groupHistories, type HistoryRow, RecordHistory } from "@/components/record-history";
-import { Card } from "@/components/ui/card";
+import { Card } from "@/components/ui/legacy-card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { AlertIcon, CheckCircleIcon, CloseIcon } from "@/components/ui/icons";
 import { LeaveTypeTag } from "@/components/ui/leave-type-tag";

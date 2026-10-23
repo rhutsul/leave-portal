@@ -1,8 +1,8 @@
 "use client";
 
 import { useActionState, useId, useReducer, useState, type FormEvent } from "react";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/legacy-button";
+import { Card } from "@/components/ui/legacy-card";
 import { FieldError } from "@/components/ui/field-error";
 import { WarningNote } from "@/components/ui/warning-note";
 import { ChevronLeftIcon, ChevronRightIcon, CloseIcon, LeaveTypeIcon } from "@/components/ui/icons";

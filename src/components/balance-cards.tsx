@@ -1,4 +1,4 @@
-import { Card } from "@/components/ui/card";
+import { Card } from "@/components/ui/legacy-card";
 import { formatDays, type Balances, type LimitedType } from "@/lib/leave/balance";
 import { LEAVE_TYPES } from "@/lib/leave/request";
 

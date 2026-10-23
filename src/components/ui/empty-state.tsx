@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Card } from "./card";
+import { Card } from "./legacy-card";
 import { CalendarIcon } from "./icons";
 
 /** Порожній стан списку: іконка, заголовок, пояснення й необов'язкова дія. */

@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { BalanceCards } from "@/components/balance-cards";
-import { ButtonLink } from "@/components/ui/button";
-import { Card, CardHeader } from "@/components/ui/card";
+import { ButtonLink } from "@/components/ui/legacy-button";
+import { Card, CardHeader } from "@/components/ui/legacy-card";
 import { ClockIcon, PlusIcon } from "@/components/ui/icons";
 import { PageHeader } from "@/components/ui/page-header";
 import { isRecordStatus, StatusBadge } from "@/components/ui/status-badge";

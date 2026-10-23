@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useId, useRef, useState } from "react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui/legacy-button";
 import { FieldError } from "@/components/ui/field-error";
 import type { EmployeeAction } from "@/lib/leave/decision";
 import { formatTime } from "@/lib/leave/time";

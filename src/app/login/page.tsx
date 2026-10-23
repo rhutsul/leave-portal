@@ -1,5 +1,5 @@
-import { buttonClass } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { buttonClass } from "@/components/ui/legacy-button";
+import { Card } from "@/components/ui/legacy-card";
 import { FieldError } from "@/components/ui/field-error";
 import { CalendarIcon } from "@/components/ui/icons";
 import { login } from "./actions";
