@@ -1,17 +1,34 @@
 import type { ReactNode } from "react";
-import { Card } from "./legacy-card";
-import { CalendarIcon } from "./icons";
+import { CalendarDays } from "lucide-react";
+import { cn } from "@/lib/utils";
 
-/** Порожній стан списку: іконка, заголовок, пояснення й необов'язкова дія. */
-export function EmptyState({ title, text, action }: { title: string; text: string; action?: ReactNode }) {
+/** Порожній стан списку: іконка в колі accent, текст з AC, щонайбільше одна дія. */
+export function EmptyState({
+  title,
+  text,
+  action,
+  icon,
+  className,
+}: {
+  title: string;
+  text?: string;
+  action?: ReactNode;
+  icon?: ReactNode;
+  className?: string;
+}) {
   return (
-    <Card as="div" className="flex flex-col items-center gap-2.5 border-dashed border-input px-6 py-12 text-center">
-      <span className="flex size-11 items-center justify-center rounded-xl bg-muted text-foreground">
-        <CalendarIcon size={22} />
+    <div
+      className={cn(
+        "flex flex-col items-center gap-2.5 rounded-lg border border-dashed border-border bg-card px-6 py-12 text-center",
+        className,
+      )}
+    >
+      <span className="flex size-11 items-center justify-center rounded-full bg-accent text-accent-foreground">
+        {icon ?? <CalendarDays className="size-5" aria-hidden="true" />}
       </span>
       <p className="font-semibold">{title}</p>
-      <p className="text-muted-foreground">{text}</p>
+      {text && <p className="max-w-[60ch] text-muted-foreground">{text}</p>}
       {action}
-    </Card>
+    </div>
   );
 }

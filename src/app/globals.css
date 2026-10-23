@@ -195,6 +195,35 @@
 @theme {
   --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
   --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+
+  /* Анімації домену: animate-pulse-slow (крапка «Awaiting decision»), animate-row-flash (новий рядок),
+     animate-rise (нотатка, число балансу), animate-grow (смуга залишку). */
+  --animate-pulse-slow: pulse-slow 2.4s var(--ease-in-out) infinite;
+  --animate-row-flash: row-flash var(--duration-slow) var(--ease-out) both;
+  --animate-rise: rise var(--duration-slow) var(--ease-out) both;
+  --animate-grow: grow var(--duration-slow) var(--ease-out) both;
+
+  @keyframes pulse-slow {
+    50% {
+      opacity: 0.35;
+    }
+  }
+  @keyframes row-flash {
+    from {
+      background-color: color-mix(in oklch, var(--highlight) 35%, transparent);
+    }
+  }
+  @keyframes rise {
+    from {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+  }
+  @keyframes grow {
+    from {
+      transform: scaleX(0);
+    }
+  }
 }
 
 @layer base {
