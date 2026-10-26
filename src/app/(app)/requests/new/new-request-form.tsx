@@ -321,6 +321,9 @@ export function NewRequestForm({
                   <StepTitle title="Leave type" hint="One leave type per request. Different types mean different requests." />
                   <RadioGroup
                     aria-label="Leave type"
+                    // Помилка «оберіть тип» стосується групи; помилка family (немає relationship) — Select нижче.
+                    aria-invalid={typeError && !leaveType ? true : undefined}
+                    aria-describedby={typeError && !leaveType ? `${ids}-type-error` : undefined}
                     value={leaveType ?? ""}
                     onValueChange={(value) => {
                       dispatch({ type: "setLeaveType", leaveType: value as LeaveType });
@@ -502,7 +505,7 @@ export function NewRequestForm({
               ) : (
                 <Button type="submit" disabled={pending} aria-busy={pending || undefined}>
                   {pending && (
-                    <span aria-hidden="true" className="size-3.5 animate-spin rounded-full border-2 border-current border-r-transparent" />
+                    <span aria-hidden="true" className="size-3.5 motion-safe:animate-spin rounded-full border-2 border-current border-r-transparent" />
                   )}
                   {pending ? "Submitting…" : "Submit request"}
                 </Button>

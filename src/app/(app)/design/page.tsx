@@ -144,7 +144,7 @@ export default function DesignPage() {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Button disabled aria-busy="true">
-            <span aria-hidden="true" className="size-3.5 animate-spin rounded-full border-2 border-current border-r-transparent" />
+            <span aria-hidden="true" className="size-3.5 motion-safe:animate-spin rounded-full border-2 border-current border-r-transparent" />
             Submitting…
           </Button>
           <Button size="sm" variant="outline">

@@ -18,7 +18,7 @@ export function SubmitButton({
   return (
     <Button type="submit" disabled={pending || disabled} aria-busy={pending || undefined} {...props}>
       {pending && (
-        <span aria-hidden="true" className="size-3.5 animate-spin rounded-full border-2 border-current border-r-transparent" />
+        <span aria-hidden="true" className="size-3.5 motion-safe:animate-spin rounded-full border-2 border-current border-r-transparent" />
       )}
       {pending ? pendingLabel : children}
     </Button>

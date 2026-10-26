@@ -14,7 +14,8 @@ const DAY: Record<DayState, string> = {
   record: "bg-status-awaiting text-status-awaiting-foreground hover:border-status-awaiting-foreground",
   closed:
     "cursor-not-allowed text-muted-foreground line-through bg-[repeating-linear-gradient(135deg,var(--muted)_0_3px,var(--border)_3px_5px)]",
-  off: "text-muted-foreground/60 hover:bg-muted",
+  // Кнопка, а не disabled: число має контраст muted-foreground (≥ 4.5:1); від робочого дня відрізняє відсутність рамки.
+  off: "text-muted-foreground hover:bg-muted",
 };
 
 export function CalendarDay({
