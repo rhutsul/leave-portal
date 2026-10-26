@@ -15,7 +15,7 @@ export function WarningNote({
   return (
     <p
       role={live ? "status" : "note"}
-      className={`flex items-start gap-2 rounded-lg border border-awaiting-dot/30 bg-awaiting-soft px-3 py-2 text-awaiting ${className}`}
+      className={`flex animate-rise items-start gap-2 rounded-md bg-warning px-3.5 py-3 text-warning-foreground ${className}`}
     >
       <span className="mt-0.5 shrink-0">
         <AlertIcon />

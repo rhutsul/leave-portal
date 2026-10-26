@@ -27,13 +27,13 @@ export function SidebarNav({ awaiting, canDecide }: { awaiting: number; canDecid
             href={href}
             aria-current={active ? "page" : undefined}
             className={`flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm ${
-              active ? "bg-brand-soft font-medium text-brand-strong" : "text-ink-2 hover:bg-subtle hover:text-ink"
+              active ? "bg-accent font-medium text-primary" : "text-foreground hover:bg-muted hover:text-foreground"
             }`}
           >
             {icon}
             {label}
             {href === "/requests" && awaiting > 0 && (
-              <span className="ml-auto rounded-full bg-awaiting-soft px-2 text-xs font-semibold text-awaiting">
+              <span className="ml-auto rounded-full bg-status-awaiting px-2 text-xs font-semibold text-status-awaiting-foreground">
                 {awaiting}
                 <span className="sr-only"> awaiting decision</span>
               </span>

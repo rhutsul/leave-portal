@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useId, useRef, useState } from "react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui/legacy-button";
 import { FieldError } from "@/components/ui/field-error";
 import type { EmployeeAction } from "@/lib/leave/decision";
 import { formatTime } from "@/lib/leave/time";
@@ -93,7 +93,7 @@ export function RecordActions({
             aria-controls={`${ids}-hours`}
             aria-label={`Change hours of record ${label}`}
             disabled={pending}
-            className={`${LINK} text-brand-strong`}
+            className={`${LINK} text-primary`}
           >
             Change hours
           </button>
@@ -105,7 +105,7 @@ export function RecordActions({
               type="submit"
               aria-label={`Resubmit record ${label}`}
               disabled={pending}
-              className={`${LINK} text-brand-strong`}
+              className={`${LINK} text-primary`}
             >
               {resubmitPending ? "Resubmitting…" : "Resubmit"}
             </button>
@@ -119,14 +119,14 @@ export function RecordActions({
             aria-controls={`${ids}-cancel`}
             aria-label={`Cancel record ${label}`}
             disabled={pending}
-            className={`${LINK} text-danger`}
+            className={`${LINK} text-destructive`}
           >
             Cancel
           </button>
         )}
       </div>
 
-      <p ref={statusRef} role="status" tabIndex={-1} className="text-[13px] text-success outline-none empty:hidden">
+      <p ref={statusRef} role="status" tabIndex={-1} className="text-[13px] text-status-approved-foreground outline-none empty:hidden">
         {success}
       </p>
       {panel === null && <FieldError message={error} className="w-56 text-left" />}
@@ -137,12 +137,12 @@ export function RecordActions({
           action={hoursAction}
           onSubmit={() => setLast(null)}
           aria-label={`New hours for record ${label}`}
-          className="flex w-60 flex-col gap-2.5 rounded-xl border border-line bg-surface-muted p-3 text-left"
+          className="flex w-60 flex-col gap-2.5 rounded-xl border border-border bg-muted p-3 text-left"
         >
           <input type="hidden" name="record_id" value={recordId} />
           <div className="flex items-end gap-2">
             <div className="flex flex-col gap-1">
-              <label htmlFor={`${ids}-start`} className="text-xs font-medium text-ink-2">
+              <label htmlFor={`${ids}-start`} className="text-xs font-medium text-foreground">
                 From
               </label>
               <input
@@ -158,7 +158,7 @@ export function RecordActions({
               />
             </div>
             <div className="flex flex-col gap-1">
-              <label htmlFor={`${ids}-end`} className="text-xs font-medium text-ink-2">
+              <label htmlFor={`${ids}-end`} className="text-xs font-medium text-foreground">
                 To
               </label>
               <input
@@ -174,7 +174,7 @@ export function RecordActions({
               />
             </div>
           </div>
-          <p id={`${ids}-schedule`} className="text-xs text-muted">
+          <p id={`${ids}-schedule`} className="text-xs text-muted-foreground">
             {schedule.failed
               ? "Your schedule could not be loaded. "
               : schedule.text && `Your schedule that day: ${schedule.text}. `}
@@ -204,17 +204,17 @@ export function RecordActions({
           action={cancelAction}
           onSubmit={() => setLast(null)}
           aria-label={`Confirm cancelling record ${label}`}
-          className="flex w-60 flex-col gap-2.5 rounded-xl border border-danger-line bg-danger-soft p-3 text-left"
+          className="flex w-60 flex-col gap-2.5 rounded-xl border border-destructive/50 bg-destructive/10 p-3 text-left"
         >
           <input type="hidden" name="record_id" value={recordId} />
-          <p className="text-[13px] text-ink">Cancel this record? A cancelled record cannot be changed or resubmitted.</p>
+          <p className="text-[13px] text-foreground">Cancel this record? A cancelled record cannot be changed or resubmitted.</p>
           <FieldError message={error} />
           <div className="flex gap-2">
             <button
               type="submit"
               disabled={pending}
               aria-label={`Confirm: cancel record ${label}`}
-              className="inline-flex min-h-9 items-center rounded-lg border border-danger bg-surface px-3 text-sm font-medium text-danger hover:bg-danger-soft disabled:opacity-50"
+              className="inline-flex min-h-9 items-center rounded-lg border border-destructive bg-card px-3 text-sm font-medium text-destructive hover:bg-destructive/10 disabled:opacity-50"
             >
               {cancelPending ? "Cancelling…" : "Cancel record"}
             </button>
@@ -234,4 +234,4 @@ export function RecordActions({
   );
 }
 
-const INPUT = "h-9 w-26 rounded-lg border border-line-strong bg-surface px-2 text-ink";
+const INPUT = "h-9 w-26 rounded-lg border border-input bg-card px-2 text-foreground";

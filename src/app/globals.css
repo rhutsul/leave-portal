@@ -1,185 +1,254 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
 
 /*
- * Палітра інтерфейсу — один раз тут, світла й темна тема. У розмітці — лише назви з @theme нижче
- * (bg-surface, text-muted, border-line, bg-awaiting-soft …), без hex і без палітри zinc/indigo Tailwind.
+ * Токени дизайн-системи (DESIGN.md, розділ 2). Значення — OKLCH, світла тема в :root, темна — за системою
+ * (@media prefers-color-scheme), класу .dark немає. У розмітці — лише утиліти з @theme inline нижче
+ * (bg-background, text-muted-foreground, bg-status-awaiting…), без hex і без сирих палітр Tailwind.
+ * Новий токен — DESIGN.md → :root і @media → --color-<назва> у @theme inline.
  */
 :root {
-  --canvas: #f6f6f7;
-  --surface: #ffffff;
-  --surface-muted: #fafafa;
-  --subtle: #f4f4f5;
-  --line: #e4e4e7;
-  --line-strong: #d4d4d8;
-  --line-soft: #f0f0f2;
-  --ink: #18181b;
-  --ink-2: #3f3f46;
-  --muted: #5b5b66;
-  --faint: #6b6b76;
+  --background: oklch(0.985 0.004 275);
+  --foreground: oklch(0.22 0.025 275);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.22 0.025 275);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.22 0.025 275);
+  --primary: oklch(0.47 0.19 274);
+  --primary-foreground: oklch(0.99 0.004 274);
+  --secondary: oklch(0.955 0.014 274);
+  --secondary-foreground: oklch(0.32 0.08 274);
+  --muted: oklch(0.965 0.006 275);
+  --muted-foreground: oklch(0.5 0.022 275);
+  --accent: oklch(0.95 0.023 274);
+  --accent-foreground: oklch(0.3 0.11 274);
+  --destructive: oklch(0.52 0.2 27);
+  --destructive-foreground: oklch(0.99 0.003 27);
+  --border: oklch(0.915 0.008 275);
+  --input: oklch(0.63 0.02 275);
+  --ring: oklch(0.55 0.19 274);
+  --scrim: oklch(0.22 0.025 275);
+  --highlight: oklch(0.8 0.12 68);
+  --highlight-foreground: oklch(0.3 0.07 55);
+  --status-awaiting: oklch(0.955 0.052 88);
+  --status-awaiting-foreground: oklch(0.44 0.1 62);
+  --status-approved: oklch(0.95 0.05 152);
+  --status-approved-foreground: oklch(0.42 0.11 152);
+  --status-rejected: oklch(0.945 0.027 22);
+  --status-rejected-foreground: oklch(0.48 0.17 25);
+  --status-returned: oklch(0.945 0.027 245);
+  --status-returned-foreground: oklch(0.45 0.13 255);
+  --status-cancelled: oklch(0.95 0.004 275);
+  --status-cancelled-foreground: oklch(0.47 0.015 275);
+  --warning: oklch(0.965 0.041 88);
+  --warning-foreground: oklch(0.42 0.095 62);
+  --info: oklch(0.96 0.019 245);
+  --info-foreground: oklch(0.43 0.12 255);
+  --leave-sick: oklch(0.95 0.025 5);
+  --leave-sick-foreground: oklch(0.46 0.15 5);
+  --leave-personal: oklch(0.95 0.022 274);
+  --leave-personal-foreground: oklch(0.42 0.15 274);
+  --leave-unpaid: oklch(0.95 0.008 275);
+  --leave-unpaid-foreground: oklch(0.45 0.02 275);
+  --leave-family: oklch(0.95 0.035 320);
+  --leave-family-foreground: oklch(0.45 0.15 320);
+  --sidebar: oklch(0.975 0.006 275);
+  --sidebar-foreground: oklch(0.3 0.025 275);
+  --sidebar-accent: oklch(0.93 0.03 274);
+  --sidebar-accent-foreground: oklch(0.3 0.12 274);
 
-  --brand: #4338ca;
-  --brand-strong: #3730a3;
-  --brand-fill-hover: #3730a3;
-  --brand-soft: #eef2ff;
-  --brand-muted: #e0e7ff;
-  --brand-line: #c7d2fe;
-  --brand-hover: #a5b4fc;
-  --on-brand: #ffffff;
-  --ring: #6366f1;
+  --elevation-sm: 0 1px 2px rgba(28, 28, 48, 0.06);
+  --elevation-md: 0 4px 12px rgba(28, 28, 48, 0.08);
+  --elevation-lg: 0 16px 40px rgba(28, 28, 48, 0.14);
 
-  --danger: #b91c1c;
-  --danger-soft: #fef2f2;
-  --danger-line: #fecaca;
-  --success: #065f46;
-  --success-soft: #ecfdf5;
-  --success-line: #a7f3d0;
-  --info: #1e3a8a;
-  --info-soft: #eff6ff;
-  --info-line: #bfdbfe;
-
-  --awaiting: #92400e;
-  --awaiting-soft: #fef3c7;
-  --awaiting-dot: #d97706;
-  --returned: #1e40af;
-  --returned-soft: #dbeafe;
-  --returned-dot: #2563eb;
-  --approved: #166534;
-  --approved-soft: #dcfce7;
-  --approved-dot: #16a34a;
-  --rejected: #991b1b;
-  --rejected-soft: #fee2e2;
-  --rejected-dot: #dc2626;
-  --cancelled: #3f3f46;
-  --cancelled-soft: #f4f4f5;
-  --cancelled-dot: #a1a1aa;
-
-  --sick: #9f1239;
-  --sick-soft: #fff1f2;
-  --family: #86198f;
-  --family-soft: #fdf4ff;
+  --duration-fast: 120ms;
+  --duration-base: 200ms;
+  --duration-slow: 420ms;
+  --duration-ambient: 18s;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --canvas: #0b0b0e;
-    --surface: #16161a;
-    --surface-muted: #1b1b20;
-    --subtle: #232329;
-    --line: #2e2e35;
-    --line-strong: #3f3f46;
-    --line-soft: #26262c;
-    --ink: #f4f4f5;
-    --ink-2: #d4d4d8;
-    --muted: #a1a1aa;
-    --faint: #9a9aa4;
+    --background: oklch(0.145 0.012 275);
+    --foreground: oklch(0.955 0.006 275);
+    --card: oklch(0.225 0.018 275);
+    --card-foreground: oklch(0.955 0.006 275);
+    --popover: oklch(0.255 0.02 275);
+    --popover-foreground: oklch(0.955 0.006 275);
+    --primary: oklch(0.72 0.13 274);
+    --primary-foreground: oklch(0.18 0.035 274);
+    --secondary: oklch(0.27 0.025 274);
+    --secondary-foreground: oklch(0.93 0.012 274);
+    --muted: oklch(0.27 0.016 275);
+    --muted-foreground: oklch(0.73 0.016 275);
+    --accent: oklch(0.31 0.05 274);
+    --accent-foreground: oklch(0.95 0.012 274);
+    --destructive: oklch(0.7 0.16 25);
+    --destructive-foreground: oklch(0.18 0.04 25);
+    --border: oklch(0.36 0.02 275);
+    --input: oklch(0.56 0.022 275);
+    --ring: oklch(0.74 0.13 274);
+    --scrim: oklch(0.08 0.01 275);
+    --highlight: oklch(0.78 0.12 68);
+    --highlight-foreground: oklch(0.22 0.06 55);
+    --status-awaiting: oklch(0.31 0.06 75);
+    --status-awaiting-foreground: oklch(0.87 0.11 85);
+    --status-approved: oklch(0.3 0.055 155);
+    --status-approved-foreground: oklch(0.86 0.12 152);
+    --status-rejected: oklch(0.3 0.065 22);
+    --status-rejected-foreground: oklch(0.84 0.088 22);
+    --status-returned: oklch(0.3 0.06 250);
+    --status-returned-foreground: oklch(0.85 0.078 245);
+    --status-cancelled: oklch(0.27 0.01 275);
+    --status-cancelled-foreground: oklch(0.78 0.012 275);
+    --warning: oklch(0.29 0.05 75);
+    --warning-foreground: oklch(0.88 0.1 85);
+    --info: oklch(0.28 0.05 250);
+    --info-foreground: oklch(0.86 0.07 245);
+    --leave-sick: oklch(0.29 0.06 5);
+    --leave-sick-foreground: oklch(0.85 0.08 5);
+    --leave-personal: oklch(0.29 0.05 274);
+    --leave-personal-foreground: oklch(0.85 0.074 274);
+    --leave-unpaid: oklch(0.27 0.012 275);
+    --leave-unpaid-foreground: oklch(0.8 0.014 275);
+    --leave-family: oklch(0.29 0.06 320);
+    --leave-family-foreground: oklch(0.85 0.08 320);
+    --sidebar: oklch(0.18 0.014 275);
+    --sidebar-foreground: oklch(0.88 0.01 275);
+    --sidebar-accent: oklch(0.27 0.045 274);
+    --sidebar-accent-foreground: oklch(0.95 0.012 274);
 
-    --brand: #4f46e5;
-    --brand-strong: #c7d2fe;
-    --brand-fill-hover: #4338ca;
-    --brand-soft: #1e1b4b;
-    --brand-muted: #312e81;
-    --brand-line: #3730a3;
-    --brand-hover: #4f46e5;
-    --on-brand: #ffffff;
-    --ring: #818cf8;
+    --elevation-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --elevation-md: 0 4px 12px rgba(0, 0, 0, 0.45);
+    --elevation-lg: 0 16px 40px rgba(0, 0, 0, 0.55);
 
-    --danger: #fca5a5;
-    --danger-soft: #2a1215;
-    --danger-line: #7f1d1d;
-    --success: #6ee7b7;
-    --success-soft: #052e22;
-    --success-line: #065f46;
-    --info: #bfdbfe;
-    --info-soft: #0f1e3d;
-    --info-line: #1e3a8a;
-
-    --awaiting: #fcd34d;
-    --awaiting-soft: #3a2a0a;
-    --awaiting-dot: #f59e0b;
-    --returned: #93c5fd;
-    --returned-soft: #102a4c;
-    --returned-dot: #3b82f6;
-    --approved: #86efac;
-    --approved-soft: #0f2e1a;
-    --approved-dot: #22c55e;
-    --rejected: #fca5a5;
-    --rejected-soft: #3b1212;
-    --rejected-dot: #ef4444;
-    --cancelled: #d4d4d8;
-    --cancelled-soft: #27272a;
-    --cancelled-dot: #71717a;
-
-    --sick: #fda4af;
-    --sick-soft: #3b0d18;
-    --family: #f0abfc;
-    --family-soft: #3b0a3f;
+    color-scheme: dark;
   }
 }
 
 @theme inline {
-  --color-canvas: var(--canvas);
-  --color-surface: var(--surface);
-  --color-surface-muted: var(--surface-muted);
-  --color-subtle: var(--subtle);
-  --color-line: var(--line);
-  --color-line-strong: var(--line-strong);
-  --color-line-soft: var(--line-soft);
-  --color-ink: var(--ink);
-  --color-ink-2: var(--ink-2);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);
-  --color-faint: var(--faint);
-
-  --color-brand: var(--brand);
-  --color-brand-strong: var(--brand-strong);
-  --color-brand-fill-hover: var(--brand-fill-hover);
-  --color-brand-soft: var(--brand-soft);
-  --color-brand-muted: var(--brand-muted);
-  --color-brand-line: var(--brand-line);
-  --color-brand-hover: var(--brand-hover);
-  --color-on-brand: var(--on-brand);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
   --color-ring: var(--ring);
-
-  --color-danger: var(--danger);
-  --color-danger-soft: var(--danger-soft);
-  --color-danger-line: var(--danger-line);
-  --color-success: var(--success);
-  --color-success-soft: var(--success-soft);
-  --color-success-line: var(--success-line);
+  --color-scrim: var(--scrim);
+  --color-highlight: var(--highlight);
+  --color-highlight-foreground: var(--highlight-foreground);
+  --color-status-awaiting: var(--status-awaiting);
+  --color-status-awaiting-foreground: var(--status-awaiting-foreground);
+  --color-status-approved: var(--status-approved);
+  --color-status-approved-foreground: var(--status-approved-foreground);
+  --color-status-rejected: var(--status-rejected);
+  --color-status-rejected-foreground: var(--status-rejected-foreground);
+  --color-status-returned: var(--status-returned);
+  --color-status-returned-foreground: var(--status-returned-foreground);
+  --color-status-cancelled: var(--status-cancelled);
+  --color-status-cancelled-foreground: var(--status-cancelled-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
   --color-info: var(--info);
-  --color-info-soft: var(--info-soft);
-  --color-info-line: var(--info-line);
+  --color-info-foreground: var(--info-foreground);
+  --color-leave-sick: var(--leave-sick);
+  --color-leave-sick-foreground: var(--leave-sick-foreground);
+  --color-leave-personal: var(--leave-personal);
+  --color-leave-personal-foreground: var(--leave-personal-foreground);
+  --color-leave-unpaid: var(--leave-unpaid);
+  --color-leave-unpaid-foreground: var(--leave-unpaid-foreground);
+  --color-leave-family: var(--leave-family);
+  --color-leave-family-foreground: var(--leave-family-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
 
-  --color-awaiting: var(--awaiting);
-  --color-awaiting-soft: var(--awaiting-soft);
-  --color-awaiting-dot: var(--awaiting-dot);
-  --color-returned: var(--returned);
-  --color-returned-soft: var(--returned-soft);
-  --color-returned-dot: var(--returned-dot);
-  --color-approved: var(--approved);
-  --color-approved-soft: var(--approved-soft);
-  --color-approved-dot: var(--approved-dot);
-  --color-rejected: var(--rejected);
-  --color-rejected-soft: var(--rejected-soft);
-  --color-rejected-dot: var(--rejected-dot);
-  --color-cancelled: var(--cancelled);
-  --color-cancelled-soft: var(--cancelled-soft);
-  --color-cancelled-dot: var(--cancelled-dot);
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
 
-  --color-sick: var(--sick);
-  --color-sick-soft: var(--sick-soft);
-  --color-family: var(--family);
-  --color-family-soft: var(--family-soft);
+  --shadow-sm: var(--elevation-sm);
+  --shadow-md: var(--elevation-md);
+  --shadow-lg: var(--elevation-lg);
 
-  --font-sans: var(--font-geist-sans), system-ui, sans-serif;
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-heading: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
 }
 
-body {
-  background: var(--canvas);
-  color: var(--ink);
+/* Криві руху (DESIGN.md, розділ 11): перекривають ease-out / ease-in-out Tailwind. */
+@theme {
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+
+  /* Анімації домену: animate-pulse-slow (крапка «Awaiting decision»), animate-row-flash (новий рядок),
+     animate-rise (нотатка, число балансу), animate-grow (смуга залишку). */
+  --animate-pulse-slow: pulse-slow 2.4s var(--ease-in-out) infinite;
+  --animate-row-flash: row-flash var(--duration-slow) var(--ease-out) both;
+  --animate-rise: rise var(--duration-slow) var(--ease-out) both;
+  --animate-grow: grow var(--duration-slow) var(--ease-out) both;
+
+  @keyframes pulse-slow {
+    50% {
+      opacity: 0.35;
+    }
+  }
+  @keyframes row-flash {
+    from {
+      background-color: color-mix(in oklch, var(--highlight) 35%, transparent);
+    }
+  }
+  @keyframes rise {
+    from {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+  }
+  @keyframes grow {
+    from {
+      transform: scaleX(0);
+    }
+  }
 }
 
-:where(a, button, input, select, textarea, summary):focus-visible {
-  outline: 2px solid var(--ring);
-  outline-offset: 2px;
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    @apply font-sans;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  :where(a, button, input, select, textarea, summary, [tabindex]:not([tabindex="-1"])):focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

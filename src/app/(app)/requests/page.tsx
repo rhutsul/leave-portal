@@ -2,8 +2,8 @@ import Link from "next/link";
 import { Fragment } from "react";
 import { redirect } from "next/navigation";
 import { groupHistories, RecordHistory } from "@/components/record-history";
-import { ButtonLink } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { ButtonLink } from "@/components/ui/legacy-button";
+import { Card } from "@/components/ui/legacy-card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { CheckCircleIcon, CloseIcon, PlusIcon } from "@/components/ui/icons";
 import { LeaveTypeTag } from "@/components/ui/leave-type-tag";
@@ -107,24 +107,24 @@ export default async function MyRequestsPage({ searchParams }: PageProps<"/reque
       {submitted === "1" && (
         <div
           role="status"
-          className="flex items-center gap-3 rounded-xl border border-success-line bg-success-soft px-4 py-3 text-success"
+          className="flex items-center gap-3 rounded-xl border border-status-approved-foreground/40 bg-status-approved px-4 py-3 text-status-approved-foreground"
         >
           <CheckCircleIcon />
           <p className="flex-1">
             <span className="font-semibold">Request submitted.</span> Each record is now awaiting a decision.
             {skippedDates.map((d) => (
-              <span key={d} className="mt-1 block text-ink-2">
+              <span key={d} className="mt-1 block text-foreground">
                 {formatDateLong(d)} was not accepted: {TIME_MESSAGES.noWorkingHours}
               </span>
             ))}
             {balance === "unchecked" && (
-              <span className="mt-1 block text-ink-2">Your balance could not be checked for this request.</span>
+              <span className="mt-1 block text-foreground">Your balance could not be checked for this request.</span>
             )}
           </p>
           <Link
             href="/requests"
             aria-label="Dismiss"
-            className="flex size-8 items-center justify-center rounded-lg hover:bg-success-line/40"
+            className="flex size-8 items-center justify-center rounded-lg hover:bg-status-approved-foreground/10"
           >
             <CloseIcon />
           </Link>
@@ -139,7 +139,7 @@ export default async function MyRequestsPage({ searchParams }: PageProps<"/reque
         ))}
 
       {error ? (
-        <p role="alert" className="text-danger">
+        <p role="alert" className="text-destructive">
           The records could not be loaded. Please reload the page.
         </p>
       ) : records.length === 0 ? (
@@ -153,7 +153,7 @@ export default async function MyRequestsPage({ searchParams }: PageProps<"/reque
           <div className="grid grid-cols-4 gap-3.5">
             {STATS.map((s) => (
               <Card key={s.label} as="div" className="flex flex-col gap-1.5 px-4.5 py-4">
-                <div className="flex items-center gap-2 text-[13px] text-muted">
+                <div className="flex items-center gap-2 text-[13px] text-muted-foreground">
                   <span aria-hidden="true" className={`size-2 rounded-full ${STATUS_DOT[s.statuses[0]]}`} />
                   {s.label}
                 </div>
@@ -162,7 +162,7 @@ export default async function MyRequestsPage({ searchParams }: PageProps<"/reque
             ))}
           </div>
 
-          <nav aria-label="Filter by status" className="flex flex-wrap gap-1 border-b border-line">
+          <nav aria-label="Filter by status" className="flex flex-wrap gap-1 border-b border-border">
             {TABS.map((t) => {
               const active = t.id === tab.id;
               return (
@@ -171,12 +171,12 @@ export default async function MyRequestsPage({ searchParams }: PageProps<"/reque
                   href={t.id === "all" ? "/requests" : `/requests?status=${t.id}`}
                   aria-current={active ? "page" : undefined}
                   className={`-mb-px inline-flex items-center gap-2 border-b-2 px-3 py-2.5 ${
-                    active ? "border-brand font-semibold text-ink" : "border-transparent font-medium text-ink-2 hover:text-ink"
+                    active ? "border-primary font-semibold text-foreground" : "border-transparent font-medium text-muted-foreground hover:text-foreground"
                   }`}
                 >
                   {t.label}
                   <span
-                    className={`rounded-full px-1.75 text-xs ${active ? "bg-brand-soft text-brand-strong" : "bg-subtle text-ink-2"}`}
+                    className={`rounded-full px-1.75 text-xs ${active ? "bg-accent text-primary" : "bg-muted text-foreground"}`}
                   >
                     {count(t.statuses)}
                   </span>
@@ -193,20 +193,20 @@ export default async function MyRequestsPage({ searchParams }: PageProps<"/reque
                 <Card key={requestId} className="overflow-hidden">
                   <header
                     id={`request-${requestId}`}
-                    className="flex flex-wrap items-center gap-3 border-b border-line bg-surface-muted px-5 py-3.5"
+                    className="flex flex-wrap items-center gap-3 border-b border-border bg-muted px-5 py-3.5"
                   >
                     <LeaveTypeTag type={items[0].leave_type ?? ""} />
-                    <span className="text-muted">Submitted {formatKyivDay(items[0].created_at!)}</span>
+                    <span className="text-muted-foreground">Submitted {formatKyivDay(items[0].created_at!)}</span>
                     {items[0].employee_comment && (
-                      <p className="w-full break-words whitespace-pre-line text-ink-2">
-                        <span className="text-muted">Comment: </span>
+                      <p className="w-full break-words whitespace-pre-line text-foreground">
+                        <span className="text-muted-foreground">Comment: </span>
                         {items[0].employee_comment}
                       </p>
                     )}
                   </header>
                   <table aria-labelledby={`request-${requestId}`} className="w-full border-collapse text-left">
                     <thead>
-                      <tr className="text-xs text-muted">
+                      <tr className="text-xs text-muted-foreground">
                         <th className="w-32 px-5 py-2.5 font-medium">Date</th>
                         <th className="w-36 px-3 py-2.5 font-medium">Hours</th>
                         <th className="px-3 py-2.5 font-medium">Position</th>
@@ -220,14 +220,14 @@ export default async function MyRequestsPage({ searchParams }: PageProps<"/reque
                     <tbody>
                       {items.map((r) => (
                         <Fragment key={r.id}>
-                          <tr data-testid="leave-record" className="border-t border-line-soft align-top">
+                          <tr data-testid="leave-record" className="border-t border-border align-top">
                             <td className="px-5 py-3.5">
                               <div className="font-medium">{r.date}</div>
-                              <div className="text-xs text-muted">{weekdayName(r.date!)}</div>
+                              <div className="text-xs text-muted-foreground">{weekdayName(r.date!)}</div>
                             </td>
                             <td className="px-3 py-3.5">
                               <div className="font-mono text-[13px]">{formatRange(r.start_min!, r.end_min!)}</div>
-                              <div className="text-xs text-muted">{formatDuration(r.minutes!)}</div>
+                              <div className="text-xs text-muted-foreground">{formatDuration(r.minutes!)}</div>
                             </td>
                             <td className="px-3 py-3.5">
                               <div>{positionLabel(r.division_name ?? "", r.position_title ?? "")}</div>
@@ -253,8 +253,8 @@ export default async function MyRequestsPage({ searchParams }: PageProps<"/reque
                           {r.manager_comment && (
                             <tr data-testid="manager-comment">
                               <td colSpan={6} className="px-5 pb-3.5">
-                                <p className="break-words whitespace-pre-line rounded-lg border border-line bg-surface-muted px-3 py-2 text-[13px] text-ink-2">
-                                  <span className="font-medium text-ink">Manager comment: </span>
+                                <p className="break-words whitespace-pre-line rounded-lg border border-border bg-muted px-3 py-2 text-[13px] text-foreground">
+                                  <span className="font-medium text-foreground">Manager comment: </span>
                                   {r.manager_comment}
                                 </p>
                               </td>
@@ -290,5 +290,5 @@ function RecordSplit({
     r.status === "approved" && unpaid > 0 && r.leave_type && isLimitedType(r.leave_type)
       ? formatSplit(r.leave_type, daysToHundredths(r.paid_days ?? 0), unpaid)
       : null;
-  return split && <div className="mt-1 text-[13px] text-ink-2">Split: {split}</div>;
+  return split && <div className="mt-1 text-[13px] text-foreground">Split: {split}</div>;
 }

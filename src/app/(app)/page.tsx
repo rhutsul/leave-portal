@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { BalanceCards } from "@/components/balance-cards";
-import { ButtonLink } from "@/components/ui/button";
-import { Card, CardHeader } from "@/components/ui/card";
+import { ButtonLink } from "@/components/ui/legacy-button";
+import { Card, CardHeader } from "@/components/ui/legacy-card";
 import { ClockIcon, PlusIcon } from "@/components/ui/icons";
 import { PageHeader } from "@/components/ui/page-header";
 import { isRecordStatus, StatusBadge } from "@/components/ui/status-badge";
@@ -78,13 +78,13 @@ export default async function Overview() {
           <CardHeader
             title="Upcoming leave"
             action={
-              <Link href="/requests" className="text-[13px] font-medium text-brand-strong underline-offset-2 hover:underline">
+              <Link href="/requests" className="text-[13px] font-medium text-primary underline-offset-2 hover:underline">
                 View all
               </Link>
             }
           />
           {items.length === 0 ? (
-            <p className="px-5 py-8 text-center text-muted">No upcoming leave.</p>
+            <p className="px-5 py-8 text-center text-muted-foreground">No upcoming leave.</p>
           ) : (
             <ul>
               {items.map((records) => {
@@ -95,17 +95,17 @@ export default async function Overview() {
                 return (
                   <li
                     key={`${first.request_id}|${first.date}`}
-                    className="flex items-center gap-4 border-t border-line-soft px-5 py-3.5 first:border-t-0"
+                    className="flex items-center gap-4 border-t border-border px-5 py-3.5 first:border-t-0"
                   >
-                    <div className="w-12 shrink-0 rounded-[10px] border border-line py-1 text-center">
-                      <div className="text-[11px] font-semibold uppercase text-danger">{monthShort(first.date!)}</div>
+                    <div className="w-12 shrink-0 rounded-[10px] border border-border py-1 text-center">
+                      <div className="text-[11px] font-semibold uppercase text-destructive">{monthShort(first.date!)}</div>
                       <div className="text-lg font-semibold">{Number(first.date!.slice(8))}</div>
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="font-medium">
                         {type} · <span className="font-mono text-[13px]">{hours}</span>
                       </div>
-                      <div className="text-[13px] text-muted">
+                      <div className="text-[13px] text-muted-foreground">
                         {records.length === 1
                           ? positionLabel(first.division_name ?? "", first.position_title ?? "")
                           : `${records.length} positions`}
@@ -126,13 +126,13 @@ export default async function Overview() {
         <Card className="flex flex-[1_1_280px] flex-col gap-3.5 px-5 py-4.5">
           <h2 className="text-[15px] font-semibold">Awaiting a decision</h2>
           <div className="flex items-center gap-3">
-            <span className="flex size-10 items-center justify-center rounded-xl bg-awaiting-soft text-awaiting">
+            <span className="flex size-10 items-center justify-center rounded-xl bg-status-awaiting text-status-awaiting-foreground">
               <ClockIcon />
             </span>
             <span className="text-[26px] font-semibold tracking-tight">{awaiting ?? 0}</span>
-            <span className="text-muted">{awaiting === 1 ? "record" : "records"}</span>
+            <span className="text-muted-foreground">{awaiting === 1 ? "record" : "records"}</span>
           </div>
-          <Link href="/requests?status=awaiting" className="text-[13px] font-medium text-brand-strong underline-offset-2 hover:underline">
+          <Link href="/requests?status=awaiting" className="text-[13px] font-medium text-primary underline-offset-2 hover:underline">
             Open the records
           </Link>
         </Card>
@@ -143,9 +143,9 @@ export default async function Overview() {
           <h2 id="balances-title" className="text-[17px] font-semibold">
             Balances · {formatSchoolYear(schoolYear)}
           </h2>
-          <span className="text-[13px] text-muted">
+          <span className="text-[13px] text-muted-foreground">
             Days, to 0.01. Only approved records count.{" "}
-            <Link href="/balances" className="font-medium text-brand-strong underline-offset-2 hover:underline">
+            <Link href="/balances" className="font-medium text-primary underline-offset-2 hover:underline">
               All balances
             </Link>
           </span>
@@ -154,7 +154,7 @@ export default async function Overview() {
           <BalanceCards balances={balances.balances} />
         ) : (
           // Власні залишки видно завжди, тож тут можливий лише збій завантаження.
-          <p role="alert" className="text-danger">
+          <p role="alert" className="text-destructive">
             The balances could not be loaded. Please reload the page.
           </p>
         )}

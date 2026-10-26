@@ -7,7 +7,7 @@ export function FieldError({ message, id, className = "" }: { message: string | 
     <p
       id={id}
       role="alert"
-      className={`flex items-center gap-2 rounded-lg border border-danger-line bg-danger-soft px-3 py-2 text-sm text-danger ${className}`}
+      className={`flex items-center gap-2 rounded-lg border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive ${className}`}
     >
       <span className="shrink-0">
         <AlertIcon />

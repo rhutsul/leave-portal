@@ -21,7 +21,8 @@ merge. Вимоги пише PM людською мовою у своєму ре
 
 Node 24.x · Next.js 16.4 (App Router, `src/`, без Cache Components) · React 19.3 · TypeScript ^5 · ESLint ^9 ·
 Tailwind 4 · `@supabase/supabase-js` 2.117 + `@supabase/ssr` 0.12 · Supabase CLI 2.120 (devDependency) ·
-OpenSpec 1.14.1 (devDependency + глобальний CLI тієї ж версії) · Vitest 5 · Vercel Hobby.
+OpenSpec 1.14.1 (devDependency + глобальний CLI тієї ж версії) · Vitest 5 · Vercel Hobby ·
+shadcn/ui (CLI 4.22.1, Base UI) + `tw-animate-css` + `lucide-react` — дизайн-система, див. `DESIGN.md`.
 Не «оновлюй усе до latest»: TypeScript 7 і ESLint 10 цей шаблон не перевіряв.
 
 ## Команди
@@ -29,6 +30,8 @@ OpenSpec 1.14.1 (devDependency + глобальний CLI тієї ж версі
 - `npm run dev` · `npm run build` (має показати `ƒ Proxy (Middleware)`) · `npm run lint` (0 warnings)
 - `npm run typecheck` (`next typegen && tsc --noEmit`) · `npm test` (Vitest)
 - `npm run spec:validate` · `npm run spec:check` · `npm run ac:coverage`
+- `npm run check:design` (лише токени, без сирих кольорів) · `npm run check:boundary` (секретний ключ лише на сервері) —
+  у CI окремий workflow `.github/workflows/architecture.yml`
 - `node scripts/check-migration-order.mjs` — нова міграція новіша за `origin/main`, застосовані не змінено (у CI — `db-check`)
 - `npx supabase migration new <назва>` → SQL → PR. Застосовує міграції у вашу базу ЛИШЕ CI (`db-deploy` після merge у `main`)
 - Типи БД: готовий `database.types.ts` — у Summary прогону job `db-check` (Docker не потрібен); або `npm run db:types`
@@ -144,6 +147,28 @@ OpenSpec 1.14.1 (devDependency + глобальний CLI тієї ж версі
   як `node --env-file=.env.local …` — вони значень не друкують.
 - Supabase MCP (`.mcp.json`, лише Claude Code; Cursor бере MCP з `.cursor/mcp.json`) — лише читання, один проєкт: перед запуском задай `SUPABASE_PROJECT_REF`.
 - `product/denylist.local*` — справжні назви клієнта (список PM надсилає особистим повідомленням; git файл не відстежує): не відкривай і не цитуй (найкраще зусилля, не гарантія: у Claude Code — deny `Read(product/denylist.local*)` у `.claude/settings.json`, у Cursor — `.cursorignore`, який за документацією Cursor не закриває термінал і MCP; чи deny діє на пошук і `cat`, звіряємо на репетиції).
+
+## Дизайн-система
+
+- Правила вигляду — `DESIGN.md`. Кольори — лише семантичні утиліти з токенів (`bg-primary`, `text-muted-foreground`,
+  `border-input`, `bg-status-awaiting`…); жодних hex, `bg-[#…]`, сирих палітр (`zinc-500`, `bg-white`) і кольорів в
+  inline style.
+- Компоненти — лише з `@/components/ui` (shadcn/ui і наші доменні; змінюються в цій теці). Сторінки не мають власних
+  `<button>`, `<input>`, `<select>`, `<textarea>`, `<table>` зі стилями. Сторінки зрізу 1 переносяться на компоненти
+  поступово (`legacy-button`, `legacy-card` і власні елементи там — тимчасово, до PR сторінок дизайн-системи): нову
+  розмітку пиши одразу на `@/components/ui`, старі `legacy-*` не розширюй. Нових кольорів у компонентах не вигадуй і не
+  переноси сирі класи в `src/components/ui`, щоб сховати їх від перевірки.
+- Новий токен: `DESIGN.md` (таблиця й контраст) → `:root` і `@media (prefers-color-scheme: dark)` у
+  `src/app/globals.css` → `--color-<назва>` у `@theme inline`. Темна тема — лише за системою: без класу `.dark` і без
+  `@custom-variant dark` (після `npx shadcn add` прибери їх, якщо з'явились).
+- Рух — лише через `--duration-*` і `--ease-*`; `prefers-reduced-motion` вимикає все.
+- Нова сторінка чи стан — спершу вітрина `/design` (чи є потрібний компонент), тексти помилок і порожніх станів —
+  дослівно з AC.
+- Перевірка: `npm run check:design` (CI: `.github/workflows/architecture.yml`); виняток — `design-ok: <причина>` у
+  тому самому рядку, поодинокий.
+- Тести правил дизайн-системи (`src/components/ui/*.test.tsx`) — без AC ID у назвах: AC PM про вигляд немає (вигляд
+  за розробником, mkozlovskyi-ops/course-staff-management-spec#18), а чужий AC дав би вигадане покриття. Поведінка за
+  AC (тексти, стани, права) — і далі в тестах з AC ID.
 
 ## Межі
 

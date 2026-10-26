@@ -1,5 +1,5 @@
-import { buttonClass } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { buttonClass } from "@/components/ui/legacy-button";
+import { Card } from "@/components/ui/legacy-card";
 import { FieldError } from "@/components/ui/field-error";
 import { CalendarIcon } from "@/components/ui/icons";
 import { login } from "./actions";
@@ -9,22 +9,22 @@ const ERRORS: Record<string, string> = {
   invalid: "Incorrect email or password.",
 };
 
-const inputClass = "h-10 rounded-lg border border-line-strong bg-surface px-3 text-ink";
+const inputClass = "h-10 rounded-lg border border-input bg-card px-3 text-foreground";
 
 export default async function LoginPage({ searchParams }: PageProps<"/login">) {
   const { error } = await searchParams;
   const message = typeof error === "string" ? ERRORS[error] : undefined;
 
   return (
-    <main className="flex flex-1 items-center justify-center bg-canvas px-6 py-16 text-sm text-ink">
+    <main className="flex flex-1 items-center justify-center bg-background px-6 py-16 text-sm text-foreground">
       <Card className="flex w-full max-w-sm flex-col gap-6 p-8">
         <div className="flex items-center gap-2.5">
-          <span className="flex size-8 items-center justify-center rounded-lg bg-brand text-on-brand">
+          <span className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
             <CalendarIcon />
           </span>
           <div>
             <h1 className="text-lg font-semibold">Leave portal</h1>
-            <p className="text-muted">Sign in with your work email.</p>
+            <p className="text-muted-foreground">Sign in with your work email.</p>
           </div>
         </div>
         <form action={login} className="flex flex-col gap-4">
