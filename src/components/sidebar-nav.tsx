@@ -28,6 +28,10 @@ function NavIcon({ icon }: { icon: ReactNode }) {
           <span className="block size-full rounded-full border-2 border-current border-r-transparent motion-safe:animate-spin" />
         </span>
       )}
+      {/* Спінер зчитувач екрана не бачить; про очікування каже постійна жива область (DESIGN.md, розділ 7). */}
+      <span role="status" className="sr-only">
+        {pending ? "Loading…" : ""}
+      </span>
     </span>
   );
 }
