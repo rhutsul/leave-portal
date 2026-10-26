@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
-import { cn } from "@/lib/utils";
 import { Card } from "./card";
+import { CountUp, Tilt } from "./motion";
 
 /**
  * Залишок чи використане одного типу відсутності в днях: «22.00 days», для Sick і Personal — смуга використаного й
@@ -27,27 +27,30 @@ export function BalanceCard({
 }) {
   const share = used && total && Number(total) > 0 ? Math.min(1, Math.max(0, Number(used) / Number(total))) : null;
   return (
-    <Card role="group" aria-label={title} className={cn("gap-2.5 px-5 py-4", className)}>
-      <span className="text-[13px] text-muted-foreground">{title}</span>
-      <span className="animate-rise text-[26px] leading-[30px] font-semibold tracking-tight tabular-nums">
-        {value}
-        <span className="ml-1.5 text-sm font-medium tracking-normal text-muted-foreground">days</span>
-      </span>
-      {share !== null && (
-        <>
-          <span aria-hidden="true" className="h-1.5 overflow-hidden rounded-full bg-muted">
-            <span
-              className="block h-full origin-left animate-grow rounded-full bg-primary"
-              style={{ width: `${share * 100}%` }}
-            />
-          </span>
-          <span className="text-xs text-muted-foreground tabular-nums">
-            {used} of {total} used
-          </span>
-        </>
-      )}
-      {caption && <span className="text-xs text-muted-foreground">{caption}</span>}
-      {children}
-    </Card>
+    // Нахил за курсором (≤2°) і число, що докручується після переходу, — DESIGN.md, розділ 11.
+    <Tilt className={className}>
+      <Card role="group" aria-label={title} className="h-full gap-2.5 px-5 py-4">
+        <span className="text-[13px] text-muted-foreground">{title}</span>
+        <span className="animate-rise text-[26px] leading-[30px] font-semibold tracking-tight tabular-nums">
+          <CountUp value={value} />
+          <span className="ml-1.5 text-sm font-medium tracking-normal text-muted-foreground">days</span>
+        </span>
+        {share !== null && (
+          <>
+            <span aria-hidden="true" className="h-1.5 overflow-hidden rounded-full bg-muted">
+              <span
+                className="block h-full origin-left animate-grow rounded-full bg-primary"
+                style={{ width: `${share * 100}%` }}
+              />
+            </span>
+            <span className="text-xs text-muted-foreground tabular-nums">
+              {used} of {total} used
+            </span>
+          </>
+        )}
+        {caption && <span className="text-xs text-muted-foreground">{caption}</span>}
+        {children}
+      </Card>
+    </Tilt>
   );
 }
