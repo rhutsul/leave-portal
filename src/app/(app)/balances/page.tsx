@@ -56,6 +56,8 @@ export default async function BalancesPage({ searchParams }: PageProps<"/balance
 
   return (
     <>
+      {/* Навмисне порушення для доказу check:ui (draft PR, не зливати). */}
+      <button type="button">Raw button</button>
       <PageHeader
         title="Balances"
         description={whose ? `${whose}. Days of leave for the school year.` : "Your days of leave for the school year."}
