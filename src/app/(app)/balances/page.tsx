@@ -1,13 +1,11 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ChevronLeft, ChevronRight, Lock } from "lucide-react";
+import { CircleAlert, Lock } from "lucide-react";
 import { BalanceCards } from "@/components/balance-cards";
+import { EmployeePicker } from "@/components/employee-picker";
+import { SchoolYearSwitcher } from "@/components/school-year-switcher";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Button, buttonVariants } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Label } from "@/components/ui/label";
 import { PageHeader } from "@/components/ui/page-header";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { formatSchoolYear, schoolYearOf } from "@/lib/leave/balance";
 import { kyivDate } from "@/lib/leave/time";
 import { createClient } from "@/lib/supabase/server";
@@ -45,78 +43,42 @@ export default async function BalancesPage({ searchParams }: PageProps<"/balance
     supabase.rpc("balance_employees"),
   ]);
 
-  const others = employees ?? [];
-  const items = [
-    { value: OWN, label: "My balances" },
-    ...others.map((e) => ({ value: e.id, label: e.full_name || e.email || "Employee" })),
-  ];
-  // Шапка однакова для своїх і чужих залишків: вибір працівника завжди праворуч угорі, а чиї це залишки —
-  // в описі й у рядку навчального року.
+  const others = (employees ?? []).map((e) => ({ id: e.id, name: e.full_name || e.email || "Employee", email: e.email ?? "" }));
+  // Чиї це залишки — у рядку над картками; шапка однакова для своїх і чужих.
   const whose = employeeParam && result.ok ? result.employee.name : null;
 
   return (
     <>
       <PageHeader
         title="Balances"
-        description={whose ? `${whose}. Days of leave for the school year.` : "Your days of leave for the school year."}
-        actions={
-          others.length > 0 ? (
-            <form action="/balances" className="flex items-end gap-2">
-              <input type="hidden" name="year" value={year} />
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="balances-employee">Employee</Label>
-                <Select name="employee" defaultValue={employeeParam ?? OWN} items={items}>
-                  <SelectTrigger id="balances-employee" className="min-w-56">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {items.map((item) => (
-                      <SelectItem key={item.value} value={item.value}>
-                        {item.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              {/* GET-форма без серверної дії: useFormStatus її не бачить, тож звичайна кнопка, без «Showing…». */}
-              <Button type="submit" variant="outline">
-                Show
-              </Button>
-            </form>
-          ) : employeesError ? (
-            // Без списку менеджер не відкриє залишки працівника — кажемо чому, а не ховаємо вибір мовчки.
-            <Alert variant="destructive" role="alert" className="max-w-sm">
-              <AlertDescription>The list of employees could not be loaded. Please reload the page.</AlertDescription>
-            </Alert>
-          ) : undefined
-        }
+        description={others.length > 0 ? "Days of leave for the school year." : "Your days of leave for the school year."}
       />
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-base font-semibold">
-          {whose ? `${whose} · ` : ""}School year {formatSchoolYear(year)}
-        </h2>
-        <nav aria-label="School year" className="flex items-center gap-2">
-          {/* На межах діапазону balancesQuery посилання за межу немає: 1999 чи 2100 відкрили б поточний рік. */}
-          {year > MIN_SCHOOL_YEAR && (
-            <Link href={balancesHref(employeeParam, year - 1)} className={buttonVariants({ variant: "outline", size: "sm" })}>
-              <ChevronLeft />
-              {formatSchoolYear(year - 1)}
-            </Link>
-          )}
-          {year !== currentYear && (
-            <Link href={balancesHref(employeeParam, currentYear)} className={buttonVariants({ variant: "ghost", size: "sm" })}>
-              Current year
-            </Link>
-          )}
-          {year < MAX_SCHOOL_YEAR && (
-            <Link href={balancesHref(employeeParam, year + 1)} className={buttonVariants({ variant: "outline", size: "sm" })}>
-              {formatSchoolYear(year + 1)}
-              <ChevronRight />
-            </Link>
-          )}
-        </nav>
+      {/* Панель вибору: ліворуч — чиї залишки (менеджеру й адміністратору), праворуч — навчальний рік. */}
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-card px-4 py-2.5 shadow-sm">
+        {others.length > 0 ? (
+          <EmployeePicker employees={others} selected={employeeParam ?? OWN} own={OWN} year={year} />
+        ) : employeesError ? (
+          // Без списку менеджер не відкриє залишки працівника — кажемо чому, а не ховаємо вибір мовчки.
+          <p role="alert" className="flex items-center gap-2 text-[13px] text-destructive">
+            <CircleAlert className="size-4 shrink-0" aria-hidden="true" />
+            The list of employees could not be loaded. Please reload the page.
+          </p>
+        ) : (
+          <span className="text-[13px] font-medium">My balances</span>
+        )}
+        <SchoolYearSwitcher
+          year={year}
+          current={currentYear}
+          min={MIN_SCHOOL_YEAR}
+          max={MAX_SCHOOL_YEAR}
+          href={(y) => balancesHref(employeeParam, y)}
+        />
       </div>
+
+      <h2 className="text-base font-semibold">
+        {whose ? `${whose} · ` : ""}School year {formatSchoolYear(year)}
+      </h2>
 
       {result.ok ? (
         <BalanceCards balances={result.balances} detailed />
