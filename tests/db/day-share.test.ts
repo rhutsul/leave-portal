@@ -11,7 +11,7 @@ let t: LeaveDb;
 
 beforeAll(async () => {
   t = await createLeaveDb();
-});
+}, 60_000);
 
 /** [хвилини записів, робочі хвилини дня, частка в сотих]. */
 type Case = readonly [minutes: number, working: number, expected: number];
