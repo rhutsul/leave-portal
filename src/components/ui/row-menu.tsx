@@ -20,13 +20,17 @@ export type RowMenuItem = {
   disabled?: boolean;
 };
 
+/** Безпечні пункти в заданому порядку й окремо небезпечні, які меню показує останніми. */
+export function splitRowMenuItems(items: RowMenuItem[]) {
+  return { safe: items.filter((i) => !i.destructive), danger: items.filter((i) => i.destructive) };
+}
+
 /**
  * Дії рядка таблиці — лише тут: кнопка «⋯» у кожному рядку відкриває меню (DESIGN.md, розділ 5).
  * Небезпечні пункти автоматично йдуть у кінець, після розділювача.
  */
 export function RowMenu({ items, label = "Record actions" }: { items: RowMenuItem[]; label?: string }) {
-  const safe = items.filter((i) => !i.destructive);
-  const danger = items.filter((i) => i.destructive);
+  const { safe, danger } = splitRowMenuItems(items);
   return (
     <DropdownMenu>
       <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" aria-label={label} />}>

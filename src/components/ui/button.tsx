@@ -19,7 +19,7 @@ const buttonVariants = cva(
           "text-foreground hover:bg-accent hover:text-accent-foreground aria-expanded:bg-accent aria-expanded:text-accent-foreground",
         destructive:
           "bg-destructive text-destructive-foreground hover:bg-destructive/90 focus-visible:ring-destructive",
-        link: "h-auto px-0 text-primary underline-offset-4 hover:underline",
+        link: "text-primary underline-offset-4 hover:underline",
       },
       size: {
         default: "h-9 px-3.5 has-data-[icon=inline-end]:pr-3 has-data-[icon=inline-start]:pl-3",
@@ -32,6 +32,13 @@ const buttonVariants = cva(
         "icon-lg": "size-10",
       },
     },
+    // Посилання-кнопка не має висоти й відступів кнопки за будь-якого розміру.
+    compoundVariants: [
+      {
+        variant: "link",
+        className: "h-auto px-0 has-data-[icon=inline-end]:pr-0 has-data-[icon=inline-start]:pl-0",
+      },
+    ],
     defaultVariants: {
       variant: "default",
       size: "default",

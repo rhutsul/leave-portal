@@ -257,7 +257,7 @@ export function NewRequestForm({
                               type="button"
                               onClick={() => pickDate(d)}
                               aria-label={`Remove ${formatDateLong(d)}`}
-                              className="flex size-6 items-center justify-center rounded-full hover:bg-accent"
+                              className="flex size-6 items-center justify-center rounded-full hover:bg-primary/10"
                             >
                               <CloseIcon size={14} />
                             </button>
