@@ -1,6 +1,6 @@
 // Стан форми «New request» (D6): дати → посади й години → тип і коментар → підсумок. Чистий reducer, щоб
 // повернення з підсумку до редагування (AC-LEAVE-11) перевіряв тест, а не лише браузер.
-// Нічого не зберігає: заявку створює лише server action після «Confirm request».
+// Нічого не зберігає: заявку створює лише server action після «Submit request».
 
 import type { DateChoice, LeaveType, PositionChoice } from "./request";
 

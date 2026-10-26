@@ -55,11 +55,12 @@ describe("StatusBadge and LeaveTypeTag", () => {
 });
 
 describe("CalendarDay", () => {
-  it("days closed by the school and days without hours cannot be picked", () => {
-    for (const state of ["closed", "off"] as const) {
-      expect(renderToStaticMarkup(<CalendarDay day={3} state={state} />)).toMatch(/\sdisabled=""/);
+  it("days closed by the school cannot be picked; days without hours stay clickable to explain why", () => {
+    expect(renderToStaticMarkup(<CalendarDay day={3} state="closed" />)).toMatch(/\sdisabled=""/);
+    // День без годин — кнопка: натискання показує повідомлення з AC-LEAVE-06, а не мовчить.
+    for (const state of ["off", "free"] as const) {
+      expect(renderToStaticMarkup(<CalendarDay day={3} state={state} />)).not.toMatch(/\sdisabled=""/);
     }
-    expect(renderToStaticMarkup(<CalendarDay day={3} state="free" />)).not.toMatch(/\sdisabled=""/);
   });
 
   it("marks only the selected day as pressed", () => {

@@ -1,11 +1,20 @@
 "use client";
 
-import { useActionState, useId, useReducer, useState, type FormEvent } from "react";
-import { Button } from "@/components/ui/legacy-button";
-import { Card } from "@/components/ui/legacy-card";
+import { useActionState, useId, useReducer, useState, type FormEvent, type ReactNode } from "react";
+import { Banknote, Check, ChevronLeft, ChevronRight, CircleAlert, Gift, HeartPulse, Info, TriangleAlert, UserRound, X } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { CalendarDay, CalendarLegend } from "@/components/ui/calendar-day";
+import { Card } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { FieldError } from "@/components/ui/field-error";
-import { WarningNote } from "@/components/ui/warning-note";
-import { ChevronLeftIcon, ChevronRightIcon, CloseIcon, LeaveTypeIcon } from "@/components/ui/icons";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { LeaveTypeTag } from "@/components/ui/leave-type-tag";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Textarea } from "@/components/ui/textarea";
 import {
   employeeWarning,
   isLimitedType,
@@ -47,9 +56,11 @@ import {
   WEEKDAY_SHORT,
   type TimeBlock,
 } from "@/lib/leave/time";
+import { cn } from "@/lib/utils";
 import { submitLeaveRequest, type SubmitState } from "./actions";
+import { calendarDay } from "./calendar-view";
 
-// Короткі підписи: на ~1080 px картка кроку вміщає близько 120 px тексту.
+// Кроки без номерів у заголовках (DESIGN.md): лише назви; пройдений крок — з галочкою.
 const STEPS = ["Dates", "Positions & hours", "Leave type", "Summary"] as const;
 
 const TYPE_HINTS: Record<LeaveType, string> = {
@@ -57,6 +68,13 @@ const TYPE_HINTS: Record<LeaveType, string> = {
   personal: "Counts against your Personal leave balance",
   unpaid: "Not paid; counted, not limited",
   family: "A celebration of a close relative",
+};
+
+const TYPE_ICONS: Record<LeaveType, ReactNode> = {
+  sick: <HeartPulse />,
+  personal: <UserRound />,
+  unpaid: <Banknote />,
+  family: <Gift />,
 };
 
 const INITIAL: SubmitState = { message: "" };
@@ -74,16 +92,20 @@ interface DaySection {
 
 // Заявка (D6): дати → посади й години → тип і коментар → підсумок → підтвердження; праворуч — живий підсумок.
 // Стан — draftReducer (src/lib/leave/draft.ts): повернення назад і з підсумку не губить введеного (AC-LEAVE-11).
-// Перевірки на кожному кроці — ті самі чисті функції src/lib/leave/, що й у server action.
+// Перевірки на кожному кроці — ті самі чисті функції src/lib/leave/, що й у server action. Як обирати дати —
+// вибір розробника (mkozlovskyi-ops/course-staff-management-spec#13): календар місяця.
 export function NewRequestForm({
   positions,
   today,
   remaining,
+  recordDates,
 }: {
   positions: PositionSchedule[];
   today: string;
   /** Залишки в сотих за навчальним роком на момент відкриття форми; null — не завантажились. */
   remaining: Record<number, Record<LimitedType, number>> | null;
+  /** Дати з чинними власними записами — у календарі зафарбовані. */
+  recordDates: string[];
 }) {
   const ids = useId();
   const [draft, dispatch] = useReducer(draftReducer, EMPTY_DRAFT);
@@ -176,100 +198,93 @@ export function NewRequestForm({
   }
 
   const payload = JSON.stringify(toPayload(draft, (date) => daysOf(date).map((p) => p.id)));
-  const typeLabel = leaveType
-    ? LEAVE_TYPES[leaveType] +
-      (leaveType === "family" && isRelationship(relationship) ? ` (${RELATIONSHIP_LABELS[relationship].toLowerCase()})` : "")
-    : "Not chosen yet";
+  const relationshipNote =
+    leaveType === "family" && isRelationship(relationship) ? ` (${RELATIONSHIP_LABELS[relationship].toLowerCase()})` : "";
   const commentChars = commentLength(comment);
+  const relationshipItems = RELATIONSHIPS.map((r) => ({ value: r, label: RELATIONSHIP_LABELS[r] }));
+  const warnings =
+    leaveType && isLimitedType(leaveType)
+      ? overBalance.map((o) => ({ key: o.schoolYear, text: employeeWarning(leaveType, o.share, o.remaining) }))
+      : [];
 
   return (
     <div className="flex flex-col gap-6">
-      {/* Сітка на 4 колонки: картки однакової висоти, підпис в один рядок (повний — у title і для читачів екрана). */}
-      <ol className="grid grid-cols-4 gap-2">
-        {STEPS.map((label, i) => {
-          const n = (i + 1) as Step;
-          const current = n === step;
-          const done = n < step || (n <= maxStep && !current);
-          const locked = n > maxStep || pending;
-          return (
-            <li key={label} className="min-w-0">
-              <button
-                type="button"
-                onClick={() => go(n)}
-                disabled={locked || current}
-                aria-current={current ? "step" : undefined}
-                title={label}
-                className={`flex h-full w-full items-center gap-2.5 rounded-xl border px-3 py-2.5 text-left ${
-                  current ? "border-ring bg-card shadow-xs" : "border-border"
-                } ${locked && !current ? "opacity-60" : ""} ${!locked && !current ? "cursor-pointer hover:bg-card" : ""}`}
-              >
-                <span
-                  aria-hidden="true"
-                  className={`flex size-6.5 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${
-                    current ? "bg-primary text-primary-foreground" : done ? "bg-accent text-primary" : "bg-muted text-foreground"
-                  }`}
+      <nav aria-label="Request steps">
+        <ol className="flex flex-wrap gap-1.5">
+          {STEPS.map((label, i) => {
+            const n = (i + 1) as Step;
+            const current = n === step;
+            const done = n < step || (n <= maxStep && !current);
+            const locked = n > maxStep || pending;
+            return (
+              <li key={label}>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => !current && go(n)}
+                  disabled={locked && !current}
+                  aria-current={current ? "step" : undefined}
+                  className={cn(current && "bg-sidebar-accent text-sidebar-accent-foreground hover:bg-sidebar-accent")}
                 >
-                  {done ? "✓" : n}
-                </span>
-                <span className="flex min-w-0 flex-col">
-                  <span className="text-xs text-muted-foreground">Step {n}</span>
-                  <span className="truncate whitespace-nowrap font-medium">{label}</span>
-                </span>
-              </button>
-            </li>
-          );
-        })}
-      </ol>
+                  {done && <Check className="text-status-approved-foreground" aria-hidden="true" />}
+                  {label}
+                  {done && <span className="sr-only">(done)</span>}
+                </Button>
+              </li>
+            );
+          })}
+        </ol>
+      </nav>
 
       <div className="flex flex-wrap items-start gap-6">
         <form action={formAction} onSubmit={onSubmit} className="min-w-0 flex-[999_1_560px]">
-          <Card>
+          <Card className="gap-0 py-0">
             {step === 1 && (
-              <div className="flex flex-col gap-5 px-7 py-6">
-                <StepTitle
-                  title="When do you need leave?"
-                  hint="Pick one or more dates. Days you work are marked; you can also pick dates in the past."
-                />
+              <div className="flex flex-col gap-5 px-6 py-5">
+                <StepTitle title="Dates" hint="Pick one or more dates. You can also pick dates in the past." />
                 <div className="flex flex-wrap gap-7">
                   <DateCalendar
                     month={month}
                     today={today}
                     selected={dates}
+                    recordDates={recordDates}
                     works={(date) => daysOf(date).length > 0}
                     onMonth={(delta) => setMonth((m) => addMonths(m, delta))}
                     onPick={pickDate}
                   />
                   <div className="flex min-w-56 flex-1 flex-col gap-2.5">
-                    <div className="font-medium">Selected dates</div>
+                    <span className="text-[13px] font-medium">Selected dates</span>
                     {dates.length === 0 ? (
-                      <p className="rounded-[10px] border border-dashed border-input p-4 text-muted-foreground">
+                      <p className="rounded-md border border-dashed border-border p-4 text-muted-foreground">
                         No dates yet — pick them in the calendar.
                       </p>
                     ) : (
-                      <ul className="flex flex-wrap gap-2">
+                      <ul className="flex flex-wrap gap-1.5">
                         {dates.map((d) => (
                           <li
                             key={d}
-                            className="inline-flex items-center gap-1.5 rounded-full bg-accent py-1 pr-1.5 pl-3 font-medium text-primary"
+                            className="inline-flex h-8 items-center gap-1 rounded-full bg-accent pr-1 pl-3 text-[13px] font-medium tabular-nums text-accent-foreground"
                           >
                             {formatDateShort(d)}
-                            <button
-                              type="button"
+                            <Button
+                              variant="ghost"
+                              size="icon-xs"
+                              className="rounded-full hover:bg-primary/10"
                               onClick={() => pickDate(d)}
                               aria-label={`Remove ${formatDateLong(d)}`}
-                              className="flex size-6 items-center justify-center rounded-full hover:bg-primary/10"
                             >
-                              <CloseIcon size={14} />
-                            </button>
+                              <X />
+                            </Button>
                           </li>
                         ))}
                       </ul>
                     )}
                     <FieldError id={`${ids}-date-error`} message={dateError} />
-                    <div className="mt-1.5 rounded-xl border border-border bg-muted px-3.5 py-3 text-[13px] leading-relaxed text-foreground">
+                    <div className="mt-1 rounded-md border border-border bg-muted px-3.5 py-3 text-[13px] leading-relaxed">
                       <div className="mb-1 font-medium">Your weekly schedule</div>
                       {positions.map((p) => (
-                        <div key={p.id}>
+                        <div key={p.id} className="text-muted-foreground">
                           {p.label} — {weeklySchedule(p.blocks)}
                         </div>
                       ))}
@@ -280,7 +295,7 @@ export function NewRequestForm({
             )}
 
             {step === 2 && (
-              <div className="flex flex-col gap-5.5 px-7 py-6">
+              <div className="flex flex-col gap-5 px-6 py-5">
                 <StepTitle
                   title="Positions and hours"
                   hint="For each date, include the positions you will be absent from — for the whole day or for specific hours."
@@ -301,84 +316,99 @@ export function NewRequestForm({
             )}
 
             {step === 3 && (
-              <div className="flex flex-col gap-5 px-7 py-6">
-                <fieldset className="flex flex-col gap-5">
-                  <legend className="contents">
-                    <StepTitle title="Leave type" hint="One leave type per request. Different types mean different requests." />
-                  </legend>
-                  <div className="grid grid-cols-2 gap-3">
+              <div className="flex flex-col gap-5 px-6 py-5">
+                <div className="flex flex-col gap-3">
+                  <StepTitle title="Leave type" hint="One leave type per request. Different types mean different requests." />
+                  <RadioGroup
+                    aria-label="Leave type"
+                    // Помилка «оберіть тип» стосується групи; помилка family (немає relationship) — Select нижче.
+                    aria-invalid={typeError && !leaveType ? true : undefined}
+                    aria-describedby={typeError && !leaveType ? `${ids}-type-error` : undefined}
+                    value={leaveType ?? ""}
+                    onValueChange={(value) => {
+                      dispatch({ type: "setLeaveType", leaveType: value as LeaveType });
+                      setTypeError(null);
+                    }}
+                    className="grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-3"
+                  >
                     {(Object.keys(LEAVE_TYPES) as LeaveType[]).map((type) => (
-                      <label
+                      <Label
                         key={type}
-                        className="flex min-h-18 cursor-pointer items-center gap-3.5 rounded-xl border border-border bg-card p-4 hover:border-ring has-checked:border-2 has-checked:border-primary has-checked:bg-accent has-focus-visible:outline-2 has-focus-visible:outline-ring"
+                        htmlFor={`${ids}-type-${type}`}
+                        className={cn(
+                          // Радіо сховане (sr-only), тож фокус клавіатури показує картка.
+                          "items-center gap-3.5 rounded-md border border-border bg-card p-3.5 font-normal transition-colors duration-(--duration-fast) hover:border-ring has-focus-visible:ring-2 has-focus-visible:ring-ring has-focus-visible:ring-offset-2 has-focus-visible:ring-offset-background",
+                          leaveType === type && "border-ring bg-accent",
+                        )}
                       >
-                        <input
-                          type="radio"
-                          name="leave-type"
-                          value={type}
-                          checked={leaveType === type}
-                          onChange={() => {
-                            dispatch({ type: "setLeaveType", leaveType: type });
-                            setTypeError(null);
-                          }}
-                          className="peer sr-only"
-                        />
-                        <span className="flex size-9.5 shrink-0 items-center justify-center rounded-lg bg-muted text-foreground peer-checked:bg-primary peer-checked:text-primary-foreground">
-                          <LeaveTypeIcon type={type} />
+                        <RadioGroupItem id={`${ids}-type-${type}`} value={type} className="sr-only" />
+                        <span
+                          aria-hidden="true"
+                          className={cn(
+                            "grid size-9 shrink-0 place-items-center rounded-md bg-muted text-foreground [&_svg]:size-4.5",
+                            leaveType === type && "bg-primary text-primary-foreground",
+                          )}
+                        >
+                          {TYPE_ICONS[type]}
                         </span>
                         <span className="flex flex-col gap-0.5">
-                          <span className="font-semibold">{LEAVE_TYPES[type]}</span>
+                          <span className="text-sm font-semibold">{LEAVE_TYPES[type]}</span>
                           <span className="text-[13px] text-muted-foreground">{TYPE_HINTS[type]}</span>
                         </span>
-                      </label>
+                      </Label>
                     ))}
-                  </div>
+                  </RadioGroup>
                   {leaveType === "family" && (
-                    <div className="flex max-w-90 flex-col gap-1.5">
-                      <label htmlFor={`${ids}-relationship`} className="font-medium">
-                        Relationship to the person
-                      </label>
-                      <select
-                        id={`${ids}-relationship`}
-                        value={relationship}
-                        onChange={(e) => {
-                          dispatch({ type: "setRelationship", relationship: e.target.value });
+                    <div className="flex max-w-80 flex-col gap-1.5">
+                      <Label htmlFor={`${ids}-relationship`}>Relationship to the person</Label>
+                      <Select
+                        value={relationship || null}
+                        items={relationshipItems}
+                        onValueChange={(value) => {
+                          dispatch({ type: "setRelationship", relationship: String(value ?? "") });
                           setTypeError(null);
                         }}
-                        aria-invalid={typeError ? true : undefined}
-                        aria-describedby={`${ids}-relationship-hint${typeError ? ` ${ids}-type-error` : ""}`}
-                        className={inputClass}
                       >
-                        <option value="">Choose…</option>
-                        {RELATIONSHIPS.map((r) => (
-                          <option key={r} value={r}>
-                            {RELATIONSHIP_LABELS[r]}
-                          </option>
-                        ))}
-                      </select>
+                        <SelectTrigger
+                          id={`${ids}-relationship`}
+                          className="w-full"
+                          aria-invalid={typeError ? true : undefined}
+                          aria-describedby={`${ids}-relationship-hint${typeError ? ` ${ids}-type-error` : ""}`}
+                        >
+                          <SelectValue placeholder="Choose…" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {relationshipItems.map((r) => (
+                            <SelectItem key={r.value} value={r.value}>
+                              {r.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       <span id={`${ids}-relationship-hint`} className="text-xs text-muted-foreground">
                         Not applicable to cousins, friends, neighbours or siblings-in-law.
                       </span>
                     </div>
                   )}
                   <FieldError id={`${ids}-type-error`} message={typeError} />
-                </fieldset>
+                </div>
 
                 <div className="flex flex-col gap-1.5">
                   <div className="flex items-baseline justify-between">
-                    <label htmlFor={`${ids}-comment`} className="font-medium">
-                      Comment <span className="font-normal text-muted-foreground">(optional)</span>
-                    </label>
+                    <Label htmlFor={`${ids}-comment`}>Comment</Label>
                     <span
                       id={`${ids}-comment-counter`}
-                      className={`text-xs ${commentChars > COMMENT_MAX ? "font-medium text-destructive" : "text-muted-foreground"}`}
+                      className={cn(
+                        "text-xs tabular-nums",
+                        commentChars > COMMENT_MAX ? "font-medium text-destructive" : "text-muted-foreground",
+                      )}
                     >
-                      {commentChars} / {COMMENT_MAX}
+                      Optional · {commentChars}/{COMMENT_MAX}
                     </span>
                   </div>
-                  <textarea
+                  <Textarea
                     id={`${ids}-comment`}
-                    rows={3}
+                    rows={2}
                     value={comment}
                     onChange={(e) => {
                       dispatch({ type: "setComment", comment: e.target.value });
@@ -387,7 +417,6 @@ export function NewRequestForm({
                     placeholder="For example: Doctor’s appointment"
                     aria-invalid={commentError ? true : undefined}
                     aria-describedby={`${ids}-comment-hint ${ids}-comment-counter${commentError ? ` ${ids}-comment-error` : ""}`}
-                    className="resize-y rounded-lg border border-input bg-card px-3 py-2.5 text-foreground"
                   />
                   <span id={`${ids}-comment-hint`} className="text-xs text-muted-foreground">
                     Your managers see this comment on every record of the request.
@@ -398,102 +427,121 @@ export function NewRequestForm({
             )}
 
             {step === 4 && leaveType && (
-              <div className="flex flex-col gap-4.5 px-7 py-6">
+              <div className="flex flex-col gap-4 px-6 py-5">
                 <StepTitle title="Check and confirm" hint="Nothing is saved until you confirm. You can go back and change anything." />
                 <dl className="grid grid-cols-[140px_1fr] gap-x-4 gap-y-2">
                   <dt className="text-muted-foreground">Leave type</dt>
-                  <dd className="font-medium">{typeLabel}</dd>
+                  <dd>
+                    <LeaveTypeTag type={leaveType} />
+                    {relationshipNote}
+                  </dd>
                   <dt className="text-muted-foreground">Comment</dt>
                   <dd className="break-words whitespace-pre-line">{comment.trim() || "—"}</dd>
                   <dt className="text-muted-foreground">Total</dt>
-                  <dd className="font-medium">
+                  <dd className="font-medium tabular-nums">
                     {formatDuration(totalMinutes)} in {recordCount(records.length)}
                   </dd>
                 </dl>
-                <div className="overflow-hidden rounded-xl border border-border">
-                  <table className="w-full border-collapse text-left">
-                    <thead>
-                      <tr className="bg-muted text-xs text-muted-foreground">
-                        <th className="px-3.5 py-2.5 font-medium">Date</th>
-                        <th className="px-3.5 py-2.5 font-medium">Position</th>
-                        <th className="px-3.5 py-2.5 font-medium">Hours</th>
-                        <th className="px-3.5 py-2.5 text-right font-medium">Duration</th>
-                      </tr>
-                    </thead>
-                    <tbody>
+                <div className="overflow-x-auto rounded-md border border-border">
+                  <Table>
+                    <TableHeader className="bg-muted">
+                      <TableRow className="hover:bg-transparent">
+                        <TableHead>Date</TableHead>
+                        <TableHead>Position</TableHead>
+                        <TableHead>Hours</TableHead>
+                        <TableHead className="text-right">Duration</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
                       {records.map((r) => (
-                        <tr key={`${r.date}|${r.positionId}`} className="border-t border-border">
-                          <td className="whitespace-nowrap px-3.5 py-3">{formatDateLong(r.date)}</td>
-                          <td className="px-3.5 py-3">{labelOf(r.positionId)}</td>
-                          <td className="px-3.5 py-3 font-mono text-[13px]">{formatRange(r.start, r.end)}</td>
-                          <td className="px-3.5 py-3 text-right">{formatDuration(r.minutes)}</td>
-                        </tr>
+                        <TableRow key={`${r.date}|${r.positionId}`}>
+                          <TableCell className="tabular-nums">{formatDateLong(r.date)}</TableCell>
+                          <TableCell>{labelOf(r.positionId)}</TableCell>
+                          <TableCell className="tabular-nums">{formatRange(r.start, r.end)}</TableCell>
+                          <TableCell className="text-right tabular-nums">{formatDuration(r.minutes)}</TableCell>
+                        </TableRow>
                       ))}
-                    </tbody>
-                  </table>
+                    </TableBody>
+                  </Table>
                 </div>
-                {leaveType && isLimitedType(leaveType) &&
-                  overBalance.map((o) => (
-                    <WarningNote key={o.schoolYear}>{employeeWarning(leaveType, o.share, o.remaining)}</WarningNote>
-                  ))}
+                {/* Попередження не зупиняє заявку — виглядає як попередження, не помилка (рішення PM,
+                    mkozlovskyi-ops/course-staff-management-spec#16); текст дослівно з AC. */}
+                {warnings.map((w) => (
+                  <Alert key={w.key} variant="warning" role="note">
+                    <TriangleAlert />
+                    <AlertDescription>{w.text}</AlertDescription>
+                  </Alert>
+                ))}
                 {balanceUnchecked && (
-                  <p className="text-[13px] text-muted-foreground">
+                  <p className="flex items-center gap-1.5 text-[13px] text-muted-foreground">
+                    <Info className="size-3.5 shrink-0" aria-hidden="true" />
                     Your balance will be checked when you submit; if it is exceeded, you will see a warning.
                   </p>
                 )}
                 <input type="hidden" name="payload" value={payload} />
-                {showServerError && <FieldError message={state.message} />}
+                {showServerError && state.message && (
+                  <Alert variant="destructive" role="alert">
+                    <CircleAlert />
+                    <AlertDescription>{state.message}</AlertDescription>
+                  </Alert>
+                )}
               </div>
             )}
 
-            <div className="flex items-center justify-between gap-3 rounded-b-2xl border-t border-border bg-muted px-7 py-4">
+            <div className="flex items-center justify-between gap-3 border-t border-border bg-muted/50 px-6 py-3.5">
               <div>
                 {step > 1 && (
                   <Button variant="ghost" onClick={() => go((step - 1) as Step)} disabled={pending}>
+                    <ChevronLeft />
                     {step === 4 ? "Back to editing" : "Back"}
                   </Button>
                 )}
               </div>
               {step < 4 ? (
-                <Button type="submit">Continue</Button>
+                <Button type="submit">
+                  Continue
+                  <ChevronRight />
+                </Button>
               ) : (
-                <Button type="submit" disabled={pending}>
-                  {pending ? "Submitting…" : "Confirm request"}
+                <Button type="submit" disabled={pending} aria-busy={pending || undefined}>
+                  {pending && (
+                    <span aria-hidden="true" className="size-3.5 motion-safe:animate-spin rounded-full border-2 border-current border-r-transparent" />
+                  )}
+                  {pending ? "Submitting…" : "Submit request"}
                 </Button>
               )}
             </div>
           </Card>
         </form>
 
-        <Card as="aside" aria-label="Your request" className="sticky top-8 flex max-w-full flex-[1_1_280px] flex-col gap-3.5 p-5">
+        <Card role="complementary" aria-label="Your request" className="sticky top-8 max-w-full flex-[1_1_300px] gap-3.5 px-5 py-4.5">
           <div className="flex items-center justify-between">
-            <h2 className="text-[15px] font-semibold">Your request</h2>
+            <h2 className="text-base font-semibold">Your request</h2>
             <span className="text-xs text-muted-foreground">{recordCount(records.length)}</span>
           </div>
-          <div className="flex flex-col gap-1">
-            <span className="text-xs text-muted-foreground">Leave type</span>
-            <span className="font-medium">{typeLabel}</span>
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-muted-foreground">Type</span>
+            {leaveType ? <LeaveTypeTag type={leaveType} /> : <span className="text-muted-foreground">Not chosen yet</span>}
           </div>
-          <div className="h-px bg-border" />
           {records.length === 0 ? (
-            <p className="text-muted-foreground">Pick dates and positions to see the records here.</p>
+            <p className="border-t border-border pt-3 text-muted-foreground">Pick dates and positions to see the records here.</p>
           ) : (
-            <ul className="flex flex-col gap-3">
+            <ul className="flex flex-col border-t border-border">
               {records.map((r) => (
-                <li key={`${r.date}|${r.positionId}`} className="flex justify-between gap-3">
+                <li key={`${r.date}|${r.positionId}`} className="flex justify-between gap-3 border-b border-border py-2.5">
                   <div className="min-w-0">
-                    <div className="font-medium">
-                      {formatDateShort(r.date)} · <span className="font-mono text-[13px]">{formatRange(r.start, r.end)}</span>
-                    </div>
-                    <div className="text-[13px] text-muted-foreground">{labelOf(r.positionId)}</div>
+                    <div className="font-medium tabular-nums">{formatDateShort(r.date)}</div>
+                    <div className="truncate text-xs text-muted-foreground">{labelOf(r.positionId)}</div>
                   </div>
-                  <div className="whitespace-nowrap text-foreground">{formatDuration(r.minutes)}</div>
+                  <div className="text-right whitespace-nowrap tabular-nums">
+                    <div>{formatRange(r.start, r.end)}</div>
+                    <div className="text-xs text-muted-foreground">{formatDuration(r.minutes)}</div>
+                  </div>
                 </li>
               ))}
             </ul>
           )}
-          <div className="h-px bg-border" />
-          <div className="flex justify-between font-semibold">
+          <div className="flex justify-between font-semibold tabular-nums">
             <span>Total</span>
             <span>{totalMinutes ? formatDuration(totalMinutes) : "—"}</span>
           </div>
@@ -506,11 +554,15 @@ export function NewRequestForm({
   );
 }
 
-/** Календар місяця з понеділка: робочі дні — з рамкою, вибрані — заливкою; день без розкладу показує AC-LEAVE-06. */
+/**
+ * Календар місяця з понеділка (CalendarDay): вибрані — primary, з чинним записом — заливкою status-awaiting, без
+ * робочих годин — блідо (натискання показує повідомлення AC-LEAVE-06). Під календарем — легенда.
+ */
 function DateCalendar({
   month,
   today,
   selected,
+  recordDates,
   works,
   onMonth,
   onPick,
@@ -518,24 +570,25 @@ function DateCalendar({
   month: string;
   today: string;
   selected: string[];
+  recordDates: string[];
   works: (date: string) => boolean;
   onMonth: (delta: number) => void;
   onPick: (date: string) => void;
 }) {
   return (
-    <div className="shrink-0">
-      <div className="mb-2.5 flex items-center justify-between">
-        <Button variant="ghost" className="min-h-8 px-2" aria-label="Previous month" onClick={() => onMonth(-1)}>
-          <ChevronLeftIcon />
+    <div className="flex w-84 shrink-0 flex-col gap-2.5">
+      <div className="flex items-center justify-between">
+        <Button variant="ghost" size="icon-sm" aria-label="Previous month" onClick={() => onMonth(-1)}>
+          <ChevronLeft />
         </Button>
         <div className="font-semibold" aria-live="polite">
           {formatMonth(month)}
         </div>
-        <Button variant="ghost" className="min-h-8 px-2" aria-label="Next month" onClick={() => onMonth(1)}>
-          <ChevronRightIcon />
+        <Button variant="ghost" size="icon-sm" aria-label="Next month" onClick={() => onMonth(1)}>
+          <ChevronRight />
         </Button>
       </div>
-      <div className="grid w-84 grid-cols-7 gap-1">
+      <div className="grid grid-cols-7 gap-1">
         {WEEKDAY_SHORT.map((w) => (
           <div key={w} aria-hidden="true" className="py-1 text-center text-xs text-muted-foreground">
             {w}
@@ -543,43 +596,21 @@ function DateCalendar({
         ))}
         {monthGrid(month).map((date, i) => {
           if (!date) return <div key={`blank-${i}`} />;
-          const isSelected = selected.includes(date);
-          const working = works(date);
+          const { state, label } = calendarDay(date, { selected, recordDates, works: works(date) });
           return (
-            <button
+            <CalendarDay
               key={date}
-              type="button"
+              day={Number(date.slice(8))}
+              state={state}
               onClick={() => onPick(date)}
-              aria-pressed={isSelected}
-              aria-label={`${formatDateLong(date)}${working ? "" : ", no working hours"}`}
-              className={`h-11 rounded-[9px] border text-sm ${
-                isSelected
-                  ? "border-primary bg-primary font-semibold text-primary-foreground"
-                  : working
-                    ? "border-input bg-card text-foreground hover:border-ring"
-                    : "border-transparent bg-muted text-muted-foreground"
-              } ${date === today && !isSelected ? "font-semibold underline underline-offset-4" : ""}`}
-            >
-              {Number(date.slice(8))}
-            </button>
+              aria-label={label}
+              className={cn(date === today && state !== "selected" && "underline underline-offset-4")}
+            />
           );
         })}
       </div>
-      <div className="mt-3 flex gap-3.5 text-xs text-muted-foreground">
-        <Legend className="border border-input bg-card" label="Working day" />
-        <Legend className="bg-primary" label="Selected" />
-        <Legend className="bg-muted" label="No schedule" />
-      </div>
+      <CalendarLegend states={["free", "selected", "record", "off"]} />
     </div>
-  );
-}
-
-function Legend({ className, label }: { className: string; label: string }) {
-  return (
-    <span className="flex items-center gap-1.5">
-      <span aria-hidden="true" className={`size-2.5 rounded-[3px] ${className}`} />
-      {label}
-    </span>
   );
 }
 
@@ -599,7 +630,7 @@ function DaySectionView({
   return (
     <section aria-labelledby={`${idPrefix}-title`} className="flex flex-col gap-2.5">
       <div className="flex items-baseline gap-2.5">
-        <h3 id={`${idPrefix}-title`} className="text-[15px] font-semibold">
+        <h3 id={`${idPrefix}-title`} className="font-semibold tabular-nums">
           {formatDateLong(section.date)}
         </h3>
         <span className="text-[13px] text-muted-foreground">
@@ -649,48 +680,48 @@ function PositionCard({
 
   return (
     <li
-      className={`rounded-xl border px-4.5 py-4 ${
-        error ? "border-destructive/50" : choice.include ? "border-ring bg-card" : "border-border bg-muted"
-      }`}
+      className={cn(
+        "rounded-md border px-4 py-3.5 transition-colors duration-(--duration-fast)",
+        error ? "border-destructive" : choice.include ? "border-ring bg-accent/40" : "border-border bg-muted/60",
+      )}
     >
       <div className="flex items-start gap-3">
-        <input
+        <Checkbox
           id={`${idPrefix}-include`}
-          type="checkbox"
           checked={choice.include}
-          onChange={(e) => onChange({ include: e.target.checked })}
-          className="mt-0.5 size-4.5 accent-primary"
+          onCheckedChange={(checked) => onChange({ include: checked === true })}
+          className="mt-0.5"
         />
-        <label htmlFor={`${idPrefix}-include`} className="flex-1 cursor-pointer">
-          <span className="flex flex-wrap items-center gap-2">
-            <span className="font-semibold">{position.label}</span>
-            <span className="rounded-md bg-muted px-2 py-0.5 text-xs font-medium text-foreground">
+        <Label htmlFor={`${idPrefix}-include`} className="flex-1 cursor-pointer flex-col items-start gap-0.5">
+          <span className="flex flex-wrap items-center gap-2 text-sm font-semibold">
+            {position.label}
+            <span className="rounded-sm bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
               {position.kind === "main" ? "Main" : "Additional"}
             </span>
           </span>
-          <span className="mt-0.5 block text-[13px] text-muted-foreground">Schedule: {formatBlocks(position.blocks)}</span>
-        </label>
-        <span className="font-mono text-[13px] text-foreground">{duration}</span>
+          <span className="text-xs font-normal text-muted-foreground">Schedule: {formatBlocks(position.blocks)}</span>
+        </Label>
+        <span className="text-[13px] tabular-nums text-muted-foreground">{duration}</span>
       </div>
 
-      <div className={`mt-3.5 ml-7.5 ${choice.include ? "" : "opacity-60"}`} aria-hidden="true">
-        <div className="relative h-3.5 rounded bg-muted">
+      <div className={cn("mt-3 ml-7", !choice.include && "opacity-60")} aria-hidden="true">
+        <div className="relative h-3 rounded-sm bg-muted ring-1 ring-border ring-inset">
           {position.blocks.map((b) => (
             <div
               key={b.start}
-              className={`absolute inset-y-0 rounded ${choice.include ? "bg-ring" : "bg-input"}`}
+              className={cn("absolute inset-y-0 rounded-sm", choice.include ? "bg-ring/35" : "bg-input/40")}
               style={{ left: `${pct(b.start)}%`, width: `${pct(b.end) - pct(b.start)}%` }}
             />
           ))}
           {selected.map((s) => (
             <div
               key={s.start}
-              className="absolute inset-y-0 rounded bg-primary"
+              className="absolute inset-y-0 rounded-sm bg-primary"
               style={{ left: `${pct(s.start)}%`, width: `${pct(s.end) - pct(s.start)}%` }}
             />
           ))}
         </div>
-        <div className="relative mt-1 h-4 text-[11px] text-muted-foreground">
+        <div className="relative mt-1 h-4 text-[11px] tabular-nums text-muted-foreground">
           {axis.ticks.map((t) => (
             <span key={t} className="absolute -translate-x-1/2" style={{ left: `${pct(t)}%` }}>
               {formatTime(t)}
@@ -700,65 +731,55 @@ function PositionCard({
       </div>
 
       {choice.include && (
-        <div className="mt-3 ml-7.5 flex flex-wrap items-center gap-4.5">
-          <fieldset className="inline-flex rounded-[9px] bg-muted p-0.75">
-            <legend className="sr-only">Hours for {position.label}</legend>
+        <div className="mt-3 ml-7 flex flex-wrap items-center gap-4">
+          <div role="group" aria-label={`Hours for ${position.label}`} className="inline-flex gap-1 rounded-md bg-muted p-1">
             {[
               { whole: true, label: "Whole day" },
               { whole: false, label: "Specific hours" },
             ].map((option) => (
-              <label
+              <Button
                 key={option.label}
-                className="cursor-pointer rounded-[7px] px-3 py-1.5 text-[13px] text-foreground has-checked:bg-card has-checked:font-medium has-checked:text-foreground has-checked:shadow-xs has-focus-visible:outline-2 has-focus-visible:outline-ring"
+                variant="ghost"
+                size="sm"
+                aria-pressed={choice.wholeDay === option.whole}
+                onClick={() => onChange({ wholeDay: option.whole })}
+                className={cn(choice.wholeDay === option.whole && "bg-card text-foreground shadow-sm hover:bg-card")}
               >
-                <input
-                  type="radio"
-                  name={`${idPrefix}-mode`}
-                  checked={choice.wholeDay === option.whole}
-                  onChange={() => onChange({ wholeDay: option.whole })}
-                  className="sr-only"
-                />
                 {option.label}
-              </label>
+              </Button>
             ))}
-          </fieldset>
+          </div>
           {!choice.wholeDay && (
             <div className="flex items-center gap-2">
-              <label htmlFor={`${idPrefix}-from`} className="text-foreground">
-                From
-              </label>
-              <input
+              <Label htmlFor={`${idPrefix}-from`}>From</Label>
+              <Input
                 id={`${idPrefix}-from`}
                 type="time"
                 step={300}
                 value={choice.start ?? ""}
                 onChange={(e) => onChange({ start: e.target.value })}
                 aria-invalid={error ? true : undefined}
-                className={`${inputClass} h-9`}
+                className="w-30"
               />
-              <label htmlFor={`${idPrefix}-to`} className="text-foreground">
-                to
-              </label>
-              <input
+              <Label htmlFor={`${idPrefix}-to`}>to</Label>
+              <Input
                 id={`${idPrefix}-to`}
                 type="time"
                 step={300}
                 value={choice.end ?? ""}
                 onChange={(e) => onChange({ end: e.target.value })}
                 aria-invalid={error ? true : undefined}
-                className={`${inputClass} h-9`}
+                className="w-30"
               />
             </div>
           )}
         </div>
       )}
 
-      <FieldError message={error} className="mt-3 ml-7.5" />
+      <FieldError message={error} className="mt-2.5 ml-7" />
     </li>
   );
 }
-
-const inputClass = "h-10 rounded-lg border border-input bg-card px-2.5 text-foreground";
 
 function recordCount(n: number) {
   return n === 1 ? "1 record" : `${n} records`;
@@ -767,8 +788,8 @@ function recordCount(n: number) {
 function StepTitle({ title, hint }: { title: string; hint: string }) {
   return (
     <div>
-      <h2 className="text-[17px] font-semibold">{title}</h2>
-      <p className="mt-1 text-muted-foreground">{hint}</p>
+      <h2 className="text-base font-semibold">{title}</h2>
+      <p className="mt-0.5 text-muted-foreground">{hint}</p>
     </div>
   );
 }

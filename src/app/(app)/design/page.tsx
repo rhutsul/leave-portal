@@ -144,7 +144,7 @@ export default function DesignPage() {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Button disabled aria-busy="true">
-            <span aria-hidden="true" className="size-3.5 animate-spin rounded-full border-2 border-current border-r-transparent" />
+            <span aria-hidden="true" className="size-3.5 motion-safe:animate-spin rounded-full border-2 border-current border-r-transparent" />
             Submitting…
           </Button>
           <Button size="sm" variant="outline">
@@ -157,7 +157,7 @@ export default function DesignPage() {
             <TooltipTrigger render={<Button size="icon-sm" variant="outline" aria-label="What is a day?" />}>
               <Info />
             </TooltipTrigger>
-            <TooltipContent>1 day is all your working hours on that date.</TooltipContent>
+            <TooltipContent>1 day is all the employee&apos;s working hours on that date.</TooltipContent>
           </Tooltip>
         </div>
       </Section>
@@ -331,7 +331,7 @@ export default function DesignPage() {
         </div>
         <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
           <Info className="size-3.5" aria-hidden="true" />
-          Balances are in working days: 1 day is all your working hours on that date.
+          Balances are in working days: 1 day is all the employee&apos;s working hours on that date.
         </p>
       </Section>
 
