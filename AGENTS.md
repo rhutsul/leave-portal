@@ -166,6 +166,9 @@ shadcn/ui (CLI 4.22.1, Base UI) + `tw-animate-css` + `lucide-react` — диза
   дослівно з AC.
 - Перевірка: `npm run check:design` (CI: `.github/workflows/architecture.yml`); виняток — `design-ok: <причина>` у
   тому самому рядку, поодинокий.
+- Тести правил дизайн-системи (`src/components/ui/*.test.tsx`) — без AC ID у назвах: AC PM про вигляд немає (вигляд
+  за розробником, mkozlovskyi-ops/course-staff-management-spec#18), а чужий AC дав би вигадане покриття. Поведінка за
+  AC (тексти, стани, права) — і далі в тестах з AC ID.
 
 ## Межі
 
