@@ -24,7 +24,7 @@ import type { EmployeeAction } from "@/lib/leave/decision";
 import type { RecordStatus } from "@/lib/leave/request";
 import { formatTime } from "@/lib/leave/time";
 import { cancelRecord, changeRecordHours, resubmitRecord, type RecordActionState } from "./actions";
-import { errorPlacement, visiblePanel, type Panel } from "./record-actions-view";
+import { recordActionsView, type Panel } from "./record-actions-view";
 
 const INITIAL: RecordActionState = { message: "", done: false };
 
@@ -104,8 +104,7 @@ export function RecordActions({
     if (success) statusRef.current?.focus();
   }, [success, last]);
 
-  const panel = visiblePanel(open, actions);
-  const { inDialog, underRow: rowError } = errorPlacement(panel, error);
+  const { panel, inDialog, underRow: rowError } = recordActionsView(open, actions, error);
   const show = (next: Panel) => {
     setLast(null);
     if (next === "hours") setHours({ start: formatTime(start), end: formatTime(end) });
@@ -153,7 +152,8 @@ export function RecordActions({
       {panel !== "details" &&
         status("text-xs whitespace-nowrap text-status-approved-foreground outline-none empty:hidden")}
       {rowError && (
-        <p role="alert" className="max-w-56 text-right text-xs text-destructive">
+        // Клітинка дій — за вмістом і без переносу: стала ширина й перенос, щоб текст ліг у два рядки.
+        <p role="alert" className="w-44 text-right text-xs whitespace-normal text-destructive">
           {rowError}
         </p>
       )}

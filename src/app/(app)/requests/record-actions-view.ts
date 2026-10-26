@@ -3,21 +3,22 @@ import type { EmployeeAction } from "@/lib/leave/decision";
 export type Panel = "details" | "hours" | "cancel";
 
 /**
- * Який діалог дій із записом видно: деталі — завжди; зміну годин і скасування — лише поки їх дозволяє статус. Якщо
- * запис тим часом погодили (AC-DECIDE-12), діалог зникає разом із дією.
+ * Що показують дії із записом у «My requests»: який діалог видно і де помилка дії.
+ * Деталі видно завжди; зміну годин і скасування — лише поки їх дозволяє статус: якщо запис тим часом погодили
+ * (AC-DECIDE-12), діалог зникає разом із дією. Помилка — у видимому діалозі, а без нього — під меню рядка: Resubmit
+ * діалогу не має, а діалог зміни годин чи скасування міг зникнути, поки дія йшла, — текст помилки не має загубитися.
  */
-export function visiblePanel(open: Panel | null, actions: readonly EmployeeAction[]): Panel | null {
-  if (open === "details") return open;
-  if (open === "hours") return actions.includes("changeHours") ? open : null;
-  if (open === "cancel") return actions.includes("cancel") ? open : null;
-  return null;
-}
-
-/**
- * Де показати помилку дії: у відкритому діалозі, а без нього — під меню рядка. Resubmit діалогу не має, а діалог зміни
- * годин чи скасування міг зникнути, поки дія йшла, — текст помилки (AC-DECIDE-12) не має загубитися.
- */
-export function errorPlacement(panel: Panel | null, error: string): { inDialog: string; underRow: string } {
-  if (!error) return { inDialog: "", underRow: "" };
-  return panel === null ? { inDialog: "", underRow: error } : { inDialog: error, underRow: "" };
+export function recordActionsView(
+  open: Panel | null,
+  actions: readonly EmployeeAction[],
+  error: string,
+): { panel: Panel | null; inDialog: string; underRow: string } {
+  const panel =
+    open === "details" ||
+    (open === "hours" && actions.includes("changeHours")) ||
+    (open === "cancel" && actions.includes("cancel"))
+      ? open
+      : null;
+  if (!error) return { panel, inDialog: "", underRow: "" };
+  return panel === null ? { panel, inDialog: "", underRow: error } : { panel, inDialog: error, underRow: "" };
 }
