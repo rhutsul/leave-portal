@@ -13,16 +13,20 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
     redirect("/login");
   }
 
-  // RLS: користувач бачить лише власний профіль; my_leave_records — лише власні записи. decision_records — записи
-  // посад менеджера (адміністратору — усі), працівнику — жодного: лічильник «Decisions» — ті, що він може вирішити.
-  const [{ data: profile }, { count: awaiting }, { count: toDecide }] = await Promise.all([
+  // RLS: користувач бачить лише власний профіль; my_leave_records — лише власні записи.
+  const [{ data: profile }, { count: awaiting }] = await Promise.all([
     supabase.from("profiles").select("email, full_name, role").eq("id", claims.sub).maybeSingle(),
     supabase.from("my_leave_records").select("id", { count: "exact", head: true }).eq("status", "awaiting"),
-    supabase
-      .rpc("decision_records", undefined, { count: "exact", head: true })
-      .eq("status", "awaiting")
-      .eq("can_decide", true),
   ]);
+  // Лічильник «Decisions» — записи, які користувач може вирішити (decision_records: посади менеджера, адміністратору —
+  // усі). Лише для manager і admin: працівнику пункту немає, тож запит до бази йому не потрібен.
+  const canDecide = profile?.role === "manager" || profile?.role === "admin";
+  const { count: toDecide } = canDecide
+    ? await supabase
+        .rpc("decision_records", undefined, { count: "exact", head: true })
+        .eq("status", "awaiting")
+        .eq("can_decide", true)
+    : { count: 0 };
   const email = profile?.email ?? claims.email ?? "";
 
   return (
@@ -32,7 +36,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
         email={email}
         awaiting={awaiting ?? 0}
         toDecide={toDecide ?? 0}
-        canDecide={profile?.role === "manager" || profile?.role === "admin"}
+        canDecide={canDecide}
       />
       <main className="min-w-0 flex-1 px-8 pt-8 pb-12">
         <div className="mx-auto flex max-w-[1220px] flex-col gap-6">{children}</div>

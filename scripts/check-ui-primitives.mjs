@@ -102,7 +102,52 @@ function openingTag(text, start) {
   return text.slice(start);
 }
 
-const isHidden = (tag) => /\stype\s*=\s*(?:"hidden"|'hidden'|\{\s*["'`]hidden["'`]\s*\})/.test(tag);
+// Атрибути відкривального тегу «ім'я → значення»: значення в лапках чи {…} читаємо цілим, тож type='hidden' усередині
+// title="…" не стане атрибутом type.
+function attributes(tag) {
+  const attrs = new Map();
+  let i = tag.search(/[\s/>]/);
+  while (i >= 0 && i < tag.length) {
+    while (/\s/.test(tag[i] ?? "")) i++;
+    if (i >= tag.length || tag[i] === ">" || tag[i] === "/") break;
+    let name = "";
+    while (i < tag.length && !/[\s=/>]/.test(tag[i])) name += tag[i++];
+    while (/\s/.test(tag[i] ?? "")) i++;
+    let value = "";
+    if (tag[i] === "=") {
+      i++;
+      while (/\s/.test(tag[i] ?? "")) i++;
+      const start = i;
+      if (tag[i] === '"' || tag[i] === "'") {
+        const close = tag.indexOf(tag[i], i + 1);
+        i = close < 0 ? tag.length : close + 1;
+      } else if (tag[i] === "{") {
+        let depth = 0;
+        let quote = null;
+        for (; i < tag.length; i++) {
+          const ch = tag[i];
+          if (quote) {
+            if (ch === "\\") i++;
+            else if (ch === quote) quote = null;
+          } else if (ch === '"' || ch === "'" || ch === "`") quote = ch;
+          else if (ch === "{") depth++;
+          else if (ch === "}" && --depth === 0) {
+            i++;
+            break;
+          }
+        }
+      } else {
+        while (i < tag.length && !/[\s/>]/.test(tag[i])) i++;
+      }
+      value = tag.slice(start, i);
+    }
+    if (name) attrs.set(name, value);
+    else i++;
+  }
+  return attrs;
+}
+
+const isHidden = (tag) => /^(?:"hidden"|'hidden'|\{\s*["'`]hidden["'`]\s*\})$/.test(attributes(tag).get("type") ?? "");
 
 const unreadable = (path, error) =>
   fail(`не вдалося прочитати ${relative(root, path) || "."} (${error.code ?? error.message}) — перевірку не завершено.`);
@@ -143,14 +188,20 @@ const findings = [];
 for (const file of BASES.flatMap((b) => walk(join(root, b)))) {
   const rel = relative(root, file);
   if (rel.startsWith(UI_DIR)) continue;
-  const text = readFileSync(file, "utf8");
+  let text;
+  try {
+    text = readFileSync(file, "utf8");
+  } catch (error) {
+    unreadable(file, error);
+  }
   const lines = text.split(/\r?\n/);
   const code = maskComments(text);
   for (const m of code.matchAll(TAG)) {
     const element = m[1];
     if (element === "input" && isHidden(openingTag(code, m.index))) continue;
     const line = code.slice(0, m.index).split("\n").length;
-    if (/design-ok:/.test(lines[line - 1])) continue;
+    // Виняток — лише з причиною: «design-ok:» без тексту після нього не рахується.
+    if (/design-ok:\s*[\p{L}\p{N}]/u.test(lines[line - 1])) continue;
     findings.push({
       file: rel.split(sep).join("/"),
       line,

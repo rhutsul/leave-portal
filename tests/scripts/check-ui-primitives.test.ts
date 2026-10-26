@@ -71,13 +71,18 @@ describe("scripts/check-ui-primitives.mjs", () => {
           '      data-x=">"',
           '      type="time"',
           "    />",
+          `    <input title="type='hidden'" type="text" />`,
         ].join("\n"),
       ),
     });
     const { code, out } = run("--root", root, "--json");
     expect(code).toBe(1);
     const { findings } = JSON.parse(out);
-    expect(findings).toEqual([expect.objectContaining({ file: "src/app/form.tsx", line: 9, rule: "raw-input" })]);
+    // type='hidden' усередині title — не атрибут type: поле видиме й порушує правило.
+    expect(findings).toEqual([
+      expect.objectContaining({ file: "src/app/form.tsx", line: 9, rule: "raw-input" }),
+      expect.objectContaining({ file: "src/app/form.tsx", line: 13, rule: "raw-input" }),
+    ]);
   });
 
   it("ignores comments, but not code after a URL in a string", () => {
@@ -107,11 +112,15 @@ describe("scripts/check-ui-primitives.mjs", () => {
     expect(out).toContain("src/app/page.tsx:3  [raw-textarea]");
   });
 
-  it("skips a line with a design-ok reason", () => {
+  it("skips a line with a design-ok reason, but not a bare design-ok", () => {
     const root = project({
       "src/app/page.tsx": page('    <button /* design-ok: third-party widget needs a native button */ type="button" />'),
     });
     expect(run("--root", root).code).toBe(0);
+    const bare = project({ "src/app/page.tsx": page("    <button /* design-ok: */ />") });
+    const { code, out } = run("--root", bare);
+    expect(code).toBe(1);
+    expect(out).toContain("src/app/page.tsx:3  [raw-button]");
   });
 
   it("stops with code 2 when there is nothing to check or --root has no path", () => {
