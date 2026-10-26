@@ -3,9 +3,11 @@
 - **Джерело:** Claude Design — артефакт Design System «Leave Portal»
   (https://claude.ai/artifact/QScaTzkv6BQjN8wXSzRbCH) і полотно сторінок «Leave Portal screens»
   (https://claude.ai/artifact/JysD7EqqVnwkCZaA18QWCz); обидва приватні — знімки й промпт у PR дизайн-системи.
-- **Вхід від PM:** розділу «Вигляд і тон» у `requirements/product.md` немає (знімок 2026-10-21), тож основа — бачення,
-  ролі й глосарій продукту і палітра WS6 з `src/app/globals.css`, переведена в OKLCH і перейменована в семантику
-  shadcn/ui. Без брендингу школи.
+- **Вхід від PM:** розділу «Вигляд і тон» не буде — вигляд за розробником
+  (mkozlovskyi-ops/course-staff-management-spec#18). Правила PM лише про зміст: тип відсутності й статус завжди словом,
+  колір — лише додатково (#14 там само); попередження відрізняється від помилки (#16 там само) —
+  `requirements/01-leave-request.md` і `03-leave-balance.md`, Assumptions. Основа — бачення, ролі й глосарій продукту і
+  палітра WS6 з `src/app/globals.css`, переведена в OKLCH і перейменована в семантику shadcn/ui. Без брендингу школи.
 - **Код:** токени — `src/app/globals.css`; компоненти — `src/components/ui/` (shadcn/ui і наші доменні); вітрина —
   `/design`; перевірка — `npm run check:design`.
 
