@@ -17,11 +17,14 @@ export function Sidebar({
   name,
   email,
   awaiting,
+  toDecide,
   canDecide,
 }: {
   name: string;
   email: string;
   awaiting: number;
+  /** Записи «Awaiting decision», які користувач може вирішити (лічильник «Decisions»). */
+  toDecide: number;
   canDecide: boolean;
 }) {
   return (
@@ -31,7 +34,7 @@ export function Sidebar({
         Leave Portal
       </div>
 
-      <SidebarNav awaiting={awaiting} canDecide={canDecide} />
+      <SidebarNav awaiting={awaiting} toDecide={toDecide} canDecide={canDecide} />
 
       <div className="mt-auto flex items-center gap-2.5 border-t border-border px-1.5 pt-3">
         <span

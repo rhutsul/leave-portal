@@ -8,9 +8,12 @@ export function EmptyState({
   text,
   action,
   icon,
+  titleAs: Title = "p",
   className,
 }: {
   title: string;
+  /** Коли стан — уся сторінка чи панель (відмова в доступі, 404), заголовок — справжній heading. */
+  titleAs?: "p" | "h1" | "h2";
   text?: string;
   action?: ReactNode;
   icon?: ReactNode;
@@ -26,7 +29,7 @@ export function EmptyState({
       <span className="flex size-11 items-center justify-center rounded-full bg-accent text-accent-foreground">
         {icon ?? <CalendarDays className="size-5" aria-hidden="true" />}
       </span>
-      <p className="font-semibold">{title}</p>
+      <Title className="text-sm font-semibold">{title}</Title>
       {text && <p className="max-w-[60ch] text-muted-foreground">{text}</p>}
       {action}
     </div>

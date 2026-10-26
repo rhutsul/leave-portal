@@ -14,8 +14,12 @@ const LINKS: { href: string; label: string; icon: ReactNode; deciders?: true }[]
   { href: "/balances", label: "Balances", icon: <ChartColumn /> },
 ];
 
-/** canDecide — роль manager чи admin: лише їм пункт «Decisions» (матриця прав requirements/product.md). */
-export function SidebarNav({ awaiting, canDecide }: { awaiting: number; canDecide: boolean }) {
+/**
+ * canDecide — роль manager чи admin: лише їм пункт «Decisions» (матриця прав requirements/product.md). Лічильники:
+ * у «My requests» — власні записи, що чекають рішення; у «Decisions» — ті, що чекають рішення цього користувача
+ * (на primary, DESIGN.md, AppNav).
+ */
+export function SidebarNav({ awaiting, toDecide, canDecide }: { awaiting: number; toDecide: number; canDecide: boolean }) {
   const pathname = usePathname();
 
   return (
@@ -40,6 +44,12 @@ export function SidebarNav({ awaiting, canDecide }: { awaiting: number; canDecid
               <span className="ml-auto grid h-5 min-w-5 place-items-center rounded-full bg-status-awaiting px-1.5 text-[11px] font-semibold tabular-nums text-status-awaiting-foreground">
                 {awaiting}
                 <span className="sr-only"> awaiting decision</span>
+              </span>
+            )}
+            {href === "/decisions" && toDecide > 0 && (
+              <span className="ml-auto grid h-5 min-w-5 place-items-center rounded-full bg-primary px-1.5 text-[11px] font-semibold tabular-nums text-primary-foreground">
+                {toDecide}
+                <span className="sr-only"> awaiting your decision</span>
               </span>
             )}
           </Link>

@@ -49,6 +49,9 @@ export async function decideRecord(_prev: DecideState, formData: FormData): Prom
       ? { employeeId: row.employee_id, status: row.status, managerIds: profile.role === "manager" ? [claims.sub] : [] }
       : null;
   const check = checkDecision({ id: claims.sub, role: profile.role as Role }, target, decision, comment);
+  // Запис уже не чекає рішення (інший менеджер вирішив — AC-DECIDE-07, або працівник скасував): форми для нього вже
+  // немає, тож повідомлення показує панель запису за його поточним статусом.
+  if (!check.ok && row && row.status !== "awaiting") redirect(`/decisions?record=${recordId}&notice=decided`);
   if (!check.ok) return { message: check.message };
   // Працівник міг змінити години, поки менеджер дивився запис: рішення — лише щодо тих годин, які він бачив. Тут —
   // для повідомлення; ті самі години decide_leave_record ще раз звіряє атомарно в update (одночасна зміна не пройде).
@@ -66,8 +69,16 @@ export async function decideRecord(_prev: DecideState, formData: FormData): Prom
     p_end_min: row.end_min,
   });
   if (error) {
-    // Запис чи залишок змінився з моменту рендеру (інший менеджер вирішив, погодили інший запис — AC-BALANCE-14):
-    // оновлюємо сторінку, щоб попередження й кнопка «Approve with split» відповідали стану бази.
+    // Інший менеджер вирішив чи працівник скасував між читанням і rpc: те саме, що вище, — панель запису за статусом.
+    if (error.code === "P0001") {
+      const { data: now } = await supabase.rpc("decision_records").eq("id", recordId).maybeSingle();
+      if (now && now.status !== "awaiting") {
+        revalidatePath("/decisions");
+        redirect(`/decisions?record=${recordId}&notice=decided`);
+      }
+    }
+    // Залишок змінився з моменту рендеру (погодили інший запис — AC-BALANCE-14): оновлюємо сторінку, щоб попередження
+    // й кнопка «Approve with split» відповідали стану бази; запис лишається в «Awaiting decision» разом із формою.
     revalidatePath("/decisions");
     // P0001 — тексти PM з функції бази (той самий другий рубіж); 42501 — без доступу; решту не показуємо.
     if (error.code === "P0001") return { message: error.message };
