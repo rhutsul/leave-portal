@@ -112,6 +112,35 @@ describe("scripts/check-ui-primitives.mjs", () => {
     expect(out).toContain("src/app/page.tsx:3  [raw-textarea]");
   });
 
+  it("ignores tags in string literals, but not a spread after type=hidden or design-ok outside a comment", () => {
+    const root = project({
+      "src/app/page.tsx": page(
+        [
+          '    <p>{"Use <button> from the kit"}</p>',
+          "    <input type=\"hidden\" {...props} />",
+          '    <p title="design-ok: not a comment" /><select />',
+        ].join("\n"),
+      ),
+    });
+    const { code, out } = run("--root", root, "--json");
+    expect(code).toBe(1);
+    const { findings } = JSON.parse(out);
+    expect(findings).toEqual([
+      expect.objectContaining({ line: 4, rule: "raw-input" }),
+      expect.objectContaining({ line: 5, rule: "raw-select" }),
+    ]);
+  });
+
+  it("still checks a folder that src/components/ui links to", () => {
+    // src/zz обходиться після src/components, тож посилання з теки дизайн-системи трапляється першим.
+    const root = project({ "src/zz/page.tsx": page("    <textarea />") });
+    mkdirSync(path.join(root, "src", "components", "ui"), { recursive: true });
+    symlinkSync(path.join(root, "src", "zz"), path.join(root, "src", "components", "ui", "linked"), "junction");
+    const { code, out } = run("--root", root);
+    expect(code).toBe(1);
+    expect(out).toContain("src/zz/page.tsx:3  [raw-textarea]");
+  });
+
   it("skips a line with a design-ok reason, but not a bare design-ok", () => {
     const root = project({
       "src/app/page.tsx": page('    <button /* design-ok: third-party widget needs a native button */ type="button" />'),

@@ -5,10 +5,11 @@
 //   - перевіряє .tsx і .jsx у src/ (поза src/components/ui); якщо теки src/ немає — у app/ і components/ кореня (поза
 //     components/ui);
 //   - <input type="hidden"> дозволено: це дані форми, а не елемент керування, вигляду в нього немає;
-//   - коментарі не рахуються (// … і /* … */, зокрема {/* <button> */} у JSX); «//» чи «/*» у тексті JSX
-//     (https://… між тегами) — не коментар: коментарем вважаємо лише той, що стоїть на початку рядка або після
-//     коду ({ ( [ ; , = ) } & | ? !);
-//   - виняток — коментар `design-ok: <причина>` у рядку, де відкрито тег: <button /* design-ok: … */ …>.
+//   - коментарі й рядкові літерали не рахуються (// …, /* … */, зокрема {/* <button> */} у JSX, і "<button"); «//» у
+//     тексті JSX (https://… між тегами) — не коментар: такий коментар має стояти на початку рядка або після коду
+//     ({ ( [ ; , = ) } & | ? !); «/* … */» — коментар завжди;
+//   - type="hidden" не рахується, якщо після нього стоїть spread ({...props}): той може змінити type;
+//   - виняток — `design-ok: <причина>` у коментарі рядка, де відкрито тег: <button /* design-ok: … */ …>.
 // Використання: node scripts/check-ui-primitives.mjs [--root <dir>] [--json]
 // Код виходу: 0 — порушень немає, 1 — є порушення, 2 — немає чого перевіряти, --root без шляху або тека, яку не вдалося
 // прочитати.
@@ -61,21 +62,27 @@ function startsComment(text, i) {
   while (j >= 0 && (text[j] === " " || text[j] === "\t")) j--;
   return j < 0 || text[j] === "\n" || text[j] === "\r" || BEFORE_COMMENT.has(text[j]);
 }
-function maskComments(text) {
+// strings: true — ще й вміст рядків у лапках → пробіли (лапки лишаються): "<button" у рядковому літералі — не тег.
+// Атрибути тегу читаємо з копії, де замасковано лише коментарі.
+function mask(text, { strings = false } = {}) {
   const out = text.split("");
   let quote = null;
   for (let i = 0; i < text.length; i++) {
     const ch = text[i];
     if (quote) {
-      if (ch === "\\") i++;
-      else if (ch === quote || (ch === "\n" && quote !== "`")) quote = null;
+      if (ch === "\\") {
+        if (strings) out[i] = " ";
+        i++;
+        if (strings && i < text.length && text[i] !== "\n" && text[i] !== "\r") out[i] = " ";
+      } else if (ch === quote || (ch === "\n" && quote !== "`")) quote = null;
+      else if (strings && ch !== "\n" && ch !== "\r") out[i] = " ";
       continue;
     }
     if (ch === '"' || ch === "'" || ch === "`") {
       quote = ch;
       continue;
     }
-    if (ch === "/" && (text[i + 1] === "/" || text[i + 1] === "*") && startsComment(text, i)) {
+    if (ch === "/" && (text[i + 1] === "*" || (text[i + 1] === "/" && startsComment(text, i)))) {
       const end = text[i + 1] === "/" ? text.indexOf("\n", i) : text.indexOf("*/", i + 2) + 2;
       const stop = end <= 1 || end === -1 ? text.length : end;
       for (let j = i; j < stop; j++) if (out[j] !== "\n" && out[j] !== "\r") out[j] = " ";
@@ -102,10 +109,10 @@ function openingTag(text, start) {
   return text.slice(start);
 }
 
-// Атрибути відкривального тегу «ім'я → значення»: значення в лапках чи {…} читаємо цілим, тож type='hidden' усередині
-// title="…" не стане атрибутом type.
+// Атрибути відкривального тегу [ім'я, значення] у порядку появи: значення в лапках чи {…} читаємо цілим, тож
+// type='hidden' усередині title="…" не стане атрибутом type. Spread ({...props}) — запис з ім'ям, що починається з «{».
 function attributes(tag) {
-  const attrs = new Map();
+  const attrs = [];
   let i = tag.search(/[\s/>]/);
   while (i >= 0 && i < tag.length) {
     while (/\s/.test(tag[i] ?? "")) i++;
@@ -141,13 +148,26 @@ function attributes(tag) {
       }
       value = tag.slice(start, i);
     }
-    if (name) attrs.set(name, value);
+    if (name) attrs.push([name, value]);
     else i++;
   }
   return attrs;
 }
 
-const isHidden = (tag) => /^(?:"hidden"|'hidden'|\{\s*["'`]hidden["'`]\s*\})$/.test(attributes(tag).get("type") ?? "");
+// Прихований — лише коли останній type = "hidden" і жоден spread після нього не може його перевизначити.
+function isHidden(tag) {
+  const attrs = attributes(tag);
+  const last = attrs.findLastIndex(([name]) => name === "type");
+  if (last < 0 || !/^(?:"hidden"|'hidden'|\{\s*["'`]hidden["'`]\s*\})$/.test(attrs[last][1])) return false;
+  return !attrs.slice(last + 1).some(([name]) => name.startsWith("{"));
+}
+
+// Текст коментарів рядка: символи, які mask() замінив пробілами.
+function commentsOf(line, maskedLine) {
+  let out = "";
+  for (let i = 0; i < line.length; i++) if (line[i] !== maskedLine[i]) out += line[i];
+  return out;
+}
 
 const unreadable = (path, error) =>
   fail(`не вдалося прочитати ${relative(root, path) || "."} (${error.code ?? error.message}) — перевірку не завершено.`);
@@ -155,6 +175,9 @@ const unreadable = (path, error) =>
 // Посилання на теку (symlink, junction) обходимо раз: петля посилань не зациклить обхід.
 const seen = new Set();
 function walk(dir, out = []) {
+  // Теку дизайн-системи не обходимо зовсім (і не позначаємо її справжній шлях обійденим): посилання з неї на іншу
+  // теку src/ не сховає ту від перевірки.
+  if ((relative(root, dir) + sep).startsWith(UI_DIR)) return out;
   let real;
   try {
     real = realpathSync(dir);
@@ -195,13 +218,15 @@ for (const file of BASES.flatMap((b) => walk(join(root, b)))) {
     unreadable(file, error);
   }
   const lines = text.split(/\r?\n/);
-  const code = maskComments(text);
-  for (const m of code.matchAll(TAG)) {
+  const code = mask(text);
+  const codeLines = code.split(/\r?\n/);
+  const scan = mask(text, { strings: true });
+  for (const m of scan.matchAll(TAG)) {
     const element = m[1];
     if (element === "input" && isHidden(openingTag(code, m.index))) continue;
     const line = code.slice(0, m.index).split("\n").length;
-    // Виняток — лише з причиною: «design-ok:» без тексту після нього не рахується.
-    if (/design-ok:\s*[\p{L}\p{N}]/u.test(lines[line - 1])) continue;
+    // Виняток — лише в коментарі цього рядка й лише з причиною: «design-ok:» без тексту після нього не рахується.
+    if (/design-ok:\s*[\p{L}\p{N}]/u.test(commentsOf(lines[line - 1], codeLines[line - 1]))) continue;
     findings.push({
       file: rel.split(sep).join("/"),
       line,

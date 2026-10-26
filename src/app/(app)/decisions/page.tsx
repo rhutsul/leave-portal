@@ -173,7 +173,7 @@ export default async function DecisionsPage({ searchParams }: PageProps<"/decisi
           <AlertDescription>The records could not be loaded. Please reload the page.</AlertDescription>
         </Alert>
       ) : (
-        <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
+        <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_340px] xl:grid-cols-[minmax(0,1fr)_380px]">
           {shown.length === 0 ? (
             tab === "awaiting" ? (
               <EmptyState
@@ -189,7 +189,11 @@ export default async function DecisionsPage({ searchParams }: PageProps<"/decisi
           )}
 
           {(selected || denied) && (
-            <aside aria-label="Selected record" className="lg:sticky lg:top-8">
+            // Панель, вища за вікно, прокручується сама: кнопки рішення не ховаються під довгим списком.
+            <aside
+              aria-label="Selected record"
+              className="lg:sticky lg:top-8 lg:max-h-[calc(100vh-4rem)] lg:overflow-y-auto lg:rounded-lg"
+            >
               {selected ? (
                 <RecordPanel
                   record={selected}
@@ -242,10 +246,14 @@ function RecordTable({
             <TableHead>Date</TableHead>
             <TableHead>Hours</TableHead>
             <TableHead>Type</TableHead>
-            {tab === "history" && <TableHead>Status</TableHead>}
-            <TableHead className="w-px">
-              <span className="sr-only">Open</span>
-            </TableHead>
+            {/* У «History» замість стрілки — статус: на вужчих екранах колонок інакше не вистачає місця. */}
+            {tab === "history" ? (
+              <TableHead>Status</TableHead>
+            ) : (
+              <TableHead className="w-px">
+                <span className="sr-only">Open</span>
+              </TableHead>
+            )}
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -259,7 +267,7 @@ function RecordTable({
                 data-state={selected ? "selected" : undefined}
                 className="relative cursor-pointer"
               >
-                <TableCell className="min-w-52 whitespace-normal">
+                <TableCell className="min-w-44 whitespace-normal">
                   <Link
                     href={recordHref(tab, r.id)}
                     scroll={false}
@@ -283,15 +291,16 @@ function RecordTable({
                 <TableCell>
                   <LeaveTypeTag type={r.leave_type} variant="inline" />
                 </TableCell>
-                {tab === "history" && (
+                {tab === "history" ? (
                   <TableCell>
                     {/* Хто й коли вирішив — у панелі запису (Decided, History). */}
                     <StatusBadge status={r.status as RecordStatus} />
                   </TableCell>
+                ) : (
+                  <TableCell className="w-px text-muted-foreground">
+                    <ChevronRight className="size-4" aria-hidden="true" />
+                  </TableCell>
                 )}
-                <TableCell className="w-px text-muted-foreground">
-                  <ChevronRight className="size-4" aria-hidden="true" />
-                </TableCell>
               </TableRow>
             );
           })}
