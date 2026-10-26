@@ -214,7 +214,7 @@ export default async function DecisionsPage({ searchParams }: PageProps<"/decisi
           )}
           {denied && (
             // Відмова — без даних запису: чужий він чи його немає зовсім, не розрізняємо (AC-DECIDE-08, AC-DECIDE-09).
-            <RecordSheet title="Record" position={null} closeHref={listHref} prevHref={null} nextHref={null}>
+            <RecordSheet title="Record not available" position={null} closeHref={listHref} prevHref={null} nextHref={null}>
               <EmptyState
                 icon={<ShieldX className="size-5" aria-hidden="true" />}
                 titleAs="h2"

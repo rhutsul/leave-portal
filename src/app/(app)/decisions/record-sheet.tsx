@@ -1,21 +1,22 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, type ReactNode } from "react";
+import type { KeyboardEvent, ReactNode } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
-import { buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { Sheet, SheetBody, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { cn } from "@/lib/utils";
 
-function isEditable(target: EventTarget | null) {
-  return target instanceof HTMLElement && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName));
+/** Набраний, але не надісланий коментар менеджера в панелі. */
+function hasDraft(popup: Element | null) {
+  return Boolean(popup?.querySelector<HTMLTextAreaElement>("textarea")?.value.trim());
 }
 
 /**
  * Запис «Decisions» у панелі справа (рішення користувача: список на всю ширину, запис — поверх нього). Відкрита, коли
- * в посиланні є `?record=`; закрити (Esc, хрестик, клік повз) — повернутись до списку вкладки. «Previous / Next» і
- * клавіші ↑/↓ (не в полі коментаря) переходять між записами списку, не закриваючи панель.
+ * в посиланні є `?record=`; закрити — повернутись до списку вкладки. Esc і клік повз панель не закривають її, поки в
+ * полі коментаря є текст: щоб не загубити набране; хрестик закриває завжди. «Previous / Next» і клавіші ↑/↓ (коли
+ * фокус у шапці панелі — там він і стоїть після відкриття) переходять між записами списку, не закриваючи панель.
+ * Переходи — `replace`: «Назад» у браузері веде зі сторінки, а не по кожному переглянутому запису.
  */
 export function RecordSheet({
   title,
@@ -30,7 +31,7 @@ export function RecordSheet({
   title: string;
   description?: string;
   badge?: ReactNode;
-  /** "2 of 6" — де цей запис у списку; null — запису немає в списку (відмова). */
+  /** "2 of 6" — де цей запис у списку; null — запису немає в списку (відмова чи вже вирішений). */
   position: string | null;
   closeHref: string;
   prevHref: string | null;
@@ -38,50 +39,56 @@ export function RecordSheet({
   children: ReactNode;
 }) {
   const router = useRouter();
+  const go = (href: string) => router.replace(href, { scroll: false });
 
-  useEffect(() => {
-    function onKey(event: KeyboardEvent) {
-      if (event.altKey || event.ctrlKey || event.metaKey || isEditable(event.target)) return;
-      // Поки відкрите підтвердження Approve чи Reject, стрілки належать йому.
-      if (document.querySelector('[data-slot="dialog-content"]')) return;
-      const href = event.key === "ArrowUp" ? prevHref : event.key === "ArrowDown" ? nextHref : null;
-      if (!href) return;
-      event.preventDefault();
-      router.push(href, { scroll: false });
-    }
-    // Фаза захоплення: усередині Dialog Base UI клавіші до window не доходять.
-    window.addEventListener("keydown", onKey, true);
-    return () => window.removeEventListener("keydown", onKey, true);
-  }, [prevHref, nextHref, router]);
-
-  const step = buttonVariants({ variant: "ghost", size: "icon-sm" });
+  function onHeaderKey(event: KeyboardEvent<HTMLDivElement>) {
+    if (event.defaultPrevented || event.repeat || event.altKey || event.ctrlKey || event.metaKey) return;
+    const href = event.key === "ArrowUp" ? prevHref : event.key === "ArrowDown" ? nextHref : null;
+    if (!href) return;
+    event.preventDefault();
+    go(href);
+  }
 
   return (
-    <Sheet open onOpenChange={(open) => !open && router.push(closeHref, { scroll: false })}>
-      <SheetContent aria-label="Selected record">
+    <Sheet
+      open
+      onOpenChange={(open, details) => {
+        if (open) return;
+        const popup = document.querySelector('[data-slot="sheet-content"]');
+        if ((details.reason === "escape-key" || details.reason === "outside-press") && hasDraft(popup)) {
+          details.cancel();
+          return;
+        }
+        go(closeHref);
+      }}
+    >
+      <SheetContent>
         <SheetHeader
+          onKeyDown={onHeaderKey}
           actions={
             position && (
               <>
                 <span className="mr-1 text-xs tabular-nums text-muted-foreground">{position}</span>
-                {prevHref ? (
-                  <Link href={prevHref} scroll={false} aria-label="Previous record" aria-keyshortcuts="ArrowUp" className={step}>
-                    <ChevronUp />
-                  </Link>
-                ) : (
-                  <span aria-hidden="true" className={cn(step, "opacity-40")}>
-                    <ChevronUp />
-                  </span>
-                )}
-                {nextHref ? (
-                  <Link href={nextHref} scroll={false} aria-label="Next record" aria-keyshortcuts="ArrowDown" className={step}>
-                    <ChevronDown />
-                  </Link>
-                ) : (
-                  <span aria-hidden="true" className={cn(step, "opacity-40")}>
-                    <ChevronDown />
-                  </span>
-                )}
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label="Previous record"
+                  aria-keyshortcuts="ArrowUp"
+                  disabled={!prevHref}
+                  onClick={() => prevHref && go(prevHref)}
+                >
+                  <ChevronUp />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label="Next record"
+                  aria-keyshortcuts="ArrowDown"
+                  disabled={!nextHref}
+                  onClick={() => nextHref && go(nextHref)}
+                >
+                  <ChevronDown />
+                </Button>
               </>
             )
           }
