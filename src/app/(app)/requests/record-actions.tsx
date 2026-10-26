@@ -1,24 +1,55 @@
 "use client";
 
-import { useActionState, useEffect, useId, useRef, useState } from "react";
-import { Button } from "@/components/ui/legacy-button";
-import { FieldError } from "@/components/ui/field-error";
+import { startTransition, useActionState, useEffect, useId, useRef, useState } from "react";
+import { CircleAlert, Clock, Eye, RotateCcw, X } from "lucide-react";
+import { RecordHistory, type HistoryRow } from "@/components/record-history";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { RecordSummary } from "@/components/ui/record-summary";
+import { RowMenu, type RowMenuItem } from "@/components/ui/row-menu";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { SubmitButton } from "@/components/ui/submit-button";
 import type { EmployeeAction } from "@/lib/leave/decision";
+import type { RecordStatus } from "@/lib/leave/request";
 import { formatTime } from "@/lib/leave/time";
 import { cancelRecord, changeRecordHours, resubmitRecord, type RecordActionState } from "./actions";
 
 const INITIAL: RecordActionState = { message: "", done: false };
 
-const LINK = "rounded px-1 py-1.5 text-[13px] font-medium hover:underline disabled:opacity-50";
-
-type Panel = "hours" | "cancel";
+type Panel = "details" | "hours" | "cancel";
 
 const DONE_TEXT = { hours: "Hours changed.", resubmit: "Record resubmitted.", cancel: "Record cancelled." } as const;
 
+export interface RecordDetails {
+  /** "Tue, 3 Nov 2026" */
+  date: string;
+  /** "08:30–12:00" */
+  hours: string;
+  /** "Elementary school · Teacher · Sick leave" */
+  meta: string;
+  status: RecordStatus;
+  employeeComment: string | null;
+  managerComment: string | null;
+  /** Розподіл погодженого запису (AC-BALANCE-18). */
+  split: string | null;
+}
+
 /**
- * Дії працівника із власним записом у «My requests» (D6): Change hours, Resubmit, Cancel — лише ті, що дозволяє
- * статус (employeeActions у src/lib/leave/decision.ts). Зміна годин і скасування відкриваються під кнопками: години —
- * формою з розкладом дня, скасування — підтвердженням, бо «Cancelled» уже не змінити.
+ * Дії працівника із власним записом у «My requests» (D6): одна кнопка «⋯» у кожному рядку (DESIGN.md, розділ 5).
+ * View details — завжди; Change hours, Resubmit, Cancel record — лише ті, що дозволяє статус (employeeActions у
+ * src/lib/leave/decision.ts). Зміна годин і скасування — у діалозі: скасування з підтвердженням, бо «Cancelled» уже
+ * не змінити.
  */
 export function RecordActions({
   recordId,
@@ -27,25 +58,29 @@ export function RecordActions({
   start,
   end,
   schedule,
+  details,
+  history,
 }: {
   recordId: number;
-  /** "2026-11-03 08:30–15:30" — у доступних назвах кнопок, щоб розрізняти записи однієї дати. */
+  /** "2026-11-03 08:30–15:30" — у доступних назвах, щоб розрізняти записи однієї дати. */
   label: string;
   actions: EmployeeAction[];
   start: number;
   end: number;
   /** Блоки розкладу посади на дату запису ("08:30–12:00, 12:30–15:30"); failed — розклад не завантажився. */
   schedule: { failed: true } | { failed: false; text: string | null };
+  details: RecordDetails;
+  history: readonly HistoryRow[] | null;
 }) {
   const ids = useId();
   const statusRef = useRef<HTMLParagraphElement>(null);
   const [open, setOpen] = useState<Panel | null>(null);
   // Контрольовані поля: React скидає неконтрольовану форму після дії, а після помилки введене має лишитися.
   const [hours, setHours] = useState({ start: formatTime(start), end: formatTime(end) });
-  const [hoursState, hoursAction, hoursPending] = useActionState(changeRecordHours, INITIAL);
+  const [hoursState, hoursAction] = useActionState(changeRecordHours, INITIAL);
   const [resubmitState, resubmitAction, resubmitPending] = useActionState(resubmitRecord, INITIAL);
-  const [cancelState, cancelAction, cancelPending] = useActionState(cancelRecord, INITIAL);
-  // Показуємо відповідь лише тієї дії, що відповіла щойно; після успіху панель закривається. Коригуємо стан під час
+  const [cancelState, cancelAction] = useActionState(cancelRecord, INITIAL);
+  // Показуємо відповідь лише тієї дії, що відповіла щойно; після успіху діалог закривається. Коригуємо стан під час
   // рендеру, а не в ефекті.
   const [seen, setSeen] = useState({ hoursState, resubmitState, cancelState });
   const [last, setLast] = useState<{ action: keyof typeof DONE_TEXT; state: RecordActionState } | null>(null);
@@ -63,175 +98,179 @@ export function RecordActions({
 
   const error = last && !last.state.done ? last.state.message : "";
   const success = last?.state.done ? DONE_TEXT[last.action] : "";
+  // Помилку дії в діалозі показуємо в ньому; помилку Resubmit (діалогу немає) — під меню.
+  const rowError = last?.action === "resubmit" ? error : "";
 
-  // Після успіху кнопка з фокусом могла зникнути разом зі статусом — фокус на повідомлення про успіх.
+  // Після успіху діалог закрився, а кнопка могла зникнути разом зі статусом — фокус на повідомлення про успіх.
   useEffect(() => {
     if (success) statusRef.current?.focus();
   }, [success, last]);
 
-  // Ні дій, ні повідомлення — нічого. Повідомлення лишається, навіть якщо після відповіді дій уже немає (запис тим
-  // часом погодили — AC-DECIDE-12).
-  if (actions.length === 0 && !error && !success) return null;
-
-  const pending = hoursPending || resubmitPending || cancelPending;
-  // Панель, якої статус уже не дозволяє (запис тим часом погодили), не показуємо — лише повідомлення.
-  const panel = open && actions.includes(open === "hours" ? "changeHours" : "cancel") ? open : null;
-  const toggle = (panel: Panel) => {
+  // Діалог, якого статус уже не дозволяє (запис тим часом погодили, AC-DECIDE-12), не показуємо.
+  const panel =
+    open === "details" || (open && actions.includes(open === "hours" ? "changeHours" : "cancel")) ? open : null;
+  const show = (next: Panel) => {
     setLast(null);
-    if (panel === "hours" && open !== "hours") setHours({ start: formatTime(start), end: formatTime(end) });
-    setOpen((current) => (current === panel ? null : panel));
+    if (next === "hours") setHours({ start: formatTime(start), end: formatTime(end) });
+    setOpen(next);
   };
+  const close = () => setOpen(null);
+
+  function resubmit() {
+    setLast(null);
+    const form = new FormData();
+    form.set("record_id", String(recordId));
+    startTransition(() => resubmitAction(form));
+  }
+
+  const items: RowMenuItem[] = [];
+  if (actions.includes("changeHours")) items.push({ label: "Change hours", icon: <Clock />, onSelect: () => show("hours") });
+  if (actions.includes("resubmit"))
+    items.push({ label: "Resubmit", icon: <RotateCcw />, onSelect: resubmit, disabled: resubmitPending });
+  items.push({ label: "View details", icon: <Eye />, onSelect: () => show("details") });
+  if (actions.includes("cancel"))
+    items.push({ label: "Cancel record", icon: <X />, onSelect: () => show("cancel"), destructive: true });
+
+  const summary = <RecordSummary date={details.date} hours={details.hours} meta={details.meta} />;
+  const dialogError = error && !rowError && (
+    <Alert variant="destructive" role="alert">
+      <CircleAlert />
+      <AlertDescription>{error}</AlertDescription>
+    </Alert>
+  );
 
   return (
-    <div className="flex flex-col items-end gap-2">
-      <div className="flex justify-end gap-x-2 whitespace-nowrap">
-        {actions.includes("changeHours") && (
-          <button
-            type="button"
-            onClick={() => toggle("hours")}
-            aria-expanded={open === "hours"}
-            aria-controls={`${ids}-hours`}
-            aria-label={`Change hours of record ${label}`}
-            disabled={pending}
-            className={`${LINK} text-primary`}
-          >
-            Change hours
-          </button>
-        )}
-        {actions.includes("resubmit") && (
-          <form action={resubmitAction} onSubmit={() => setLast(null)}>
-            <input type="hidden" name="record_id" value={recordId} />
-            <button
-              type="submit"
-              aria-label={`Resubmit record ${label}`}
-              disabled={pending}
-              className={`${LINK} text-primary`}
-            >
-              {resubmitPending ? "Resubmitting…" : "Resubmit"}
-            </button>
-          </form>
-        )}
-        {actions.includes("cancel") && (
-          <button
-            type="button"
-            onClick={() => toggle("cancel")}
-            aria-expanded={open === "cancel"}
-            aria-controls={`${ids}-cancel`}
-            aria-label={`Cancel record ${label}`}
-            disabled={pending}
-            className={`${LINK} text-destructive`}
-          >
-            Cancel
-          </button>
-        )}
-      </div>
-
-      <p ref={statusRef} role="status" tabIndex={-1} className="text-[13px] text-status-approved-foreground outline-none empty:hidden">
-        {success}
+    <div className="flex flex-col items-end gap-1">
+      <RowMenu items={items} label={`Actions for record ${label}`} />
+      <p
+        ref={statusRef}
+        role="status"
+        tabIndex={-1}
+        className="text-xs whitespace-nowrap text-status-approved-foreground outline-none empty:hidden"
+      >
+        {resubmitPending ? "Resubmitting…" : success}
       </p>
-      {panel === null && <FieldError message={error} className="w-56 text-left" />}
-
-      {panel === "hours" && (
-        <form
-          id={`${ids}-hours`}
-          action={hoursAction}
-          onSubmit={() => setLast(null)}
-          aria-label={`New hours for record ${label}`}
-          className="flex w-60 flex-col gap-2.5 rounded-xl border border-border bg-muted p-3 text-left"
-        >
-          <input type="hidden" name="record_id" value={recordId} />
-          <div className="flex items-end gap-2">
-            <div className="flex flex-col gap-1">
-              <label htmlFor={`${ids}-start`} className="text-xs font-medium text-foreground">
-                From
-              </label>
-              <input
-                id={`${ids}-start`}
-                name="start"
-                type="time"
-                step={300}
-                required
-                value={hours.start}
-                onChange={(e) => setHours((h) => ({ ...h, start: e.target.value }))}
-                aria-describedby={`${ids}-schedule`}
-                className={INPUT}
-              />
-            </div>
-            <div className="flex flex-col gap-1">
-              <label htmlFor={`${ids}-end`} className="text-xs font-medium text-foreground">
-                To
-              </label>
-              <input
-                id={`${ids}-end`}
-                name="end"
-                type="time"
-                step={300}
-                required
-                value={hours.end}
-                onChange={(e) => setHours((h) => ({ ...h, end: e.target.value }))}
-                aria-describedby={`${ids}-schedule`}
-                className={INPUT}
-              />
-            </div>
-          </div>
-          <p id={`${ids}-schedule`} className="text-xs text-muted-foreground">
-            {schedule.failed
-              ? "Your schedule could not be loaded. "
-              : schedule.text && `Your schedule that day: ${schedule.text}. `}
-            Only the hours can be changed.
-          </p>
-          <FieldError message={error} />
-          <div className="flex gap-2">
-            <Button type="submit" disabled={pending} aria-label={`Save hours for record ${label}`} className="min-h-9 px-3">
-              {hoursPending ? "Saving…" : "Save hours"}
-            </Button>
-            <Button
-              variant="ghost"
-              onClick={() => toggle("hours")}
-              disabled={pending}
-              aria-label={`Close hours of record ${label}`}
-              className="min-h-9 px-3"
-            >
-              Close
-            </Button>
-          </div>
-        </form>
+      {rowError && (
+        <p role="alert" className="max-w-56 text-right text-xs text-destructive">
+          {rowError}
+        </p>
       )}
 
-      {panel === "cancel" && (
-        <form
-          id={`${ids}-cancel`}
-          action={cancelAction}
-          onSubmit={() => setLast(null)}
-          aria-label={`Confirm cancelling record ${label}`}
-          className="flex w-60 flex-col gap-2.5 rounded-xl border border-destructive/50 bg-destructive/10 p-3 text-left"
-        >
-          <input type="hidden" name="record_id" value={recordId} />
-          <p className="text-[13px] text-foreground">Cancel this record? A cancelled record cannot be changed or resubmitted.</p>
-          <FieldError message={error} />
-          <div className="flex gap-2">
-            <button
-              type="submit"
-              disabled={pending}
-              aria-label={`Confirm: cancel record ${label}`}
-              className="inline-flex min-h-9 items-center rounded-lg border border-destructive bg-card px-3 text-sm font-medium text-destructive hover:bg-destructive/10 disabled:opacity-50"
-            >
-              {cancelPending ? "Cancelling…" : "Cancel record"}
-            </button>
-            <Button
-              variant="ghost"
-              onClick={() => toggle("cancel")}
-              disabled={pending}
-              aria-label={`Keep record ${label}`}
-              className="min-h-9 px-3"
-            >
-              Keep
-            </Button>
-          </div>
-        </form>
-      )}
+      <Dialog open={panel === "details"} onOpenChange={(o) => (o ? show("details") : close())}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Record details</DialogTitle>
+            <DialogDescription className="sr-only">Status, comments and history of record {label}</DialogDescription>
+          </DialogHeader>
+          {summary}
+          <dl className="grid grid-cols-[auto_1fr] items-start gap-x-4 gap-y-2.5 text-sm">
+            <dt className="text-muted-foreground">Status</dt>
+            <dd>
+              <StatusBadge status={details.status} />
+            </dd>
+            {details.split && (
+              <>
+                <dt className="text-muted-foreground">Split</dt>
+                <dd className="tabular-nums">{details.split}</dd>
+              </>
+            )}
+            {details.employeeComment && (
+              <>
+                <dt className="text-muted-foreground">Your comment</dt>
+                <dd className="break-words whitespace-pre-line">{details.employeeComment}</dd>
+              </>
+            )}
+            {details.managerComment && (
+              <>
+                <dt className="text-muted-foreground">Manager</dt>
+                <dd className="break-words whitespace-pre-line">“{details.managerComment}”</dd>
+              </>
+            )}
+            <dt className="text-muted-foreground">History</dt>
+            <dd>
+              <RecordHistory history={history} collapsed={false} />
+            </dd>
+          </dl>
+          <DialogFooter>
+            <DialogClose render={<Button variant="outline" />}>Close</DialogClose>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={panel === "hours"} onOpenChange={(o) => (o ? show("hours") : close())}>
+        <DialogContent>
+          <form action={hoursAction} onSubmit={() => setLast(null)} className="flex flex-col gap-4">
+            <DialogHeader>
+              <DialogTitle>Change hours</DialogTitle>
+              <DialogDescription>Only the hours can be changed.</DialogDescription>
+            </DialogHeader>
+            {summary}
+            <input type="hidden" name="record_id" value={recordId} />
+            <div className="flex gap-3">
+              <div className="flex flex-1 flex-col gap-1.5">
+                <Label htmlFor={`${ids}-start`}>From</Label>
+                <Input
+                  id={`${ids}-start`}
+                  name="start"
+                  type="time"
+                  step={300}
+                  required
+                  value={hours.start}
+                  onChange={(e) => setHours((h) => ({ ...h, start: e.target.value }))}
+                  aria-describedby={`${ids}-schedule`}
+                  aria-invalid={error ? true : undefined}
+                />
+              </div>
+              <div className="flex flex-1 flex-col gap-1.5">
+                <Label htmlFor={`${ids}-end`}>To</Label>
+                <Input
+                  id={`${ids}-end`}
+                  name="end"
+                  type="time"
+                  step={300}
+                  required
+                  value={hours.end}
+                  onChange={(e) => setHours((h) => ({ ...h, end: e.target.value }))}
+                  aria-describedby={`${ids}-schedule`}
+                  aria-invalid={error ? true : undefined}
+                />
+              </div>
+            </div>
+            <p id={`${ids}-schedule`} className="-mt-2 text-xs text-muted-foreground">
+              {schedule.failed
+                ? "Your schedule could not be loaded."
+                : schedule.text
+                  ? `Your schedule that day: ${schedule.text}.`
+                  : null}
+            </p>
+            {dialogError}
+            <DialogFooter>
+              <DialogClose render={<Button variant="ghost" />}>Back</DialogClose>
+              <SubmitButton pendingLabel="Saving…">Save hours</SubmitButton>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={panel === "cancel"} onOpenChange={(o) => (o ? show("cancel") : close())}>
+        <DialogContent>
+          <form action={cancelAction} onSubmit={() => setLast(null)} className="flex flex-col gap-4">
+            <DialogHeader>
+              <DialogTitle>Cancel this record?</DialogTitle>
+              <DialogDescription>A cancelled record cannot be changed or resubmitted.</DialogDescription>
+            </DialogHeader>
+            {summary}
+            <input type="hidden" name="record_id" value={recordId} />
+            {dialogError}
+            <DialogFooter>
+              <DialogClose render={<Button variant="ghost" />}>Back</DialogClose>
+              <SubmitButton variant="destructive" pendingLabel="Cancelling…">
+                Cancel record
+              </SubmitButton>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
-
-const INPUT = "h-9 w-26 rounded-lg border border-input bg-card px-2 text-foreground";

@@ -242,6 +242,82 @@
   }
 }
 
+/*
+ * Сторінка входу (DESIGN.md, розділ 11): три м'які плями primary, highlight і info-foreground повільно дрейфують по
+ * background під сіткою з крапок. Єдине місце з ambient-рухом; позиції плям — зареєстровані властивості, щоб їх
+ * можна було анімувати.
+ */
+@property --hero-x1 {
+  syntax: "<percentage>";
+  inherits: false;
+  initial-value: 18%;
+}
+@property --hero-y1 {
+  syntax: "<percentage>";
+  inherits: false;
+  initial-value: 22%;
+}
+@property --hero-x2 {
+  syntax: "<percentage>";
+  inherits: false;
+  initial-value: 82%;
+}
+@property --hero-y2 {
+  syntax: "<percentage>";
+  inherits: false;
+  initial-value: 30%;
+}
+@property --hero-x3 {
+  syntax: "<percentage>";
+  inherits: false;
+  initial-value: 55%;
+}
+@property --hero-y3 {
+  syntax: "<percentage>";
+  inherits: false;
+  initial-value: 85%;
+}
+
+@layer components {
+  .login-hero {
+    position: relative;
+    overflow: hidden;
+    background:
+      radial-gradient(40% 50% at var(--hero-x1) var(--hero-y1), color-mix(in oklch, var(--primary) 30%, transparent), transparent 70%),
+      radial-gradient(35% 45% at var(--hero-x2) var(--hero-y2), color-mix(in oklch, var(--highlight) 34%, transparent), transparent 70%),
+      radial-gradient(45% 45% at var(--hero-x3) var(--hero-y3), color-mix(in oklch, var(--info-foreground) 20%, transparent), transparent 70%),
+      var(--background);
+    animation: hero-drift var(--duration-ambient) var(--ease-in-out) infinite alternate;
+  }
+  .login-hero::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background-image: radial-gradient(color-mix(in oklch, var(--foreground) 9%, transparent) 1px, transparent 1px);
+    background-size: 16px 16px;
+    mask-image: linear-gradient(to bottom, transparent, black 40%, transparent);
+  }
+  @keyframes hero-drift {
+    50% {
+      --hero-x1: 34%;
+      --hero-y1: 40%;
+      --hero-x2: 66%;
+      --hero-y2: 18%;
+      --hero-x3: 40%;
+      --hero-y3: 70%;
+    }
+    100% {
+      --hero-x1: 22%;
+      --hero-y1: 70%;
+      --hero-x2: 78%;
+      --hero-y2: 62%;
+      --hero-x3: 70%;
+      --hero-y3: 28%;
+    }
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

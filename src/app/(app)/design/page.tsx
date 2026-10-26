@@ -321,8 +321,8 @@ export default function DesignPage() {
 
       <Section title="Balances">
         <div className="grid gap-4 sm:grid-cols-3">
-          <BalanceCard title="Sick leave left" remaining="22.00" used="1.00" total="23.00" />
-          <BalanceCard title="Personal leave left" remaining="0.50" used="17.50" total="18.00" />
+          <BalanceCard title="Sick leave left" value="22.00" used="1.00" total="23.00" />
+          <BalanceCard title="Personal leave left" value="0.50" used="17.50" total="18.00" />
           <Card className="gap-2.5 px-5 py-4">
             <span className="text-[13px] text-muted-foreground">Awaiting decision</span>
             <span className="text-[26px] leading-[30px] font-semibold tracking-tight">3 records</span>
