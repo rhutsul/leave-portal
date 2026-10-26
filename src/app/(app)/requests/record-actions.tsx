@@ -98,8 +98,6 @@ export function RecordActions({
 
   const error = last && !last.state.done ? last.state.message : "";
   const success = last?.state.done ? DONE_TEXT[last.action] : "";
-  // Помилку дії в діалозі показуємо в ньому; помилку Resubmit (діалогу немає) — під меню.
-  const rowError = last?.action === "resubmit" ? error : "";
 
   // Після успіху діалог закрився, а кнопка могла зникнути разом зі статусом — фокус на повідомлення про успіх.
   useEffect(() => {
@@ -109,12 +107,19 @@ export function RecordActions({
   // Діалог, якого статус уже не дозволяє (запис тим часом погодили, AC-DECIDE-12), не показуємо.
   const panel =
     open === "details" || (open && actions.includes(open === "hours" ? "changeHours" : "cancel")) ? open : null;
+  // Помилку показуємо у відкритому діалозі; без нього — під меню: Resubmit діалогу не має, а діалог зміни годин чи
+  // скасування міг закритися, поки дія йшла (запис тим часом погодили — текст AC-DECIDE-12 не має загубитися).
+  const rowError = panel === null ? error : "";
   const show = (next: Panel) => {
     setLast(null);
     if (next === "hours") setHours({ start: formatTime(start), end: formatTime(end) });
     setOpen(next);
   };
-  const close = () => setOpen(null);
+  // Закрили діалог самі — його помилка більше не актуальна й під меню не переходить.
+  const close = () => {
+    setLast(null);
+    setOpen(null);
+  };
 
   function resubmit() {
     setLast(null);

@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { Fragment } from "react";
 import { redirect } from "next/navigation";
 import { CircleCheck, Plus, TriangleAlert, X } from "lucide-react";
 import { groupHistories } from "@/components/record-history";
@@ -198,81 +197,80 @@ export default async function MyRequestsPage({ searchParams }: PageProps<"/reque
                     </TableHead>
                   </TableRow>
                 </TableHeader>
-                <TableBody>
-                  {[...months.entries()].map(([month, items]) => (
-                    <Fragment key={month}>
-                      <TableRow className="hover:bg-transparent">
-                        <TableCell colSpan={6} className="bg-background py-2 text-xs font-medium text-muted-foreground">
-                          {formatMonth(month)}
-                        </TableCell>
-                      </TableRow>
-                      {items.map((r) => {
-                        const blocks = blocksOf(r.position_id!, r.date!);
-                        const dayStart = blocks.length ? Math.min(...blocks.map((b) => b.start)) : r.start_min!;
-                        const dayEnd = blocks.length ? Math.max(...blocks.map((b) => b.end)) : r.end_min!;
-                        const range = formatRange(r.start_min!, r.end_min!);
-                        const wholeDay = blocks.length > 0 && r.start_min === dayStart && r.end_min === dayEnd;
-                        const split = splitOf(r);
-                        const type = r.leave_type && isLeaveType(r.leave_type) ? LEAVE_TYPES[r.leave_type] : "";
-                        const position = positionLabel(r.division_name ?? "", r.position_title ?? "");
-                        return (
-                          <TableRow
-                            key={r.id}
-                            data-testid="leave-record"
-                            className={cn(r.request_id === newest && "animate-row-flash")}
-                          >
-                            <TableCell className="whitespace-nowrap tabular-nums">{dayLabel(r.date!)}</TableCell>
-                            <TableCell className="whitespace-nowrap">{position}</TableCell>
-                            <TableCell>
-                              <HoursBar
-                                start={r.start_min!}
-                                end={r.end_min!}
-                                dayStart={dayStart}
-                                dayEnd={dayEnd}
-                                label={wholeDay ? `Whole day · ${range}` : range}
-                              />
-                            </TableCell>
-                            <TableCell>
-                              <LeaveTypeTag type={r.leave_type ?? ""} variant="inline" />
-                              {split && <span className="mt-1 block text-xs tabular-nums text-muted-foreground">{split}</span>}
-                            </TableCell>
-                            <TableCell>
-                              <StatusBadge status={r.status as RecordStatus} />
-                              {r.manager_comment && (
-                                <span
-                                  data-testid="manager-comment"
-                                  className="mt-1 block max-w-64 break-words whitespace-pre-line text-xs text-muted-foreground"
-                                >
-                                  Manager: “{r.manager_comment}”
-                                </span>
-                              )}
-                            </TableCell>
-                            <TableCell className="w-px align-top">
-                              <RecordActions
-                                recordId={r.id!}
-                                label={`${r.date} ${range}`}
-                                actions={employeeActions(r.status as RecordStatus)}
-                                start={r.start_min!}
-                                end={r.end_min!}
-                                schedule={scheduleOf(r.position_id!, r.date!)}
-                                details={{
-                                  date: formatDateLong(r.date!),
-                                  hours: range,
-                                  meta: type ? `${position} · ${type}` : position,
-                                  status: r.status as RecordStatus,
-                                  employeeComment: r.employee_comment,
-                                  managerComment: r.manager_comment,
-                                  split,
-                                }}
-                                history={histories ? (histories.get(r.id!) ?? []) : null}
-                              />
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </Fragment>
-                  ))}
-                </TableBody>
+                {[...months.entries()].map(([month, items]) => (
+                  // Кожен місяць — окрема група рядків із заголовком, щоб зчитувач екрана пов'язав дату з місяцем.
+                  <TableBody key={month}>
+                    <TableRow className="border-t hover:bg-transparent">
+                      <TableHead scope="rowgroup" colSpan={6} className="h-auto bg-background py-2">
+                        {formatMonth(month)}
+                      </TableHead>
+                    </TableRow>
+                    {items.map((r) => {
+                      const blocks = blocksOf(r.position_id!, r.date!);
+                      const dayStart = blocks.length ? Math.min(...blocks.map((b) => b.start)) : r.start_min!;
+                      const dayEnd = blocks.length ? Math.max(...blocks.map((b) => b.end)) : r.end_min!;
+                      const range = formatRange(r.start_min!, r.end_min!);
+                      const wholeDay = blocks.length > 0 && r.start_min === dayStart && r.end_min === dayEnd;
+                      const split = splitOf(r);
+                      const type = r.leave_type && isLeaveType(r.leave_type) ? LEAVE_TYPES[r.leave_type] : "";
+                      const position = positionLabel(r.division_name ?? "", r.position_title ?? "");
+                      return (
+                        <TableRow
+                          key={r.id}
+                          data-testid="leave-record"
+                          className={cn(r.request_id === newest && "animate-row-flash")}
+                        >
+                          <TableCell className="whitespace-nowrap tabular-nums">{dayLabel(r.date!)}</TableCell>
+                          <TableCell className="whitespace-nowrap">{position}</TableCell>
+                          <TableCell>
+                            <HoursBar
+                              start={r.start_min!}
+                              end={r.end_min!}
+                              dayStart={dayStart}
+                              dayEnd={dayEnd}
+                              label={wholeDay ? `Whole day · ${range}` : range}
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <LeaveTypeTag type={r.leave_type ?? ""} variant="inline" />
+                            {split && <span className="mt-1 block text-xs tabular-nums text-muted-foreground">{split}</span>}
+                          </TableCell>
+                          <TableCell>
+                            <StatusBadge status={r.status as RecordStatus} />
+                            {r.manager_comment && (
+                              <span
+                                data-testid="manager-comment"
+                                className="mt-1 block max-w-64 break-words whitespace-pre-line text-xs text-muted-foreground"
+                              >
+                                Manager: “{r.manager_comment}”
+                              </span>
+                            )}
+                          </TableCell>
+                          <TableCell className="w-px align-top">
+                            <RecordActions
+                              recordId={r.id!}
+                              label={`${r.date} ${range}`}
+                              actions={employeeActions(r.status as RecordStatus)}
+                              start={r.start_min!}
+                              end={r.end_min!}
+                              schedule={scheduleOf(r.position_id!, r.date!)}
+                              details={{
+                                date: formatDateLong(r.date!),
+                                hours: range,
+                                meta: type ? `${position} · ${type}` : position,
+                                status: r.status as RecordStatus,
+                                employeeComment: r.employee_comment,
+                                managerComment: r.manager_comment,
+                                split,
+                              }}
+                              history={histories ? (histories.get(r.id!) ?? []) : null}
+                            />
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                ))}
               </Table>
             </div>
           )}

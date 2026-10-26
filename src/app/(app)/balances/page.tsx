@@ -3,12 +3,11 @@ import { redirect } from "next/navigation";
 import { ChevronLeft, ChevronRight, Lock } from "lucide-react";
 import { BalanceCards } from "@/components/balance-cards";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { buttonVariants } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Label } from "@/components/ui/label";
 import { PageHeader } from "@/components/ui/page-header";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { SubmitButton } from "@/components/ui/submit-button";
 import { formatSchoolYear, schoolYearOf } from "@/lib/leave/balance";
 import { kyivDate } from "@/lib/leave/time";
 import { createClient } from "@/lib/supabase/server";
@@ -59,7 +58,7 @@ export default async function BalancesPage({ searchParams }: PageProps<"/balance
     <>
       <PageHeader
         title="Balances"
-        description={whose ? `${whose}. Only approved records count.` : "Only approved records count."}
+        description={whose ? `${whose}. Days of leave for the school year.` : "Your days of leave for the school year."}
         actions={
           others.length > 0 ? (
             <form action="/balances" className="flex items-end gap-2">
@@ -79,9 +78,10 @@ export default async function BalancesPage({ searchParams }: PageProps<"/balance
                   </SelectContent>
                 </Select>
               </div>
-              <SubmitButton variant="outline" pendingLabel="Showing…">
+              {/* GET-форма без серверної дії: useFormStatus її не бачить, тож звичайна кнопка, без «Showing…». */}
+              <Button type="submit" variant="outline">
                 Show
-              </SubmitButton>
+              </Button>
             </form>
           ) : employeesError ? (
             // Без списку менеджер не відкриє залишки працівника — кажемо чому, а не ховаємо вибір мовчки.

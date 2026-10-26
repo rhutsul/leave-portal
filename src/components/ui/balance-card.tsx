@@ -27,7 +27,7 @@ export function BalanceCard({
 }) {
   const share = used && total && Number(total) > 0 ? Math.min(1, Math.max(0, Number(used) / Number(total))) : null;
   return (
-    <Card aria-label={title} className={cn("gap-2.5 px-5 py-4", className)}>
+    <Card role="group" aria-label={title} className={cn("gap-2.5 px-5 py-4", className)}>
       <span className="text-[13px] text-muted-foreground">{title}</span>
       <span className="animate-rise text-[26px] leading-[30px] font-semibold tracking-tight tabular-nums">
         {value}
