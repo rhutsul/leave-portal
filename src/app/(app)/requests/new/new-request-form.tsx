@@ -104,8 +104,8 @@ export function NewRequestForm({
   today: string;
   /** Залишки в сотих за навчальним роком на момент відкриття форми; null — не завантажились. */
   remaining: Record<number, Record<LimitedType, number>> | null;
-  /** Дати з чинними власними записами — у календарі зафарбовані. */
-  recordDates: string[];
+  /** Дати з чинними власними записами — у календарі зафарбовані; null — не завантажились (форму не блокуємо). */
+  recordDates: string[] | null;
 }) {
   const ids = useId();
   const [draft, dispatch] = useReducer(draftReducer, EMPTY_DRAFT);
@@ -570,7 +570,7 @@ function DateCalendar({
   month: string;
   today: string;
   selected: string[];
-  recordDates: string[];
+  recordDates: string[] | null;
   works: (date: string) => boolean;
   onMonth: (delta: number) => void;
   onPick: (date: string) => void;
@@ -596,7 +596,7 @@ function DateCalendar({
         ))}
         {monthGrid(month).map((date, i) => {
           if (!date) return <div key={`blank-${i}`} />;
-          const { state, label } = calendarDay(date, { selected, recordDates, works: works(date) });
+          const { state, label } = calendarDay(date, { selected, recordDates: recordDates ?? [], works: works(date) });
           return (
             <CalendarDay
               key={date}
@@ -610,6 +610,13 @@ function DateCalendar({
         })}
       </div>
       <CalendarLegend states={["free", "selected", "record", "off"]} />
+      {/* Перетин із наявними записами все одно перевіряє база під час подання (AC-LEAVE-16). */}
+      {recordDates === null && (
+        <p className="max-w-[60ch] text-xs text-muted-foreground">
+          Your existing records could not be loaded, so their days are not marked. Overlaps are still checked when you
+          submit.
+        </p>
+      )}
     </div>
   );
 }
@@ -627,6 +634,7 @@ function DaySectionView({
 }) {
   const axis = dayAxis(section.cards.flatMap((e) => e.position.blocks));
   const included = section.cards.filter((e) => e.choice.include).length;
+  const noPosition = showErrors && included === 0;
   return (
     <section aria-labelledby={`${idPrefix}-title`} className="flex flex-col gap-2.5">
       <div className="flex items-baseline gap-2.5">
@@ -645,11 +653,12 @@ function DaySectionView({
             item={e}
             axis={axis}
             showError={showErrors || Boolean(e.choice.start && e.choice.end)}
+            describedBy={noPosition ? `${idPrefix}-positions-error` : undefined}
             onChange={(patch) => onChange(e.position.id, patch)}
           />
         ))}
       </ul>
-      <FieldError message={showErrors && included === 0 ? REQUEST_MESSAGES.choosePosition : null} />
+      <FieldError id={`${idPrefix}-positions-error`} message={noPosition ? REQUEST_MESSAGES.choosePosition : null} />
     </section>
   );
 }
@@ -659,16 +668,20 @@ function PositionCard({
   item,
   axis,
   showError,
+  describedBy,
   onChange,
 }: {
   idPrefix: string;
   item: Evaluated;
   axis: { start: number; end: number; ticks: number[] };
   showError: boolean;
+  /** Помилка всієї дати («обери посаду») — її id для aria-describedby чекбокса. */
+  describedBy?: string;
   onChange: (patch: Partial<PositionChoice>) => void;
 }) {
   const { position, choice, result } = item;
   const error = showError && result && !result.ok ? result.message : null;
+  const errorId = `${idPrefix}-error`;
   const pct = (m: number) => ((m - axis.start) / (axis.end - axis.start)) * 100;
   const selected: TimeBlock[] =
     result?.ok
@@ -690,6 +703,7 @@ function PositionCard({
           id={`${idPrefix}-include`}
           checked={choice.include}
           onCheckedChange={(checked) => onChange({ include: checked === true })}
+          aria-describedby={describedBy}
           className="mt-0.5"
         />
         <Label htmlFor={`${idPrefix}-include`} className="flex-1 cursor-pointer flex-col items-start gap-0.5">
@@ -759,6 +773,7 @@ function PositionCard({
                 value={choice.start ?? ""}
                 onChange={(e) => onChange({ start: e.target.value })}
                 aria-invalid={error ? true : undefined}
+                aria-describedby={error ? errorId : undefined}
                 className="w-30"
               />
               <Label htmlFor={`${idPrefix}-to`}>to</Label>
@@ -769,6 +784,7 @@ function PositionCard({
                 value={choice.end ?? ""}
                 onChange={(e) => onChange({ end: e.target.value })}
                 aria-invalid={error ? true : undefined}
+                aria-describedby={error ? errorId : undefined}
                 className="w-30"
               />
             </div>
@@ -776,7 +792,7 @@ function PositionCard({
         </div>
       )}
 
-      <FieldError message={error} className="mt-2.5 ml-7" />
+      <FieldError id={errorId} message={error} className="mt-2.5 ml-7" />
     </li>
   );
 }

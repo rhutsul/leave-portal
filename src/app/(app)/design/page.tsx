@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
-import { Ban, CalendarDays, Clock, Eye, Info, RotateCcw, TriangleAlert, X } from "lucide-react";
+import { Ban, CalendarDays, CircleAlert, Clock, Eye, Info, RotateCcw, SearchX, ShieldX, TriangleAlert, X } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { BalanceCard } from "@/components/ui/balance-card";
 import { Button } from "@/components/ui/button";
@@ -412,6 +412,79 @@ export default function DesignPage() {
                 <Skeleton className="h-9 w-4/5" />
               </CardContent>
             </Card>
+          </div>
+        </div>
+      </Section>
+
+      <Section title="Decision and page states">
+        <div className="grid gap-4 lg:grid-cols-2">
+          <Card>
+            <CardHeader>
+              <CardTitle>Confirm a final decision</CardTitle>
+              <CardDescription>Approved and Rejected cannot be changed back, so both go through a dialog.</CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-wrap gap-2">
+              <Dialog>
+                <DialogTrigger render={<Button />}>Approve</DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Approve this record?</DialogTitle>
+                    <DialogDescription>An approved record cannot be changed back.</DialogDescription>
+                  </DialogHeader>
+                  <RecordSummary
+                    date="Tue, 3 Nov 2026"
+                    hours="08:30–15:30"
+                    meta="Elementary school teacher · Sick leave · 7 h"
+                  />
+                  <DialogFooter>
+                    <DialogClose render={<Button variant="ghost" />}>Back</DialogClose>
+                    <Button>Approve</Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+              <Button variant="outline">Return for revision</Button>
+              <Dialog>
+                <DialogTrigger render={<Button variant="outline" className="text-destructive hover:text-destructive" />}>
+                  Reject
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Reject this record?</DialogTitle>
+                    <DialogDescription>A rejected record cannot be changed back.</DialogDescription>
+                  </DialogHeader>
+                  <RecordSummary
+                    date="Tue, 3 Nov 2026"
+                    hours="08:30–15:30"
+                    meta="Elementary school teacher · Sick leave · 7 h"
+                  />
+                  <DialogFooter>
+                    <DialogClose render={<Button variant="ghost" />}>Back</DialogClose>
+                    <Button variant="destructive">Reject</Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </CardContent>
+          </Card>
+          <div className="flex flex-col gap-4">
+            <Alert variant="destructive">
+              <CircleAlert />
+              <AlertTitle>Something went wrong on our side</AlertTitle>
+              <AlertDescription>Your data is safe. Try again, and if the page still does not load, come back later.</AlertDescription>
+            </Alert>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <EmptyState
+                icon={<ShieldX className="size-5" aria-hidden="true" />}
+                title="You can't decide on this record"
+                text="This record is not in your lists."
+                action={<Button variant="outline">Back to the list</Button>}
+              />
+              <EmptyState
+                icon={<SearchX className="size-5" aria-hidden="true" />}
+                title="Page not found"
+                text="This address is not part of the leave portal."
+                action={<Button>Go to Overview</Button>}
+              />
+            </div>
           </div>
         </div>
       </Section>

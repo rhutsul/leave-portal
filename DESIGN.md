@@ -9,7 +9,7 @@
   `requirements/01-leave-request.md` і `03-leave-balance.md`, Assumptions. Основа — бачення, ролі й глосарій продукту і
   палітра WS6 з `src/app/globals.css`, переведена в OKLCH і перейменована в семантику shadcn/ui. Без брендингу школи.
 - **Код:** токени — `src/app/globals.css`; компоненти — `src/components/ui/` (shadcn/ui і наші доменні); вітрина —
-  `/design`; перевірка — `npm run check:design`.
+  `/design`; перевірки — `npm run check:design` і `npm run check:ui`; рішення — `docs/decisions/0004-design-system.md`.
 
 ## 1. Огляд
 
@@ -145,11 +145,11 @@ Geist для всього інтерфейсу (`next/font`, `--font-sans`), Gei
 | `Input`, `Textarea` + `Label` | — | у кожного поля `Label` з `htmlFor`; «Optional» — праворуч від підпису, не в ньому; placeholder не замінює підпис |
 | `Select`, `Checkbox` | — | список — у порядку з вимоги; Checkbox посади — картка з назвою посади й розкладом |
 | `Card` | — | одна ідея на картку: баланс, крок форми, «Your request»; без кольорових смуг і градієнтів |
-| `Table` | — | колонки: дата, посада, години, тип, статус, дії; групування за місяцем; дата й години не переносяться |
+| `Table` | — | колонки: дата, посада, години, тип, статус, дії; групування за місяцем; дата й години не переносяться. Виняток — черга «Decisions»: список + панель запису праворуч, колонки працівник (з посадою), дата, години, тип (+ статус в «History»), без групування; рядок цілком — посилання на панель, замість «⋯» — стрілка (в «History» — статус), бо дія одна — відкрити запис |
 | `Badge` / `StatusBadge` | статуси домену | статус — завжди словом із глосарію, крапка лише допомагає; «Awaiting decision» — крапка повільно пульсує |
 | `LeaveTypeTag` | `tag`, `inline` | `inline` (квадратик + слово) — у таблицях; `tag` — у формах і підсумках |
 | `HoursBar` | — | смуга робочого дня посади, заповнено частину запису; поруч час або «Whole day» |
-| `DropdownMenu` (`RowMenu`) | — | дії рядка таблиці — лише тут: кнопка «⋯» у КОЖНОМУ рядку; пункти за статусом, «View details» завжди, небезпечна дія — остання, після розділювача, `destructive` |
+| `DropdownMenu` (`RowMenu`) | — | дії рядка таблиці — лише тут: кнопка «⋯» у КОЖНОМУ рядку (крім списку «Decisions», де дії — у панелі запису); пункти за статусом, «View details» завжди, небезпечна дія — остання, після розділювача, `destructive` |
 | `RecordSummary` | — | що саме стосується дія: дата й години великим (години — `primary`), посада й тип нижче; у діалогах і панелі рішення |
 | `BalanceCard` | — | лише залишок (`… days`) і «X of Y used» зі смугою; пояснення одиниці — одна підказка під рядком карток |
 | `Dialog` | — | заголовок — питання, RecordSummary, одне речення наслідку, дія-дієслово і «Back» |
@@ -210,7 +210,9 @@ Geist для всього інтерфейсу (`next/font`, `--font-sans`), Gei
 ## 10. Перевірка
 
 - `npm run check:design` — жодного hex, довільного кольору, сирої палітри чи кольору в inline style поза
-  `src/components/ui` і `globals.css`. CI: `.github/workflows/architecture.yml`, job «Дизайн-система: лише токени».
+  `src/components/ui` і `globals.css`. CI: `.github/workflows/architecture.yml`, job «Design system: tokens only».
+- `npm run check:ui` — поза `src/components/ui` немає сирих `<button>`, `<input>` (крім `type="hidden"`), `<select>`,
+  `<textarea>`, `<table>`: лише компоненти з розділу 5. CI: той самий workflow, job «Design system: ui components only».
 - Виняток — коментар `design-ok: <причина>` у тому самому рядку; кожен виняток — з реальною причиною.
 - Візуально: вітрина `/design` і знімки ключових сторінок у світлій і темній темі (`docs/img/`), Tab по формі, контраст.
 
