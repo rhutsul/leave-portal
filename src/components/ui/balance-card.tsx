@@ -1,30 +1,36 @@
+import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { Card } from "./card";
 
 /**
- * Залишок одного типу відсутності в днях: «22.00 days», смуга використаного й «X of Y used».
- * Що означає день, пояснює одна підказка під рядком карток, а не кожна картка (DESIGN.md, розділ 5).
+ * Залишок чи використане одного типу відсутності в днях: «22.00 days», для Sick і Personal — смуга використаного й
+ * «X of Y used». Що означає день, пояснює одна підказка під рядком карток, а не кожна картка (DESIGN.md, розділ 5).
+ * `children` — подробиці під карткою (на сторінці залишків: призначено, перенесено, використано).
  */
 export function BalanceCard({
   title,
-  remaining,
+  value,
   used,
   total,
+  caption,
+  children,
   className,
 }: {
   title: string;
-  remaining: string;
-  /** Використано й доступно разом (призначене + перенесене); без них — картка лише з числом. */
+  value: string;
+  /** Використано й доступно разом (призначене + перенесене); без них — картка без смуги. */
   used?: string;
   total?: string;
+  caption?: string;
+  children?: ReactNode;
   className?: string;
 }) {
-  const share = used && total && Number(total) > 0 ? Math.min(1, Number(used) / Number(total)) : null;
+  const share = used && total && Number(total) > 0 ? Math.min(1, Math.max(0, Number(used) / Number(total))) : null;
   return (
-    <Card className={cn("gap-2.5 px-5 py-4", className)}>
+    <Card role="group" aria-label={title} className={cn("gap-2.5 px-5 py-4", className)}>
       <span className="text-[13px] text-muted-foreground">{title}</span>
       <span className="animate-rise text-[26px] leading-[30px] font-semibold tracking-tight tabular-nums">
-        {remaining}
+        {value}
         <span className="ml-1.5 text-sm font-medium tracking-normal text-muted-foreground">days</span>
       </span>
       {share !== null && (
@@ -40,6 +46,8 @@ export function BalanceCard({
           </span>
         </>
       )}
+      {caption && <span className="text-xs text-muted-foreground">{caption}</span>}
+      {children}
     </Card>
   );
 }

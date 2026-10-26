@@ -1,10 +1,13 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { ChevronLeft, ChevronRight, Lock } from "lucide-react";
 import { BalanceCards } from "@/components/balance-cards";
-import { Button } from "@/components/ui/legacy-button";
-import { Card } from "@/components/ui/legacy-card";
-import { ChevronLeftIcon, ChevronRightIcon } from "@/components/ui/icons";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Label } from "@/components/ui/label";
 import { PageHeader } from "@/components/ui/page-header";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { formatSchoolYear, schoolYearOf } from "@/lib/leave/balance";
 import { kyivDate } from "@/lib/leave/time";
 import { createClient } from "@/lib/supabase/server";
@@ -17,6 +20,9 @@ function balancesHref(employee: string | undefined, year: number) {
   return `/balances?${params}`;
 }
 
+// Порожнє значення Select означає «свої залишки»: Base UI не приймає "" як значення пункту.
+const OWN = "me";
+
 // Залишки (D6): свої; `?employee=` — повний залишок працівника для менеджера будь-якої його посади й адміністратора
 // (AC-BALANCE-20). Право перевіряє база; без права сторінка залишків не показує (AC-BALANCE-12, AC-BALANCE-13).
 // `?year=` — навчальний рік (рік початку), за замовчуванням — поточний за Києвом.
@@ -28,7 +34,11 @@ export default async function BalancesPage({ searchParams }: PageProps<"/balance
 
   const params = await searchParams;
   const currentYear = schoolYearOf(kyivDate(new Date()));
-  const { employee: employeeParam, year } = balancesQuery(params, claims.sub, currentYear);
+  const { employee: employeeParam, year } = balancesQuery(
+    { ...params, employee: params.employee === OWN ? undefined : params.employee },
+    claims.sub,
+    currentYear,
+  );
 
   const [result, { data: employees, error: employeesError }] = await Promise.all([
     loadBalances(supabase, employeeParam ?? claims.sub, year),
@@ -36,95 +46,90 @@ export default async function BalancesPage({ searchParams }: PageProps<"/balance
   ]);
 
   const others = employees ?? [];
+  const items = [
+    { value: OWN, label: "My balances" },
+    ...others.map((e) => ({ value: e.id, label: e.full_name || e.email || "Employee" })),
+  ];
   // Шапка однакова для своїх і чужих залишків: вибір працівника завжди праворуч угорі, а чиї це залишки —
-  // в описі й у рядку навчального року (довгий заголовок з іменем переносив вибір під себе).
+  // в описі й у рядку навчального року.
   const whose = employeeParam && result.ok ? result.employee.name : null;
 
   return (
     <>
       <PageHeader
         title="Balances"
-        description={`${whose ? `${whose}. ` : ""}Days, to 0.01. Only approved records count.`}
+        description={whose ? `${whose}. Days of leave for the school year.` : "Your days of leave for the school year."}
         actions={
           others.length > 0 ? (
             <form action="/balances" className="flex items-end gap-2">
               <input type="hidden" name="year" value={year} />
-              <label className="flex flex-col gap-1 text-[13px] text-muted-foreground">
-                Employee
-                <select
-                  name="employee"
-                  defaultValue={employeeParam ?? ""}
-                  className="h-10 min-w-56 rounded-lg border border-input bg-card px-2.5 text-sm text-foreground"
-                >
-                  <option value="">My balances</option>
-                  {others.map((e) => (
-                    <option key={e.id} value={e.id}>
-                      {e.full_name || e.email || "Employee"}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <Button type="submit" variant="ghost">
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="balances-employee">Employee</Label>
+                <Select name="employee" defaultValue={employeeParam ?? OWN} items={items}>
+                  <SelectTrigger id="balances-employee" className="min-w-56">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {items.map((item) => (
+                      <SelectItem key={item.value} value={item.value}>
+                        {item.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              {/* GET-форма без серверної дії: useFormStatus її не бачить, тож звичайна кнопка, без «Showing…». */}
+              <Button type="submit" variant="outline">
                 Show
               </Button>
             </form>
           ) : employeesError ? (
             // Без списку менеджер не відкриє залишки працівника — кажемо чому, а не ховаємо вибір мовчки.
-            <p role="alert" className="text-[13px] text-destructive">
-              The list of employees could not be loaded. Please reload the page.
-            </p>
+            <Alert variant="destructive" role="alert" className="max-w-sm">
+              <AlertDescription>The list of employees could not be loaded. Please reload the page.</AlertDescription>
+            </Alert>
           ) : undefined
         }
       />
 
-      <div className="flex items-center justify-between gap-4">
-        <h2 className="text-[17px] font-semibold">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="text-base font-semibold">
           {whose ? `${whose} · ` : ""}School year {formatSchoolYear(year)}
         </h2>
         <nav aria-label="School year" className="flex items-center gap-2">
           {/* На межах діапазону balancesQuery посилання за межу немає: 1999 чи 2100 відкрили б поточний рік. */}
           {year > MIN_SCHOOL_YEAR && (
-            <Link
-              href={balancesHref(employeeParam, year - 1)}
-              className="flex min-h-9 items-center gap-1 rounded-lg border border-input bg-card px-2.5 text-foreground hover:bg-muted hover:text-foreground"
-            >
-              <ChevronLeftIcon />
+            <Link href={balancesHref(employeeParam, year - 1)} className={buttonVariants({ variant: "outline", size: "sm" })}>
+              <ChevronLeft />
               {formatSchoolYear(year - 1)}
             </Link>
           )}
           {year !== currentYear && (
-            <Link
-              href={balancesHref(employeeParam, currentYear)}
-              className="min-h-9 rounded-lg px-2.5 py-2 text-primary underline-offset-2 hover:underline"
-            >
+            <Link href={balancesHref(employeeParam, currentYear)} className={buttonVariants({ variant: "ghost", size: "sm" })}>
               Current year
             </Link>
           )}
           {year < MAX_SCHOOL_YEAR && (
-            <Link
-              href={balancesHref(employeeParam, year + 1)}
-              className="flex min-h-9 items-center gap-1 rounded-lg border border-input bg-card px-2.5 text-foreground hover:bg-muted hover:text-foreground"
-            >
+            <Link href={balancesHref(employeeParam, year + 1)} className={buttonVariants({ variant: "outline", size: "sm" })}>
               {formatSchoolYear(year + 1)}
-              <ChevronRightIcon />
+              <ChevronRight />
             </Link>
           )}
         </nav>
       </div>
 
       {result.ok ? (
-        <BalanceCards balances={result.balances} />
+        <BalanceCards balances={result.balances} detailed />
       ) : result.reason === "not-shown" ? (
-        <Card as="div" className="border-dashed border-input px-6 py-10 text-center">
-          <p className="font-semibold">These balances are not available to you.</p>
-          <p className="mt-1.5 text-muted-foreground">
-            You can see your own balances and the balances of employees whose positions you manage.
-          </p>
-        </Card>
+        <EmptyState
+          icon={<Lock className="size-5" aria-hidden="true" />}
+          title="These balances are not available to you."
+          text="You can see your own balances and the balances of employees whose positions you manage."
+        />
       ) : (
-        <p role="alert" className="text-destructive">
-          The balances could not be loaded. Please reload the page.
-        </p>
+        <Alert variant="destructive" role="alert">
+          <AlertDescription>The balances could not be loaded. Please reload the page.</AlertDescription>
+        </Alert>
       )}
     </>
   );

@@ -1,5 +1,6 @@
+import { LogOut } from "lucide-react";
 import { signOut } from "@/app/login/actions";
-import { CalendarIcon, SignOutIcon } from "./ui/icons";
+import { Button } from "./ui/button";
 import { SidebarNav } from "./sidebar-nav";
 
 function initials(name: string) {
@@ -11,7 +12,7 @@ function initials(name: string) {
     .join("");
 }
 
-/** Бічне меню: назва порталу, розділи, внизу — хто увійшов і вихід. */
+/** Бічна навігація (DESIGN.md, AppNav): назва порталу, розділи ролі, внизу — хто увійшов і вихід. */
 export function Sidebar({
   name,
   email,
@@ -24,25 +25,23 @@ export function Sidebar({
   canDecide: boolean;
 }) {
   return (
-    <aside className="sticky top-0 flex h-screen w-62 shrink-0 flex-col gap-6 border-r border-border bg-card px-4 py-5">
-      <div className="flex items-center gap-2.5 px-2 py-1">
-        <span className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-          <CalendarIcon />
-        </span>
-        <span className="text-[15px] font-semibold">Leave portal</span>
+    <aside className="sticky top-0 flex h-screen w-55 shrink-0 flex-col gap-5 border-r border-border bg-sidebar px-3 py-4 text-sidebar-foreground">
+      <div className="flex items-center gap-2.5 px-2 py-1 text-[15px] font-semibold text-foreground">
+        <span aria-hidden="true" className="size-5.5 rounded-sm bg-primary" />
+        Leave Portal
       </div>
 
       <SidebarNav awaiting={awaiting} canDecide={canDecide} />
 
-      <div className="mt-auto flex items-center gap-2.5 border-t border-border px-2 pt-4">
+      <div className="mt-auto flex items-center gap-2.5 border-t border-border px-1.5 pt-3">
         <span
           aria-hidden="true"
-          className="flex size-8.5 shrink-0 items-center justify-center rounded-full bg-accent text-[13px] font-semibold text-primary"
+          className="grid size-8 shrink-0 place-items-center rounded-full bg-accent text-xs font-semibold text-accent-foreground"
         >
           {initials(name)}
         </span>
         <div className="min-w-0 flex-1">
-          <div data-testid="user-name" className="truncate text-[13px] font-medium">
+          <div data-testid="user-name" className="truncate text-[13px] font-medium text-foreground">
             {name}
           </div>
           <div data-testid="user-email" className="truncate text-xs text-muted-foreground">
@@ -50,14 +49,9 @@ export function Sidebar({
           </div>
         </div>
         <form action={signOut}>
-          <button
-            type="submit"
-            aria-label="Sign out"
-            title="Sign out"
-            className="flex size-8.5 items-center justify-center rounded-lg border border-input bg-card text-foreground hover:bg-muted hover:text-foreground"
-          >
-            <SignOutIcon />
-          </button>
+          <Button type="submit" variant="ghost" size="icon-sm" aria-label="Sign out" title="Sign out">
+            <LogOut />
+          </Button>
         </form>
       </div>
     </aside>

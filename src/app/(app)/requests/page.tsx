@@ -1,29 +1,29 @@
 import Link from "next/link";
-import { Fragment } from "react";
 import { redirect } from "next/navigation";
-import { groupHistories, RecordHistory } from "@/components/record-history";
-import { ButtonLink } from "@/components/ui/legacy-button";
-import { Card } from "@/components/ui/legacy-card";
+import { CircleCheck, Plus, TriangleAlert, X } from "lucide-react";
+import { groupHistories } from "@/components/record-history";
+import { Alert, AlertAction, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { buttonVariants } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
-import { CheckCircleIcon, CloseIcon, PlusIcon } from "@/components/ui/icons";
+import { HoursBar } from "@/components/ui/hours-bar";
 import { LeaveTypeTag } from "@/components/ui/leave-type-tag";
 import { PageHeader } from "@/components/ui/page-header";
-import { isRecordStatus, STATUS_DOT, StatusBadge } from "@/components/ui/status-badge";
-import { WarningNote } from "@/components/ui/warning-note";
+import { isRecordStatus, StatusBadge } from "@/components/ui/status-badge";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { daysToHundredths, formatSplit, isLimitedType, overBalanceWarnings } from "@/lib/leave/balance";
 import { employeeActions } from "@/lib/leave/decision";
-import { positionLabel, type PositionSchedule, type RecordStatus } from "@/lib/leave/request";
+import { isLeaveType, LEAVE_TYPES, positionLabel, type PositionSchedule, type RecordStatus } from "@/lib/leave/request";
 import {
   formatBlocks,
   formatDateLong,
-  formatDuration,
-  formatKyivDay,
+  formatMonth,
   formatRange,
   isCalendarDate,
   isoWeekday,
   TIME_MESSAGES,
-  weekdayName,
+  WEEKDAY_SHORT,
 } from "@/lib/leave/time";
+import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/server";
 import { loadOwnPositions } from "./new/load-positions";
 import { RecordActions } from "./record-actions";
@@ -31,20 +31,20 @@ import { RecordActions } from "./record-actions";
 const TABS: { id: string; label: string; statuses: RecordStatus[] | null }[] = [
   { id: "all", label: "All", statuses: null },
   { id: "awaiting", label: "Awaiting decision", statuses: ["awaiting"] },
-  { id: "returned", label: "Returned", statuses: ["returned"] },
+  { id: "returned", label: "Returned for revision", statuses: ["returned"] },
   { id: "approved", label: "Approved", statuses: ["approved"] },
   { id: "closed", label: "Rejected and cancelled", statuses: ["rejected", "cancelled"] },
 ];
 
-const STATS: { label: string; statuses: RecordStatus[] }[] = [
-  { label: "Awaiting decision", statuses: ["awaiting"] },
-  { label: "Returned for revision", statuses: ["returned"] },
-  { label: "Approved", statuses: ["approved"] },
-  { label: "Rejected or cancelled", statuses: ["rejected", "cancelled"] },
-];
+/** "Tue 3" — у таблиці, згрупованій за місяцем (DESIGN.md, розділ 1). */
+function dayLabel(date: string) {
+  return `${WEEKDAY_SHORT[isoWeekday(date) - 1]} ${Number(date.slice(8))}`;
+}
 
 // «My requests» (AC-LEAVE-14): лише власні записи — view public.my_leave_records фільтрує за auth.uid(),
-// бо RLS показує менеджеру ще й записи його посад. Записи згруповано за заявкою; вкладки фільтрують за статусом.
+// бо RLS показує менеджеру ще й записи його посад. Список (рішення PM у
+// mkozlovskyi-ops/course-staff-management-spec#15), новіші дати згори, групи за місяцем; вкладки фільтрують за
+// статусом; тип і статус — завжди словом (#14 там само).
 export default async function MyRequestsPage({ searchParams }: PageProps<"/requests">) {
   const supabase = await createClient();
   const { data } = await supabase.auth.getClaims();
@@ -63,106 +63,103 @@ export default async function MyRequestsPage({ searchParams }: PageProps<"/reque
       .select(
         "id, request_id, position_id, date, start_min, end_min, minutes, leave_type, status, position_title, division_name, employee_comment, manager_comment, paid_days, unpaid_days, created_at",
       )
-      .order("request_id", { ascending: false })
-      .order("date", { ascending: true })
-      .order("start_min", { ascending: true }),
-    // Розклад дня у формі зміни годин; збій — форма каже, що розклад не завантажився (години перевірить server action).
+      .order("date", { ascending: false })
+      .order("start_min", { ascending: true })
+      .order("request_id", { ascending: false }),
+    // Розклад дня для смуги годин і форми зміни годин; збій — смуга на всю ширину, форма каже, що розклад не
+    // завантажився (години перевірить server action).
     loadOwnPositions(supabase, data.claims.sub).catch((): PositionSchedule[] | null => null),
   ]);
+  const blocksOf = (positionId: number, date: string) =>
+    positions?.find((p) => p.id === positionId)?.blocks.filter((b) => b.weekday === isoWeekday(date)) ?? [];
   const scheduleOf = (positionId: number, date: string) => {
     if (!positions) return { failed: true as const };
-    const blocks = positions.find((p) => p.id === positionId)?.blocks.filter((b) => b.weekday === isoWeekday(date));
-    return { failed: false as const, text: blocks?.length ? formatBlocks(blocks) : null };
+    const blocks = blocksOf(positionId, date);
+    return { failed: false as const, text: blocks.length ? formatBlocks(blocks) : null };
   };
 
   const records = (rows ?? []).filter((r) => r.status && isRecordStatus(r.status));
   const count = (statuses: RecordStatus[] | null) =>
     records.filter((r) => !statuses || statuses.includes(r.status as RecordStatus)).length;
   const shown = records.filter((r) => !tab.statuses || tab.statuses.includes(r.status as RecordStatus));
+  // Записи щойно поданої заявки (найбільший request_id) після redirect спалахують один раз.
+  const newest = submitted === "1" && records.length > 0 ? Math.max(...records.map((r) => r.request_id!)) : null;
 
   // Історія показаних записів з іменами тих, хто вирішував, одним запитом (public.record_histories, AC-DECIDE-15):
-  // profiles за RLS показує лише власний профіль. Збій — повідомлення в записах, а не порожня історія.
+  // profiles за RLS показує лише власний профіль. Збій — повідомлення в деталях запису, а не порожня історія.
   const historyResult =
     shown.length > 0
       ? await supabase.rpc("record_histories", { p_record_ids: shown.map((r) => r.id!) })
       : { data: [], error: null };
   const histories = historyResult.error ? null : groupHistories(historyResult.data ?? []);
 
-  const groups = new Map<number, typeof shown>();
-  for (const r of shown) groups.set(r.request_id!, [...(groups.get(r.request_id!) ?? []), r]);
+  const months = new Map<string, typeof shown>();
+  for (const r of shown) {
+    const month = r.date!.slice(0, 7);
+    months.set(month, [...(months.get(month) ?? []), r]);
+  }
+
+  const newRequest = (
+    <Link href="/requests/new" className={buttonVariants()}>
+      <Plus />
+      New request
+    </Link>
+  );
 
   return (
     <>
       <PageHeader
         title="My requests"
-        description="Each record is one position on one date and is decided separately by that position’s manager."
-        actions={
-          <ButtonLink href="/requests/new">
-            <PlusIcon size={16} />
-            New request
-          </ButtonLink>
-        }
+        description="Each record is one position on one date. Your managers decide on each record separately."
+        actions={newRequest}
       />
 
       {submitted === "1" && (
-        <div
-          role="status"
-          className="flex items-center gap-3 rounded-xl border border-status-approved-foreground/40 bg-status-approved px-4 py-3 text-status-approved-foreground"
-        >
-          <CheckCircleIcon />
-          <p className="flex-1">
-            <span className="font-semibold">Request submitted.</span> Each record is now awaiting a decision.
+        <Alert variant="info" role="status">
+          <CircleCheck />
+          <AlertTitle>Request submitted</AlertTitle>
+          <AlertDescription>
+            Each record is now awaiting a decision.
             {skippedDates.map((d) => (
-              <span key={d} className="mt-1 block text-foreground">
+              <span key={d} className="block">
                 {formatDateLong(d)} was not accepted: {TIME_MESSAGES.noWorkingHours}
               </span>
             ))}
             {balance === "unchecked" && (
-              <span className="mt-1 block text-foreground">Your balance could not be checked for this request.</span>
+              <span className="block">Your balance could not be checked for this request.</span>
             )}
-          </p>
-          <Link
-            href="/requests"
-            aria-label="Dismiss"
-            className="flex size-8 items-center justify-center rounded-lg hover:bg-status-approved-foreground/10"
-          >
-            <CloseIcon />
-          </Link>
-        </div>
+          </AlertDescription>
+          <AlertAction>
+            <Link href="/requests" aria-label="Dismiss" className={buttonVariants({ variant: "ghost", size: "icon-sm" })}>
+              <X />
+            </Link>
+          </AlertAction>
+        </Alert>
       )}
 
       {submitted === "1" &&
         balanceWarnings.map((w, i) => (
-          <WarningNote key={i} live>
-            {w}
-          </WarningNote>
+          // Попередження не зупинило заявку — виглядає як попередження, а не помилка (рішення PM,
+          // mkozlovskyi-ops/course-staff-management-spec#16); текст — дослівно з AC.
+          <Alert key={i} variant="warning" role="status">
+            <TriangleAlert />
+            <AlertDescription>{w}</AlertDescription>
+          </Alert>
         ))}
 
       {error ? (
-        <p role="alert" className="text-destructive">
-          The records could not be loaded. Please reload the page.
-        </p>
+        <Alert variant="destructive" role="alert">
+          <AlertDescription>The records could not be loaded. Please reload the page.</AlertDescription>
+        </Alert>
       ) : records.length === 0 ? (
         <EmptyState
           title="No leave records yet"
           text="Your records will appear here after you submit a request."
-          action={<ButtonLink href="/requests/new">New request</ButtonLink>}
+          action={newRequest}
         />
       ) : (
         <>
-          <div className="grid grid-cols-4 gap-3.5">
-            {STATS.map((s) => (
-              <Card key={s.label} as="div" className="flex flex-col gap-1.5 px-4.5 py-4">
-                <div className="flex items-center gap-2 text-[13px] text-muted-foreground">
-                  <span aria-hidden="true" className={`size-2 rounded-full ${STATUS_DOT[s.statuses[0]]}`} />
-                  {s.label}
-                </div>
-                <div className="text-[26px] font-semibold tracking-tight">{count(s.statuses)}</div>
-              </Card>
-            ))}
-          </div>
-
-          <nav aria-label="Filter by status" className="flex flex-wrap gap-1 border-b border-border">
+          <nav aria-label="Filter by status" className="flex flex-wrap gap-1.5">
             {TABS.map((t) => {
               const active = t.id === tab.id;
               return (
@@ -170,102 +167,111 @@ export default async function MyRequestsPage({ searchParams }: PageProps<"/reque
                   key={t.id}
                   href={t.id === "all" ? "/requests" : `/requests?status=${t.id}`}
                   aria-current={active ? "page" : undefined}
-                  className={`-mb-px inline-flex items-center gap-2 border-b-2 px-3 py-2.5 ${
-                    active ? "border-primary font-semibold text-foreground" : "border-transparent font-medium text-muted-foreground hover:text-foreground"
-                  }`}
+                  className={buttonVariants({
+                    variant: "ghost",
+                    size: "sm",
+                    className: cn(active && "bg-sidebar-accent text-sidebar-accent-foreground hover:bg-sidebar-accent"),
+                  })}
                 >
                   {t.label}
-                  <span
-                    className={`rounded-full px-1.75 text-xs ${active ? "bg-accent text-primary" : "bg-muted text-foreground"}`}
-                  >
-                    {count(t.statuses)}
-                  </span>
+                  <span className="text-xs tabular-nums text-muted-foreground">{count(t.statuses)}</span>
                 </Link>
               );
             })}
           </nav>
 
-          {groups.size === 0 ? (
+          {months.size === 0 ? (
             <EmptyState title="No records here" text="Records with this status will appear here." />
           ) : (
-            <div className="flex flex-col gap-4">
-              {[...groups.entries()].map(([requestId, items]) => (
-                <Card key={requestId} className="overflow-hidden">
-                  <header
-                    id={`request-${requestId}`}
-                    className="flex flex-wrap items-center gap-3 border-b border-border bg-muted px-5 py-3.5"
-                  >
-                    <LeaveTypeTag type={items[0].leave_type ?? ""} />
-                    <span className="text-muted-foreground">Submitted {formatKyivDay(items[0].created_at!)}</span>
-                    {items[0].employee_comment && (
-                      <p className="w-full break-words whitespace-pre-line text-foreground">
-                        <span className="text-muted-foreground">Comment: </span>
-                        {items[0].employee_comment}
-                      </p>
-                    )}
-                  </header>
-                  <table aria-labelledby={`request-${requestId}`} className="w-full border-collapse text-left">
-                    <thead>
-                      <tr className="text-xs text-muted-foreground">
-                        <th className="w-32 px-5 py-2.5 font-medium">Date</th>
-                        <th className="w-36 px-3 py-2.5 font-medium">Hours</th>
-                        <th className="px-3 py-2.5 font-medium">Position</th>
-                        <th className="w-44 px-3 py-2.5 font-medium">Status</th>
-                        <th className="w-44 px-3 py-2.5 font-medium">History</th>
-                        <th className="px-5 py-2.5 text-right font-medium">
-                          <span className="sr-only">Actions</span>
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {items.map((r) => (
-                        <Fragment key={r.id}>
-                          <tr data-testid="leave-record" className="border-t border-border align-top">
-                            <td className="px-5 py-3.5">
-                              <div className="font-medium">{r.date}</div>
-                              <div className="text-xs text-muted-foreground">{weekdayName(r.date!)}</div>
-                            </td>
-                            <td className="px-3 py-3.5">
-                              <div className="font-mono text-[13px]">{formatRange(r.start_min!, r.end_min!)}</div>
-                              <div className="text-xs text-muted-foreground">{formatDuration(r.minutes!)}</div>
-                            </td>
-                            <td className="px-3 py-3.5">
-                              <div>{positionLabel(r.division_name ?? "", r.position_title ?? "")}</div>
-                              <RecordSplit record={r} />
-                            </td>
-                            <td className="px-3 py-3.5">
-                              <StatusBadge status={r.status as RecordStatus} />
-                            </td>
-                            <td className="px-3 py-3.5">
-                              <RecordHistory history={histories ? (histories.get(r.id!) ?? []) : null} />
-                            </td>
-                            <td className="px-5 py-2">
-                              <RecordActions
-                                recordId={r.id!}
-                                label={`${r.date} ${formatRange(r.start_min!, r.end_min!)}`}
-                                actions={employeeActions(r.status as RecordStatus)}
-                                start={r.start_min!}
-                                end={r.end_min!}
-                                schedule={scheduleOf(r.position_id!, r.date!)}
-                              />
-                            </td>
-                          </tr>
-                          {r.manager_comment && (
-                            <tr data-testid="manager-comment">
-                              <td colSpan={6} className="px-5 pb-3.5">
-                                <p className="break-words whitespace-pre-line rounded-lg border border-border bg-muted px-3 py-2 text-[13px] text-foreground">
-                                  <span className="font-medium text-foreground">Manager comment: </span>
-                                  {r.manager_comment}
-                                </p>
-                              </td>
-                            </tr>
-                          )}
-                        </Fragment>
-                      ))}
-                    </tbody>
-                  </table>
-                </Card>
-              ))}
+            <div className="overflow-x-auto rounded-lg border border-border bg-card shadow-sm">
+              <Table>
+                <TableHeader className="bg-muted">
+                  <TableRow className="hover:bg-transparent">
+                    <TableHead>Date</TableHead>
+                    <TableHead>Position</TableHead>
+                    <TableHead>Hours</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="w-px">
+                      <span className="sr-only">Actions</span>
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                {[...months.entries()].map(([month, items]) => (
+                  // Кожен місяць — окрема група рядків із заголовком, щоб зчитувач екрана пов'язав дату з місяцем.
+                  <TableBody key={month}>
+                    <TableRow className="border-t hover:bg-transparent">
+                      <TableHead scope="rowgroup" colSpan={6} className="h-auto bg-background py-2">
+                        {formatMonth(month)}
+                      </TableHead>
+                    </TableRow>
+                    {items.map((r) => {
+                      const blocks = blocksOf(r.position_id!, r.date!);
+                      const dayStart = blocks.length ? Math.min(...blocks.map((b) => b.start)) : r.start_min!;
+                      const dayEnd = blocks.length ? Math.max(...blocks.map((b) => b.end)) : r.end_min!;
+                      const range = formatRange(r.start_min!, r.end_min!);
+                      const wholeDay = blocks.length > 0 && r.start_min === dayStart && r.end_min === dayEnd;
+                      const split = splitOf(r);
+                      const type = r.leave_type && isLeaveType(r.leave_type) ? LEAVE_TYPES[r.leave_type] : "";
+                      const position = positionLabel(r.division_name ?? "", r.position_title ?? "");
+                      return (
+                        <TableRow
+                          key={r.id}
+                          data-testid="leave-record"
+                          className={cn(r.request_id === newest && "animate-row-flash")}
+                        >
+                          <TableCell className="whitespace-nowrap tabular-nums">{dayLabel(r.date!)}</TableCell>
+                          <TableCell className="whitespace-nowrap">{position}</TableCell>
+                          <TableCell>
+                            <HoursBar
+                              start={r.start_min!}
+                              end={r.end_min!}
+                              dayStart={dayStart}
+                              dayEnd={dayEnd}
+                              label={wholeDay ? `Whole day · ${range}` : range}
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <LeaveTypeTag type={r.leave_type ?? ""} variant="inline" />
+                            {split && <span className="mt-1 block text-xs tabular-nums text-muted-foreground">{split}</span>}
+                          </TableCell>
+                          <TableCell>
+                            <StatusBadge status={r.status as RecordStatus} />
+                            {r.manager_comment && (
+                              <span
+                                data-testid="manager-comment"
+                                className="mt-1 block max-w-64 break-words whitespace-pre-line text-xs text-muted-foreground"
+                              >
+                                Manager: “{r.manager_comment}”
+                              </span>
+                            )}
+                          </TableCell>
+                          <TableCell className="w-px align-top">
+                            <RecordActions
+                              recordId={r.id!}
+                              label={`${r.date} ${range}`}
+                              actions={employeeActions(r.status as RecordStatus)}
+                              start={r.start_min!}
+                              end={r.end_min!}
+                              schedule={scheduleOf(r.position_id!, r.date!)}
+                              details={{
+                                date: formatDateLong(r.date!),
+                                hours: range,
+                                meta: type ? `${position} · ${type}` : position,
+                                status: r.status as RecordStatus,
+                                employeeComment: r.employee_comment,
+                                managerComment: r.manager_comment,
+                                split,
+                              }}
+                              history={histories ? (histories.get(r.id!) ?? []) : null}
+                            />
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                ))}
+              </Table>
             </div>
           )}
         </>
@@ -274,21 +280,15 @@ export default async function MyRequestsPage({ searchParams }: PageProps<"/reque
   );
 }
 
-/** Під посадою: розподіл погодженого запису (AC-BALANCE-18, AC-BALANCE-19). */
-function RecordSplit({
-  record: r,
-}: {
-  record: {
-    status: string | null;
-    leave_type: string | null;
-    paid_days: number | null;
-    unpaid_days: number | null;
-  };
-}) {
+/** Розподіл погодженого запису (AC-BALANCE-18, AC-BALANCE-19) — завжди текстом. */
+function splitOf(r: {
+  status: string | null;
+  leave_type: string | null;
+  paid_days: number | null;
+  unpaid_days: number | null;
+}): string | null {
   const unpaid = r.unpaid_days == null ? 0 : daysToHundredths(r.unpaid_days);
-  const split =
-    r.status === "approved" && unpaid > 0 && r.leave_type && isLimitedType(r.leave_type)
-      ? formatSplit(r.leave_type, daysToHundredths(r.paid_days ?? 0), unpaid)
-      : null;
-  return split && <div className="mt-1 text-[13px] text-foreground">Split: {split}</div>;
+  return r.status === "approved" && unpaid > 0 && r.leave_type && isLimitedType(r.leave_type)
+    ? formatSplit(r.leave_type, daysToHundredths(r.paid_days ?? 0), unpaid)
+    : null;
 }

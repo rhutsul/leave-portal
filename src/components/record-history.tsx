@@ -18,7 +18,8 @@ export function groupHistories(rows: readonly (HistoryRow & { record_id: number 
   return byRecord;
 }
 
-export function RecordHistory({ history }: { history: readonly HistoryRow[] | null }) {
+/** `collapsed` — у рядку списку історія ховається під «History»; у деталях запису — відкритий список. */
+export function RecordHistory({ history, collapsed = true }: { history: readonly HistoryRow[] | null; collapsed?: boolean }) {
   if (history === null) {
     return (
       <p role="alert" className="text-[13px] text-destructive">
@@ -26,15 +27,13 @@ export function RecordHistory({ history }: { history: readonly HistoryRow[] | nu
       </p>
     );
   }
-  return (
-    <details className="text-[13px]">
-      <summary className="cursor-pointer font-medium text-primary">History</summary>
-      <ol className="mt-2 flex flex-col gap-1 text-foreground">
+  const list = (
+      <ol className={collapsed ? "mt-2 flex flex-col gap-1 text-foreground" : "flex flex-col gap-1.5 text-foreground"}>
         {history.map((h, i) => {
           const line = historyLine({ createdAt: h.created_at, action: h.action, actorName: h.actor_name, comment: h.comment });
           return (
             <li key={i}>
-              <span className="font-mono">{line.at}</span> · {line.who} · <span className="font-medium">{line.what}</span>
+              <span className="tabular-nums">{line.at}</span> · {line.who} · <span className="font-medium">{line.what}</span>
               {/* У «Hours changed» коментар — попередні й нові години від бази, а не слова людини: без лапок. */}
               {h.comment && (
                 <span className="block break-words whitespace-pre-line text-muted-foreground">
@@ -45,6 +44,12 @@ export function RecordHistory({ history }: { history: readonly HistoryRow[] | nu
           );
         })}
       </ol>
+  );
+  if (!collapsed) return <div className="text-[13px]">{list}</div>;
+  return (
+    <details className="text-[13px]">
+      <summary className="cursor-pointer font-medium text-primary">History</summary>
+      {list}
     </details>
   );
 }

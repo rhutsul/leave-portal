@@ -28,8 +28,8 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
         awaiting={awaiting ?? 0}
         canDecide={profile?.role === "manager" || profile?.role === "admin"}
       />
-      <main className="min-w-0 flex-1 px-10 pt-8 pb-12">
-        <div className="mx-auto flex max-w-270 flex-col gap-6">{children}</div>
+      <main className="min-w-0 flex-1 px-8 pt-8 pb-12">
+        <div className="mx-auto flex max-w-[1220px] flex-col gap-6">{children}</div>
       </main>
     </div>
   );
