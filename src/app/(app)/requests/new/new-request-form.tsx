@@ -4,7 +4,7 @@ import { useActionState, useId, useReducer, useState, type FormEvent, type React
 import { Banknote, Check, ChevronLeft, ChevronRight, CircleAlert, Gift, HeartPulse, Info, TriangleAlert, UserRound, X } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { CalendarDay, CalendarLegend, type DayState } from "@/components/ui/calendar-day";
+import { CalendarDay, CalendarLegend } from "@/components/ui/calendar-day";
 import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { FieldError } from "@/components/ui/field-error";
@@ -58,6 +58,7 @@ import {
 } from "@/lib/leave/time";
 import { cn } from "@/lib/utils";
 import { submitLeaveRequest, type SubmitState } from "./actions";
+import { calendarDay } from "./calendar-view";
 
 // Кроки без номерів у заголовках (DESIGN.md): лише назви; пройдений крок — з галочкою.
 const STEPS = ["Dates", "Positions & hours", "Leave type", "Summary"] as const;
@@ -571,8 +572,6 @@ function DateCalendar({
   onMonth: (delta: number) => void;
   onPick: (date: string) => void;
 }) {
-  const stateOf = (date: string): DayState =>
-    selected.includes(date) ? "selected" : !works(date) ? "off" : recordDates.includes(date) ? "record" : "free";
   return (
     <div className="flex w-84 shrink-0 flex-col gap-2.5">
       <div className="flex items-center justify-between">
@@ -594,14 +593,14 @@ function DateCalendar({
         ))}
         {monthGrid(month).map((date, i) => {
           if (!date) return <div key={`blank-${i}`} />;
-          const state = stateOf(date);
+          const { state, label } = calendarDay(date, { selected, recordDates, works: works(date) });
           return (
             <CalendarDay
               key={date}
               day={Number(date.slice(8))}
               state={state}
               onClick={() => onPick(date)}
-              aria-label={`${formatDateLong(date)}${state === "off" ? ", no working hours" : state === "record" ? ", you already have a record" : ""}`}
+              aria-label={label}
               className={cn(date === today && state !== "selected" && "underline underline-offset-4")}
             />
           );
