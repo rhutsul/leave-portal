@@ -3,7 +3,8 @@ import { cn } from "@/lib/utils";
 
 /**
  * Стан дня в календарі заявки (DESIGN.md, розділ 6):
- * selected — вибрано; record — уже є запис; closed — закрито школою; off — немає робочих годин; free — можна вибрати.
+ * selected — вибрано; record — уже є запис; closed — закрито школою (не вибирається); off — немає робочих годин;
+ * free — можна вибрати. День off лишається кнопкою: натискання показує повідомлення з AC-LEAVE-06, а не мовчить.
  */
 export type DayState = "free" | "selected" | "record" | "closed" | "off";
 
@@ -13,7 +14,7 @@ const DAY: Record<DayState, string> = {
   record: "bg-status-awaiting text-status-awaiting-foreground hover:border-status-awaiting-foreground",
   closed:
     "cursor-not-allowed text-muted-foreground line-through bg-[repeating-linear-gradient(135deg,var(--muted)_0_3px,var(--border)_3px_5px)]",
-  off: "cursor-not-allowed text-muted-foreground/60",
+  off: "text-muted-foreground/60 hover:bg-muted",
 };
 
 export function CalendarDay({
@@ -22,7 +23,7 @@ export function CalendarDay({
   className,
   ...props
 }: { day: number; state: DayState } & Omit<ButtonHTMLAttributes<HTMLButtonElement>, "children">) {
-  const unavailable = state === "closed" || state === "off";
+  const unavailable = state === "closed";
   return (
     <button
       type="button"
