@@ -15,16 +15,12 @@ export function recordHref(tab: DecisionsTab, id: number): string {
 }
 
 /**
- * Запис для панелі праворуч. Без `record` у посиланні — перший запис вкладки. Запис, якого немає серед записів
+ * Запис для панелі справа. Без `record` у посиланні панель закрита — лише список. Запис, якого немає серед записів
  * користувача (public.decision_records дає лише записи його посад, адміністратору — усі), — відмова без даних:
  * чужий він чи його немає зовсім, не розрізняємо (AC-DECIDE-08, AC-DECIDE-09).
  */
-export function pickRecord<T extends { id: number }>(
-  records: readonly T[],
-  shown: readonly T[],
-  param: string | undefined,
-): { record: T | null; denied: boolean } {
-  if (param === undefined) return { record: shown[0] ?? null, denied: false };
+export function pickRecord<T extends { id: number }>(records: readonly T[], param: string | undefined): { record: T | null; denied: boolean } {
+  if (param === undefined) return { record: null, denied: false };
   const id = /^\d+$/.test(param) ? Number(param) : NaN;
   const record = records.find((r) => r.id === id) ?? null;
   return { record, denied: record === null };
@@ -46,4 +42,14 @@ export function decidedNotice(status: RecordStatus): string | null {
 export function decisionErrorPlacement(message: string): "field" | "form" | null {
   if (!message) return null;
   return message === DECISION_MESSAGES.returnComment || message === DECISION_MESSAGES.commentTooLong ? "field" : "form";
+}
+
+/** Сусіди запису в показаному списку — для «Previous / Next» у панелі; поза списком (History ↔ Awaiting) — немає. */
+export function neighbours<T extends { id: number }>(
+  shown: readonly T[],
+  id: number,
+): { index: number; prev: T | null; next: T | null } {
+  const index = shown.findIndex((r) => r.id === id);
+  if (index < 0) return { index, prev: null, next: null };
+  return { index, prev: shown[index - 1] ?? null, next: shown[index + 1] ?? null };
 }
