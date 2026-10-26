@@ -68,7 +68,12 @@ export default async function DecisionsPage({ searchParams }: PageProps<"/decisi
   const claims = data?.claims;
   if (!claims) redirect("/login");
 
-  const { data: profile } = await supabase.from("profiles").select("role").eq("id", claims.sub).maybeSingle();
+  // Роль і записи — одночасно: decision_records сам повертає лише записи посад, якими користувач керує (адміністратору —
+  // усі), а без ролі manager чи admin рядки нижче не використовуються. Сторінка чекає бази один раз замість двох.
+  const [{ data: profile }, { data: rows, error }] = await Promise.all([
+    supabase.from("profiles").select("role").eq("id", claims.sub).maybeSingle(),
+    supabase.rpc("decision_records"),
+  ]);
   if (profile?.role !== "manager" && profile?.role !== "admin") {
     // Відмова в доступі — пояснення й посилання на головну, без даних (DESIGN.md, розділ 6).
     return (
@@ -92,7 +97,6 @@ export default async function DecisionsPage({ searchParams }: PageProps<"/decisi
   const tab = decisionsTab(first(params.tab));
   const decided = first(params.decided);
 
-  const { data: rows, error } = await supabase.rpc("decision_records");
   const records = (rows ?? []).filter((r) => isRecordStatus(r.status));
   const awaiting = records.filter((r) => r.status === "awaiting");
   const history = records

@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { ChartColumn, ClipboardCheck, House, List, Plus } from "lucide-react";
@@ -13,6 +13,24 @@ const LINKS: { href: string; label: string; icon: ReactNode; deciders?: true }[]
   { href: "/decisions", label: "Decisions", icon: <ClipboardCheck />, deciders: true },
   { href: "/balances", label: "Balances", icon: <ChartColumn /> },
 ];
+
+/**
+ * Іконка пункту, а поки перехід на його сторінку ще чекає сервера — спінер на її місці (useLinkStatus). Спінер
+ * з'являється лише через 100 ms, щоб швидкий перехід не блимав; розмір той самий, тож рядок не зсувається.
+ */
+function NavIcon({ icon }: { icon: ReactNode }) {
+  const { pending } = useLinkStatus();
+  return (
+    <span className="relative grid size-4 shrink-0 place-items-center">
+      <span className={cn("contents", pending && "*:animate-pending-out")}>{icon}</span>
+      {pending && (
+        <span aria-hidden="true" className="absolute inset-0.5 animate-pending-in">
+          <span className="block size-full rounded-full border-2 border-current border-r-transparent motion-safe:animate-spin" />
+        </span>
+      )}
+    </span>
+  );
+}
 
 /**
  * canDecide — роль manager чи admin: лише їм пункт «Decisions» (матриця прав requirements/product.md). Лічильники:
@@ -38,7 +56,7 @@ export function SidebarNav({ awaiting, toDecide, canDecide }: { awaiting: number
                 : "text-sidebar-foreground hover:bg-accent hover:text-accent-foreground",
             )}
           >
-            {icon}
+            <NavIcon icon={icon} />
             {label}
             {href === "/requests" && awaiting > 0 && (
               <span className="ml-auto grid h-5 min-w-5 place-items-center rounded-full bg-status-awaiting px-1.5 text-[11px] font-semibold tabular-nums text-status-awaiting-foreground">
