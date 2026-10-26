@@ -115,13 +115,9 @@ export function DecisionForm({
         {placement === "field" && <FieldError id={errorId} message={state.message} />}
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        <Button type="button" className="flex-1" disabled={pending} onClick={() => ask("approve")}>
-          {split ? "Approve with split" : "Approve"}
-        </Button>
-        <SubmitButton variant="outline" name="decision" value="return" pendingLabel="Returning…">
-          Return for revision
-        </SubmitButton>
+      {/* Одна висота й одна вага для трьох дій: дві другорядні — outline ліворуч (Reject лише червоним текстом, бо
+          червона кнопка — у підтвердженні), основна Approve — праворуч, як у діалогах (DESIGN.md, розділ 5). */}
+      <div className="flex flex-wrap items-center gap-2 border-t border-border pt-4">
         <Button
           type="button"
           variant="outline"
@@ -130,6 +126,12 @@ export function DecisionForm({
           onClick={() => ask("reject")}
         >
           Reject
+        </Button>
+        <SubmitButton variant="outline" name="decision" value="return" pendingLabel="Returning…">
+          Return for revision
+        </SubmitButton>
+        <Button type="button" className="ml-auto min-w-28" disabled={pending} onClick={() => ask("approve")}>
+          {split ? "Approve with split" : "Approve"}
         </Button>
       </div>
 

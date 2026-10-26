@@ -28,6 +28,15 @@ import { PageHeader } from "@/components/ui/page-header";
 import { RecordSummary } from "@/components/ui/record-summary";
 import { RowMenu } from "@/components/ui/row-menu";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Sheet,
+  SheetBody,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -389,6 +398,25 @@ export default async function DesignPage() {
             <AlertDescription>2 records were created for Tue 3 Nov: one for each of your positions.</AlertDescription>
           </Alert>
         </div>
+      </Section>
+
+      <Section title="Sheet">
+        {/* Робоча панель справа (Decisions): шапка, тіло, що прокручується; Esc чи клік повз закривають. */}
+        <Sheet>
+          <SheetTrigger render={<Button variant="outline" className="self-start" />}>Open a sheet</SheetTrigger>
+          <SheetContent>
+            <SheetHeader>
+              <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
+                <SheetTitle>Employee name</SheetTitle>
+                <StatusBadge status="awaiting" />
+              </div>
+              <SheetDescription>teacher1@example.test</SheetDescription>
+            </SheetHeader>
+            <SheetBody>
+              <RecordSummary date="Tue, 3 Nov 2026" hours="08:30–12:00" meta="Elementary school / Teacher · Sick leave · 3 h 30 min" />
+            </SheetBody>
+          </SheetContent>
+        </Sheet>
       </Section>
 
       <Section title="Summary, dialog, empty and loading states">

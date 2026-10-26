@@ -4,7 +4,6 @@ import { ChevronRight, CircleAlert, CircleCheck, ClipboardCheck, Info, ShieldX, 
 import { groupHistories, type HistoryRow, RecordHistory } from "@/components/record-history";
 import { Alert, AlertAction, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { buttonVariants } from "@/components/ui/button";
-import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LeaveTypeTag } from "@/components/ui/leave-type-tag";
 import { PageHeader } from "@/components/ui/page-header";
@@ -34,7 +33,8 @@ import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/server";
 import type { Database } from "@/lib/supabase/database.types";
 import { DecisionForm } from "./decision-form";
-import { decidedNotice, decisionsTab, pickRecord, recordHref, type DecisionsTab } from "./decisions-view";
+import { decidedNotice, decisionsTab, neighbours, pickRecord, recordHref, type DecisionsTab } from "./decisions-view";
+import { RecordSheet } from "./record-sheet";
 
 type DecisionRow = Database["public"]["Functions"]["decision_records"]["Returns"][number];
 
@@ -103,7 +103,9 @@ export default async function DecisionsPage({ searchParams }: PageProps<"/decisi
     .filter((r) => DECIDED.includes(r.status as RecordStatus))
     .sort((a, b) => (b.decided_at ?? "").localeCompare(a.decided_at ?? ""));
   const shown = tab === "awaiting" ? awaiting : history;
-  const { record: selected, denied } = pickRecord(records, shown, first(params.record));
+  const { record: selected, denied } = pickRecord(records, first(params.record));
+  const listHref = TABS.find((t) => t.id === tab)!.href;
+  const around = selected ? neighbours(shown, selected.id) : null;
 
   // Історія вибраного запису з іменами (public.record_histories) і, якщо його можна вирішити, залишок на цей момент
   // (public.decision_balance) — той самий, за яким decide_leave_record порахує розподіл (AC-BALANCE-14).
@@ -177,7 +179,7 @@ export default async function DecisionsPage({ searchParams }: PageProps<"/decisi
           <AlertDescription>The records could not be loaded. Please reload the page.</AlertDescription>
         </Alert>
       ) : (
-        <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_340px] xl:grid-cols-[minmax(0,1fr)_380px]">
+        <>
           {shown.length === 0 ? (
             tab === "awaiting" ? (
               <EmptyState
@@ -192,35 +194,41 @@ export default async function DecisionsPage({ searchParams }: PageProps<"/decisi
             <RecordTable tab={tab} records={shown} selectedId={selected?.id ?? null} />
           )}
 
-          {(selected || denied) && (
-            // Панель, вища за вікно, прокручується сама: кнопки рішення не ховаються під довгим списком.
-            <aside
-              aria-label="Selected record"
-              className="lg:sticky lg:top-8 lg:max-h-[calc(100vh-4rem)] lg:overflow-y-auto lg:rounded-lg"
+          {selected && (
+            <RecordSheet
+              title={selected.employee_name || selected.employee_email}
+              description={selected.employee_email}
+              badge={<StatusBadge status={selected.status as RecordStatus} />}
+              position={around && around.index >= 0 ? `${around.index + 1} of ${shown.length}` : null}
+              closeHref={listHref}
+              prevHref={around?.prev ? recordHref(tab, around.prev.id) : null}
+              nextHref={around?.next ? recordHref(tab, around.next.id) : null}
             >
-              {selected ? (
-                <RecordPanel
-                  record={selected}
-                  history={selectedHistory}
-                  balance={balance}
-                  notice={first(params.notice) === "decided" ? decidedNotice(selected.status as RecordStatus) : null}
-                />
-              ) : (
-                <EmptyState
-                  icon={<ShieldX className="size-5" aria-hidden="true" />}
-                  titleAs="h2"
-                  title={DECISION_MESSAGES.noAccess}
-                  text="This record is not in your lists."
-                  action={
-                    <Link href={TABS.find((t) => t.id === tab)!.href} className={buttonVariants({ variant: "outline" })}>
-                      Back to the list
-                    </Link>
-                  }
-                />
-              )}
-            </aside>
+              <RecordPanel
+                record={selected}
+                history={selectedHistory}
+                balance={balance}
+                notice={first(params.notice) === "decided" ? decidedNotice(selected.status as RecordStatus) : null}
+              />
+            </RecordSheet>
           )}
-        </div>
+          {denied && (
+            // Відмова — без даних запису: чужий він чи його немає зовсім, не розрізняємо (AC-DECIDE-08, AC-DECIDE-09).
+            <RecordSheet title="Record not available" position={null} closeHref={listHref} prevHref={null} nextHref={null}>
+              <EmptyState
+                icon={<ShieldX className="size-5" aria-hidden="true" />}
+                titleAs="h2"
+                title={DECISION_MESSAGES.noAccess}
+                text="This record is not in your lists."
+                action={
+                  <Link href={listHref} className={buttonVariants({ variant: "outline" })}>
+                    Back to the list
+                  </Link>
+                }
+              />
+            </RecordSheet>
+          )}
+        </>
       )}
     </>
   );
@@ -337,19 +345,9 @@ function RecordPanel({
   const warning = balance && balance !== "error" ? balance.warning : null;
   const summary = { date: formatDateLong(r.date), hours: range, meta: recordMeta(r) };
 
+  // Ім'я, email і статус — у шапці панелі (RecordSheet); тут — сам запис, рішення й історія.
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>
-          <h2>{r.employee_name || r.employee_email}</h2>
-        </CardTitle>
-        <CardDescription className="truncate">{r.employee_email}</CardDescription>
-        <CardAction>
-          <StatusBadge status={status} />
-        </CardAction>
-      </CardHeader>
-
-      <CardContent className="flex flex-col gap-4">
+    <div className="flex flex-col gap-4">
         {notice && (
           <Alert variant="destructive" role="alert">
             <CircleAlert />
@@ -438,7 +436,6 @@ function RecordPanel({
           <h3 className="text-[13px] font-medium text-muted-foreground">History</h3>
           <RecordHistory history={history} collapsed={false} />
         </section>
-      </CardContent>
-    </Card>
+    </div>
   );
 }
