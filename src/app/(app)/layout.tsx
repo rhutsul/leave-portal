@@ -1,5 +1,7 @@
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { Sidebar } from "@/components/sidebar";
+import { isSidebarCollapsed, parseTheme, SIDEBAR_COOKIE, THEME_COOKIE } from "@/lib/preferences";
 import { createClient } from "@/lib/supabase/server";
 
 // Спільна оболонка сторінок після входу: бічне меню й вміст. /login — поза цією групою.
@@ -28,6 +30,8 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
   const canDecide = profile?.role === "manager" || profile?.role === "admin";
   const toDecide = canDecide ? decidable : 0;
   const email = profile?.email ?? claims.email ?? "";
+  // Тема й згорнута панель — з cookie (ADR 0005), щоб перша відповідь сервера вже була в потрібному вигляді.
+  const cookieStore = await cookies();
 
   return (
     <div className="flex min-h-full flex-1 bg-background text-sm text-foreground">
@@ -37,6 +41,8 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
         awaiting={awaiting ?? 0}
         toDecide={toDecide ?? 0}
         canDecide={canDecide}
+        theme={parseTheme(cookieStore.get(THEME_COOKIE)?.value)}
+        initialCollapsed={isSidebarCollapsed(cookieStore.get(SIDEBAR_COOKIE)?.value)}
       />
       <main className="min-w-0 flex-1 px-8 pt-8 pb-12">
         <div className="mx-auto flex max-w-[1220px] flex-col gap-6">{children}</div>

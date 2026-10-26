@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import type { ReactNode } from "react";
 import { Ban, CalendarDays, CircleAlert, Clock, Eye, Info, RotateCcw, SearchX, ShieldX, TriangleAlert, X } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -22,6 +23,7 @@ import { HoursBar } from "@/components/ui/hours-bar";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { LeaveTypeTag } from "@/components/ui/leave-type-tag";
+import { Logo } from "@/components/ui/logo";
 import { PageHeader } from "@/components/ui/page-header";
 import { RecordSummary } from "@/components/ui/record-summary";
 import { RowMenu } from "@/components/ui/row-menu";
@@ -30,8 +32,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
+import { ThemeMenu } from "@/components/ui/theme-menu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { LEAVE_TYPES } from "@/lib/leave/request";
+import { parseTheme, THEME_COOKIE } from "@/lib/preferences";
 
 export const metadata: Metadata = { title: "Design system · Leave portal" };
 
@@ -94,13 +98,27 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
   );
 }
 
-export default function DesignPage() {
+export default async function DesignPage() {
+  const theme = parseTheme((await cookies()).get(THEME_COOKIE)?.value);
   return (
     <>
       <PageHeader
         title="Design system"
-        description="Tokens and components from DESIGN.md. Switch the system theme to check dark mode."
+        description="Tokens and components from DESIGN.md. Check every change in both themes with the theme menu."
       />
+
+      <Section title="Logo and theme">
+        <div className="flex flex-wrap items-end gap-6">
+          <Logo className="size-16 rounded-xl" />
+          <Logo className="size-8 rounded-md" />
+          <div className="flex items-center gap-2.5 text-[15px] font-semibold">
+            <Logo />
+            Leave Portal
+          </div>
+          {/* Справжній перемикач: вибір тут змінює тему всього застосунку. */}
+          <ThemeMenu initial={theme} align="start" />
+        </div>
+      </Section>
 
       <Section title="Colours">
         <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-2">

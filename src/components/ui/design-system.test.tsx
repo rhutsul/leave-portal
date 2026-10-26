@@ -1,6 +1,8 @@
+import { readFileSync } from "node:fs";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { LEAVE_TYPES, RECORD_STATUSES, type LeaveType, type RecordStatus } from "@/lib/leave/request";
+import { parseTheme, themeAttribute } from "@/lib/preferences";
 import { Button } from "./button";
 import { CalendarDay } from "./calendar-day";
 import { DialogFooter } from "./dialog";
@@ -78,5 +80,39 @@ describe("RowMenu", () => {
     ]);
     expect(safe.map((i) => i.label)).toEqual(["View details", "Change hours"]);
     expect(danger.map((i) => i.label)).toEqual(["Cancel record"]);
+  });
+});
+
+describe("Theme (ADR 0005)", () => {
+  const css = readFileSync(new URL("../../app/globals.css", import.meta.url), "utf8");
+  const declarations = (block: string | undefined) =>
+    (block ?? "")
+      .split("\n")
+      .map((line) => line.trim())
+      .filter((line) => line.startsWith("--") || line.startsWith("color-scheme"));
+
+  it("the system dark theme and the chosen dark theme set the same tokens", () => {
+    const system = css.match(/:root:not\(\[data-theme="light"\]\) \{([^}]*)\}/)?.[1];
+    const chosen = css.match(/:root\[data-theme="dark"\] \{([^}]*)\}/)?.[1];
+    expect(declarations(system).length).toBeGreaterThan(40);
+    expect(declarations(chosen)).toEqual(declarations(system));
+  });
+
+  it("every light token has a dark value", () => {
+    const light = css.match(/^:root \{([^}]*)\}/m)?.[1];
+    const dark = css.match(/:root\[data-theme="dark"\] \{([^}]*)\}/)?.[1];
+    const names = (block: string | undefined) =>
+      declarations(block)
+        .map((d) => d.split(":")[0])
+        .filter((n) => !n.startsWith("--duration"));
+    expect(names(dark)).toEqual(expect.arrayContaining(names(light)));
+  });
+
+  it("only Light and Dark are written to <html>; anything else follows the system", () => {
+    expect(themeAttribute(parseTheme("dark"))).toBe("dark");
+    expect(themeAttribute(parseTheme("light"))).toBe("light");
+    expect(themeAttribute(parseTheme("system"))).toBeUndefined();
+    expect(themeAttribute(parseTheme("purple"))).toBeUndefined();
+    expect(themeAttribute(parseTheme(undefined))).toBeUndefined();
   });
 });

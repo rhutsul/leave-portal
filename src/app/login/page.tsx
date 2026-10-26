@@ -1,10 +1,14 @@
+import { cookies } from "next/headers";
 import { CircleAlert } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { LoginHero } from "@/components/ui/login-hero";
+import { Logo } from "@/components/ui/logo";
 import { SubmitButton } from "@/components/ui/submit-button";
+import { ThemeMenu } from "@/components/ui/theme-menu";
+import { parseTheme, THEME_COOKIE } from "@/lib/preferences";
 import { login } from "./actions";
 
 const ERRORS: Record<string, string> = {
@@ -15,12 +19,17 @@ const ERRORS: Record<string, string> = {
 export default async function LoginPage({ searchParams }: PageProps<"/login">) {
   const { error } = await searchParams;
   const message = typeof error === "string" ? ERRORS[error] : undefined;
+  const theme = parseTheme((await cookies()).get(THEME_COOKIE)?.value);
 
   return (
-    <main className="flex flex-1 flex-col text-sm text-foreground">
+    <main className="relative flex flex-1 flex-col text-sm text-foreground">
+      {/* Тема доступна й до входу (ADR 0005): той самий вибір, та сама cookie. */}
+      <div className="absolute top-4 right-4 z-20">
+        <ThemeMenu initial={theme} />
+      </div>
       <LoginHero>
         <div className="mb-7 flex items-center justify-center gap-2.5 text-base font-semibold">
-          <span aria-hidden="true" className="size-6.5 rounded-sm bg-primary" />
+          <Logo className="size-6.5" />
           Leave Portal
         </div>
         <Card className="gap-5 rounded-xl border-border/80 bg-card/85 px-6 py-6 shadow-lg backdrop-blur-md backdrop-saturate-125">
