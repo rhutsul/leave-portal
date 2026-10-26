@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- Знак Leave Portal (src/components/ui/logo.tsx) у квадраті primary; кольори — токени primary і
+       primary-foreground з DESIGN.md, світла й темна тема за системою (favicon не бачить вибору теми в застосунку). -->
+  <style>
+    .bg { fill: oklch(0.47 0.19 274); }
+    .mark { stroke: oklch(0.99 0.004 274); }
+    @media (prefers-color-scheme: dark) {
+      .bg { fill: oklch(0.72 0.13 274); }
+      .mark { stroke: oklch(0.18 0.035 274); }
+    }
+  </style>
+  <rect class="bg" width="32" height="32" rx="7" />
+  <g class="mark" transform="translate(3.5 3.5) scale(1.04)" fill="none" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M4.5 7A2 2 0 0 1 6.5 5h11a2 2 0 0 1 2 2v8l-5 5h-8a2 2 0 0 1-2-2Z" />
+    <path d="M19.5 15h-3a2 2 0 0 0-2 2v3" />
+    <path d="M8.5 3v4M15.5 3v4M4.5 9.5h15" />
+    <path d="m8.5 14 2 2 3.5-3.5" />
+  </g>
+</svg>

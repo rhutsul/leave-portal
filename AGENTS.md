@@ -158,9 +158,10 @@ shadcn/ui (CLI 4.22.1, Base UI) + `tw-animate-css` + `lucide-react` — диза
   `lucide-react`. Поза `src/components/ui` немає сирих `<button>`, `<input>` (крім `type="hidden"`), `<select>`,
   `<textarea>`, `<table>` — це перевіряє `npm run check:ui` (ADR 0004). Нових кольорів у компонентах не вигадуй і не
   переноси сирі класи чи елементи в `src/components/ui`, щоб сховати їх від перевірки.
-- Новий токен: `DESIGN.md` (таблиця й контраст) → `:root` і `@media (prefers-color-scheme: dark)` у
-  `src/app/globals.css` → `--color-<назва>` у `@theme inline`. Темна тема — лише за системою: без класу `.dark` і без
-  `@custom-variant dark` (після `npx shadcn add` прибери їх, якщо з'явились).
+- Новий токен: `DESIGN.md` (таблиця й контраст) → `:root` і обидва темні блоки в `src/app/globals.css`
+  (`@media (prefers-color-scheme: dark)` і `:root[data-theme="dark"]`) → `--color-<назва>` у `@theme inline`.
+  Тема — Light, Dark або System через cookie `theme` і `data-theme` на `<html>` (ADR 0005); класу `.dark` немає, а
+  `@custom-variant dark` — лише наш, у `globals.css` (після `npx shadcn add` прибери доданий `.dark` і другий варіант).
 - Рух — лише через `--duration-*` і `--ease-*`; `prefers-reduced-motion` вимикає все.
 - Нова сторінка чи стан — спершу вітрина `/design` (чи є потрібний компонент), тексти помилок і порожніх станів —
   дослівно з AC.

@@ -4,6 +4,7 @@ import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { ChartColumn, ClipboardCheck, House, List, Plus } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
 const LINKS: { href: string; label: string; icon: ReactNode; deciders?: true }[] = [
@@ -36,12 +37,41 @@ function NavIcon({ icon }: { icon: ReactNode }) {
   );
 }
 
+/** Лічильник пункту: у розгорнутій панелі — праворуч у рядку, у згорнутій — маленька «пігулка» на іконці. */
+function Counter({ value, label, collapsed, className }: { value: number; label: string; collapsed: boolean; className: string }) {
+  return (
+    <span
+      className={cn(
+        "grid place-items-center rounded-full font-semibold tabular-nums",
+        collapsed
+          ? "absolute top-0.5 left-6 h-4 min-w-4 px-1 text-[11px] leading-none ring-2 ring-sidebar"
+          : "ml-auto h-5 min-w-5 px-1.5 text-[11px]",
+        className,
+      )}
+    >
+      {value}
+      <span className="sr-only"> {label}</span>
+    </span>
+  );
+}
+
 /**
  * canDecide — роль manager чи admin: лише їм пункт «Decisions» (матриця прав requirements/product.md). Лічильники:
  * у «My requests» — власні записи, що чекають рішення; у «Decisions» — ті, що чекають рішення цього користувача
- * (на primary, DESIGN.md, AppNav).
+ * (на primary, DESIGN.md, AppNav). `collapsed` — згорнута панель: лише іконки, назва — у підказці й для зчитувача
+ * екрана (текст лишається в посиланні, лише прозорий), посилання працюють так само.
  */
-export function SidebarNav({ awaiting, toDecide, canDecide }: { awaiting: number; toDecide: number; canDecide: boolean }) {
+export function SidebarNav({
+  awaiting,
+  toDecide,
+  canDecide,
+  collapsed,
+}: {
+  awaiting: number;
+  toDecide: number;
+  canDecide: boolean;
+  collapsed: boolean;
+}) {
   const pathname = usePathname();
 
   return (
@@ -49,32 +79,49 @@ export function SidebarNav({ awaiting, toDecide, canDecide }: { awaiting: number
       {LINKS.filter((l) => !l.deciders || canDecide).map(({ href, label, icon }) => {
         const active = pathname === href;
         return (
-          <Link
-            key={href}
-            href={href}
-            aria-current={active ? "page" : undefined}
-            className={cn(
-              "flex h-9 items-center gap-2.5 rounded-md px-2.5 text-sm font-medium transition-colors duration-(--duration-fast) ease-out [&_svg]:size-4 [&_svg]:shrink-0",
-              active
-                ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                : "text-sidebar-foreground hover:bg-accent hover:text-accent-foreground",
-            )}
-          >
-            <NavIcon icon={icon} />
-            {label}
-            {href === "/requests" && awaiting > 0 && (
-              <span className="ml-auto grid h-5 min-w-5 place-items-center rounded-full bg-status-awaiting px-1.5 text-[11px] font-semibold tabular-nums text-status-awaiting-foreground">
-                {awaiting}
-                <span className="sr-only"> awaiting decision</span>
+          <Tooltip key={href} disabled={!collapsed}>
+            <TooltipTrigger
+              render={
+                <Link
+                  href={href}
+                  aria-current={active ? "page" : undefined}
+                  className={cn(
+                    "relative flex h-9 items-center gap-2.5 rounded-md px-2.5 text-sm font-medium whitespace-nowrap transition-colors duration-(--duration-fast) ease-out [&_svg]:size-4 [&_svg]:shrink-0",
+                    active
+                      ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                      : "text-sidebar-foreground hover:bg-accent hover:text-accent-foreground",
+                  )}
+                />
+              }
+            >
+              <NavIcon icon={icon} />
+              <span
+                className={cn(
+                  "transition-opacity duration-(--duration-fast) ease-out",
+                  collapsed && "pointer-events-none opacity-0",
+                )}
+              >
+                {label}
               </span>
-            )}
-            {href === "/decisions" && toDecide > 0 && (
-              <span className="ml-auto grid h-5 min-w-5 place-items-center rounded-full bg-primary px-1.5 text-[11px] font-semibold tabular-nums text-primary-foreground">
-                {toDecide}
-                <span className="sr-only"> awaiting your decision</span>
-              </span>
-            )}
-          </Link>
+              {href === "/requests" && awaiting > 0 && (
+                <Counter
+                  value={awaiting}
+                  label="awaiting decision"
+                  collapsed={collapsed}
+                  className="bg-status-awaiting text-status-awaiting-foreground"
+                />
+              )}
+              {href === "/decisions" && toDecide > 0 && (
+                <Counter
+                  value={toDecide}
+                  label="awaiting your decision"
+                  collapsed={collapsed}
+                  className="bg-primary text-primary-foreground"
+                />
+              )}
+            </TooltipTrigger>
+            <TooltipContent side="right">{label}</TooltipContent>
+          </Tooltip>
         );
       })}
     </nav>
