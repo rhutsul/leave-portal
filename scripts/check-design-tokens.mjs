@@ -9,14 +9,24 @@
 //      наприклад { label: "На розгляді", color: "bg-status-pending text-status-pending-foreground" }, — не порушення.
 // Виняток — коментар `design-ok: <причина>` у тому самому рядку.
 // Використання: node scripts/check-design-tokens.mjs [--root <dir>] [--json]
-// Код виходу: 0 — порушень немає, 1 — є порушення, 2 — немає чого перевіряти (ні src/, ні app/, components/, lib/).
+// Код виходу: 0 — порушень немає, 1 — є порушення, 2 — немає чого перевіряти (ні src/, ні app/, components/, lib/),
+// --root без шляху або тека, яку не вдалося прочитати.
+// Взято з koldovsky/2026-quitcode-07-fullstack-hw/materials/scripts (7b9d783); змінено після рев'ю PR #19: код 2 для
+// --root без шляху й неповного обходу тек.
 
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative, sep } from "node:path";
 
+const fail = (message) => {
+  console.error(`check-design-tokens: ${message}`);
+  process.exit(2);
+};
+
 const args = process.argv.slice(2);
 const rootIdx = args.indexOf("--root");
-const root = rootIdx >= 0 ? args[rootIdx + 1] : process.cwd();
+const rootArg = rootIdx >= 0 ? args[rootIdx + 1] : undefined;
+if (rootIdx >= 0 && (!rootArg || rootArg.startsWith("--"))) fail("після --root вкажіть шлях до кореня проєкту.");
+const root = rootArg ?? process.cwd();
 const asJson = args.includes("--json");
 
 const isDir = (p) => {
@@ -108,17 +118,26 @@ function inlineStyleFindings(text) {
   return byLine;
 }
 
+// Тека, яку не вдалося прочитати, — не «порушень немає»: перевірка неповна.
+const unreadable = (path, error) =>
+  fail(`не вдалося прочитати ${relative(root, path) || "."} (${error.code ?? error.message}) — перевірку не завершено.`);
+
 function walk(dir, out = []) {
   let entries;
   try {
     entries = readdirSync(dir);
-  } catch {
-    return out;
+  } catch (error) {
+    unreadable(dir, error);
   }
   for (const name of entries) {
     if (SKIP_DIRS.has(name)) continue;
     const full = join(dir, name);
-    const st = statSync(full);
+    let st;
+    try {
+      st = statSync(full);
+    } catch (error) {
+      unreadable(full, error);
+    }
     if (st.isDirectory()) walk(full, out);
     else if (EXT.test(name)) out.push(full);
   }
