@@ -24,10 +24,9 @@ import type { EmployeeAction } from "@/lib/leave/decision";
 import type { RecordStatus } from "@/lib/leave/request";
 import { formatTime } from "@/lib/leave/time";
 import { cancelRecord, changeRecordHours, resubmitRecord, type RecordActionState } from "./actions";
+import { errorPlacement, visiblePanel, type Panel } from "./record-actions-view";
 
 const INITIAL: RecordActionState = { message: "", done: false };
-
-type Panel = "details" | "hours" | "cancel";
 
 const DONE_TEXT = { hours: "Hours changed.", resubmit: "Record resubmitted.", cancel: "Record cancelled." } as const;
 
@@ -105,12 +104,8 @@ export function RecordActions({
     if (success) statusRef.current?.focus();
   }, [success, last]);
 
-  // Діалог, якого статус уже не дозволяє (запис тим часом погодили, AC-DECIDE-12), не показуємо.
-  const panel =
-    open === "details" || (open && actions.includes(open === "hours" ? "changeHours" : "cancel")) ? open : null;
-  // Помилку показуємо у відкритому діалозі; без нього — під меню: Resubmit діалогу не має, а діалог зміни годин чи
-  // скасування міг закритися, поки дія йшла (запис тим часом погодили — текст AC-DECIDE-12 не має загубитися).
-  const rowError = panel === null ? error : "";
+  const panel = visiblePanel(open, actions);
+  const { inDialog, underRow: rowError } = errorPlacement(panel, error);
   const show = (next: Panel) => {
     setLast(null);
     if (next === "hours") setHours({ start: formatTime(start), end: formatTime(end) });
@@ -138,10 +133,10 @@ export function RecordActions({
     items.push({ label: "Cancel record", icon: <X />, onSelect: () => show("cancel"), destructive: true });
 
   const summary = <RecordSummary date={details.date} hours={details.hours} meta={details.meta} />;
-  const dialogError = error && !rowError && (
+  const dialogError = inDialog && (
     <Alert variant="destructive" role="alert">
       <CircleAlert />
-      <AlertDescription>{error}</AlertDescription>
+      <AlertDescription>{inDialog}</AlertDescription>
     </Alert>
   );
 
