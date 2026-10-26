@@ -4,12 +4,12 @@ import { cn } from "@/lib/utils";
 /**
  * Стан дня в календарі заявки (DESIGN.md, розділ 6):
  * selected — вибрано; record — уже є запис; closed — закрито школою (не вибирається); off — немає робочих годин;
- * free — можна вибрати. День off лишається кнопкою: натискання показує повідомлення з AC-LEAVE-06, а не мовчить.
+ * free — робочий день, можна вибрати (тонка рамка, щоб відрізнявся від off). День off лишається кнопкою: натискання показує повідомлення з AC-LEAVE-06, а не мовчить.
  */
 export type DayState = "free" | "selected" | "record" | "closed" | "off";
 
 const DAY: Record<DayState, string> = {
-  free: "text-foreground hover:bg-accent hover:text-accent-foreground",
+  free: "border-border text-foreground hover:bg-accent hover:text-accent-foreground",
   selected: "bg-primary text-primary-foreground hover:bg-primary/90",
   record: "bg-status-awaiting text-status-awaiting-foreground hover:border-status-awaiting-foreground",
   closed:
@@ -41,7 +41,8 @@ export function CalendarDay({
   );
 }
 
-const SWATCH: Record<Exclude<DayState, "free">, { className: string; label: string }> = {
+const SWATCH: Record<DayState, { className: string; label: string }> = {
+  free: { className: "border border-border bg-card", label: "Working day" },
   selected: { className: "bg-primary", label: "Selected" },
   record: { className: "bg-status-awaiting ring-1 ring-inset ring-status-awaiting-foreground", label: "You already have a record" },
   closed: {
@@ -53,10 +54,10 @@ const SWATCH: Record<Exclude<DayState, "free">, { className: string; label: stri
 
 /** Легенда станів під календарем; `states` — які з них показувати (наприклад, без closed до зрізу календаря). */
 export function CalendarLegend({
-  states = ["selected", "record", "closed", "off"],
+  states = ["free", "selected", "record", "closed", "off"],
   className,
 }: {
-  states?: Exclude<DayState, "free">[];
+  states?: DayState[];
   className?: string;
 }) {
   return (

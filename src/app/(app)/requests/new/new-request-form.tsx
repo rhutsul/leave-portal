@@ -226,8 +226,9 @@ export function NewRequestForm({
                   aria-current={current ? "step" : undefined}
                   className={cn(current && "bg-sidebar-accent text-sidebar-accent-foreground hover:bg-sidebar-accent")}
                 >
-                  {done && <Check className="text-status-approved-foreground" aria-label="done" />}
+                  {done && <Check className="text-status-approved-foreground" aria-hidden="true" />}
                   {label}
+                  {done && <span className="sr-only">(done)</span>}
                 </Button>
               </li>
             );
@@ -331,7 +332,8 @@ export function NewRequestForm({
                         key={type}
                         htmlFor={`${ids}-type-${type}`}
                         className={cn(
-                          "items-center gap-3.5 rounded-md border border-border bg-card p-3.5 font-normal transition-colors duration-(--duration-fast) hover:border-ring",
+                          // Радіо сховане (sr-only), тож фокус клавіатури показує картка.
+                          "items-center gap-3.5 rounded-md border border-border bg-card p-3.5 font-normal transition-colors duration-(--duration-fast) hover:border-ring has-focus-visible:ring-2 has-focus-visible:ring-ring has-focus-visible:ring-offset-2 has-focus-visible:ring-offset-background",
                           leaveType === type && "border-ring bg-accent",
                         )}
                       >
@@ -508,7 +510,7 @@ export function NewRequestForm({
           </Card>
         </form>
 
-        <Card aria-label="Your request" className="sticky top-8 max-w-full flex-[1_1_300px] gap-3.5 px-5 py-4.5">
+        <Card role="complementary" aria-label="Your request" className="sticky top-8 max-w-full flex-[1_1_300px] gap-3.5 px-5 py-4.5">
           <div className="flex items-center justify-between">
             <h2 className="text-base font-semibold">Your request</h2>
             <span className="text-xs text-muted-foreground">{recordCount(records.length)}</span>
@@ -539,13 +541,6 @@ export function NewRequestForm({
             <span>Total</span>
             <span>{totalMinutes ? formatDuration(totalMinutes) : "—"}</span>
           </div>
-          {step === 4 &&
-            warnings.map((w) => (
-              <Alert key={w.key} variant="warning">
-                <TriangleAlert />
-                <AlertDescription>{w.text}</AlertDescription>
-              </Alert>
-            ))}
           <p className="text-xs leading-normal text-muted-foreground">
             Each record goes to the manager of its position and is decided separately.
           </p>
@@ -612,7 +607,7 @@ function DateCalendar({
           );
         })}
       </div>
-      <CalendarLegend states={["selected", "record", "off"]} />
+      <CalendarLegend states={["free", "selected", "record", "off"]} />
     </div>
   );
 }

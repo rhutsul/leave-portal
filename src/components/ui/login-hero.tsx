@@ -16,9 +16,10 @@ export function LoginHero({ children, className }: { children: ReactNode; classN
     const el = card.current;
     if (!el || event.pointerType !== "mouse") return;
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    // Курсор — над карткою (обробники на ній), але межу тримаємо й тут: кут не більший за MAX_TILT_DEG / 2.
     const box = el.getBoundingClientRect();
-    const x = (event.clientX - box.left) / box.width - 0.5;
-    const y = (event.clientY - box.top) / box.height - 0.5;
+    const x = Math.min(0.5, Math.max(-0.5, (event.clientX - box.left) / box.width - 0.5));
+    const y = Math.min(0.5, Math.max(-0.5, (event.clientY - box.top) / box.height - 0.5));
     el.style.transform = `perspective(900px) rotateX(${(-y * MAX_TILT_DEG).toFixed(2)}deg) rotateY(${(x * MAX_TILT_DEG).toFixed(2)}deg)`;
   }
 
@@ -27,13 +28,11 @@ export function LoginHero({ children, className }: { children: ReactNode; classN
   }
 
   return (
-    <div
-      className={cn("login-hero flex flex-1 items-center justify-center px-6 py-16", className)}
-      onPointerMove={tilt}
-      onPointerLeave={reset}
-    >
+    <div className={cn("login-hero flex flex-1 items-center justify-center px-6 py-16", className)}>
       <div
         ref={card}
+        onPointerMove={tilt}
+        onPointerLeave={reset}
         className="relative z-10 w-full max-w-sm animate-in fade-in-0 zoom-in-95 transition-transform duration-(--duration-base) ease-out slide-in-from-bottom-2"
       >
         {children}

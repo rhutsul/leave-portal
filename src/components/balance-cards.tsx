@@ -46,7 +46,9 @@ export function BalanceCards({ balances, detailed = false }: { balances: Balance
       </div>
       <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
         <Info className="size-3.5 shrink-0" aria-hidden="true" />
-        Balances are in working days: 1 day is all your working hours on that date. Only approved records count.
+        {/* Без «your»: ці картки бачить і менеджер на залишках працівника. */}
+        Balances are in working days: 1 day is all the employee&apos;s working hours on that date. Only approved records
+        count.
       </p>
     </div>
   );

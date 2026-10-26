@@ -24,8 +24,14 @@ export default async function NewRequestPage() {
     loadOwnPositions(supabase, claims.sub),
     loadRemaining(supabase, claims.sub, [year - 1, year, year + 1]).catch(() => null),
     // Дати, на які вже є чинні власні записи: календар їх зафарбовує (DESIGN.md, розділ 6). Перетин перевіряє база
-    // (AC-LEAVE-16); збій тут лише прибирає підказку.
-    supabase.from("my_leave_records").select("date").in("status", ["awaiting", "returned", "approved"]),
+    // (AC-LEAVE-16); збій тут лише прибирає підказку. Ті самі три навчальні роки, що й залишки, — щоб вибірка не
+    // впиралася в ліміт рядків PostgREST.
+    supabase
+      .from("my_leave_records")
+      .select("date")
+      .in("status", ["awaiting", "returned", "approved"])
+      .gte("date", `${year - 1}-09-01`)
+      .lte("date", `${year + 2}-08-31`),
   ]);
   const recordDates = [...new Set((active ?? []).map((r) => r.date).filter((d): d is string => Boolean(d)))];
 

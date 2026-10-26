@@ -157,7 +157,7 @@ export default function DesignPage() {
             <TooltipTrigger render={<Button size="icon-sm" variant="outline" aria-label="What is a day?" />}>
               <Info />
             </TooltipTrigger>
-            <TooltipContent>1 day is all your working hours on that date.</TooltipContent>
+            <TooltipContent>1 day is all the employee&apos;s working hours on that date.</TooltipContent>
           </Tooltip>
         </div>
       </Section>
@@ -331,7 +331,7 @@ export default function DesignPage() {
         </div>
         <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
           <Info className="size-3.5" aria-hidden="true" />
-          Balances are in working days: 1 day is all your working hours on that date.
+          Balances are in working days: 1 day is all the employee&apos;s working hours on that date.
         </p>
       </Section>
 
