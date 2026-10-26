@@ -13,20 +13,20 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
     redirect("/login");
   }
 
-  // RLS: користувач бачить лише власний профіль; my_leave_records — лише власні записи.
-  const [{ data: profile }, { count: awaiting }] = await Promise.all([
+  // RLS: користувач бачить лише власний профіль; my_leave_records — лише власні записи. Лічильник «Decisions» —
+  // записи, які користувач може вирішити (decision_records: посади менеджера, адміністратору — усі); працівнику
+  // can_decide завжди false, тож запит іде разом з іншими, а не після профілю — на одну подорож до бази менше.
+  const [{ data: profile }, { count: awaiting }, { count: decidable }] = await Promise.all([
     supabase.from("profiles").select("email, full_name, role").eq("id", claims.sub).maybeSingle(),
     supabase.from("my_leave_records").select("id", { count: "exact", head: true }).eq("status", "awaiting"),
+    supabase
+      .rpc("decision_records", undefined, { count: "exact", head: true })
+      .eq("status", "awaiting")
+      .eq("can_decide", true),
   ]);
-  // Лічильник «Decisions» — записи, які користувач може вирішити (decision_records: посади менеджера, адміністратору —
-  // усі). Лише для manager і admin: працівнику пункту немає, тож запит до бази йому не потрібен.
+  // Пункт «Decisions» — лише manager і admin.
   const canDecide = profile?.role === "manager" || profile?.role === "admin";
-  const { count: toDecide } = canDecide
-    ? await supabase
-        .rpc("decision_records", undefined, { count: "exact", head: true })
-        .eq("status", "awaiting")
-        .eq("can_decide", true)
-    : { count: 0 };
+  const toDecide = canDecide ? decidable : 0;
   const email = profile?.email ?? claims.email ?? "";
 
   return (

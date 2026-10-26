@@ -1,21 +1,14 @@
-import { Skeleton } from "@/components/ui/skeleton";
+import { HeaderShape, LoadingPage, RowsShape, TabsShape } from "@/components/loading-shapes";
 
-// Поки сторінка завантажує дані — Skeleton у формі майбутнього вмісту: заголовок, опис і таблиця (DESIGN.md, розділ 6).
+// Запасна форма для сторінок без власного loading.tsx — Decisions (і вітрини /design): власний loading.tsx вона мати не може, бо він
+// ремаунтився б на кожен `?record=` і блимав би скелетоном. Тут Suspense обгортає сегмент `decisions` цілком, а його
+// ключ від параметрів не залежить. Форма — заголовок, вкладки й список записів.
 export default function Loading() {
   return (
-    <div role="status" aria-busy="true" className="flex flex-col gap-6">
-      <span className="sr-only">Loading…</span>
-      <div className="flex flex-col gap-2.5">
-        <Skeleton className="h-7 w-56" />
-        <Skeleton className="h-4 w-96 max-w-full" />
-      </div>
-      <div className="flex flex-col gap-2.5 rounded-lg border border-border bg-card p-5 shadow-sm">
-        <Skeleton className="h-4 w-2/5" />
-        <Skeleton className="h-9" />
-        <Skeleton className="h-9" />
-        <Skeleton className="h-9" />
-        <Skeleton className="h-9 w-4/5" />
-      </div>
-    </div>
+    <LoadingPage>
+      <HeaderShape action={false} />
+      <TabsShape widths={["w-44", "w-24"]} />
+      <RowsShape rows={5} />
+    </LoadingPage>
   );
 }

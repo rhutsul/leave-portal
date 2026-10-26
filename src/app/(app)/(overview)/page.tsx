@@ -13,7 +13,7 @@ import { formatSchoolYear, schoolYearOf } from "@/lib/leave/balance";
 import { positionLabel, type RecordStatus } from "@/lib/leave/request";
 import { formatDateLong, formatRange, kyivDate, kyivHour, monthShort, weekdayName } from "@/lib/leave/time";
 import { createClient } from "@/lib/supabase/server";
-import { loadBalances } from "./balances/load-balances";
+import { loadBalances } from "../balances/load-balances";
 
 const UPCOMING_LIMIT = 5;
 
