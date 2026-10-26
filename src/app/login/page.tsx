@@ -31,7 +31,7 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
           {message && (
             <Alert variant="destructive" role="alert">
               <CircleAlert />
-              <AlertDescription>{message}</AlertDescription>
+              <AlertDescription id="login-error">{message}</AlertDescription>
             </Alert>
           )}
           <form action={login} className="flex flex-col gap-4">
@@ -44,6 +44,7 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
                 autoComplete="email"
                 required
                 aria-invalid={message ? true : undefined}
+                aria-describedby={message ? "login-error" : undefined}
               />
             </div>
             <div className="flex flex-col gap-1.5">
@@ -55,6 +56,7 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
                 autoComplete="current-password"
                 required
                 aria-invalid={message ? true : undefined}
+                aria-describedby={message ? "login-error" : undefined}
               />
             </div>
             <SubmitButton className="mt-1 w-full" pendingLabel="Signing in…">

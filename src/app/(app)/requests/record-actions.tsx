@@ -93,7 +93,8 @@ export function RecordActions({
           : { action: "cancel" as const, state: cancelState };
     setSeen({ hoursState, resubmitState, cancelState });
     setLast(changed);
-    if (changed.state.done) setOpen(null);
+    // Resubmit іде з меню, без діалогу: його успіх не закриває панель, яку відкрили, поки він тривав.
+    if (changed.state.done && changed.action !== "resubmit") setOpen(null);
   }
 
   const error = last && !last.state.done ? last.state.message : "";
@@ -196,6 +197,8 @@ export function RecordActions({
               <RecordHistory history={history} collapsed={false} />
             </dd>
           </dl>
+          {/* Помилка Resubmit, що відповів, поки деталі були відкриті. */}
+          {dialogError}
           <DialogFooter>
             <DialogClose render={<Button variant="outline" />}>Close</DialogClose>
           </DialogFooter>
