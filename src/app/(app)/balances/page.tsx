@@ -60,10 +60,10 @@ export default async function BalancesPage({ searchParams }: PageProps<"/balance
           <EmployeePicker employees={others} selected={employeeParam ?? OWN} own={OWN} year={year} />
         ) : employeesError ? (
           // Без списку менеджер не відкриє залишки працівника — кажемо чому, а не ховаємо вибір мовчки.
-          <p role="alert" className="flex items-center gap-2 text-[13px] text-destructive">
-            <CircleAlert className="size-4 shrink-0" aria-hidden="true" />
-            The list of employees could not be loaded. Please reload the page.
-          </p>
+          <Alert variant="destructive" role="alert" className="w-auto py-2">
+            <CircleAlert />
+            <AlertDescription>The list of employees could not be loaded. Please reload the page.</AlertDescription>
+          </Alert>
         ) : (
           <span className="text-[13px] font-medium">My balances</span>
         )}
