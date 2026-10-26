@@ -10,6 +10,20 @@ PM наприкінці порівнює реалізації розробник
 - 1–2 сторінки. Старі рішення не видаляємо: нове рішення отримує статус «замінює NNNN», старе — «замінено NNNN».
 - Посилайтесь на AC ID, яких стосується рішення.
 
+## Рішення, успадковані з WS6
+
+Архівний план `openspec/changes/archive/2026-10-21-impl-leave-ws6/design.md` не редагуємо, але в кількох місцях
+реалізація від нього відійшла. Наступна зміна (`design.md` нового `impl-<зріз>`) починає звідси, а не з архівного
+плану, — щоб не повернути відкинуте рішення, наприклад не продублювати правила доступу в TS.
+
+| Було в плані WS6 | Стало | AC | Рішення |
+|---|---|---|---|
+| D5: чиста `access.ts` — хто бачить чиї записи й залишки | — (у базі): view `public.my_leave_records` (`security_invoker`) і RLS на `public.leave_records`; черга менеджера — `private.decision_records()`; залишки — `private.can_view_balances` у `private.get_balance_inputs`, список працівників — `private.balance_employees()` (`private.manages_employee` або роль `admin`) | AC-LEAVE-14, AC-DECIDE-01, AC-BALANCE-12, AC-BALANCE-13, AC-BALANCE-20 | ADR 0002, ADR 0003 |
+| D5: тест `access.ts` | DB-тести на PGlite з роллю `authenticated` — перевіряють те, що віддає база, а не копію правила | ті самі | ADR 0001 |
+
+Правило для нових зрізів: право доступу живе в одному місці — у базі (RLS, view з `security_invoker` або перевірка
+першим кроком у функції `security definer` схеми `private`); сторінка лише показує відмову, а тест іде через PGlite.
+
 ## Шаблон
 
 ```markdown

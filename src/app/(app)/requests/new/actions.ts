@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { encodeOverBalance, isLimitedType, requestOverBalance, schoolYearOf } from "@/lib/leave/balance";
+import { isLimitedType, schoolYearOf } from "@/lib/leave/balance";
 import type { RequestPayload } from "@/lib/leave/draft";
 import {
   BLOCKING_STATUSES,
@@ -13,10 +13,10 @@ import {
   overlapMessage,
   toRpcRecords,
 } from "@/lib/leave/request";
-import { isCalendarDate } from "@/lib/leave/time";
 import { createClient } from "@/lib/supabase/server";
 import { loadRemaining } from "../../balances/load-balances";
 import { loadOwnPositions } from "./load-positions";
+import { submitRedirect } from "./submit-redirect";
 
 export interface SubmitState {
   message: string;
@@ -121,19 +121,14 @@ export async function submitLeaveRequest(_prev: SubmitState, formData: FormData)
 
   revalidatePath("/requests");
   // Дати без робочих годин не прийнято (AC-LEAVE-21): «My requests» показує їх із текстом PM поруч з успіхом,
-  // а перевищення залишку — попередженням (лише числа: текст будує employeeWarning на сторінці).
-  const params = new URLSearchParams({ submitted: "1" });
-  const skippedDates = records.skipped.filter(isCalendarDate);
-  if (skippedDates.length) params.set("skipped", skippedDates.join(","));
-  if (limitedType && !remaining) params.set("balance", "unchecked");
-  if (limitedType && remaining) {
-    const over = requestOverBalance(
+  // а перевищення залишку — попередженням.
+  redirect(
+    submitRedirect({
       limitedType,
-      records.records,
-      positions.flatMap((p) => p.blocks),
-      (year) => remaining.get(year)?.[limitedType] ?? null,
-    );
-    if (over.length) params.set("over", encodeOverBalance(limitedType, over));
-  }
-  redirect(`/requests?${params}`);
+      remaining,
+      records: records.records,
+      blocks: positions.flatMap((p) => p.blocks),
+      skipped: records.skipped,
+    }),
+  );
 }

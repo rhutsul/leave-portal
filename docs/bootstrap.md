@@ -13,7 +13,7 @@ Docker не потрібен: локально — лише npm run dev прот
 
 Моє репо: https://github.com/rhutsul/leave-portal (робоча назва; перейменую на `<team-slug>`, коли він буде відомий) ·
 Прод-URL: https://leave-portal-olive.vercel.app
-Репо вимог PM: <!-- https://github.com/<pm>/<team-slug>-spec — ще не відоме --> · Організація Supabase: `leave_portal` (проєкт `leave-portal`, eu-west-1)
+Репо вимог PM: https://github.com/mkozlovskyi-ops/course-staff-management-spec · Організація Supabase: `leave_portal` (проєкт `leave-portal`, eu-west-1)
 
 ## 1. Інструменти й репо
 
