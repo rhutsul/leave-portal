@@ -133,6 +133,13 @@ export function RecordActions({
     items.push({ label: "Cancel record", icon: <X />, onSelect: () => show("cancel"), destructive: true });
 
   const summary = <RecordSummary date={details.date} hours={details.hours} meta={details.meta} />;
+  // Рядок статусу — під меню, а поки відкриті деталі — у них: Resubmit міг завершитися, поки вони відкриті, і під
+  // затемненням повідомлення не видно.
+  const status = (className: string) => (
+    <p ref={statusRef} role="status" tabIndex={-1} className={className}>
+      {resubmitPending ? "Resubmitting…" : success}
+    </p>
+  );
   const dialogError = inDialog && (
     <Alert variant="destructive" role="alert">
       <CircleAlert />
@@ -143,14 +150,8 @@ export function RecordActions({
   return (
     <div className="flex flex-col items-end gap-1">
       <RowMenu items={items} label={`Actions for record ${label}`} />
-      <p
-        ref={statusRef}
-        role="status"
-        tabIndex={-1}
-        className="text-xs whitespace-nowrap text-status-approved-foreground outline-none empty:hidden"
-      >
-        {resubmitPending ? "Resubmitting…" : success}
-      </p>
+      {panel !== "details" &&
+        status("text-xs whitespace-nowrap text-status-approved-foreground outline-none empty:hidden")}
       {rowError && (
         <p role="alert" className="max-w-56 text-right text-xs text-destructive">
           {rowError}
@@ -192,8 +193,9 @@ export function RecordActions({
               <RecordHistory history={history} collapsed={false} />
             </dd>
           </dl>
-          {/* Помилка Resubmit, що відповів, поки деталі були відкриті. */}
+          {/* Відповідь Resubmit, що завершився, поки деталі були відкриті. */}
           {dialogError}
+          {panel === "details" && status("text-sm text-status-approved-foreground outline-none empty:hidden")}
           <DialogFooter>
             <DialogClose render={<Button variant="outline" />}>Close</DialogClose>
           </DialogFooter>
