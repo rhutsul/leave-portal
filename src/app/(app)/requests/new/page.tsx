@@ -20,11 +20,11 @@ export default async function NewRequestPage() {
   // заявки «заднім числом» і наперед. Дати поза ними перевіряє server action під час подання.
   const today = kyivDate(new Date());
   const year = schoolYearOf(today);
-  const [positions, remaining, { data: active }] = await Promise.all([
+  const [positions, remaining, { data: active, error: activeError }] = await Promise.all([
     loadOwnPositions(supabase, claims.sub),
     loadRemaining(supabase, claims.sub, [year - 1, year, year + 1]).catch(() => null),
     // Дати, на які вже є чинні власні записи: календар їх зафарбовує (DESIGN.md, розділ 6). Перетин перевіряє база
-    // (AC-LEAVE-16); збій тут лише прибирає підказку. Ті самі три навчальні роки, що й залишки, — щоб вибірка не
+    // (AC-LEAVE-16); збій тут лише прибирає підказку (null — календар про це скаже). Ті самі три навчальні роки, що й залишки, — щоб вибірка не
     // впиралася в ліміт рядків PostgREST.
     supabase
       .from("my_leave_records")
@@ -33,7 +33,9 @@ export default async function NewRequestPage() {
       .gte("date", `${year - 1}-09-01`)
       .lte("date", `${year + 2}-08-31`),
   ]);
-  const recordDates = [...new Set((active ?? []).map((r) => r.date).filter((d): d is string => Boolean(d)))];
+  const recordDates = activeError
+    ? null
+    : [...new Set((active ?? []).map((r) => r.date).filter((d): d is string => Boolean(d)))];
 
   return (
     <>
