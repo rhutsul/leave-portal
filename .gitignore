@@ -44,3 +44,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# test accounts for the PM (plain text, only the encrypted accounts.zip is committed)
+accounts.txt
