@@ -7,9 +7,9 @@ import { Button } from "./button";
 import { Input } from "./input";
 
 /**
- * Поле пароля з кнопкою «показати / сховати» праворуч. Кнопка — з `aria-label` і `aria-pressed` (DESIGN.md, розділ 7).
- * Натискання мишею не забирає фокус із поля, а курсор лишається там, де людина друкувала: браузер скидає його, коли
- * змінюється тип поля, тож виділення зберігаємо до перемикання й відновлюємо після.
+ * Поле пароля з кнопкою «показати / сховати» праворуч. Кнопка — перемикач зі сталою назвою й `aria-pressed`
+ * (DESIGN.md, розділ 7). Натискання мишею не забирає фокус із поля, а курсор лишається там, де людина друкувала:
+ * браузер скидає його, коли змінюється тип поля, тож виділення зберігаємо до перемикання й відновлюємо після.
  */
 export function PasswordInput({ className, ...props }: Omit<ComponentProps<"input">, "type" | "ref">) {
   const [shown, setShown] = useState(false);
@@ -44,7 +44,8 @@ export function PasswordInput({ className, ...props }: Omit<ComponentProps<"inpu
         type="button"
         variant="ghost"
         size="icon-sm"
-        aria-label={label}
+        // Перемикач: назва стала, стан — aria-pressed (WAI-ARIA APG, Button); підказка для миші показує дію.
+        aria-label="Show password"
         aria-pressed={shown}
         title={label}
         disabled={props.disabled}
