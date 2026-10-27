@@ -1,10 +1,11 @@
 "use client";
 
 import Link, { useLinkStatus } from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { ChartColumn, ClipboardCheck, House, List, Plus } from "lucide-react";
 import { markHydrated } from "@/components/ui/motion";
+import { highlightTarget } from "@/lib/motion";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
@@ -74,16 +75,19 @@ export function SidebarNav({
   collapsed: boolean;
 }) {
   const pathname = usePathname();
+  const search = useSearchParams().toString();
+  const location = search ? `${pathname}?${search}` : pathname;
   // Підсвітка — одна смуга під пунктами, що плавно їде до натиснутого одразу, ще до відповіді сервера (DESIGN.md,
   // розділ 11). `clicked` — куди їде зараз; після переходу знову йде за адресою.
   const [clicked, setClicked] = useState<{ href: string; from: string } | null>(null);
-  // Адреса змінилась (перехід завершився, «Назад», redirect після подання) — натиснутий пункт уже не потрібен.
-  const [seen, setSeen] = useState(pathname);
-  if (seen !== pathname) {
-    setSeen(pathname);
+  // Адреса змінилась (перехід завершився, «Назад», redirect після подання, інший перехід перебив цей — наприклад,
+  // зміна року на /balances) — натиснутий пункт уже не потрібен.
+  const [seen, setSeen] = useState(location);
+  if (seen !== location) {
+    setSeen(location);
     setClicked(null);
   }
-  const target = clicked && clicked.from === pathname ? clicked.href : pathname;
+  const target = highlightTarget(clicked, location, pathname);
 
   // Перший рендер застосунку позаду: далі CountUp «докручує» числа після переходів (motion.tsx).
   useEffect(() => markHydrated(), []);
@@ -120,7 +124,7 @@ export function SidebarNav({
                   aria-current={pathname === href ? "page" : undefined}
                   onClick={(event) => {
                     const plain = !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey && event.button === 0;
-                    if (plain && !event.defaultPrevented) setClicked({ href, from: pathname });
+                    if (plain && !event.defaultPrevented) setClicked({ href, from: location });
                   }}
                   className={cn(
                     "relative flex h-9 items-center gap-2.5 rounded-md px-2.5 text-sm font-medium whitespace-nowrap transition-colors duration-(--duration-fast) ease-out [&_svg]:size-4 [&_svg]:shrink-0",

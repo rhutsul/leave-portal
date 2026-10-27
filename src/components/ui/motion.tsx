@@ -1,6 +1,7 @@
 "use client";
 
 import { useLayoutEffect, useRef, useState, type PointerEvent, type ReactNode } from "react";
+import { countUpText } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 
 const reducedMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -12,12 +13,15 @@ function slowMs() {
 }
 
 /**
- * Перший рендер застосунку показав числа з сервера — «докручуємо» лише вміст, що з'явився після переходу.
+ * Перший рендер застосунку показав сторінку й числа з сервера — анімуємо лише те, що з'явилось після переходу.
  * Позначає бічна панель (вона є на кожній сторінці), коли перший рендер позаду.
  */
 let hydrated = false;
 export function markHydrated() {
   setTimeout(() => (hydrated = true));
+}
+export function isHydrated() {
+  return hydrated;
 }
 
 /**
@@ -34,21 +38,24 @@ export function CountUp({ value, decimals = 2 }: { value: string; decimals?: num
     setSynced(value);
     setShown(value);
   }
+  const frame = useRef(0);
+
+  // Нове значення посеред анімації — зупиняємо її: інакше наступний кадр записав би число зі старого значення.
+  useLayoutEffect(() => () => cancelAnimationFrame(frame.current), [value]);
+
   // Layout-ефект: нуль стоїть уже в першому кадрі картки, без спалаху готового числа.
   useLayoutEffect(() => {
     if (!hydrated || !Number.isFinite(target) || reducedMotion()) return;
     setShown((0).toFixed(decimals));
     const duration = slowMs();
     const start = performance.now();
-    let frame = requestAnimationFrame(function tick(now) {
+    frame.current = requestAnimationFrame(function tick(now) {
       const t = Math.min(1, (now - start) / duration);
-      const text = (target * (1 - (1 - t) ** 3)).toFixed(decimals);
-      // toFixed(-0.001) дає "-0.00" — показуємо нуль без знака.
-      setShown(t < 1 ? (Number(text) === 0 ? (0).toFixed(decimals) : text) : value);
-      if (t < 1) frame = requestAnimationFrame(tick);
+      setShown(t < 1 ? countUpText(target, t, decimals) : value);
+      if (t < 1) frame.current = requestAnimationFrame(tick);
     });
     return () => {
-      cancelAnimationFrame(frame);
+      cancelAnimationFrame(frame.current);
       setShown(value);
     };
     // Лише при появі картки: нове значення пізніше показує синхронізація вище.
