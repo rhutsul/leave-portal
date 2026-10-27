@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useRef, type PointerEvent, type ReactNode } from "react";
+import { useRef, useSyncExternalStore, type PointerEvent, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 const MAX_TILT_DEG = 4;
@@ -10,12 +10,23 @@ const MAX_TILT_DEG = 4;
 // ні в HTML сервера, ні в бандл робочих сторінок.
 const LoginScene = dynamic(() => import("./login-scene"), { ssr: false });
 
+// Сцена — лише від 1100 px: вужче біля форми немає місця, і тоді чанк three навіть не вантажиться.
+const WIDE = "(min-width: 1100px)";
+function subscribeWide(onChange: () => void) {
+  const query = window.matchMedia(WIDE);
+  query.addEventListener("change", onChange);
+  return () => query.removeEventListener("change", onChange);
+}
+const isWide = () => window.matchMedia(WIDE).matches;
+const isWideOnServer = () => false;
+
 /**
  * Тло сторінки входу (клас login-hero у globals.css) і картка «скло», що злегка нахиляється за курсором
  * (DESIGN.md, розділ 11). Нахил — лише для миші й лише без prefers-reduced-motion; на дотик і клавіатуру не впливає.
  */
 export function LoginHero({ children, className }: { children: ReactNode; className?: string }) {
   const card = useRef<HTMLDivElement>(null);
+  const wide = useSyncExternalStore(subscribeWide, isWide, isWideOnServer);
 
   function tilt(event: PointerEvent<HTMLDivElement>) {
     const el = card.current;
@@ -34,7 +45,7 @@ export function LoginHero({ children, className }: { children: ReactNode; classN
 
   return (
     <div className={cn("login-hero flex flex-1 items-center justify-center px-6 py-16", className)}>
-      <LoginScene />
+      {wide && <LoginScene />}
       <div
         ref={card}
         onPointerMove={tilt}

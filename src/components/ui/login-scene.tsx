@@ -248,9 +248,11 @@ export default function LoginScene() {
       // Згасання за часом, а не за кадрами: на повільній машині віяло так само розходиться за ~0.5 с.
       const k = reduced.matches ? 1 : 1 - Math.exp(-Math.min(now - last, 100) / ease);
       last = now;
-      spread += ((hover ? 1 : 0) - spread) * k;
-      tiltX += (pointer.y * 0.18 - tiltX) * k;
-      tiltY += (pointer.x * 0.28 - tiltY) * k;
+      // prefers-reduced-motion — стан спокою, навіть якщо його ввімкнули, поки курсор був над стосом.
+      const still = reduced.matches;
+      spread += ((!still && hover ? 1 : 0) - spread) * k;
+      tiltX += ((still ? 0 : pointer.y * 0.18) - tiltX) * k;
+      tiltY += ((still ? 0 : pointer.x * 0.28) - tiltY) * k;
       const sway = reduced.matches ? 0 : Math.sin((t / ambient) * Math.PI * 2) * 0.18;
       stack.rotation.set(-0.12 + tiltX, -0.42 + sway + tiltY, 0.04);
       // У віялі стос трохи менший, щоб не зайти під форму входу.
@@ -258,7 +260,7 @@ export default function LoginScene() {
       const n = cards.length;
       cards.forEach((card, i) => {
         const o = i - (n - 1) / 2;
-        lift[i] += ((i === lifted && hover ? 1 : 0) - lift[i]) * k;
+        lift[i] += ((!still && i === lifted && hover ? 1 : 0) - lift[i]) * k;
         // Стос: картки одна за одною; віяло: розходяться по дузі так, що число кожної видно. Наведена картка лише
         // піднімається й вирівнюється у своїй площині — без руху вперед: картки лежать у паралельних площинах на різній
         // глибині, тож не проходять одна крізь одну.

@@ -30,7 +30,16 @@ export function PasswordInput({ className, ...props }: Omit<ComponentProps<"inpu
 
   return (
     <div className="relative">
-      <Input {...props} ref={field} type={shown ? "text" : "password"} className={cn("pr-10", className)} />
+      {/* Показаний пароль — звичайне текстове поле: без автовиправлення, великої літери й перевірки правопису. */}
+      <Input
+        autoCapitalize="none"
+        autoCorrect="off"
+        spellCheck={false}
+        {...props}
+        ref={field}
+        type={shown ? "text" : "password"}
+        className={cn("pr-10", className)}
+      />
       <Button
         type="button"
         variant="ghost"
