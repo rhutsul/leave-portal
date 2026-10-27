@@ -34,12 +34,8 @@ export function CountUp({ value, decimals = 2 }: { value: string; decimals?: num
     setSynced(value);
     setShown(value);
   }
-  const mountedAt = useRef<string | null>(null);
-
   // Layout-ефект: нуль стоїть уже в першому кадрі картки, без спалаху готового числа.
   useLayoutEffect(() => {
-    if (mountedAt.current !== null) return;
-    mountedAt.current = value;
     if (!hydrated || !Number.isFinite(target) || reducedMotion()) return;
     setShown((0).toFixed(decimals));
     const duration = slowMs();
