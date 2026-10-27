@@ -7,6 +7,7 @@ import { Button } from "./button";
 import { CalendarDay } from "./calendar-day";
 import { DialogFooter } from "./dialog";
 import { LeaveTypeTag } from "./leave-type-tag";
+import { PasswordInput } from "./password-input";
 import { splitRowMenuItems } from "./row-menu";
 import { StatusBadge } from "./status-badge";
 
@@ -114,5 +115,15 @@ describe("Theme (ADR 0005)", () => {
     expect(themeAttribute(parseTheme("system"))).toBeUndefined();
     expect(themeAttribute(parseTheme("purple"))).toBeUndefined();
     expect(themeAttribute(parseTheme(undefined))).toBeUndefined();
+  });
+});
+
+describe("PasswordInput", () => {
+  it("starts hidden, with a labelled toggle that is not pressed", () => {
+    const html = renderToStaticMarkup(<PasswordInput id="p" name="password" />);
+    expect(html).toContain('type="password"');
+    expect(html).toContain('aria-label="Show password"');
+    expect(html).toContain('aria-pressed="false"');
+    expect(html).toContain('type="button"');
   });
 });

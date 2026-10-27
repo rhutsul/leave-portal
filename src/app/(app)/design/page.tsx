@@ -25,6 +25,7 @@ import { Label } from "@/components/ui/label";
 import { LeaveTypeTag } from "@/components/ui/leave-type-tag";
 import { Logo } from "@/components/ui/logo";
 import { PageHeader } from "@/components/ui/page-header";
+import { PasswordInput } from "@/components/ui/password-input";
 import { RecordSummary } from "@/components/ui/record-summary";
 import { RowMenu } from "@/components/ui/row-menu";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -195,6 +196,10 @@ export default async function DesignPage() {
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="ds-start">Start</Label>
               <Input id="ds-start" defaultValue="08:30" />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="ds-password">Password</Label>
+              <PasswordInput id="ds-password" defaultValue="example" autoComplete="off" />
             </div>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="ds-end">End</Label>
