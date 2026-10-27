@@ -2,8 +2,9 @@
 
 import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
-import type { ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { ChartColumn, ClipboardCheck, House, List, Plus } from "lucide-react";
+import { markHydrated } from "@/components/ui/motion";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
@@ -73,22 +74,59 @@ export function SidebarNav({
   collapsed: boolean;
 }) {
   const pathname = usePathname();
+  // Підсвітка — одна смуга під пунктами, що плавно їде до натиснутого одразу, ще до відповіді сервера (DESIGN.md,
+  // розділ 11). `clicked` — куди їде зараз; після переходу знову йде за адресою.
+  const [clicked, setClicked] = useState<{ href: string; from: string } | null>(null);
+  // Адреса змінилась (перехід завершився, «Назад», redirect після подання) — натиснутий пункт уже не потрібен.
+  const [seen, setSeen] = useState(pathname);
+  if (seen !== pathname) {
+    setSeen(pathname);
+    setClicked(null);
+  }
+  const target = clicked && clicked.from === pathname ? clicked.href : pathname;
+
+  // Перший рендер застосунку позаду: далі CountUp «докручує» числа після переходів (motion.tsx).
+  useEffect(() => markHydrated(), []);
+  const nav = useRef<HTMLElement>(null);
+  const [box, setBox] = useState<{ top: number; height: number; animate: boolean } | null>(null);
+
+  useLayoutEffect(() => {
+    const link = nav.current?.querySelector<HTMLElement>(`[data-href="${target}"]`);
+    // Перший замір — без руху: смуга просто стає на місце підсвітки з розмітки сервера.
+    setBox((was) => (link ? { top: link.offsetTop, height: link.offsetHeight, animate: was !== null } : null));
+  }, [target, collapsed]);
 
   return (
-    <nav aria-label="Main" className="flex flex-col gap-0.5">
+    <nav ref={nav} aria-label="Main" className="relative flex flex-col gap-0.5">
+      {box && (
+        <span
+          aria-hidden="true"
+          className={cn(
+            "absolute inset-x-0 top-0 rounded-md bg-sidebar-accent",
+            box.animate && "transition-transform duration-(--duration-base) ease-out",
+          )}
+          style={{ height: box.height, transform: `translateY(${box.top}px)` }}
+        />
+      )}
       {LINKS.filter((l) => !l.deciders || canDecide).map(({ href, label, icon }) => {
-        const active = pathname === href;
+        const active = target === href;
         return (
           <Tooltip key={href} disabled={!collapsed}>
             <TooltipTrigger
               render={
                 <Link
                   href={href}
-                  aria-current={active ? "page" : undefined}
+                  data-href={href}
+                  aria-current={pathname === href ? "page" : undefined}
+                  onClick={(event) => {
+                    const plain = !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey && event.button === 0;
+                    if (plain && !event.defaultPrevented) setClicked({ href, from: pathname });
+                  }}
                   className={cn(
                     "relative flex h-9 items-center gap-2.5 rounded-md px-2.5 text-sm font-medium whitespace-nowrap transition-colors duration-(--duration-fast) ease-out [&_svg]:size-4 [&_svg]:shrink-0",
                     active
-                      ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                      ? // Поки смугу не виміряно (розмітка сервера), підсвітку дає сам пункт.
+                        cn("text-sidebar-accent-foreground", !box && "bg-sidebar-accent")
                       : "text-sidebar-foreground hover:bg-accent hover:text-accent-foreground",
                   )}
                 />
