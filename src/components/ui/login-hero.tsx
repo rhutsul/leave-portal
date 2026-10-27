@@ -1,9 +1,14 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useRef, type PointerEvent, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 const MAX_TILT_DEG = 4;
+
+// 3D-стос карток (ADR 0006) — окремим чанком, лише на клієнті й після першого відмальовування форми: three не потрапляє
+// ні в HTML сервера, ні в бандл робочих сторінок.
+const LoginScene = dynamic(() => import("./login-scene"), { ssr: false });
 
 /**
  * Тло сторінки входу (клас login-hero у globals.css) і картка «скло», що злегка нахиляється за курсором
@@ -29,6 +34,7 @@ export function LoginHero({ children, className }: { children: ReactNode; classN
 
   return (
     <div className={cn("login-hero flex flex-1 items-center justify-center px-6 py-16", className)}>
+      <LoginScene />
       <div
         ref={card}
         onPointerMove={tilt}

@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { LoginHero } from "@/components/ui/login-hero";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Logo } from "@/components/ui/logo";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { ThemeMenu } from "@/components/ui/theme-menu";
@@ -58,10 +59,9 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
             </div>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="password">Password</Label>
-              <Input
+              <PasswordInput
                 id="password"
                 name="password"
-                type="password"
                 autoComplete="current-password"
                 required
                 aria-invalid={message ? true : undefined}
