@@ -37,6 +37,9 @@ shadcn/ui (CLI 4.22.1, Base UI) + `tw-animate-css` + `lucide-react` — диза
   кожного `ignore…` — `.fallowrc.jsonc`) · `npm run test:coverage` → `npm run coverage:summary` (підлога на доменні
   файли — `FLOORED` у `vitest.coverage.config.mts`, храповик: не знижуємо) — у CI окремий workflow
   `.github/workflows/quality.yml`. Тестові правила `@vitest/eslint-plugin` — в `eslint.config.mjs` (job `app`)
+- `npm run mutation:ts` (Stryker 10.1.1, модулі трьох AC WS8 — `stryker.config.json`; один файл — `-- --mutate <шлях>`)
+  · `npm run mutation:sql` (SQL-мутанти `scripts/mutants.mjs` на PGlite; таблиця для PR — `-- --markdown`) — локально,
+  не в CI; мутовану міграцію не комітимо
 - `node scripts/check-migration-order.mjs` — нова міграція новіша за `origin/main`, застосовані не змінено (у CI — `db-check`)
 - `npx supabase migration new <назва>` → SQL → PR. Застосовує міграції у вашу базу ЛИШЕ CI (`db-deploy` після merge у `main`)
 - Типи БД: готовий `database.types.ts` — у Summary прогону job `db-check` (Docker не потрібен); або `npm run db:types`
