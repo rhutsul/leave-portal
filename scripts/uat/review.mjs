@@ -91,7 +91,8 @@ async function reviewCase(caseDir, { model, escalate }) {
     const second = await runClaude(caseDir, SONNET);
     save(second);
     console.log(`${line(second)} (суперечка → Sonnet)`);
-  } else {
+  } else if (model !== SONNET) {
+    // Вердикт Sonnet з минулого розбору цього кейсу — застарілий. З --model claude-sonnet-5-5 це щойно збережений.
     rmSync(path.join(caseDir, `review.${SONNET}.json`), { force: true });
   }
 }

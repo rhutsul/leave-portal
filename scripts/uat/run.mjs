@@ -40,7 +40,7 @@ const git = (...a) => {
 async function deployedSha(base) {
   if (!base) return null;
   try {
-    const res = await fetch(`${base}/api/health`, { redirect: "manual" });
+    const res = await fetch(`${base}/api/health`, { redirect: "manual", signal: AbortSignal.timeout(10_000) });
     if (!res.headers.get("content-type")?.includes("json")) return null;
     return (await res.json()).sha ?? null;
   } catch {

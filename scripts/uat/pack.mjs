@@ -26,7 +26,8 @@ export function pack(resultsPath = RESULTS) {
       const ann = (type) => test.annotations.find((a) => a.type === type)?.description;
       const acId = ann("ac");
       if (!acId) continue; // setup, прибирання — не AC
-      const result = test.results.at(-1);
+      // Тест не запускався (упав setup, від якого він залежить): результатів немає — це «skipped», тож R1 → FAIL.
+      const result = test.results.at(-1) ?? { status: "skipped", attachments: [], steps: [], duration: 0 };
       const caseId = ann("case") ?? acId;
       const dir = path.join(WORK, caseId);
       const agentDir = path.join(dir, "agent");

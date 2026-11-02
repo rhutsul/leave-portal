@@ -52,7 +52,7 @@ export function report(rows = combine(), { out } = {}) {
     id: r.caseId,
     proof: r.acId,
     title: r.assertions.title,
-    screenshot: rel(path.join(outDir, r.frameFiles[0] ?? "")),
+    screenshot: r.frameFiles[0] ? rel(path.join(outDir, r.frameFiles[0])) : null,
     video: r.assertions.video, // не в git: test-results/… локально або артефакт CI
     trace: r.assertions.trace,
     asserted: r.assertions.status === "passed",
