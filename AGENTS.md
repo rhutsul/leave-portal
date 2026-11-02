@@ -144,6 +144,14 @@ shadcn/ui (CLI 4.22.1, Base UI) + `tw-animate-css` + `lucide-react` — диза
   репозиторію `koldovsky/2026-quitcode-06-leave-portal-demo`): `security invoker`, або `security definer` лише в
   схемі `private` з `set search_path = ''`.
 - Авторизація на сервері — `supabase.auth.getClaims()`, ніколи `getSession()`.
+- Набір статусів у фільтрі запиту (`.in("status", …)`, `.neq`, `.not`, `where status …` — у TS і SQL) — правило з
+  вимог PM, а не деталь запиту: блокують лише «Awaiting decision», «Returned for revision», «Approved»
+  (`BLOCKING_STATUSES`), «Rejected» і «Cancelled» — ні (`requirements/01-leave-request.md`, Assumptions). Новий
+  фільтр у TS бере набір зі спільної константи `BLOCKING_STATUSES`, у SQL — той самий явний список, що в
+  `leave_records_no_overlap` (змінюються лише разом, новою міграцією); заперечення на кшталт
+  `.neq("status", "cancelled")` мовчки додає «Rejected» і кожен майбутній статус. Для рецензента: зміна набору
+  статусів у запиті, навіть у «рефакторингу без зміни поведінки», — must fix коментарем у рядку, доки PR не
+  посилається на вимогу PM і тест з AC ID.
 
 ## Секрети
 
