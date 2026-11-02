@@ -146,6 +146,20 @@ describe("who decides", () => {
     expect((await awaitingFor(manager2)).map((r) => r.id)).toEqual([recordIds[1]]);
   });
 
+  // decision_records() — security definer з власною копією правила, тож вище RLS не діє. Через Data API менеджер
+  // читає таблицю напряму, і тоді межу тримає лише політика leave_records_select_own_managed_or_admin.
+  it("AC-DECIDE-01: manager2@ reads from leave_records only teacher1@'s additional-position record", async () => {
+    const { recordIds } = await submit(teacher1, "sick", [
+      { position_id: teacher1Main, date: "2026-11-02", ...WHOLE },
+      { position_id: teacher1Additional, date: "2026-11-02", start_min: 945, end_min: 1020 },
+    ]);
+    const visibleTo = async (userId: string) =>
+      (await t.asUser<{ id: number }>(userId, "select id from public.leave_records where id = any($1) order by id", [recordIds]))
+        .map((r) => r.id);
+    expect(await visibleTo(manager2)).toEqual([recordIds[1]]);
+    expect(await visibleTo(manager1)).toEqual([recordIds[0]]);
+  });
+
   it("AC-DECIDE-08: manager2@ cannot approve a record of teacher1@'s main position — status unchanged, nothing saved", async () => {
     const { recordIds } = await submit(teacher1, "sick", [{ position_id: teacher1Main, date: "2026-11-03", ...WHOLE }]);
     await expect(decide(manager2, recordIds[0], "approve")).rejects.toMatchObject({
