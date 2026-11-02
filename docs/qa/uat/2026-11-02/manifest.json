@@ -1,0 +1,124 @@
+{
+  "kind": "uat",
+  "generatedAt": "2026-11-02T10:37:48.970Z",
+  "baseURL": "https://leave-portal-olive.vercel.app",
+  "deployedSha": "3a955d424f9db98a36b55d8d68c51a9f30173f9d",
+  "testsCommit": "bec6601ed191343cc9a267c15799fdb422358fcf",
+  "reviewer": {
+    "model": "claude-haiku-5-5",
+    "disputes": "claude-sonnet-5-5"
+  },
+  "note": "Відео й траси не в git (test-results/ локально, артефакт CI). check-recordings конвеєра WS9 вимагає відео на диску — для нього цей manifest треба доповнити.",
+  "results": [
+    {
+      "id": "AC-BALANCE-13",
+      "proof": "AC-BALANCE-13",
+      "title": "AC-BALANCE-13: teacher1@example.test opens another employee's balances by a direct link — the balances are not shown",
+      "screenshot": "docs/qa/uat/2026-11-02/frames/AC-BALANCE-13-then-1.png",
+      "video": "test-results/artifacts/balances-AC-BALANCE-13-tea-88477--the-balances-are-not-shown-chromium/video.webm",
+      "trace": "test-results/artifacts/balances-AC-BALANCE-13-tea-88477--the-balances-are-not-shown-chromium/trace.zip",
+      "asserted": true,
+      "vision": {
+        "met": true,
+        "readable": true,
+        "notes": "На кадрі сторінки /balances під заголовком «School year 2026–2027» видно панель із текстом «These balances are not available to you.» і підказкою «You can see your own balances and the balances of employees whose positions you manage.». Карток із днями на кадрі немає. Частини з розділу «Не з кадрів» не оцінювались."
+      },
+      "agentModel": "claude-haiku-5-5",
+      "agentVerdicts": {
+        "claude-haiku-5-5": "PASS",
+        "claude-sonnet-5-5": null
+      },
+      "escalated": false,
+      "quotesVerified": [
+        {
+          "quote": "These balances are not available to you.",
+          "onPage": true
+        }
+      ],
+      "verdict": "PASS",
+      "factoryGate": "PASS",
+      "rule": "R6: перевірки, агент і цитати збігаються",
+      "playwrightMs": 8599,
+      "reviewCostUsd": 0.00182,
+      "reviewWallMs": 8294
+    },
+    {
+      "id": "AC-LEAVE-06",
+      "proof": "AC-LEAVE-06",
+      "title": "AC-LEAVE-06: Saturday 2026-11-07 is not accepted — «You have no working hours on this day»",
+      "screenshot": "docs/qa/uat/2026-11-02/frames/AC-LEAVE-06-then-1.png",
+      "video": "test-results/artifacts/new-request-teacher1-examp-a4f9c--working-hours-on-this-day»-chromium/video.webm",
+      "trace": "test-results/artifacts/new-request-teacher1-examp-a4f9c--working-hours-on-this-day»-chromium/trace.zip",
+      "asserted": true,
+      "vision": {
+        "met": true,
+        "readable": true,
+        "notes": "На кадрі сторінки «New request» під календарем червоним написано «You have no working hours on this day», а в блоці «Selected dates» видно «No dates yet — pick them in the calendar.». Субота 7 (Sat) сірим кольором позначена як «No working hours» і не вибрана. Частину про відсутність кнопки «Remove Sat, 7 Nov 2026» кадр не показує, тому її не оцінював."
+      },
+      "agentModel": "claude-haiku-5-5",
+      "agentVerdicts": {
+        "claude-haiku-5-5": "PASS",
+        "claude-sonnet-5-5": null
+      },
+      "escalated": false,
+      "quotesVerified": [
+        {
+          "quote": "You have no working hours on this day",
+          "onPage": true
+        },
+        {
+          "quote": "No dates yet — pick them in the calendar.",
+          "onPage": true
+        }
+      ],
+      "verdict": "PASS",
+      "factoryGate": "PASS",
+      "rule": "R6: перевірки, агент і цитати збігаються",
+      "playwrightMs": 5213,
+      "reviewCostUsd": 0.00218,
+      "reviewWallMs": 11105
+    },
+    {
+      "id": "AC-LEAVE-19",
+      "proof": "AC-LEAVE-19",
+      "title": "AC-LEAVE-19: hours 07:30–09:00 on Tue 2026-11-03 — no request, «Hours must be within your schedule: 08:30–12:00, 12:30–15:30»",
+      "screenshot": "docs/qa/uat/2026-11-02/frames/AC-LEAVE-19-then-1.png",
+      "video": "test-results/artifacts/new-request-teacher2-examp-3cf37-le-08-30–12-00-12-30–15-30»-chromium/video.webm",
+      "trace": "test-results/artifacts/new-request-teacher2-examp-3cf37-le-08-30–12-00-12-30–15-30»-chromium/trace.zip",
+      "asserted": true,
+      "vision": {
+        "met": true,
+        "readable": true,
+        "notes": "На кадрі червоний текст під полями 07:30 / 09:00 читається як «Hours must be within your schedule: 08:30–12:00, 12:30–15:30». Форма залишилась на кроці з заголовком «Positions and hours» (картка) і показує кнопку «Continue», а не «Submit request». Точні тире в повідомленні на кадрі не перевіряю — це робить автоматична перевірка."
+      },
+      "agentModel": "claude-haiku-5-5",
+      "agentVerdicts": {
+        "claude-haiku-5-5": "PASS",
+        "claude-sonnet-5-5": null
+      },
+      "escalated": false,
+      "quotesVerified": [
+        {
+          "quote": "Hours must be within your schedule: 08:30–12:00, 12:30–15:30",
+          "onPage": true
+        },
+        {
+          "quote": "Positions and hours",
+          "onPage": true
+        },
+        {
+          "quote": "Continue",
+          "onPage": true
+        }
+      ],
+      "verdict": "PASS",
+      "factoryGate": "PASS",
+      "rule": "R6: перевірки, агент і цитати збігаються",
+      "playwrightMs": 10717,
+      "reviewCostUsd": 0.0025,
+      "reviewWallMs": 12197
+    }
+  ],
+  "negativeControls": [],
+  "cleanup": null
+}

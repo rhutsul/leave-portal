@@ -10,9 +10,10 @@ export default defineConfig({
     expect: { requireAssertions: true },
     // Тести бази на PGlite (tests/db, ADR 0001): Postgres у WASM повільніший за чисті функції, особливо на раннерах CI.
     testTimeout: 20000,
-    // Лише *.test.ts(x): ac:coverage рахує тести тільки з цих файлів (*.spec.ts тут не запускається).
+    // Лише *.test.ts(x): ac:coverage рахує тести з цих файлів і з tests/e2e/**/*.spec.ts (їх запускає Playwright).
     include: ["src/**/*.test.{ts,tsx}", "tests/**/*.test.{ts,tsx}"],
     // tests/fixtures — дані для тестів скриптів; файли *.test.ts там НЕ запускаються.
-    exclude: ["node_modules/**", "tests/fixtures/**"],
+    // tests/e2e — територія Playwright: випадковий tests/e2e/*.test.ts упав би тут на імпортах @playwright/test.
+    exclude: ["node_modules/**", "tests/fixtures/**", "tests/e2e/**"],
   },
 });

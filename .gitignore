@@ -52,3 +52,9 @@ accounts.txt
 /.fallow/
 /.stryker-tmp/
 /reports/
+
+# Playwright / UAT (WS8): звіти, відео й траси, робочі пакети рецензента, сесії тестових ролей (живі cookie)
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.auth/
