@@ -9,3 +9,9 @@ export function initials(name: string) {
     .map((part) => part[0]!.toUpperCase())
     .join("");
 }
+
+// ТИМЧАСОВО (червоний прогін воріт WS8, буде прибрано наступним комітом): мертвий експорт без тесту.
+export function shortName(name: string) {
+  const [first, ...rest] = name.trim().split(/\s+/);
+  return rest.length ? `${first} ${rest.at(-1)![0]}.` : first;
+}
