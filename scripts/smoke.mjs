@@ -5,23 +5,27 @@
 //   2) "/login"      → 200 і поле пароля (застосунок справді віддає сторінку);
 //   3) "/api/health" → 200 {db:"ok"}; з expected-sha — sha збігається (до 6 спроб × 20 с: прод-домен перемикається
 //                      на новий деплой не миттєво).
-// Код виходу: 0 — усе гаразд, 1 — є збій (рядки ::error:: видно в GitHub Actions), 2 — не вказано адресу.
+// Код виходу: 0 — усе гаразд, 1 — є збій (рядки ::error:: видно в GitHub Actions), 2 — адресу не вказано чи вона некоректна.
 const [rawBase = process.env.PROD_URL ?? "", expectSha = ""] = process.argv.slice(2);
-// client_payload.url від Vercel може прийти хостом без схеми — додаємо https://.
-let base = (/^https?:\/\//.test(rawBase) ? rawBase : rawBase ? `https://${rawBase}` : "").replace(/\/+$/, "");
-// Облікові дані в адресі (https://user:pass@…) не друкуємо в журнал і не надсилаємо: прод публічний.
-let strippedCredentials = false;
-try {
-  const url = new URL(base);
-  if (url.username || url.password) {
+// Адреса проду: лише схема, хост і шлях. Облікові дані (https://user:pass@…) прибираємо: прод публічний. Адресу з
+// параметрами запиту чи фрагментом або нерозбірну відхиляємо, не друкуючи її: там може бути токен.
+function parseBase(raw) {
+  const input = raw.trim();
+  if (!input) return { base: "" };
+  try {
+    // client_payload.url від Vercel може прийти хостом без схеми — додаємо https://; чужу схему відхиляємо нижче.
+    const url = new URL(/^[a-z][a-z0-9+.-]*:\/\//i.test(input) ? input : `https://${input}`);
+    if (url.protocol !== "https:" && url.protocol !== "http:") return { error: "PROD_URL — не адреса http(s)" };
+    if (url.search || url.hash) return { error: "PROD_URL не має містити параметрів запиту чи фрагмента (#…)" };
+    const strippedCredentials = Boolean(url.username || url.password);
     url.username = "";
     url.password = "";
-    base = url.toString().replace(/\/+$/, "");
-    strippedCredentials = true;
+    return { base: url.toString().replace(/\/+$/, ""), strippedCredentials };
+  } catch {
+    return { error: "PROD_URL — не адреса http(s)" };
   }
-} catch {
-  // Не URL — fetch нижче повідомить про збій.
 }
+const { base = "", strippedCredentials = false, error: baseError } = parseBase(rawBase);
 /** Межа на кожен запит разом із читанням тіла: завислий прод має дати збій, а не тримати прогін. */
 const REQUEST_TIMEOUT_MS = 10_000;
 
@@ -92,7 +96,10 @@ async function main() {
   }
   if (expectSha && health?.sha === "local") {
     fail.push(`"/api/health": sha=local — у Vercel увімкніть Settings → Environment Variables → «Automatically expose System Environment Variables» і зробіть Redeploy`);
-  } else if (expectSha && health?.sha && health.sha !== expectSha) {
+  } else if (expectSha && health?.status === 200 && !health.sha) {
+    // Без sha коміт деплою не перевірено — це збій, а не мовчазний успіх.
+    fail.push(`"/api/health": у відповіді немає sha — очікувався ${expectSha.slice(0, 7)}`);
+  } else if (expectSha && health?.status === 200 && health.sha !== expectSha) {
     fail.push(`прод показує ${String(health.sha).slice(0, 7)}, а очікувався ${expectSha.slice(0, 7)} — деплой main не пройшов чи зроблено Instant Rollback?`);
   }
 
@@ -103,7 +110,11 @@ async function main() {
 }
 
 // process.exitCode, а не process.exit(): на Windows exit() після fetch падає з assertion libuv.
-if (!base) {
+if (baseError) {
+  // Саму адресу не друкуємо: у ній можуть бути облікові дані чи токен.
+  console.error(`::error title=smoke::${baseError}`);
+  process.exitCode = 2;
+} else if (!base) {
   console.error("Використання: node scripts/smoke.mjs <base-url> [expected-sha]  (або змінна PROD_URL)");
   process.exitCode = 2;
 } else {
