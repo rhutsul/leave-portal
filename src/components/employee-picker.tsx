@@ -5,18 +5,9 @@ import { useTransition } from "react";
 import { UserRound } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { cn } from "@/lib/utils";
+import { cn, initials } from "@/lib/utils";
 
 export type PickerEmployee = { id: string; name: string; email: string };
-
-function initials(name: string) {
-  return name
-    .split(/[\s-]+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]!.toUpperCase())
-    .join("");
-}
 
 /** Ініціали в колі; для «My balances» — іконка людини. */
 function Avatar({ employee, className }: { employee: PickerEmployee | null; className?: string }) {

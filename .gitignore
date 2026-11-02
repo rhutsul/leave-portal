@@ -48,6 +48,11 @@ next-env.d.ts
 # test accounts for the PM (plain text, only the encrypted accounts.zip is committed)
 accounts.txt
 
+# WS8: інструменти якості — кеш і копії мутантів fallow, пісочниця й звіти Stryker
+/.fallow/
+/.stryker-tmp/
+/reports/
+
 # Playwright / UAT (WS8): звіти, відео й траси, робочі пакети рецензента, сесії тестових ролей (живі cookie)
 /test-results/
 /playwright-report/

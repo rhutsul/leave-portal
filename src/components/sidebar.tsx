@@ -4,21 +4,12 @@ import { useCallback, useEffect, useState } from "react";
 import { LogOut, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { signOut } from "@/app/login/actions";
 import { preferenceCookie, SIDEBAR_COOKIE, type Theme } from "@/lib/preferences";
-import { cn } from "@/lib/utils";
+import { cn, initials } from "@/lib/utils";
 import { Button } from "./ui/button";
 import { Logo } from "./ui/logo";
 import { ThemeMenu } from "./ui/theme-menu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 import { SidebarNav } from "./sidebar-nav";
-
-function initials(name: string) {
-  return name
-    .split(/[\s-]+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]!.toUpperCase())
-    .join("");
-}
 
 /** Ctrl+B (на Mac — Cmd+B) згортає панель, але не в полі вводу: там це звичне «жирний». */
 function isEditable(target: EventTarget | null) {
