@@ -16,6 +16,9 @@ const BALANCE_INPUTS = "supabase/migrations/20261020214031_balance_inputs.sql";
 const BALANCES_DB = "tests/db/balances.test.ts";
 const DECISIONS_DB = "tests/db/leave-decisions.test.ts";
 const VISIBILITY_DB = "tests/db/table-visibility.test.ts";
+const RECORD_EDIT = "supabase/migrations/20261021171135_leave_record_edit.sql";
+const SUBMIT_DB = "tests/db/submit-leave-request.test.ts";
+const START_INSIDE = "p_start >= b.start_min and p_start < b.end_min\n  ) or not exists";
 
 export const mutants = [
   {
@@ -63,5 +66,24 @@ export const mutants = [
     what: "RLS balance_carryovers: менеджер працівника → true (перенесені дні бачить кожен з входом)",
     find: "    or private.manages_employee(employee_id)",
     replace: "    or true",
+  },
+  // AC-LEAVE-19 у базі — остання межа (private.check_record_hours, яку викликає submit_leave_request).
+  {
+    id: "S7", kind: "sql", ac: "AC-LEAVE-19", file: RECORD_EDIT, tests: [SUBMIT_DB],
+    what: "check_record_hours: початок поза блоком більше не перевіряється (07:30 приймається)",
+    find: START_INSIDE,
+    replace: "true\n  ) or not exists",
+  },
+  {
+    id: "S8", kind: "sql", ac: "AC-LEAVE-19", file: RECORD_EDIT, tests: [SUBMIT_DB],
+    what: "check_record_hours: початок блоку не входить у блок (>= → >, 08:30 відмовлено)",
+    find: START_INSIDE,
+    replace: "p_start > b.start_min and p_start < b.end_min\n  ) or not exists",
+  },
+  {
+    id: "S9", kind: "sql", ac: "AC-LEAVE-19", file: RECORD_EDIT, tests: [SUBMIT_DB],
+    what: "повідомлення перелічує блоки не в порядку часу (order by start_min desc)",
+    find: "order by b.start_min)",
+    replace: "order by b.start_min desc)",
   },
 ];

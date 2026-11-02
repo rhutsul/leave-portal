@@ -68,6 +68,24 @@ describe("leave hours within the schedule", () => {
     expect(hours([...TUESDAY_WITH_GAP].reverse(), "07:30", "09:00")).toEqual({ ok: false, message });
   });
 
+  // Межі з AC і Assumptions 01-leave-request: блок містить свій початок і не містить кінця; кінець може дорівнювати
+  // кінцю блоку. Кінець рівно на 12:30 (початок наступного блоку) тут навмисно не перевіряємо — це питання до PM.
+  it("AC-LEAVE-19: edges of the blocks 08:30–12:00 and 12:30–15:30 — 08:25 and 12:25 are outside, 08:30 and 12:30 inside", () => {
+    const message = "Hours must be within your schedule: 08:30–12:00, 12:30–15:30";
+    expect(hours(TUESDAY_WITH_GAP, "08:25", "09:00")).toEqual({ ok: false, message });
+    expect(hours(TUESDAY_WITH_GAP, "08:30", "09:00")).toEqual({ ok: true, minutes: 30 });
+    expect(hours(TUESDAY_WITH_GAP, "12:25", "13:00")).toEqual({ ok: false, message });
+    expect(hours(TUESDAY_WITH_GAP, "12:30", "13:00")).toEqual({ ok: true, minutes: 30 });
+    expect(hours(TUESDAY_WITH_GAP, "09:00", "12:00")).toEqual({ ok: true, minutes: 180 });
+    expect(hours(TUESDAY_WITH_GAP, "09:00", "12:05")).toEqual({ ok: false, message });
+    expect(hours(TUESDAY_WITH_GAP, "13:00", "15:30")).toEqual({ ok: true, minutes: 150 });
+    expect(hours(TUESDAY_WITH_GAP, "13:00", "15:35")).toEqual({ ok: false, message });
+  });
+
+  it("AC-LEAVE-06: hours on a day without schedule blocks give \"You have no working hours on this day\"", () => {
+    expect(hours([], "09:00", "10:00")).toEqual({ ok: false, message: "You have no working hours on this day" });
+  });
+
   it("AC-LEAVE-20: 12:00, the end of a block before the gap, cannot be the start", () => {
     expect(hours(TUESDAY_WITH_GAP, "12:00", "13:00")).toEqual({
       ok: false,
@@ -84,6 +102,15 @@ describe("leave hours within the schedule", () => {
   it("times off the 5-minute step are rejected", () => {
     expect(hours(FULL_DAY, "09:03", "10:00")).toEqual({ ok: false, message: "Enter times in 5-minute steps" });
     expect(hours(FULL_DAY, "", "10:00")).toEqual({ ok: false, message: "Enter times in 5-minute steps" });
+    expect(hours(FULL_DAY, "09:00", "10:03")).toEqual({ ok: false, message: "Enter times in 5-minute steps" });
+    expect(hours(FULL_DAY, "09:00", "")).toEqual({ ok: false, message: "Enter times in 5-minute steps" });
+    expect(checkHours(FULL_DAY, -5, 600)).toEqual({ ok: false, message: "Enter times in 5-minute steps" });
+    expect(checkHours(FULL_DAY, 540, 1445)).toEqual({ ok: false, message: "Enter times in 5-minute steps" });
+  });
+
+  it("the day's edges 00:00 and 24:00 are valid times", () => {
+    expect(hours([{ start: 0, end: 60 }], "00:00", "00:30")).toEqual({ ok: true, minutes: 30 });
+    expect(hours([{ start: 1380, end: 1440 }], "23:30", "24:00")).toEqual({ ok: true, minutes: 30 });
   });
 });
 
@@ -153,6 +180,8 @@ describe("calendar date check", () => {
     expect(isCalendarDate("2026-13-01")).toBe(false);
     expect(isCalendarDate("2026-11-00")).toBe(false);
     expect(isCalendarDate("2026-1-02")).toBe(false);
+    expect(isCalendarDate("12026-11-02")).toBe(false);
+    expect(isCalendarDate("2026-11-022")).toBe(false);
     expect(isCalendarDate("")).toBe(false);
   });
 });

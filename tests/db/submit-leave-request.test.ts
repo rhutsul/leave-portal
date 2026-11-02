@@ -131,6 +131,19 @@ describe("submit_leave_request", () => {
     await expect(submit(teacher1, "sick", [])).rejects.toThrow("Choose at least one position");
   });
 
+  it("AC-LEAVE-19: 07:30–09:00 on Tuesday 2026-11-03 — no request, the message lists both blocks in time order", async () => {
+    const before = await countRows();
+    await expect(
+      submit(teacher2, "personal", [{ position_id: teacher2Position, date: "2026-11-03", start_min: 450, end_min: 540 }]),
+    ).rejects.toThrow("Hours must be within your schedule: 08:30–12:00, 12:30–15:30");
+    expect(await countRows()).toEqual(before);
+    // Межа: від 08:30 (початок блоку) ті самі години вже в розкладі.
+    const [{ id }] = await submit(teacher2, "personal", [
+      { position_id: teacher2Position, date: "2026-11-03", start_min: 510, end_min: 540 },
+    ]);
+    expect((await recordsOf(id)).map((r) => [r.date, r.hours, r.minutes])).toEqual([["2026-11-03", "08:30–09:00", 30]]);
+  });
+
   it("AC-LEAVE-20: the end of a block before the gap cannot be the start in the database either", async () => {
     await expect(
       submit(teacher2, "personal", [
