@@ -1,17 +1,17 @@
 # Звіт UAT — 02.11.2026
 
-- **Застосунок:** https://leave-portal-olive.vercel.app (/api/health: коміт `8abda3d`)
-- **Код тестів:** `task/uat` @ `c740a03` + незакомічені зміни
-- **Прогін:** 02.11.2026, 12:04 (Київ), Playwright 48.7 с; AC: 3 — PASS 3, FAIL 0, NEEDS-HUMAN 0
-- **Рецензент:** `claude-haiku-5-5`; суперечки → `claude-sonnet-5-5`. Разом за розбір: $0.0077 (ціни API; за підпискою — у межах ліміту плану)
+- **Застосунок:** https://leave-portal-olive.vercel.app (/api/health: коміт `3a955d4`)
+- **Код тестів:** `task/uat` @ `bec6601`
+- **Прогін:** 02.11.2026, 12:36 (Київ), Playwright 45.2 с; AC: 3 — PASS 3, FAIL 0, NEEDS-HUMAN 0
+- **Рецензент:** `claude-haiku-5-5`; суперечки → `claude-sonnet-5-5`. Разом за розбір: $0.0065 (ціни API; за підпискою — у межах ліміту плану)
 - **Прибирання:** не запускалось (прогін без SUPABASE_SECRET_KEY — лише AC, що нічого не пишуть)
 - **Відео й траси:** не в git — `test-results/` локально або артефакт CI; трасу відкриває `npx playwright show-trace <trace.zip>`
 
 | AC | Перевірки | Агент | Підсумок | Чому | Playwright | Розбір |
 |---|---|---|---|---|---|---|
-| AC-BALANCE-13 | пройшли | Haiku: PASS | **PASS** | R6: перевірки, агент і цитати збігаються | 11.6 с | $0.0024, 9.0 с |
-| AC-LEAVE-06 | пройшли | Haiku: PASS | **PASS** | R6: перевірки, агент і цитати збігаються | 5.6 с | $0.0027, 10.5 с |
-| AC-LEAVE-19 | пройшли | Haiku: PASS | **PASS** | R6: перевірки, агент і цитати збігаються | 13.0 с | $0.0026, 11.9 с |
+| AC-BALANCE-13 | пройшли | Haiku: PASS | **PASS** | R6: перевірки, агент і цитати збігаються | 8.6 с | $0.0018, 8.3 с |
+| AC-LEAVE-06 | пройшли | Haiku: PASS | **PASS** | R6: перевірки, агент і цитати збігаються | 5.2 с | $0.0022, 11.1 с |
+| AC-LEAVE-19 | пройшли | Haiku: PASS | **PASS** | R6: перевірки, агент і цитати збігаються | 10.7 с | $0.0025, 12.2 с |
 
 ## AC-BALANCE-13 — PASS
 
@@ -25,7 +25,7 @@
 
 **Кроки:** ✔ Дано: employee teacher1@example.test → ✔ Коли: teacher1@example.test tries to view another employee's balances (teacher2@example.test, direct link) → ✔ Тоді: the balances are not shown.
 
-**Агент (claude-haiku-5-5, PASS):** На кадрі frame-then-1.png сторінка /balances (заголовок «Balances», «School year 2026–2027») без карток балансів і без чисел днів. Замість них є напис «These balances are not available to you.», який збігається з критерієм посимвольно. Частини з розділу «Не з кадрів» не оцінювалися.
+**Агент (claude-haiku-5-5, PASS):** На кадрі сторінки /balances під заголовком «School year 2026–2027» видно панель із текстом «These balances are not available to you.» і підказкою «You can see your own balances and the balances of employees whose positions you manage.». Карток із днями на кадрі немає. Частини з розділу «Не з кадрів» не оцінювались.
 
 **Цитати агента, звірені зі сторінкою (aria):**
 - «These balances are not available to you.» — є на сторінці
@@ -48,7 +48,7 @@
 
 **Кроки:** ✔ Дано: an employee whose position has no Saturday in its schedule (teacher1@example.test) → ✔ Коли: the employee tries to choose Saturday 2026-11-07 → ✔ Тоді: the date is not accepted, and the employee sees the message "You have no working hours on this day".
 
-**Агент (claude-haiku-5-5, PASS):** На кадрі сторінки «New request» під календарем червоним написано «You have no working hours on this day», а в блоці «Selected dates» видно «No dates yet — pick them in the calendar.». Число 7 у суботньому стовпчику сіре, без виділення, і кнопки «Remove Sat, 7 Nov 2026» немає. Кадр повний, без завантаження, текст читабельний.
+**Агент (claude-haiku-5-5, PASS):** На кадрі сторінки «New request» під календарем червоним написано «You have no working hours on this day», а в блоці «Selected dates» видно «No dates yet — pick them in the calendar.». Субота 7 (Sat) сірим кольором позначена як «No working hours» і не вибрана. Частину про відсутність кнопки «Remove Sat, 7 Nov 2026» кадр не показує, тому її не оцінював.
 
 **Цитати агента, звірені зі сторінкою (aria):**
 - «You have no working hours on this day» — є на сторінці
@@ -72,11 +72,12 @@
 
 **Кроки:** ✔ Дано: a position with the schedule blocks Tue 08:30–12:00 and 12:30–15:30 (teacher2@example.test) → ✔ Коли: the employee enters the hours 07:30–09:00 on 2026-11-03 → ✔ Тоді: no request is created, and the employee sees the message "Hours must be within your schedule: 08:30–12:00, 12:30–15:30".
 
-**Агент (claude-haiku-5-5, PASS):** На кадрі видно червоне повідомлення під полем «From 07:30 / to 09:00» з текстом, що збігається з критерієм, і заголовок картки «Positions and hours». Сторінка лишається на кроці «Positions & hours» (у вкладці знак «&», у заголовку — «and»), кнопка «Submit request» відсутня, є лише «Continue». Символи тире на кадрі не вдалося звірити посимвольно, тож це залишається на автоматичній перевірці, як і сказано в AC.
+**Агент (claude-haiku-5-5, PASS):** На кадрі червоний текст під полями 07:30 / 09:00 читається як «Hours must be within your schedule: 08:30–12:00, 12:30–15:30». Форма залишилась на кроці з заголовком «Positions and hours» (картка) і показує кнопку «Continue», а не «Submit request». Точні тире в повідомленні на кадрі не перевіряю — це робить автоматична перевірка.
 
 **Цитати агента, звірені зі сторінкою (aria):**
 - «Hours must be within your schedule: 08:30–12:00, 12:30–15:30» — є на сторінці
 - «Positions and hours» — є на сторінці
+- «Continue» — є на сторінці
 
 **Правило:** R6: перевірки, агент і цитати збігаються
 

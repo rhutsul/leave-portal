@@ -1,9 +1,9 @@
 {
   "kind": "uat",
-  "generatedAt": "2026-11-02T10:05:09.830Z",
+  "generatedAt": "2026-11-02T10:37:48.970Z",
   "baseURL": "https://leave-portal-olive.vercel.app",
-  "deployedSha": "8abda3dc99f91691c9e9a98dc2b2511cd291216f",
-  "testsCommit": "c740a03926042a5da6ea20f7c48eee004ca58ba3",
+  "deployedSha": "3a955d424f9db98a36b55d8d68c51a9f30173f9d",
+  "testsCommit": "bec6601ed191343cc9a267c15799fdb422358fcf",
   "reviewer": {
     "model": "claude-haiku-5-5",
     "disputes": "claude-sonnet-5-5"
@@ -21,7 +21,7 @@
       "vision": {
         "met": true,
         "readable": true,
-        "notes": "На кадрі frame-then-1.png сторінка /balances (заголовок «Balances», «School year 2026–2027») без карток балансів і без чисел днів. Замість них є напис «These balances are not available to you.», який збігається з критерієм посимвольно. Частини з розділу «Не з кадрів» не оцінювалися."
+        "notes": "На кадрі сторінки /balances під заголовком «School year 2026–2027» видно панель із текстом «These balances are not available to you.» і підказкою «You can see your own balances and the balances of employees whose positions you manage.». Карток із днями на кадрі немає. Частини з розділу «Не з кадрів» не оцінювались."
       },
       "agentModel": "claude-haiku-5-5",
       "agentVerdicts": {
@@ -38,9 +38,9 @@
       "verdict": "PASS",
       "factoryGate": "PASS",
       "rule": "R6: перевірки, агент і цитати збігаються",
-      "playwrightMs": 11625,
-      "reviewCostUsd": 0.00236,
-      "reviewWallMs": 8988
+      "playwrightMs": 8599,
+      "reviewCostUsd": 0.00182,
+      "reviewWallMs": 8294
     },
     {
       "id": "AC-LEAVE-06",
@@ -53,7 +53,7 @@
       "vision": {
         "met": true,
         "readable": true,
-        "notes": "На кадрі сторінки «New request» під календарем червоним написано «You have no working hours on this day», а в блоці «Selected dates» видно «No dates yet — pick them in the calendar.». Число 7 у суботньому стовпчику сіре, без виділення, і кнопки «Remove Sat, 7 Nov 2026» немає. Кадр повний, без завантаження, текст читабельний."
+        "notes": "На кадрі сторінки «New request» під календарем червоним написано «You have no working hours on this day», а в блоці «Selected dates» видно «No dates yet — pick them in the calendar.». Субота 7 (Sat) сірим кольором позначена як «No working hours» і не вибрана. Частину про відсутність кнопки «Remove Sat, 7 Nov 2026» кадр не показує, тому її не оцінював."
       },
       "agentModel": "claude-haiku-5-5",
       "agentVerdicts": {
@@ -74,9 +74,9 @@
       "verdict": "PASS",
       "factoryGate": "PASS",
       "rule": "R6: перевірки, агент і цитати збігаються",
-      "playwrightMs": 5585,
-      "reviewCostUsd": 0.0027,
-      "reviewWallMs": 10535
+      "playwrightMs": 5213,
+      "reviewCostUsd": 0.00218,
+      "reviewWallMs": 11105
     },
     {
       "id": "AC-LEAVE-19",
@@ -89,7 +89,7 @@
       "vision": {
         "met": true,
         "readable": true,
-        "notes": "На кадрі видно червоне повідомлення під полем «From 07:30 / to 09:00» з текстом, що збігається з критерієм, і заголовок картки «Positions and hours». Сторінка лишається на кроці «Positions & hours» (у вкладці знак «&», у заголовку — «and»), кнопка «Submit request» відсутня, є лише «Continue». Символи тире на кадрі не вдалося звірити посимвольно, тож це залишається на автоматичній перевірці, як і сказано в AC."
+        "notes": "На кадрі червоний текст під полями 07:30 / 09:00 читається як «Hours must be within your schedule: 08:30–12:00, 12:30–15:30». Форма залишилась на кроці з заголовком «Positions and hours» (картка) і показує кнопку «Continue», а не «Submit request». Точні тире в повідомленні на кадрі не перевіряю — це робить автоматична перевірка."
       },
       "agentModel": "claude-haiku-5-5",
       "agentVerdicts": {
@@ -105,14 +105,18 @@
         {
           "quote": "Positions and hours",
           "onPage": true
+        },
+        {
+          "quote": "Continue",
+          "onPage": true
         }
       ],
       "verdict": "PASS",
       "factoryGate": "PASS",
       "rule": "R6: перевірки, агент і цитати збігаються",
-      "playwrightMs": 13041,
-      "reviewCostUsd": 0.00261,
-      "reviewWallMs": 11924
+      "playwrightMs": 10717,
+      "reviewCostUsd": 0.0025,
+      "reviewWallMs": 12197
     }
   ],
   "negativeControls": [],
