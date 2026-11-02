@@ -60,9 +60,11 @@ shadcn/ui (CLI 4.22.1, Base UI) + `tw-animate-css` + `lucide-react` — диза
 - `.claude/commands/` — наші `requirements-sync.md` і `conformance.md` (у `.cursor/commands/` — посилання на них);
   `.claude/skills/` — наші скіли `spec-clarify` і `spec-review`; Cursor читає їх звідти ж. `openspec-*` і `/opsx*`
   у `.claude/` та `.cursor/` згенерував OpenSpec (однакові копії для двох інструментів) — вручну не редагуй.
-- Нові шари курсу — новими файлами: e2e-тести — `tests/e2e/*.spec.ts` (Vitest їх не запускає, і `ac:coverage`
-  не рахує їх як покриття AC, доки e2e не запускає окремий крок CI — тоді фільтр у `scripts/lib/test-titles.mjs`
-  розширюють разом із цим кроком), нові перевірки — окремим workflow у `.github/workflows/`. Jobs `spec`, `app`,
+- Нові шари курсу — новими файлами: e2e/UAT — `tests/e2e/**/*.spec.ts` (Playwright, `playwright.config.ts`; Vitest
+  їх не запускає). Їх запускає `npm run uat -- --url <прод>` (звіт — `docs/qa/uat/<дата>/`), тож `ac:coverage` рахує їх
+  як покриття AC (`isRunByPlaywright` у `scripts/lib/test-titles.mjs`); помічники `tests/e2e/support/**` і
+  `tests/e2e/*.test.ts` — ні. Новий раннер — розширюй цей фільтр разом із кроком, що його запускає. Нові перевірки —
+  окремим workflow у `.github/workflows/`. Jobs `spec`, `app`,
   `conformance`, `db-check`, `db-deploy` у `ci.yml` не перейменовуй і не видаляй: на їхніх назвах тримається ruleset.
 
 ## Процес і ролі
@@ -103,7 +105,7 @@ shadcn/ui (CLI 4.22.1, Base UI) + `tw-animate-css` + `lucide-react` — диза
   «Done when: AC-…»); галочки в `tasks.md` став у PR задачі; archive (`npx openspec archive impl-<зріз> -y`) — в
   останньому PR зрізу.
 - AC ID (`AC-<AREA>-<NN>`) — ID PM: на початку назви сценарію і в назві тесту: `it("AC-LEAVE-02: …")`; лише AC, які вже
-  є в `openspec/specs/` (інакше ORPHAN): за новою вимогою PM працюй після злитого PR «Специфікація». Тести — лише у файлах `*.test.ts` / `*.test.tsx` під `src/` або `tests/`: інші файли (зокрема `*.spec.ts`) Vitest не запускає, і `ac:coverage` їх не рахує. Перевірки в тестах — через `expect(…)`: `vitest.config.mts` вимагає хоча б один `expect` у кожному тесті, а `assert` (з `vitest` чи `node:assert`) не рахується — такий тест падає з «expected any number of assertion, but got none».
+  є в `openspec/specs/` (інакше ORPHAN): за новою вимогою PM працюй після злитого PR «Специфікація». Тести — у файлах `*.test.ts` / `*.test.tsx` під `src/` або `tests/` (Vitest) і `tests/e2e/**/*.spec.ts` (Playwright, UAT): інші файли (зокрема `*.spec.ts` поза `tests/e2e/`) жоден раннер не запускає, і `ac:coverage` їх не рахує. Перевірки в тестах — через `expect(…)`: `vitest.config.mts` вимагає хоча б один `expect` у кожному тесті, а `assert` (з `vitest` чи `node:assert`) не рахується — такий тест падає з «expected any number of assertion, but got none».
 - Рядок у `docs/conformance.md` для AC задачі оновлюється в тому самому PR, що й код (`/conformance`, `npm run ac:coverage`);
   рядок «Вимоги: …» у шапці матриці змінює лише `/requirements-sync`. Новий AC після archive зміни специфікації —
   «відкладено (чекає реалізації)», доки його не реалізовано або не вказано конкретну причину з посиланням на рішення PM.

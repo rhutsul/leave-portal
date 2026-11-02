@@ -47,3 +47,9 @@ next-env.d.ts
 
 # test accounts for the PM (plain text, only the encrypted accounts.zip is committed)
 accounts.txt
+
+# Playwright / UAT (WS8): звіти, відео й траси, робочі пакети рецензента, сесії тестових ролей (живі cookie)
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.auth/
