@@ -233,7 +233,10 @@ describe("the manager decides on the hours they saw", () => {
     await expect(
       t.asUser(manager1, "select public.decide_leave_record($1, 'approve', null, null)", [id]),
     ).rejects.toMatchObject({ code: "22023" });
-    await expect(t.asUser(manager1, "select public.decide_leave_record($1, 'approve')", [id])).rejects.toThrow();
+    // Старої сигнатури без годин більше немає (42883 undefined_function), а не будь-яка інша помилка.
+    await expect(t.asUser(manager1, "select public.decide_leave_record($1, 'approve')", [id])).rejects.toMatchObject({
+      code: "42883",
+    });
     expect((await recordOf(id)).status).toBe("awaiting");
     // З новими годинами — погоджено.
     await t.asUser(manager1, "select public.decide_leave_record($1, 'approve', p_start_min => 540, p_end_min => 720)", [id]);

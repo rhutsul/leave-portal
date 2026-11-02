@@ -33,6 +33,10 @@ shadcn/ui (CLI 4.22.1, Base UI) + `tw-animate-css` + `lucide-react` — диза
 - `npm run check:design` (лише токени, без сирих кольорів) · `npm run check:ui` (лише компоненти `@/components/ui`) ·
   `npm run check:boundary` (секретний ключ лише на сервері) —
   у CI окремий workflow `.github/workflows/architecture.yml`
+- `npm run gates` перед PR (lint, typecheck і `fallow audit --base origin/main` — лише нові знахідки; конфіг і причини
+  кожного `ignore…` — `.fallowrc.jsonc`) · `npm run test:coverage` → `npm run coverage:summary` (підлога на доменні
+  файли — `FLOORED` у `vitest.coverage.config.mts`, храповик: не знижуємо) — у CI окремий workflow
+  `.github/workflows/quality.yml`. Тестові правила `@vitest/eslint-plugin` — в `eslint.config.mjs` (job `app`)
 - `node scripts/check-migration-order.mjs` — нова міграція новіша за `origin/main`, застосовані не змінено (у CI — `db-check`)
 - `npx supabase migration new <назва>` → SQL → PR. Застосовує міграції у вашу базу ЛИШЕ CI (`db-deploy` після merge у `main`)
 - Типи БД: готовий `database.types.ts` — у Summary прогону job `db-check` (Docker не потрібен); або `npm run db:types`
