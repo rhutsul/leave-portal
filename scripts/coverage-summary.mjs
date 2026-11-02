@@ -4,7 +4,7 @@
 // Без сторонньої дії й без дозволу pull-requests: write. Порядок: спершу доменні правила (src/lib/**, крім адаптерів
 // src/lib/supabase/**) — найнижчі зверху, потім сторінки й server actions, потім адаптери. 0 % сторінок — не провал:
 // їх доводять тести бази (PGlite) та e2e, а не Vitest. Джерело — демо-репо курсу, тег ws8-01-gates.
-import { appendFileSync, readFileSync } from "node:fs";
+import { appendFileSync, existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 
 const LAYERS = [
@@ -16,7 +16,13 @@ const LAYERS = [
 const layerIndex = (file) => LAYERS.findIndex((l) => l.test.test(file));
 const pct = (m) => (m.total === 0 ? "—" : `${Math.floor(m.pct)} %`);
 
-const summary = JSON.parse(readFileSync(process.argv[2] ?? "coverage/coverage-summary.json", "utf8"));
+const source = process.argv[2] ?? "coverage/coverage-summary.json";
+// Крок у quality.yml іде з if: always(): якщо Vitest не дійшов до звіту, пояснюємо це, а не друкуємо стек ENOENT.
+if (!existsSync(source)) {
+  console.error(`coverage:summary: немає ${source} — спершу npm run test:coverage (у CI він упав раніше, ніж записав звіт).`);
+  process.exit(1);
+}
+const summary = JSON.parse(readFileSync(source, "utf8"));
 const rows = Object.entries(summary)
   .filter(([file]) => file !== "total")
   .map(([file, m]) => ({ file: path.relative(process.cwd(), file).replaceAll("\\", "/"), layer: layerIndex(file), m }))

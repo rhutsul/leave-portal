@@ -31,7 +31,9 @@ const eslintConfig = defineConfig([
         "error",
         { mustNotMatch: [String.raw`^(?!${AC}).*\b${AC}`, "AC ID — на самому початку назви тесту, інакше ac:coverage його не порахує."] },
       ],
-      // Тест, що розгалужується, сам вирішує, чи щось перевіряти.
+      // Тест, що розгалужується, сам вирішує, чи щось перевіряти; тест, зареєстрований під умовою (if навколо it),
+      // може не запуститися зовсім, а ac:coverage усе одно його порахує.
+      "vitest/no-conditional-tests": "error",
       "vitest/no-conditional-in-test": "error",
       "vitest/no-conditional-expect": "error",
       // expect(value, "пояснення") — коректний Vitest.
@@ -50,6 +52,11 @@ const eslintConfig = defineConfig([
           // vi.mock(import("@/lib/…")) — та сама заборона для форми з import().
           selector: `CallExpression[callee.object.name='vi'][callee.property.name=/^(mock|doMock)$/][arguments.0.source.value=${OWN_MODULE}]`,
           message: NO_OWN_MOCK,
+        },
+        {
+          // it.runIf(…) / it.skipIf(…) — та сама умовна реєстрація: ac:coverage рахує тест, навіть коли він не запускається.
+          selector: "CallExpression[callee.object.name=/^(it|test|describe)$/][callee.property.name=/^(runIf|skipIf)$/]",
+          message: "Не реєструйте тести під умовою (runIf / skipIf): ac:coverage рахує тест, навіть коли він не запускається.",
         },
       ],
     },
