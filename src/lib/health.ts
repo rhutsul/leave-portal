@@ -3,6 +3,9 @@
 
 /** Код SQLSTATE Postgres, напр. 42501 «permission denied»: запит дійшов до бази. */
 const SQLSTATE = /^[0-9A-Z]{5}$/;
+/** Класи SQLSTATE, коли Postgres відповів, але запитів не обслуговує: 08 — з'єднання, 53 — ресурси
+ *  (53300 too_many_connections), 57 — зупинка чи запуск (57P01–57P03). */
+const SQLSTATE_DB_DOWN = /^(08|53|57)/;
 /** PostgREST не може під'єднатися до бази. */
 const PGRST_DB_DOWN = /^PGRST00[0-3]$/;
 /** Supabase відповідає 540, коли безкоштовний проєкт призупинено (Dashboard → Resume project). */
@@ -14,10 +17,13 @@ export type DbHealth = { db: "ok" | "down"; reason: string };
 export function classifyDbProbe({ status, error }: DbProbe): DbHealth {
   if (status === SUPABASE_PAUSED) return { db: "down", reason: "paused" };
   const code = error?.code ?? "";
-  if (!error || SQLSTATE.test(code) || (code.startsWith("PGRST") && !PGRST_DB_DOWN.test(code))) {
-    return { db: "ok", reason: "" };
-  }
-  if (/api key/i.test(error.message ?? "")) return { db: "down", reason: "invalid-api-key" };
-  // 0 — мережа (Supabase недоступний або хибний URL), 5xx, PGRST000–003.
+  const answered =
+    !error ||
+    (SQLSTATE.test(code) && !SQLSTATE_DB_DOWN.test(code)) ||
+    (code.startsWith("PGRST") && !PGRST_DB_DOWN.test(code));
+  // 5xx — збій на боці Supabase, хоч би який код прийшов у тілі.
+  if (answered && status < 500) return { db: "ok", reason: "" };
+  if (/api key/i.test(error?.message ?? "")) return { db: "down", reason: "invalid-api-key" };
+  // 0 — мережа (Supabase недоступний або хибний URL), 5xx, PGRST000–003, SQLSTATE класів 08, 53, 57.
   return { db: "down", reason: `status-${status}${code ? `-${code}` : ""}` };
 }

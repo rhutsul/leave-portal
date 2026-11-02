@@ -8,11 +8,30 @@
 // Код виходу: 0 — усе гаразд, 1 — є збій (рядки ::error:: видно в GitHub Actions), 2 — не вказано адресу.
 const [rawBase = process.env.PROD_URL ?? "", expectSha = ""] = process.argv.slice(2);
 // client_payload.url від Vercel може прийти хостом без схеми — додаємо https://.
-const base = (/^https?:\/\//.test(rawBase) ? rawBase : rawBase ? `https://${rawBase}` : "").replace(/\/+$/, "");
+let base = (/^https?:\/\//.test(rawBase) ? rawBase : rawBase ? `https://${rawBase}` : "").replace(/\/+$/, "");
+// Облікові дані в адресі (https://user:pass@…) не друкуємо в журнал і не надсилаємо: прод публічний.
+let strippedCredentials = false;
+try {
+  const url = new URL(base);
+  if (url.username || url.password) {
+    url.username = "";
+    url.password = "";
+    base = url.toString().replace(/\/+$/, "");
+    strippedCredentials = true;
+  }
+} catch {
+  // Не URL — fetch нижче повідомить про збій.
+}
+/** Межа на кожен запит разом із читанням тіла: завислий прод має дати збій, а не тримати прогін. */
+const REQUEST_TIMEOUT_MS = 10_000;
 
 const get = async (path) => {
   try {
-    const r = await fetch(base + path, { redirect: "manual", headers: { "user-agent": "smoke/1.0 (D0)" } });
+    const r = await fetch(base + path, {
+      redirect: "manual",
+      headers: { "user-agent": "smoke/1.0 (D0)" },
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    });
     return {
       status: r.status,
       location: r.headers.get("location") ?? "",
@@ -20,7 +39,8 @@ const get = async (path) => {
       text: await r.text(),
     };
   } catch (e) {
-    return { status: 0, location: "", vercelError: "", text: String(e.cause?.code ?? e) };
+    const reason = e.name === "TimeoutError" ? `немає відповіді за ${REQUEST_TIMEOUT_MS / 1000} с` : String(e.cause?.code ?? e);
+    return { status: 0, location: "", vercelError: "", text: reason };
   }
 };
 const vercelWall = (r) =>
@@ -28,6 +48,7 @@ const vercelWall = (r) =>
 
 async function main() {
   const fail = [];
+  if (strippedCredentials) console.log("::warning title=smoke::PROD_URL містить облікові дані — їх прибрано з адреси");
   const root = await get("/");
   if (vercelWall(root)) fail.push(`"/": стіна входу Vercel — Settings → Deployment Protection → вимкніть Vercel Authentication`);
   else if (root.status === 0) fail.push(`"/": недоступний (${root.text})`);
@@ -45,7 +66,8 @@ async function main() {
   for (let attempt = 1; attempt <= (expectSha ? 6 : 1) && login.status === 200; attempt++) {
     const r = await get("/api/health");
     try {
-      health = { status: r.status, ...JSON.parse(r.text) };
+      // status — фактичний код HTTP, а не поле з тіла.
+      health = { ...JSON.parse(r.text), status: r.status };
     } catch {
       health = { status: r.status, location: r.location };
     }
@@ -63,7 +85,7 @@ async function main() {
     fail.push(`"/api/health": Supabase призупинено — Dashboard → Resume project (безкоштовний проєкт засинає після тижня без активності)`);
   } else if (health.reason === "invalid-api-key") {
     fail.push(`"/api/health": ключ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY у Vercel не приймається — звірте змінні Production і зробіть Redeploy`);
-  } else if (health.db !== "ok") {
+  } else if (health.status !== 200 || health.db !== "ok") {
     fail.push(
       `"/api/health": HTTP ${health.status}, db=${health.db ?? "?"}${health.reason ? ` (${health.reason})` : ""} — Supabase недоступний чи NEXT_PUBLIC_SUPABASE_URL у Vercel не той?`,
     );
