@@ -10,7 +10,7 @@ import { LeaveTypeTag } from "@/components/ui/leave-type-tag";
 import { PageHeader } from "@/components/ui/page-header";
 import { isRecordStatus, StatusBadge } from "@/components/ui/status-badge";
 import { formatSchoolYear, schoolYearOf } from "@/lib/leave/balance";
-import { positionLabel, type RecordStatus } from "@/lib/leave/request";
+import { BLOCKING_STATUSES, positionLabel, type RecordStatus } from "@/lib/leave/request";
 import { formatDateLong, formatRange, kyivDate, kyivHour, monthShort, weekdayName } from "@/lib/leave/time";
 import { createClient } from "@/lib/supabase/server";
 import { loadBalances } from "../balances/load-balances";
@@ -41,7 +41,7 @@ export default async function Overview() {
       .from("my_leave_records")
       .select("id, request_id, date, start_min, end_min, leave_type, status, position_title, division_name")
       .gte("date", today)
-      .in("status", ["awaiting", "returned", "approved"])
+      .in("status", [...BLOCKING_STATUSES])
       .order("date", { ascending: true })
       .order("start_min", { ascending: true })
       .limit(20),

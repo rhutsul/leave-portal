@@ -29,7 +29,7 @@ export default async function NewRequestPage() {
     supabase
       .from("my_leave_records")
       .select("date")
-      .in("status", ["awaiting", "returned", "approved"])
+      .neq("status", "cancelled")
       .gte("date", `${year - 1}-09-01`)
       .lte("date", `${year + 2}-08-31`),
   ]);
