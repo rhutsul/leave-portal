@@ -32,13 +32,14 @@ PM наприкінці порівнює реалізації розробник
 
 - Рев'ю WS7 (п. 2), питання PM mkozlovskyi-ops/course-staff-management-spec#19 (Q6).
 - **Що є.** Колонкові права (`20261026181152_profiles_name_admin_only.sql`) не дають працівнику змінити
-  `public.profiles.email`, тест — `tests/db/profiles.test.ts`. Але логін — `auth.users.email`, і
-  `supabase.auth.updateUser({ email })` з публічним ключем змінює його повз `profiles`.
+  `public.profiles.email`, тест — `tests/db/profiles.test.ts`. Але логін — `auth.users.email`: працівник, що увійшов
+  (активна сесія, клієнт із публічним ключем), може викликати `supabase.auth.updateUser({ email })` і змінити його
+  повз `profiles`. Без входу — ні.
 - **Що робить Auth (перевірено читанням коду, не прогоном).** `supabase/auth`, `internal/api/user.go` (коміт `3afa027`,
   2026-08-06): автопідтвердження («Confirm email» вимкнено, `enable_confirmations = false`) діє лише для анонімних
   користувачів — «permanent users always need to verify their email address when changing it». Для teacher1@ Auth
-  лише надсилає лист підтвердження (`double_confirm_changes = true` — на стару й нову адресу); логін змінюється після
-  переходу за посиланням. Отже, **одразу** email не зміниться, але працівник із доступом до пошти зможе змінити свій
+  лише надсилає лист підтвердження (`double_confirm_changes = true` — посилання на стару й нову адресу); логін змінюється
+  лише після підтвердження обох адрес. Отже, **одразу** email не зміниться, але працівник із доступом до обох скриньок зможе змінити свій
   логін сам — правило матриці цього не забороняє.
 - **Наслідки.** (1) Після підтвердження `profiles.email` лишиться старим: тригер `on_auth_user_created` — лише
   `after insert`, оновлення `auth.users` не синхронізується. (2) Адреси `*@example.test` листів не отримують, а

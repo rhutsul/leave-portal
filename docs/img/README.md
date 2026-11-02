@@ -1,6 +1,6 @@
 # Знімки екрана
 
-Усі знімки — з проду (`https://leave-portal-olive.vercel.app`) на синтетичних акаунтах `*@example.test`, без паролів у
+Знімки інтерфейсу — з проду (`https://leave-portal-olive.vercel.app`) на синтетичних акаунтах `*@example.test`, без паролів у
 кадрі. `-light` / `-dark` — тема. Знімки налаштування (`auth-*`, `env-*`, `vercel-*`, `ruleset.png` тощо) — для
 `docs/bootstrap.md`.
 
