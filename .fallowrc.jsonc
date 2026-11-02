@@ -1,0 +1,90 @@
+{
+  "$schema": "./node_modules/fallow/schema.json",
+  // Конфіг fallow 3.35.0 для проєкту з шаблону курсу (WS8). Джерело — демо-репо курсу, тег ws8-01-gates;
+  // демо-специфічне прибрано. Кожен ваш новий ignore… — з коментарем-причиною, як нижче.
+  //
+  // Скрипти з package.json fallow бачить сам. Сюди — лише те, що читає інший інструмент: конфіг Vitest для Stryker
+  // (його називає stryker.config.json, а не import). Не пишіть "scripts/*.mjs": з 3.35 зірочка не заходить у підтеки,
+  // і кожен прогін друкує WARN.
+  "entry": ["vitest.stryker.config.mts"],
+  // Дані для тестів скриптів шаблону — навмисно «зламані» файли.
+  "ignorePatterns": ["tests/fixtures/**"],
+  // Наше (leave-portal). Браузерний клієнт Supabase шаблону — частина структури стеку (AGENTS.md:
+  // src/lib/supabase/{client,server,proxy}.ts). Зараз усі дані йдуть через сервер (Server Components і server
+  // actions), тож його ніхто не імпортує; лишаємо для першого Client Component, якому знадобиться Supabase. Файл
+  // аналізується далі (граф, складність) — сховано лише знахідку «невикористаний файл».
+  "ignoreFindings": ["src/lib/supabase/client.ts"],
+  "ignoreDependencies": [
+    // Tailwind 4 підключено рядком у next.config.ts (turbopack.rules.loaders) — fallow цього не бачить.
+    "@tailwindcss/turbopack",
+    // Vitest вантажить провайдер покриття за назвою з конфігу (provider: "v8"), а не через import.
+    "@vitest/coverage-v8"
+  ],
+  // Якщо у вас є shadcn/ui: компоненти дизайн-системи навмисно експортують усі частини. Немає теки — рядок нічого не робить.
+  "ignoreExports": [{ "file": "src/components/ui/**", "exports": ["*"] }],
+  "ignoreExportsUsedInFile": true,
+  // Наше (leave-portal). Переглянуті дублі; ключ змінюється разом із вмістом чи кількістю копій — тоді знахідка
+  // повертається.
+  "duplicates": {
+    "ignoredClones": [
+      // src/app/globals.css: два темні блоки токенів — @media (prefers-color-scheme: dark) і :root[data-theme="dark"] —
+      // мусять бути однаковими (ADR 0005, DESIGN.md розділ 9); однаковість перевіряє src/components/ui/design-system.test.tsx.
+      // CSS не має способу оголосити один блок для обох селекторів, коли один з них — @media.
+      "dup:d8eab016:2",
+      // src/app/(app)/design/page.tsx — вітрина дизайн-системи: навмисно показує поруч варіанти тієї самої розмітки
+      // (діалог Approve / Reject, рядки таблиці з різними статусами) і шапку таблиці «My requests» дослівно, як на сторінці.
+      "dup:6c04d510:2",
+      "dup:d0afc913:2",
+      "dup:2e0b32b5:2",
+      // scripts/check-design-tokens.mjs, check-server-boundary.mjs (з матеріалів WS7 курсу) і check-ui-primitives.mjs
+      // (наш, за їхнім зразком): кожен — самодостатній CLI в одному файлі (аргументи --root/--json, обхід тек, вивід),
+      // щоб його можна було перенести чи оновити з матеріалів курсу одним файлом. Спільний модуль зламав би це.
+      "dup:a3b03539:2",
+      "dup:987937a0:2",
+      "dup:6b8623bd:2",
+      "dup:4d52e8c8:3",
+      "dup:bba1c000:2",
+      "dup:2577080a:3",
+      "dup:bb274b07:2",
+      "dup:1e5cf005:2"
+    ]
+  },
+  "rules": {
+    // Кожен експорт "use server" — публічний POST-ендпойнт: мертвий — прибрати.
+    "unused-server-actions": "error",
+    "invalid-client-export": "error",
+    "misplaced-directive": "error",
+    "mixed-client-server-barrel": "error",
+    // Захист від «агент зробив тести зеленими»: послаблений тест, гілка лише для тестів, нове придушення.
+    "weakened-tests": "error",
+    "test-only-branch": "error",
+    "added-suppression": "warn",
+    // CRAP без файлу покриття — оцінка, не факт.
+    "complexity-crap": "warn"
+  },
+  "health": {
+    // Скрипти курсу (шаблон і materials/ WS8): їх перевірено на демо, і ви їх не змінюєте. Без цього рядка PR, що
+    // додає, скажімо, scripts/uat/**, червоніє на складності чужого коду (fallow audit рахує новий файл новою знахідкою).
+    // Мертвий код і залежності в цих файлах fallow перевіряє й далі — це виняток лише для складності.
+    "ignore": [
+      "scripts/lib/**",
+      "scripts/uat/**",
+      "scripts/smoke.mjs",
+      "scripts/zip-accounts.mjs",
+      "scripts/mutation-check.mjs",
+      "scripts/coverage-summary.mjs",
+      // Наше (leave-portal): ті самі скрипти шаблону й матеріалів WS7 курсу — перевірки шаблону (check-spec,
+      // create-demo-users) і архітектурні правила з матеріалів WS7 (check-design-tokens, check-server-boundary).
+      // Наш check-ui-primitives.mjs сюди не входить: його складність — наша.
+      "scripts/check-spec.mjs",
+      "scripts/create-demo-users.mjs",
+      "scripts/check-design-tokens.mjs",
+      "scripts/check-server-boundary.mjs"
+    ],
+    "thresholdOverrides": [
+      { "files": ["tests/**"], "maxUnitSize": 500, "reason": "describe()-блоки довгі за задумом" }
+    ]
+  },
+  // Ворота валять лише НОВІ знахідки відносно бази PR; успадковані fallow показує як контекст.
+  "audit": { "gate": "new-only" }
+}
