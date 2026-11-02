@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // npm run mutation:sql — мутаційна перевірка правил, які Stryker не мутує (SQL: політики RLS, grant, функції, тригери),
 // плюс кілька точкових TS-мутантів на межах з AC. Список мутантів — scripts/mutants.mjs.
-// Джерело — матеріали WS8 курсу (materials/testing/scripts/mutation-check.mjs); змінено лише пошук пакета vitest.
+// Джерело — матеріали WS8 курсу (materials/testing/scripts/mutation-check.mjs); змінено пошук пакета vitest і
+// перевірку коду виходу Vitest (рев'ю CodeRabbit у #39).
 // Для кожного мутанта:
 //   1. відмовляється працювати, якщо у файлі мутанта є незакомічені зміни (ваші правки не зачіпаємо);
 //   2. робить ОДНУ текстову заміну (find має трапитися рівно один раз; заміна вставляється буквально);
@@ -122,6 +123,10 @@ function runTests(files, label) {
   });
   const report = readReport(out);
   if (!report) return { error: `Vitest не дав звіту (код виходу ${run.status ?? run.signal})`, failed: [] };
+  // Звіт «усе зелене», а процес упав (необроблена помилка поза тестами, сигнал) — прогін нічого не доводить.
+  if (run.error || run.signal || (run.status !== 0 && report.success)) {
+    return { error: `Vitest завершився з помилкою поза тестами (код виходу ${run.status ?? run.signal})`, failed: [] };
+  }
   const failed = report.testResults.flatMap((f) =>
     f.assertionResults.filter((a) => a.status === "failed").map((a) => a.title),
   );
