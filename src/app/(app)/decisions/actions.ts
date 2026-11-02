@@ -9,25 +9,20 @@ import {
   isDecision,
   parseRecordId,
   reviewedHours,
-  type Role,
 } from "@/lib/leave/decision";
-import { createClient } from "@/lib/supabase/server";
+import { currentRole, requireUser } from "@/lib/supabase/auth";
 
 export interface DecideState {
   message: string;
 }
 
 const FAILED = "The decision could not be saved. Please try again.";
-const ROLES: readonly string[] = ["employee", "manager", "admin"] satisfies Role[];
 
 // Рішення щодо запису (/decisions). Спершу ті самі правила, що й decide_leave_record, чистими функціями
 // (src/lib/leave/decision.ts) — для повідомлення; потім rpc, де база перевіряє все ще раз, сама рахує розподіл понад
 // залишок і ухвалює лише перше рішення. Розподіл із форми не приходить — лише прапорець «з розподілом».
 export async function decideRecord(_prev: DecideState, formData: FormData): Promise<DecideState> {
-  const supabase = await createClient();
-  const { data } = await supabase.auth.getClaims();
-  const claims = data?.claims;
-  if (!claims) redirect("/login");
+  const { supabase, claims } = await requireUser();
 
   const recordId = parseRecordId(formData.get("record_id"));
   const decision = formData.get("decision");
@@ -37,18 +32,19 @@ export async function decideRecord(_prev: DecideState, formData: FormData): Prom
   const split = formData.get("split") === "1";
 
   // decision_records віддає лише записи посад користувача (адміністратору — усі): немає рядка — немає доступу.
-  const [{ data: profile, error: profileError }, { data: row, error: rowError }] = await Promise.all([
-    supabase.from("profiles").select("role").eq("id", claims.sub).maybeSingle(),
+  const [roleResult, { data: row, error: rowError }] = await Promise.all([
+    currentRole(supabase, claims),
     supabase.rpc("decision_records").eq("id", recordId).maybeSingle(),
   ]);
-  if (profileError || rowError) return { message: FAILED };
-  if (!profile || !ROLES.includes(profile.role)) return { message: DECISION_MESSAGES.noAccess };
+  if (roleResult.error || rowError) return { message: FAILED };
+  const { role } = roleResult;
+  if (!role) return { message: DECISION_MESSAGES.noAccess };
 
   const target =
     row && isRecordStatus(row.status)
-      ? { employeeId: row.employee_id, status: row.status, managerIds: profile.role === "manager" ? [claims.sub] : [] }
+      ? { employeeId: row.employee_id, status: row.status, managerIds: role === "manager" ? [claims.sub] : [] }
       : null;
-  const check = checkDecision({ id: claims.sub, role: profile.role as Role }, target, decision, comment);
+  const check = checkDecision({ id: claims.sub, role }, target, decision, comment);
   // Запис уже не чекає рішення (інший менеджер вирішив — AC-DECIDE-07, або працівник скасував): форми для нього вже
   // немає, тож повідомлення показує панель запису за його поточним статусом.
   if (!check.ok && row && row.status !== "awaiting") redirect(`/decisions?record=${recordId}&notice=decided`);

@@ -1,7 +1,6 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { isRecordStatus } from "@/components/ui/status-badge";
 import {
   checkEmployeeAction,
@@ -14,7 +13,8 @@ import {
 } from "@/lib/leave/decision";
 import { BLOCKING_STATUSES } from "@/lib/leave/request";
 import { isoWeekday } from "@/lib/leave/time";
-import { createClient } from "@/lib/supabase/server";
+import { requireUser } from "@/lib/supabase/auth";
+import type { createClient } from "@/lib/supabase/server";
 import { loadOwnPositions } from "./new/load-positions";
 
 export interface RecordActionState {
@@ -25,13 +25,6 @@ export interface RecordActionState {
 const FAILED = "The change could not be saved. Please try again.";
 
 type Supabase = Awaited<ReturnType<typeof createClient>>;
-
-async function signedIn() {
-  const supabase = await createClient();
-  const { data } = await supabase.auth.getClaims();
-  if (!data?.claims) redirect("/login");
-  return { supabase, userId: data.claims.sub };
-}
 
 /** Власний запис працівника; чужий і неіснуючий — однаково null (RLS показує менеджеру й записи його посад). */
 async function loadOwnRecord(supabase: Supabase, userId: string, recordId: number) {
@@ -71,7 +64,7 @@ function optionalField(formData: FormData, name: string): string | undefined {
 // правила, що й private.update_leave_record_hours, чистими функціями з розкладу й записів у базі (клієнту не довіряємо):
 // статус, лише години, розклад посади на дату, перетин з іншими записами посади; потім rpc перевіряє все ще раз.
 export async function changeRecordHours(_prev: RecordActionState, formData: FormData): Promise<RecordActionState> {
-  const { supabase, userId } = await signedIn();
+  const { supabase, userId } = await requireUser();
 
   const recordId = parseRecordId(formData.get("record_id"));
   if (recordId === null) return { message: RECORD_EDIT_MESSAGES.notFound, done: false };
@@ -146,7 +139,7 @@ async function statusAction(
   formData: FormData,
   action: Exclude<EmployeeAction, "changeHours">,
 ): Promise<RecordActionState> {
-  const { supabase, userId } = await signedIn();
+  const { supabase, userId } = await requireUser();
 
   const recordId = parseRecordId(formData.get("record_id"));
   if (recordId === null) return { message: RECORD_EDIT_MESSAGES.notFound, done: false };
