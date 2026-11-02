@@ -44,6 +44,12 @@ function mondayPositions(positions: PositionSchedule[]) {
   return day.positions;
 }
 
+// Записи з успішного результату; невдалий результат валить тест його ж повідомленням (а не пропускає перевірки).
+function recordsOf(result: { ok: true; records: DraftRecord[] } | { ok: false; message: string }) {
+  if (!result.ok) throw new Error(result.message);
+  return result.records;
+}
+
 describe("records of a one-date request", () => {
   it("AC-LEAVE-01: Sick leave for the whole Monday on the main position gives 1 record 08:30–15:30", () => {
     const positions = mondayPositions([MAIN]);
@@ -67,12 +73,10 @@ describe("records of a one-date request", () => {
         { positionId: 2, date: MONDAY, start: 945, end: 1020, minutes: 75 },
       ],
     });
-    if (result.ok) {
-      expect(toRpcRecords(result.records)).toEqual([
-        { position_id: 1, date: MONDAY, start_min: 510, end_min: 930 },
-        { position_id: 2, date: MONDAY, start_min: 945, end_min: 1020 },
-      ]);
-    }
+    expect(toRpcRecords(recordsOf(result))).toEqual([
+      { position_id: 1, date: MONDAY, start_min: 510, end_min: 930 },
+      { position_id: 2, date: MONDAY, start_min: 945, end_min: 1020 },
+    ]);
   });
 
   it("AC-LEAVE-03: excluding the additional position leaves only the main-position record", () => {
@@ -233,8 +237,7 @@ describe("a request with several dates, a comment and overlaps", () => {
         { ...whole(1), date: TUESDAY },
       ],
     );
-    if (!result.ok) throw new Error(result.message);
-    const conflict = findOverlap(result.records, [existing(TUESDAY, 540, 660), existing("2026-11-04", 540, 660)]);
+    const conflict = findOverlap(recordsOf(result), [existing(TUESDAY, 540, 660), existing("2026-11-04", 540, 660)]);
     expect(conflict && overlapMessage(conflict)).toBe("You already have a request for this time: 2026-11-03 09:00–11:00");
   });
 
