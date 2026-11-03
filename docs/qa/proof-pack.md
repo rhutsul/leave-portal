@@ -172,8 +172,8 @@ PR B: `task/test-quality` (Stryker, SQL-мутації, посилені тес�
   набір статусів у фільтрі запиту береться з `BLOCKING_STATUSES` (у SQL — той самий список, що в
   `leave_records_no_overlap`), заперечення на кшталт `.neq("status", "cancelled")` мовчки додає «Rejected»; зміна
   набору — must fix коментарем у рядку. https://github.com/rhutsul/leave-portal/pull/42 (злито,
-  https://github.com/rhutsul/leave-portal/commit/e4074a8ae6fb9058033ba4f089faa48172649d12). Машинна перевірка (grep
-  на `.neq("status"` поза `request.ts`) — можливий наступний крок у воротах.
+  https://github.com/rhutsul/leave-portal/commit/e4074a8ae6fb9058033ba4f089faa48172649d12). Машинна перевірка (`grep`
+  шукає `.neq("status"` поза `request.ts`) — можливий наступний крок у воротах.
 - Повторний прогін (`git merge main` у #41 → ead04b7): https://github.com/rhutsul/leave-portal/pull/41#issuecomment-6599172263
 
 | # | Вада | CodeRabbit: до → після правила | `/code-review high`: до → після правила |
@@ -185,3 +185,9 @@ PR B: `task/test-quality` (Stryker, SQL-мутації, посилені тес�
 
   `/code-review` ганяли тричі (claude-opus-5-5): до правила — 100 с / $0,71 і 90 с / $0,59, ті самі три вади на
   місцях 1–3; після правила — 153 с / $0,64.
+
+  Обмеження: повторний прогін не ізолює правило повністю. На #41 уже були ключ і перша таблиця в коментарях, а гілку
+  оновлено `git merge main`. Для `/code-review` є часткова контрольна точка: другий прогін без правила йшов на тому
+  самому #41, коли ключ уже був опублікований, і вада 3 лишилась на місці 3; після правила вона піднялась на 2 і
+  з'явилось посилання на `AGENTS.md`. Для CodeRabbit такої точки немає (ліміт 1 рев'ю на годину), тож його «після»
+  — правило плюс змінений контекст; цитата з посиланням на `BLOCKING_STATUSES` вказує на правило, але не доводить.
