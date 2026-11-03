@@ -145,18 +145,49 @@ PR B: `task/test-quality` (Stryker, SQL-мутації, посилені тес�
 
 ## D. Eval рецензента
 
-_Чекає PR D: гілка з вадами, CodeRabbit і `/code-review high`, правило, повторний прогін._
-
-- PR з вадами (не злитий): —
-- Ключ і таблиця: —
+- PR з вадами (не злитий, закрито після eval): https://github.com/rhutsul/leave-portal/pull/41 — гілка
+  `task/refactor-record-access`, 3 нейтральні коміти, опис «рефакторинг без нової поведінки»; усі обов'язкові
+  перевірки й `quality` зелені. Ключ до кінця обох рев'ю лежав поза репо.
+- Ключ і таблиця: https://github.com/rhutsul/leave-portal/pull/41#issuecomment-6585039202
+- Рецензенти: CodeRabbit (`@coderabbitai review`, профіль `assertive`, `.coderabbit.yaml` і `AGENTS.md` з `main`);
+  `/code-review high 41` в окремій свіжій сесії без ключа (`claude -p … --setting-sources project --output-format json`,
+  лише читання), модель **claude-opus-5-5**, 100 с, $0,71.
 
 | # | Вада (ключ) | CodeRabbit | `/code-review high` |
 |---|---|---|---|
-| 1 | | | |
-| 2 | | | |
-| 3 | | | |
-| П | | | |
+| 1 | права в даних (SQL): `create or replace` для `security definer` `private.record_histories` без `set search_path = ''` — `supabase/migrations/20261102155721_record_histories_visible_ids.sql:24–35` | знайшов, Major у рядку ([тред](https://github.com/rhutsul/leave-portal/pull/41#discussion_r4446044808)): «Відновіть фіксований `search_path` для `private.record_histories`.» | знайшов (2 з 8): «The `create or replace` of the SECURITY DEFINER function `private.record_histories` drops the `set search_path = ''` that the original definition had» |
+| 2 | авторизація в дії: роль спершу з `claims.user_metadata.role` — `src/lib/supabase/auth.ts:31`, `decisions/actions.ts` | знайшов, Major у рядку ([тред](https://github.com/rhutsul/leave-portal/pull/41#discussion_r4446044776)): «Читайте роль тільки з `profiles.role`.» … «Користувач може змінити `user_metadata.role`.» | знайшов (1 з 8): «currentRole() trusts `claims.user_metadata.role` before it reads profiles. Any signed-in user can write user_metadata themselves» |
+| 3 | логіка (статус у фільтрі): `.in("status", [3 статуси])` → `.neq("status", "cancelled")` — «Rejected» фарбує день календаря — `src/app/(app)/requests/new/page.tsx:32` | **лише побіжно**: без коментаря в рядку, поза «Findings» і «Merge Risk»; лише в поясненні pre-merge перевірки «AC ID у тестах…»: «Також `requests/new/page.tsx` замінює фільтр `awaiting/returned/approved` на `neq(status, 'cancelled')`; це додає записи `rejected` до `recordDates` і зафарбовує їх у календарі.» | знайшов (3 з 8): «Changing the filter from `in(awaiting, returned, approved)` to `.neq('status', 'cancelled')` adds 'rejected' records to recordDates» |
+| П | приманка: нова `private.visible_record_ids` — `security definer`, `set search_path = ''`, `revoke execute … from public, anon, authenticated` (правильно: її викликає лише `record_histories`) | хибної тривоги немає: «Функція `private.visible_record_ids` має `set search_path = ''`, але функція `private.record_histories` оголошена як `security definer` без цього параметра» | хибної тривоги щодо безпеки немає; лише ефективність (6 з 8): «The optimization stops halfway.» |
 
-- Інші знахідки: —
-- Правило, що закриває пропуск: —
-- Повторний прогін: —
+- Інші знахідки:
+  - `/code-review` — сторінка `/decisions` читає роль з `profiles`, дія — через `currentRole()`: слушна (наслідок вади 2);
+  - `/code-review` — `submitLeaveRequest` і сторінки досі з власним `getClaims` + redirect: слушна (прибирання);
+  - `/code-review` — `can_see_record` перечитує `leave_records` на кожен запис: наполовину слушна (дрібна ефективність);
+  - `/code-review` — немає тестів на `requireUser()` / `currentRole()`: слушна;
+  - `/code-review` — четверта копія `type Supabase = …`: шум;
+  - CodeRabbit, перевірка «AC ID у тестах…» — поведінка змінилась без тестів і рядків `conformance.md`: слушна.
+- Найслабше місце: вада 3 у CodeRabbit — «знайшов» ≠ «заблокував».
+- Правило, що закриває пропуск: пункт в `AGENTS.md` (читають обидва рецензенти; `CLAUDE.md` імпортує `@AGENTS.md`) —
+  набір статусів у фільтрі запиту береться з `BLOCKING_STATUSES` (у SQL — той самий список, що в
+  `leave_records_no_overlap`), заперечення на кшталт `.neq("status", "cancelled")` мовчки додає «Rejected»; зміна
+  набору — must fix коментарем у рядку. https://github.com/rhutsul/leave-portal/pull/42 (злито,
+  https://github.com/rhutsul/leave-portal/commit/e4074a8ae6fb9058033ba4f089faa48172649d12). Машинна перевірка (`grep`
+  шукає `.neq("status"` поза `request.ts`) — можливий наступний крок у воротах.
+- Повторний прогін (`git merge main` у #41 → ead04b7): https://github.com/rhutsul/leave-portal/pull/41#issuecomment-6599172263
+
+| # | Вада | CodeRabbit: до → після правила | `/code-review high`: до → після правила |
+|---|---|---|---|
+| 1 | SQL `search_path` | Major у рядку → той самий тред; у «Merge Risk» серед «Fix all three» | 2 з 8 → 3 з 8 |
+| 2 | роль з `user_metadata` | Major у рядку → той самий тред; у «Merge Risk» серед трьох | 1 з 8 → 1 з 8 |
+| 3 | `neq cancelled` | побіжно в pre-merge перевірці → **Major · Functional Correctness у рядку** ([тред](https://github.com/rhutsul/leave-portal/pull/41#discussion_r4452427421)): «Використайте `BLOCKING_STATUSES` для календаря.» і перше місце в «Merge Risk»: «Rejected leave requests will make their dates appear unavailable on the new-request calendar…» | 3 з 8 → **2 з 8**: «AGENTS.md calls this exact pattern must-fix and requires BLOCKING_STATUSES.» |
+| П | приманка | без хибної тривоги → без хибної тривоги | ефективність → ефективність + «зайвий `security definer`» (стиль, не безпека) |
+
+  `/code-review` ганяли тричі (claude-opus-5-5): до правила — 100 с / $0,71 і 90 с / $0,59, ті самі три вади на
+  місцях 1–3; після правила — 153 с / $0,64.
+
+  Обмеження: повторний прогін не ізолює правило повністю. На #41 уже були ключ і перша таблиця в коментарях, а гілку
+  оновлено `git merge main`. Для `/code-review` є часткова контрольна точка: другий прогін без правила йшов на тому
+  самому #41, коли ключ уже був опублікований, і вада 3 лишилась на місці 3; після правила вона піднялась на 2 і
+  з'явилось посилання на `AGENTS.md`. Для CodeRabbit такої точки немає (ліміт 1 рев'ю на годину), тож його «після»
+  — правило плюс змінений контекст; цитата з посиланням на `BLOCKING_STATUSES` вказує на правило, але не доводить.
