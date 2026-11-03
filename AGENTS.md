@@ -68,7 +68,9 @@ shadcn/ui (CLI 4.22.1, Base UI) + `tw-animate-css` + `lucide-react` — диза
   `.claude/skills/` — наші скіли `spec-clarify` і `spec-review`; Cursor читає їх звідти ж. `openspec-*` і `/opsx*`
   у `.claude/` та `.cursor/` згенерував OpenSpec (однакові копії для двох інструментів) — вручну не редагуй.
 - Нові шари курсу — новими файлами: e2e/UAT — `tests/e2e/**/*.spec.ts` (Playwright, `playwright.config.ts`; Vitest
-  їх не запускає). Їх запускає `npm run uat -- --url <прод>` (звіт — `docs/qa/uat/<дата>/`), тож `ac:coverage` рахує їх
+  їх не запускає). Їх запускає `npm run uat -- --url <прод>` (звіт — `docs/qa/uat/<дата>/`) і job `e2e` у CI
+  (`.github/workflows/e2e.yml`: одноразовий Supabase у раннері, без секретів; `pull_request`, `push` у `main`,
+  `workflow_dispatch`; не обов'язковий у ruleset), тож `ac:coverage` рахує їх
   як покриття AC (`isRunByPlaywright` у `scripts/lib/test-titles.mjs`); помічники `tests/e2e/support/**` і
   `tests/e2e/*.test.ts` — ні. Новий раннер — розширюй цей фільтр разом із кроком, що його запускає. Нові перевірки —
   окремим workflow у `.github/workflows/`. Jobs `spec`, `app`,
