@@ -133,6 +133,10 @@ PR B: https://github.com/rhutsul/leave-portal/pull/39 (`task/test-quality`: Stry
   - NC-2 (AC-LEAVE-19): текст «Тоді» «уточнено» (`and` замість коми), тест і застосунок — ні → твердження пройшли,
     Haiku: FAIL, Sonnet: FAIL → **NEEDS-HUMAN** (R3).
 - Дані: лише читання — нічого не подається; без `SUPABASE_SECRET_KEY`, прибирання не потрібне.
+- Бонус: UAT у CI — https://github.com/rhutsul/leave-portal/actions/runs/41690197432 (`workflow_dispatch` на `main`
+  `b238f3e`; `.github/workflows/e2e.yml` з https://github.com/rhutsul/leave-portal/pull/45: ті самі `tests/e2e/*.spec.ts`
+  на одноразовому Supabase у раннері, без хмарних секретів; 6 passed — 3 входи й 3 AC, 0 skipped; артефакт
+  `e2e-41690197432` — HTML-звіт, відео, trace, `results.json`)
 - **AC-BALANCE-13, примітка для PM:** «Тоді» PM — про відсутність залишків, тож дослівної цитати PM на сторінці немає.
   Агент цитує наш текст порожнього стану «These balances are not available to you.», якого в критерії немає, тож його
   вердикт тут слабкий. Відсутність доводять твердження: 0 карток залишків і 0 чисел «… days», немає імені й email
