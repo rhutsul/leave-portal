@@ -103,8 +103,9 @@ export function parseTestTitles(file) {
 //   Vitest (`npm test`, job app; include/exclude у vitest.config.mts): src/**/*.test.{ts,tsx} і tests/**/*.test.{ts,tsx},
 //     КРІМ tests/e2e/** (Vitest їх не запускає);
 //   Playwright (testMatch у playwright.config.ts): лише tests/e2e/**/*.spec.ts. Їх запускає `npm run uat` проти
-//     проду — локально, не в CI (WS8: прогін доводить звіт у docs/qa/uat/<дата>/); `npm run test:e2e` — проти
-//     локальної збірки. Job e2e у CI немає: якщо його додати (.github/workflows/e2e.yml, бонус WS8), фільтр той самий.
+//     проду — локально (WS8: прогін доводить звіт у docs/qa/uat/<дата>/), `npm run test:e2e` — проти локальної
+//     збірки, і job e2e у CI (.github/workflows/e2e.yml: одноразовий Supabase у раннері, той самий testMatch) — фільтр
+//     той самий.
 // Тест у tests/e2e/*.test.ts, *.spec.ts поза tests/e2e, *.test.js, helpers.ts чи будь-якому іншому файлі жоден раннер не виконує,
 // тож AC він не покриває. Додаєте ще один раннер — розширюйте цей фільтр РАЗОМ із кроком, що його запускає.
 const E2E_DIR = /^tests\/e2e\//;
