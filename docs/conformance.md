@@ -30,7 +30,7 @@
 | AC-LEAVE-10 | діапазон лише із заблокованих днів | — | — | відкладено (чекає реалізації) |
 -->
 
-Вимоги: https://github.com/mkozlovskyi-ops/course-staff-management-spec · джерело: docs · знімок 2026-10-26
+Вимоги: https://github.com/mkozlovskyi-ops/course-staff-management-spec · джерело: docs · знімок 2026-11-04
 
 | AC | Що перевіряє | Код | Тест | Статус |
 |---|---|---|---|---|

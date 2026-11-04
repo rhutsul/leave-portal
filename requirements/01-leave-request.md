@@ -1,4 +1,4 @@
-> Джерело: https://github.com/mkozlovskyi-ops/course-staff-management-spec/blob/cddaf8f317a9a8d46b6c49b73ca80c50fc18a8ab/docs/requirements/01-leave-request.md · коміт cddaf8f · 2026-10-24
+> Джерело: https://github.com/mkozlovskyi-ops/course-staff-management-spec/blob/818bad5c4c7521280fa59bb814b2317f92857eb2/docs/requirements/01-leave-request.md · коміт 818bad5 · 2026-11-03
 
 # Requirement: an employee requests leave according to their schedule
 
@@ -58,6 +58,7 @@ and each position gets its own record that goes to that position's manager.
 - AC-LEAVE-19: Given a position with the schedule blocks Tue 08:30–12:00 and 12:30–15:30. When the employee enters the hours 07:30–09:00 on 2026-11-03. Then no request is created, and the employee sees the message "Hours must be within your schedule: 08:30–12:00, 12:30–15:30".
 - AC-LEAVE-20: Given a position with the schedule blocks Tue 08:30–12:00 and 12:30–15:30. When the employee enters 12:00 as the start on 2026-11-03. Then no request is created, and the employee sees the message "12:00 is the end of working time and can only be chosen as the end of leave".
 - AC-LEAVE-21: Given an employee with the schedule Mon–Fri 08:30–15:30. When the employee chooses Friday 2026-11-06 and Saturday 2026-11-07 in one whole-day request and confirms. Then Saturday is not accepted with the message "You have no working hours on this day", and 1 record is created, for 2026-11-06.
+- AC-LEAVE-22: Given a position with the schedule blocks Tue 08:30–12:00 and 12:30–15:30. When the employee requests "Personal leave" on 2026-11-03 from 09:00 to 12:30. Then 1 record 2026-11-03 09:00–12:30 is created with a duration of 3 h (the gap 12:00–12:30 is not counted).
 
 ### Out of scope
 
@@ -79,7 +80,7 @@ and each position gets its own record that goes to that position's manager.
   leave start is 12:55.
 - "Whole day" for a position means all blocks of its schedule on that date.
 - A request may span a gap between schedule blocks; only the minutes inside the blocks count. The start and the end
-  must each fall inside a block (the end may equal a block's end).
+  must each fall inside a block (the end may equal a block's end or the start of the next block, as in AC-LEAVE-22).
 - A request is saved as a whole: either all of its records are created or none. A date without working hours is
   not accepted (AC-LEAVE-06) and the other dates of the request stay; "all or none" applies to the accepted dates.
 - One leave type per request; different types mean different requests (confirmed by PM).
@@ -121,3 +122,4 @@ None.
 - 2026-10-23 — assumption added: how several dates are picked is the developer's choice; no AC changed — https://github.com/mkozlovskyi-ops/course-staff-management-spec/issues/13
 - 2026-10-23 — assumption added: leave type and status are always shown as text, colour only in addition; no AC changed — https://github.com/mkozlovskyi-ops/course-staff-management-spec/issues/14
 - 2026-10-23 — assumption added: "My requests" is a list, a calendar view is optional; no AC changed — https://github.com/mkozlovskyi-ops/course-staff-management-spec/issues/15
+- 2026-11-03 — added AC-LEAVE-22 and clarified the assumption: the end of leave may equal the start of the next schedule block, only minutes inside blocks count — https://github.com/mkozlovskyi-ops/course-staff-management-spec/issues/21
