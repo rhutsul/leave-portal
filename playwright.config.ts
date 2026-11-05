@@ -15,6 +15,9 @@ const deployed = process.env.UAT_BASE_URL?.replace(/\/+$/, "");
 const baseURL = deployed ?? "http://localhost:3000";
 // Негативні контролі (навмисно хибні очікування) — лише на окреме прохання: UAT_NEGATIVE_CONTROLS=1.
 const withNegativeControls = process.env.UAT_NEGATIVE_CONTROLS === "1";
+// Тести з тегом @writes створюють записи: лише в CI на одноразовому Supabase (e2e.yml). На проді (UAT_BASE_URL) і
+// локально (.env.local вказує на спільну базу) їх не вибираємо (а не пропускаємо), тож skipped лишається 0.
+const withWrites = !deployed && !!process.env.CI;
 const noRecording = { video: "off", trace: "off", screenshot: "off" } as const;
 
 export default defineConfig({
@@ -50,10 +53,14 @@ export default defineConfig({
   },
   projects: [
     // Вхід ролей один раз → playwright/.auth/<role>.json (у .gitignore). Без запису: тут вводиться пароль.
-    // Проєкту cleanup з матеріалів курсу немає: наші AC лише читають прод (тегу @writes немає), тож прибирати нічого
-    // і секретний ключ UAT не потрібен. AC, що пише в базу, приносить його разом із support/admin.ts.
+    // Проєкту cleanup з матеріалів курсу немає: на проді наші AC лише читають (@writes туди не потрапляє), тож прибирати
+    // нічого і секретний ключ UAT не потрібен; одноразовий Supabase у CI зникає разом із раннером.
     { name: "setup", testMatch: /auth\.setup\.ts$/, use: noRecording },
-    { name: "chromium", dependencies: ["setup"], grepInvert: /@negative-control/ },
+    {
+      name: "chromium",
+      dependencies: ["setup"],
+      grepInvert: withWrites ? /@negative-control/ : /@negative-control|@writes/,
+    },
     ...(withNegativeControls
       ? [{ name: "negative-controls", dependencies: ["setup"], grep: /@negative-control/ }]
       : []),

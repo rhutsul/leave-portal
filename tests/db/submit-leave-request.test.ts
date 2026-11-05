@@ -144,6 +144,21 @@ describe("submit_leave_request", () => {
     expect((await recordsOf(id)).map((r) => [r.date, r.hours, r.minutes])).toEqual([["2026-11-03", "08:30–09:00", 30]]);
   });
 
+  it("AC-LEAVE-22: 09:00–12:30 on Tuesday 2026-11-03 ends at the start of the next block — 1 record of 180 minutes", async () => {
+    // Дата з AC; записи teacher2@ на 2026-11-03 з тестів AC-LEAVE-15 і AC-LEAVE-19 вище інакше дали б перетин.
+    await t.asService("delete from public.leave_records where employee_id = $1 and date = '2026-11-03'", [teacher2]);
+    const [{ id }] = await submit(teacher2, "personal", [
+      { position_id: teacher2Position, date: "2026-11-03", start_min: 540, end_min: 750 },
+    ]);
+    expect((await recordsOf(id)).map((r) => [r.date, r.hours, r.minutes, r.leave_type])).toEqual([
+      ["2026-11-03", "09:00–12:30", 180, "personal"],
+    ]);
+    // Кінець у перерві — і далі поза розкладом (AC-LEAVE-19).
+    await expect(
+      submit(teacher2, "personal", [{ position_id: teacher2Position, date: "2026-11-17", start_min: 540, end_min: 745 }]),
+    ).rejects.toThrow("Hours must be within your schedule: 08:30–12:00, 12:30–15:30");
+  });
+
   it("AC-LEAVE-20: the end of a block before the gap cannot be the start in the database either", async () => {
     await expect(
       submit(teacher2, "personal", [

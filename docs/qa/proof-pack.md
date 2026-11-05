@@ -80,7 +80,7 @@ PR B: https://github.com/rhutsul/leave-portal/pull/39 (`task/test-quality`: Stry
 | `time.ts:214` `blocks.length === 0` → `false` | AC-LEAVE-06 | вижив (порожній розклад ніхто не перевіряв) | [time.test.ts#L85](https://github.com/rhutsul/leave-portal/blob/5f8a4ac7d3b9780725350b6cb8de9fea5c38766c/src/lib/leave/time.test.ts#L85): день без блоків → «You have no working hours on this day» | убитий |
 | `load-balances.ts:44` 42501 → «not-shown» (10 мутантів) | AC-BALANCE-13 | без покриття (жоден тест не викликав `loadBalances`) | [load-balances.test.ts#L47](https://github.com/rhutsul/leave-portal/blob/5f8a4ac7d3b9780725350b6cb8de9fea5c38766c/src/app/(app)/balances/load-balances.test.ts#L47): відмова бази → «not shown», інша помилка → «failed» | убиті |
 | `load-balances.ts:10` регулярний вираз UUID (12 мутантів) і `:39` | AC-BALANCE-13 | вижили / без покриття | [load-balances.test.ts#L54](https://github.com/rhutsul/leave-portal/blob/5f8a4ac7d3b9780725350b6cb8de9fea5c38766c/src/app/(app)/balances/load-balances.test.ts#L54): пряме посилання з не-UUID — без залишків і без запиту до бази | убиті |
-| `time.ts:232` `end > b.start` → `>=` | AC-LEAVE-19 | вижив | — **не вбито свідомо**: розходиться лише коли кінець відпустки = початок наступного блоку (09:00–12:30 у 08:30–12:00, 12:30–15:30). Assumptions PM: «кінець — усередині блоку (може дорівнювати кінцю блоку)», а блок містить свій початок — тож 12:30 як кінець можна прочитати обома способами. Це питання до PM, а не тест | вижив (питання PM) |
+| `time.ts:232` `end > b.start` → `>=` | AC-LEAVE-19 | вижив | — **не вбито свідомо**: розходиться лише коли кінець відпустки = початок наступного блоку (09:00–12:30 у 08:30–12:00, 12:30–15:30). Assumptions PM: «кінець — усередині блоку (може дорівнювати кінцю блоку)», а блок містить свій початок — тож 12:30 як кінець можна прочитати обома способами. Це питання до PM, а не тест | вижив (питання PM); після відповіді PM (mkozlovskyi-ops/course-staff-management-spec#21, AC-LEAVE-22, кінець може дорівнювати початку наступного блоку) умову змінено на `end >= b.start`, і зворотний мутант `>=` → `>` (тепер `time.ts:233`) убиває тест AC-LEAVE-22 у `src/lib/leave/time.test.ts` |
 | SQL S9: `check_record_hours` `order by b.start_min` → `desc` | AC-LEAVE-19 | вижив (на тестах `main`) | [submit-leave-request.test.ts#L134](https://github.com/rhutsul/leave-portal/blob/5f8a4ac7d3b9780725350b6cb8de9fea5c38766c/tests/db/submit-leave-request.test.ts#L134): 07:30–09:00 → дослівний текст з блоками в порядку часу, рядків не додано | убитий |
 | SQL S2: політика `leave_records` `manages_position(position_id)` → `manages_employee(employee_id)` | AC-DECIDE-01 | вижив (на тестах `main`, як і в rhutsul/leave-portal#34) | [leave-decisions.test.ts#L151](https://github.com/rhutsul/leave-portal/blob/5f8a4ac7d3b9780725350b6cb8de9fea5c38766c/tests/db/leave-decisions.test.ts#L151): manager2@ читає з таблиці `leave_records` лише запис додаткової посади teacher1@ | убитий |
 
@@ -94,7 +94,7 @@ PR B: https://github.com/rhutsul/leave-portal/pull/39 (`task/test-quality`: Stry
   | `src/lib/leave/time.ts` | 92,31 %¹ | 94,14 % |
 
   ¹ завищено: 7 таймаутів зараховано як вбиті, серед них 5 еквівалентних на `time.ts:70` (див. нижче). На рядках трьох AC
-  вижив один мутант — `time.ts:232` (питання PM). Повна таблиця — в описі PR B
+  вижив один мутант — `time.ts:232` (питання PM; після AC-LEAVE-22 убитий, див. таблицю вище). Повна таблиця — в описі PR B
 - SQL-мутації (`npm run mutation:sql`, PGlite, 9 мутантів): **9 з 9 KILLED** (≈47 с). Таблиця `--markdown` — в описі PR B.
   S1 і S2 — «червоний прогін і зелений revert» в одному прогоні: скрипт спершу ганяє тести на чистій міграції (зелені),
   потім на мутанті (червоні), і повертає файл (`git status` чистий). До PR B (тести `main`): S2 і S9 — SURVIVED.
@@ -146,9 +146,9 @@ PR B: https://github.com/rhutsul/leave-portal/pull/39 (`task/test-quality`: Stry
 
 | AC | Рішення PM | Посилання |
 |---|---|---|
-| AC-BALANCE-13 | | |
-| AC-LEAVE-06 | | |
-| AC-LEAVE-19 | | |
+| AC-BALANCE-13 | ✅ прийнято, оцінка 3 | https://github.com/rhutsul/leave-portal/pull/38#issuecomment-6614598721 |
+| AC-LEAVE-06 | ✅ прийнято, оцінка 3 | https://github.com/rhutsul/leave-portal/pull/38#issuecomment-6614598721 |
+| AC-LEAVE-19 | ✅ прийнято, оцінка 3 | https://github.com/rhutsul/leave-portal/pull/38#issuecomment-6614598721 |
 
 ## D. Eval рецензента
 

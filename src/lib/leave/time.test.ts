@@ -69,7 +69,7 @@ describe("leave hours within the schedule", () => {
   });
 
   // Межі з AC і Assumptions 01-leave-request: блок містить свій початок і не містить кінця; кінець може дорівнювати
-  // кінцю блоку. Кінець рівно на 12:30 (початок наступного блоку) тут навмисно не перевіряємо — це питання до PM.
+  // кінцю блоку або початку наступного блоку (AC-LEAVE-22, тест нижче).
   it("AC-LEAVE-19: edges of the blocks 08:30–12:00 and 12:30–15:30 — 08:25 and 12:25 are outside, 08:30 and 12:30 inside", () => {
     const message = "Hours must be within your schedule: 08:30–12:00, 12:30–15:30";
     expect(hours(TUESDAY_WITH_GAP, "08:25", "09:00")).toEqual({ ok: false, message });
@@ -80,6 +80,19 @@ describe("leave hours within the schedule", () => {
     expect(hours(TUESDAY_WITH_GAP, "09:00", "12:05")).toEqual({ ok: false, message });
     expect(hours(TUESDAY_WITH_GAP, "13:00", "15:30")).toEqual({ ok: true, minutes: 150 });
     expect(hours(TUESDAY_WITH_GAP, "13:00", "15:35")).toEqual({ ok: false, message });
+  });
+
+  it("AC-LEAVE-22: 09:00–12:30 ends at the start of the next block and lasts 3 h — the gap 12:00–12:30 is not counted", () => {
+    const result = hours(TUESDAY_WITH_GAP, "09:00", "12:30");
+    expect(result).toEqual({ ok: true, minutes: 180 });
+    expect(formatDuration(180)).toBe("3 h");
+    // Та сама тривалість, що й 09:00–12:00: перерва не додає хвилин.
+    expect(hours(TUESDAY_WITH_GAP, "09:00", "12:00")).toEqual({ ok: true, minutes: 180 });
+    // Кінець у перерві — і далі поза розкладом (AC-LEAVE-19).
+    expect(hours(TUESDAY_WITH_GAP, "09:00", "12:25")).toEqual({
+      ok: false,
+      message: "Hours must be within your schedule: 08:30–12:00, 12:30–15:30",
+    });
   });
 
   it("AC-LEAVE-06: hours on a day without schedule blocks give \"You have no working hours on this day\"", () => {

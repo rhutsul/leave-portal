@@ -16,8 +16,11 @@ const BALANCE_INPUTS = "supabase/migrations/20261020214031_balance_inputs.sql";
 const BALANCES_DB = "tests/db/balances.test.ts";
 const DECISIONS_DB = "tests/db/leave-decisions.test.ts";
 const VISIBILITY_DB = "tests/db/table-visibility.test.ts";
-const RECORD_EDIT = "supabase/migrations/20261021171135_leave_record_edit.sql";
 const SUBMIT_DB = "tests/db/submit-leave-request.test.ts";
+// Чинна версія private.check_record_hours (create or replace поверх 20261021171135_leave_record_edit.sql): мутуємо її,
+// бо мутант у старішій копії перезаписала б пізніша міграція — і він «вижив» би без жодного тесту.
+const CHECK_HOURS = "supabase/migrations/20261104165058_end_at_next_block.sql";
+const RECORD_EDIT_DB = "tests/db/leave-record-edit.test.ts";
 const START_INSIDE = "p_start >= b.start_min and p_start < b.end_min\n  ) or not exists";
 
 export const mutants = [
@@ -69,21 +72,28 @@ export const mutants = [
   },
   // AC-LEAVE-19 у базі — остання межа (private.check_record_hours, яку викликає submit_leave_request).
   {
-    id: "S7", kind: "sql", ac: "AC-LEAVE-19", file: RECORD_EDIT, tests: [SUBMIT_DB],
+    id: "S7", kind: "sql", ac: "AC-LEAVE-19", file: CHECK_HOURS, tests: [SUBMIT_DB],
     what: "check_record_hours: початок поза блоком більше не перевіряється (07:30 приймається)",
     find: START_INSIDE,
     replace: "true\n  ) or not exists",
   },
   {
-    id: "S8", kind: "sql", ac: "AC-LEAVE-19", file: RECORD_EDIT, tests: [SUBMIT_DB],
+    id: "S8", kind: "sql", ac: "AC-LEAVE-19", file: CHECK_HOURS, tests: [SUBMIT_DB],
     what: "check_record_hours: початок блоку не входить у блок (>= → >, 08:30 відмовлено)",
     find: START_INSIDE,
     replace: "p_start > b.start_min and p_start < b.end_min\n  ) or not exists",
   },
   {
-    id: "S9", kind: "sql", ac: "AC-LEAVE-19", file: RECORD_EDIT, tests: [SUBMIT_DB],
+    id: "S9", kind: "sql", ac: "AC-LEAVE-19", file: CHECK_HOURS, tests: [SUBMIT_DB],
     what: "повідомлення перелічує блоки не в порядку часу (order by start_min desc)",
     find: "order by b.start_min)",
     replace: "order by b.start_min desc)",
+  },
+  // AC-LEAVE-22: кінець на початку наступного блоку.
+  {
+    id: "S10", kind: "sql", ac: "AC-LEAVE-22", file: CHECK_HOURS, tests: [SUBMIT_DB, RECORD_EDIT_DB],
+    what: "check_record_hours: кінець на початку наступного блоку знову поза розкладом (>= → >, 09:00–12:30 відмовлено)",
+    find: "p_end >= b.start_min and p_end <= b.end_min",
+    replace: "p_end > b.start_min and p_end <= b.end_min",
   },
 ];
