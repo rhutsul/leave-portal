@@ -208,7 +208,8 @@ export type HoursCheck = { ok: true; minutes: number } | { ok: false; message: s
 /**
  * Години відпустки за блоками розкладу посади на дату. Порядок перевірок — як у private.submit_leave_request:
  * формат і крок → початок у кінці блоку (AC-LEAVE-08, AC-LEAVE-20) → кінець пізніше за початок (AC-LEAVE-09) →
- * початок і кінець усередині блоків (AC-LEAVE-07, AC-LEAVE-19).
+ * початок і кінець усередині блоків (AC-LEAVE-07, AC-LEAVE-19); кінець може дорівнювати кінцю блоку або початку
+ * наступного блоку (AC-LEAVE-22) — хвилини перерви між блоками не рахуються.
  */
 export function checkHours(blocks: TimeBlock[], start: number | null, end: number | null): HoursCheck {
   if (blocks.length === 0) return { ok: false, message: TIME_MESSAGES.noWorkingHours };
@@ -229,7 +230,7 @@ export function checkHours(blocks: TimeBlock[], start: number | null, end: numbe
   }
   if (end <= start) return { ok: false, message: TIME_MESSAGES.endBeforeStart };
 
-  const endInside = blocks.some((b) => end > b.start && end <= b.end);
+  const endInside = blocks.some((b) => end >= b.start && end <= b.end);
   if (!startInside || !endInside) return { ok: false, message: TIME_MESSAGES.outsideSchedule(blocks) };
 
   return { ok: true, minutes: scheduledMinutes(blocks, start, end) };

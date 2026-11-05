@@ -132,6 +132,28 @@ describe("changing the hours of an own record", () => {
     expect((await recordOf(id)).hours).toBe("08:30–15:30");
   });
 
+  it("AC-LEAVE-22: teacher2@ changes Tue 2026-11-03 09:00–11:00 to 09:00–12:30, the start of the next block — 180 minutes", async () => {
+    const [position] = await t.asService<{ id: number }>(
+      `select p.id from public.positions as p join public.profiles as pr on pr.id = p.employee_id
+        where pr.email = 'teacher2@example.test'`,
+    );
+    const [{ id: requestId }] = await t.asUser<{ id: number }>(
+      teacher2,
+      "select public.submit_leave_request($1, $2::jsonb) as id",
+      ["personal", JSON.stringify([{ position_id: position.id, date: "2026-11-03", start_min: 540, end_min: 660 }])],
+    );
+    const [{ id }] = await t.asService<{ id: number }>("select id from public.leave_records where request_id = $1", [
+      requestId,
+    ]);
+    await changeHours(teacher2, id, 540, 750);
+    expect(await recordOf(id)).toMatchObject({ hours: "09:00–12:30", minutes: 180, status: "awaiting" });
+    // Кінець у перерві — відмова, години лишаються.
+    await expect(changeHours(teacher2, id, 540, 745)).rejects.toThrow(
+      "Hours must be within your schedule: 08:30–12:00, 12:30–15:30",
+    );
+    expect((await recordOf(id)).hours).toBe("09:00–12:30");
+  });
+
   it("the same hours change nothing and add no history line", async () => {
     const [id] = await submit([{ date: "2026-11-02", ...WHOLE }]);
     await changeHours(teacher1, id, 510, 930);

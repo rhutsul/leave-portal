@@ -1,5 +1,6 @@
-// Стани форми нової заявки: AC-LEAVE-06 (день без годин) і AC-LEAVE-19 (години поза розкладом). Обидва лише
-// читають: форму не подаємо, тож на проді нічого не створюється. Повідомлення — дослівно з AC; точне коротке тире
+// Стани форми нової заявки: AC-LEAVE-06 (день без годин) і AC-LEAVE-19 (години поза розкладом) лише читають: форму
+// не подаємо, тож на проді нічого не створюється. AC-LEAVE-22 подає заявку (тег @writes) — лише в job e2e на
+// одноразовому Supabase: playwright.config.ts не бере @writes на проді (UAT_BASE_URL) і поза CI (.env.local — спільна база). Повідомлення — дослівно з AC; точне коротке тире
 // «–» у годинах кадр не доводить, тому воно лише в твердженні й у hidden.
 import { expect, test } from "@playwright/test";
 import { showNovember2026 } from "./support/calendar";
@@ -104,6 +105,60 @@ test.describe("teacher2@example.test", () => {
           await expect(position.getByLabel("to", { exact: true })).toHaveValue("09:00");
           await expect(main.getByRole("heading", { name: "Positions and hours" })).toBeVisible();
           await expect(main.getByRole("button", { name: "Submit request" })).toHaveCount(0);
+        },
+      );
+    },
+  );
+
+  test(
+    "AC-LEAVE-22: Personal leave 09:00–12:30 on Tue 2026-11-03 — 1 record 09:00–12:30 of 3 h, the gap 12:00–12:30 not counted",
+    { tag: ["@writes"], annotation: { type: "ac", description: "AC-LEAVE-22" } },
+    async ({ page }) => {
+      const position = page.getByRole("listitem").filter({ hasText: "Schedule: 08:30–12:00, 12:30–15:30" });
+
+      await given("a position with the schedule blocks Tue 08:30–12:00 and 12:30–15:30 (teacher2@example.test)", async () => {
+        await page.goto("/requests/new");
+        await expect(page.getByTestId("user-email")).toHaveText("teacher2@example.test");
+        await showNovember2026(page);
+        await page.getByRole("button", { name: /^Tue, 3 Nov 2026/ }).click();
+        await page.getByRole("button", { name: "Continue" }).click();
+        await expect(position).toHaveCount(1);
+      });
+
+      await when('the employee requests "Personal leave" on 2026-11-03 from 09:00 to 12:30', async () => {
+        await position.getByRole("button", { name: "Specific hours" }).click();
+        await position.getByLabel("From").fill("09:00");
+        await position.getByLabel("to", { exact: true }).fill("12:30");
+        await page.getByRole("button", { name: "Continue" }).click();
+        await page.getByText("Personal leave", { exact: true }).click();
+        await page.getByRole("button", { name: "Continue" }).click();
+        // Підсумок перед підтвердженням: один запис 09:00–12:30 тривалістю 3 h.
+        const summary = page.getByRole("main").getByRole("row").filter({ hasText: "09:00–12:30" });
+        await expect(summary).toHaveCount(1);
+        await expect(summary).toContainText("3 h");
+        await expect(page.getByText("3 h in 1 record")).toBeVisible();
+        await page.getByRole("button", { name: "Submit request" }).click();
+      });
+
+      await thenStep(
+        page,
+        {
+          clause: "1 record 2026-11-03 09:00–12:30 is created with a duration of 3 h (the gap 12:00–12:30 is not counted).",
+          visible: [
+            "«Request submitted» above My requests",
+            "one record Tue 3 with the hours 09:00–12:30, Personal leave, Awaiting decision",
+          ],
+          hidden: [
+            "the duration 3 h — shown in the summary before Submit request («3 h in 1 record»), checked in the When step",
+          ],
+        },
+        async () => {
+          const main = page.getByRole("main");
+          await expect(main.getByText("Request submitted")).toBeVisible();
+          const record = main.getByTestId("leave-record").filter({ hasText: "09:00–12:30" });
+          await expect(record).toHaveCount(1);
+          await expect(record).toContainText("Personal leave");
+          await expect(record).toContainText("Awaiting decision");
         },
       );
     },
