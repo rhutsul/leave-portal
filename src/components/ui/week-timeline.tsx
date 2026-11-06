@@ -89,7 +89,7 @@ export function WeekTimeline({
                   role="cell"
                   title={`${days[b.col].long} · ${b.hours} · ${RECORD_STATUSES[b.status]}`}
                   className={cn(
-                    "row-start-1 mx-0.5 flex h-7 min-w-0 items-center self-center rounded-[5px] border px-1.5 text-[11px] tabular-nums",
+                    "row-start-1 mx-0.5 flex h-7 min-w-0 items-center self-center rounded-[5px] border px-1 text-[11px] tracking-tight tabular-nums",
                     BAR[b.status],
                   )}
                   style={{ gridColumn: b.col + 2 }}
