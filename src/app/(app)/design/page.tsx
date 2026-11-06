@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
+import Link from "next/link";
 import type { ReactNode } from "react";
 import { Ban, CalendarDays, CircleAlert, Clock, Eye, Info, RotateCcw, SearchX, ShieldX, TriangleAlert, X } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -414,6 +415,18 @@ export default async function DesignPage() {
           </span>
           <span className="text-[15px] text-muted-foreground">days of Personal leave left · 1.36 of 18.00 used</span>
         </div>
+        {/* ParticleField (three.js) тут не показуємо: ADR 0007 дозволяє його лише на /welcome і /login. */}
+        <p className="max-w-[60ch] text-sm text-muted-foreground">
+          ParticleField — the particle field of the landing page and sign-in — loads only on{" "}
+          <Link href="/welcome" className="text-primary underline-offset-4 hover:underline">
+            /welcome
+          </Link>{" "}
+          and{" "}
+          <Link href="/login" className="text-primary underline-offset-4 hover:underline">
+            /login
+          </Link>
+          , from 1100 px, with WebGL2 and without reduced motion.
+        </p>
       </Section>
 
       <Section title="Calendar">

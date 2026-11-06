@@ -20,6 +20,7 @@ const FLOORED: string[] = [
   "health",
   "motion",
   "preferences",
+  "particle-field",
   "utils",
   "welcome/playground",
 ];

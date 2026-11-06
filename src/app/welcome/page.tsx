@@ -6,6 +6,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Logo } from "@/components/ui/logo";
 import { ShowcaseCount } from "@/components/ui/motion";
+import { ParticleField } from "@/components/ui/particle-field";
 import { ThemeMenu } from "@/components/ui/theme-menu";
 import { parseTheme, THEME_COOKIE } from "@/lib/preferences";
 import { createClient } from "@/lib/supabase/server";
@@ -98,7 +99,7 @@ function Header({ signedIn, theme }: { signedIn: boolean; theme: ReturnType<type
 
 function Hero({ signedIn }: { signedIn: boolean }) {
   return (
-    <section aria-labelledby="hero-title" className="relative mx-auto flex min-h-[720px] w-full max-w-[1280px] items-center px-12 pt-10 pb-20">
+    <section data-field-stage aria-labelledby="hero-title" className="relative mx-auto flex min-h-[720px] w-full max-w-[1280px] items-center px-12 pt-10 pb-20">
       <div className="flex w-[560px] max-w-full flex-col gap-6.5">
         <span className={KICKER}>Leave requests · decisions · balances</span>
         <h1 id="hero-title" className="text-[56px] leading-[60px] font-semibold tracking-[-0.03em]">
@@ -126,7 +127,7 @@ function Hero({ signedIn }: { signedIn: boolean }) {
 
 function TrySection() {
   return (
-    <section id="try" aria-labelledby="try-title" className="welcome-reveal mx-auto flex w-full max-w-[1280px] scroll-mt-16 flex-col gap-9 px-12 py-30">
+    <section id="try" data-field-stage aria-labelledby="try-title" className="welcome-reveal mx-auto flex w-full max-w-[1280px] scroll-mt-16 flex-col gap-9 px-12 py-30">
       <div className="flex max-w-[640px] flex-col gap-2.5">
         <span className={KICKER}>01 · Try it</span>
         <h2 id="try-title" className={H2}>
@@ -146,8 +147,9 @@ function BalancesSection() {
   return (
     <section
       id="balances"
+      data-field-stage
       aria-labelledby="balances-title"
-      className="welcome-reveal mx-auto flex w-full max-w-[1280px] scroll-mt-16 flex-col items-center gap-14 px-12 py-30"
+      className="welcome-reveal mx-auto flex w-full max-w-[1280px] scroll-mt-16 flex-col items-center justify-between gap-14 px-12 py-30 min-[1100px]:min-h-[900px]"
     >
       <div className="flex max-w-[640px] flex-col items-center gap-2.5 text-center">
         <span className={KICKER}>02 · Balances</span>
@@ -175,16 +177,19 @@ function BalancesSection() {
 
 function RolesSection() {
   return (
-    <section id="roles" aria-labelledby="roles-title" className="welcome-reveal mx-auto flex w-full max-w-[1280px] scroll-mt-16 flex-col gap-8 px-12 py-30">
+    <section id="roles" data-field-stage aria-labelledby="roles-title" className="welcome-reveal mx-auto flex w-full max-w-[1280px] scroll-mt-16 flex-col gap-8 px-12 py-30">
       <div className="flex flex-col items-center gap-2.5 text-center">
         <span className={KICKER}>03 · Who uses it</span>
         <h2 id="roles-title" className={H2}>
           Three roles. One person can hold several.
         </h2>
       </div>
+      {/* Місце для трьох сфер ролей поля частинок — лише вшир від 1100 px, де поле є. */}
+      <div aria-hidden="true" className="hidden h-55 min-[1100px]:block" />
       <ul className="grid grid-cols-3 gap-5">
-        {ROLES.map((role) => (
-          <li key={role.id}>
+        {ROLES.map((role, index) => (
+          // Наведення на картку підсвічує сферу цієї ролі в полі частинок (ParticleField).
+          <li key={role.id} data-field-focus={index}>
             <Card className="h-full gap-2.5 bg-card/85 p-6 backdrop-blur-md transition-[translate,border-color] duration-(--duration-base) ease-out hover:-translate-y-1 hover:border-primary">
               <span className="flex items-baseline justify-between gap-2">
                 <span className="text-[17px] font-semibold">{role.name}</span>
@@ -210,6 +215,7 @@ function RolesSection() {
 function PreviewSection() {
   return (
     <section
+      data-field-stage
       aria-labelledby="preview-title"
       className="welcome-reveal mx-auto grid w-full max-w-[1280px] grid-cols-[minmax(0,4fr)_minmax(0,7fr)] items-center gap-14 px-12 pt-30 pb-20"
     >
@@ -257,8 +263,10 @@ export default async function WelcomePage() {
 
   return (
     <div className={cn("welcome-field flex flex-1 flex-col text-foreground")}>
+      {/* Одне поле на всю сторінку: липке за вмістом, форма змінюється за прокруткою (ADR 0007). */}
+      <ParticleField variant="welcome" className="sticky top-0 z-0 -mb-[100vh] h-screen" />
       <Header signedIn={signedIn} theme={theme} />
-      <main className="flex flex-col">
+      <main className="relative z-1 flex flex-col">
         <Hero signedIn={signedIn} />
         <TrySection />
         <BalancesSection />
