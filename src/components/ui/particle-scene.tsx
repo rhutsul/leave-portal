@@ -142,8 +142,13 @@ function watchPixelRatio(onChange: () => void) {
   return () => query?.removeEventListener("change", changed);
 }
 
-export default function ParticleScene({ variant }: { variant: FieldVariant }) {
+export default function ParticleScene({ variant, onReady }: { variant: FieldVariant; onReady?: () => void }) {
   const host = useRef<HTMLDivElement>(null);
+  // Свіжий onReady без перезапуску сцени: ефект нижче не залежить від нього.
+  const readyRef = useRef(onReady);
+  useEffect(() => {
+    readyRef.current = onReady;
+  }, [onReady]);
 
   useEffect(() => {
     const el = host.current;
@@ -177,7 +182,9 @@ export default function ParticleScene({ variant }: { variant: FieldVariant }) {
     let visible = true;
     let frame = 0;
     let last = performance.now();
-    const born = last;
+    // Початок появи — перший намальований кадр, а не монтування: інакше після затримки точки вже стояли б на місці.
+    let born = last;
+    let announced = false;
     const reduced = reducedQuery();
     const sway = (2 * Math.PI) / ambientSeconds();
 
@@ -206,6 +213,7 @@ export default function ParticleScene({ variant }: { variant: FieldVariant }) {
     state.stage = state.target;
 
     const draw = (now: number) => {
+      if (!announced) born = now;
       const dt = Math.min(0.05, (now - last) / 1000);
       last = now;
       const still = reduced.matches;
@@ -226,6 +234,11 @@ export default function ParticleScene({ variant }: { variant: FieldVariant }) {
       u.uPitch.value = along(config.pitch, state.stage) - motion * mouse.gazeSmooth.y * 0.1;
       (u.uMouse.value as Vector2).copy(still ? new Vector2(OFF, OFF) : mouse.smooth);
       renderer.render(points, camera);
+      // Перший кадр намальовано — ParticleField гасить плямку-заглушку.
+      if (!announced) {
+        announced = true;
+        readyRef.current?.();
+      }
     };
 
     const live = () => visible && !document.hidden;

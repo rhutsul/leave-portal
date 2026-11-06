@@ -403,6 +403,17 @@
     background-image: radial-gradient(color-mix(in oklch, var(--foreground) 7%, transparent) 1px, transparent 1px);
     background-size: 24px 24px;
   }
+  /* Поки поле частинок вантажиться, на місці аркуша «дихає» пляма з точок primary (ParticleField): очікування
+     виглядає як початок появи, а не як порожнеча. */
+  .field-ghost {
+    background-image:
+      radial-gradient(color-mix(in oklch, var(--primary) 80%, transparent) 1.2px, transparent 1.8px),
+      radial-gradient(closest-side, color-mix(in oklch, var(--primary) 14%, transparent), transparent);
+    background-size:
+      9px 9px,
+      100% 100%;
+    mask-image: radial-gradient(closest-side, black 35%, transparent);
+  }
   /* Секція landing проявляється, коли заходить в екран: прокрутка веде анімацію (scroll-driven), без JS. Де
      animation-timeline немає або ввімкнено reduced motion — секція просто на місці. */
   @media (prefers-reduced-motion: no-preference) {
