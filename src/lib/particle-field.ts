@@ -241,17 +241,23 @@ export function buildField(variant: FieldVariant, count = POINTS[variant]): Fiel
 export const MORPH_SPAN = 420;
 
 /**
- * Стадія поля з прокрутки: `tops` — верхи секцій-форм на сторінці, `probe` — точка зору (55 % висоти вікна від верху
- * сторінки). Ціла частина — форма поточної секції, дробова — перехід до наступної за останні `span` px.
+ * Стадія поля з прокрутки: `tops` — верхи секцій-форм на сторінці, `probe` — точка зору (`hold` px від верху вікна,
+ * тобто scrollY + hold). Ціла частина — форма поточної секції, дробова — перехід до наступної.
+ *
+ * Секція тримає свою форму, доки її верх не дійде до верху вікна (probe = top + hold), і лише потім перетікає в
+ * наступну — не довше за останні `span` px перед нею. Так на самому верху сторінки аркуш чіткий на будь-якій висоті
+ * вікна, а не вже наполовину у віялі.
  */
-export function stageAt(tops: readonly number[], probe: number, span = MORPH_SPAN): number {
+export function stageAt(tops: readonly number[], probe: number, hold = 0, span = MORPH_SPAN): number {
   if (!tops.length) return 0;
   let i = 0;
   tops.forEach((top, k) => {
     if (top <= probe) i = k;
   });
   const next = tops[i + 1];
-  const stage = next === undefined ? i : i + Math.min(1, Math.max(0, (probe - (next - span)) / span));
+  if (next === undefined) return Math.min(FORM_COUNT - 1, i);
+  const start = Math.min(next - 1, Math.max(next - span, tops[i] + hold));
+  const stage = i + Math.min(1, Math.max(0, (probe - start) / (next - start)));
   return Math.min(FORM_COUNT - 1, stage);
 }
 

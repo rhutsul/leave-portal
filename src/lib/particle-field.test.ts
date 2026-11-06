@@ -85,6 +85,24 @@ describe("stageAt", () => {
     expect(stageAt(tops, 899)).toBeCloseTo(1, 1);
   });
 
+  it("keeps the first form sharp at the top of the page on any window height", () => {
+    // Hero 60–780, next section at 780; probe at scrollY 0 is 55 % of the window height.
+    const hero = [60, 780, 1700, 2600, 3500];
+    for (const height of [700, 830, 900, 1200]) {
+      const hold = height * 0.55;
+      expect(stageAt(hero, 0 + hold, hold)).toBe(0);
+    }
+  });
+
+  it("starts the morph only after the section top reaches the top of the window", () => {
+    const hero = [60, 780, 1700, 2600, 3500];
+    const hold = 457;
+    // scrollY 60: the hero top is at the window top — still the sheet; then it morphs until the next section.
+    expect(stageAt(hero, 60 + hold, hold)).toBe(0);
+    expect(stageAt(hero, 400 + hold, hold)).toBeGreaterThan(0);
+    expect(stageAt(hero, 779, hold)).toBeCloseTo(1, 1);
+  });
+
   it("stops at the last form", () => {
     expect(stageAt(tops, 9000)).toBe(4);
     expect(stageAt([0, 1, 2, 3, 4, 5, 6], 100)).toBe(4);

@@ -194,7 +194,10 @@ export default function ParticleScene({ variant }: { variant: FieldVariant }) {
     // Верхи секцій кешуємо: перераховуємо, лише коли змінилась розкладка сторінки, а не на кожну подію прокрутки.
     let tops = variant === "welcome" ? sectionTops() : [];
     const measure = () => {
-      if (variant === "welcome") state.target = stageAt(tops, window.scrollY + window.innerHeight * 0.55);
+      if (variant === "welcome") {
+        const hold = window.innerHeight * 0.55;
+        state.target = stageAt(tops, window.scrollY + hold, hold);
+      }
     };
     measure();
     // Сторінка відкрилась уже прокрученою (#roles, відновлена прокрутка) — поле одразу в потрібній формі, без
