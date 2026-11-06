@@ -42,7 +42,8 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
       <main className="relative z-10 mx-auto flex w-[400px] max-w-[calc(100%-48px)] flex-1 flex-col justify-center gap-4.5 pb-16 min-[1100px]:mx-0 min-[1100px]:ml-[max(48px,13%)]">
         <Card className="animate-rise gap-5 rounded-xl bg-card/82 p-7 shadow-lg backdrop-blur-md backdrop-saturate-125">
           <div className="flex flex-col gap-1.5">
-            <span className="font-mono text-[11px] tracking-wide text-muted-foreground uppercase">
+            {/* Надпис — декор: те саме каже підзаголовок нижче, тож зчитувач екрана читає його один раз. */}
+            <span aria-hidden="true" className="font-mono text-[11px] tracking-wide text-muted-foreground uppercase">
               Leave requests · decisions · balances
             </span>
             <h1 className="text-2xl leading-[30px] font-semibold tracking-tight">Sign in</h1>

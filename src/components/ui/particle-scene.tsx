@@ -113,9 +113,32 @@ function createPoints(variant: FieldVariant) {
   return { geometry, material, points };
 }
 
+/** Верх елемента на сторінці за розкладкою (offsetTop), без transform: поява секції (.welcome-reveal) не зсуває межі форм. */
+function pageTop(el: HTMLElement) {
+  let top = 0;
+  for (let node: HTMLElement | null = el; node; node = node.offsetParent as HTMLElement | null) top += node.offsetTop;
+  return top;
+}
+
 /** Секції landing, що задають форму поля (`data-field-stage`), — верхи на сторінці. */
 function sectionTops() {
-  return Array.from(document.querySelectorAll<HTMLElement>("[data-field-stage]"), (el) => el.getBoundingClientRect().top + window.scrollY);
+  return Array.from(document.querySelectorAll<HTMLElement>("[data-field-stage]"), pageTop);
+}
+
+/** Зміна щільності пікселів (вікно перейшло на інший монітор): ResizeObserver її не бачить. */
+function watchPixelRatio(onChange: () => void) {
+  let query: MediaQueryList | null = null;
+  const listen = () => {
+    query?.removeEventListener("change", changed);
+    query = window.matchMedia(`(resolution: ${window.devicePixelRatio}dppx)`);
+    query.addEventListener("change", changed);
+  };
+  function changed() {
+    onChange();
+    listen();
+  }
+  listen();
+  return () => query?.removeEventListener("change", changed);
 }
 
 export default function ParticleScene({ variant }: { variant: FieldVariant }) {
@@ -144,7 +167,6 @@ export default function ParticleScene({ variant }: { variant: FieldVariant }) {
       const { colors, dark } = readPalette(probe);
       colors.forEach((c, i) => (u.uPal.value[i] as Vector3).copy(c));
       material.blendDst = dark ? OneFactor : OneMinusSrcAlphaFactor;
-      material.needsUpdate = true;
     };
     paint();
 
@@ -169,10 +191,15 @@ export default function ParticleScene({ variant }: { variant: FieldVariant }) {
     };
     resize();
 
+    // Верхи секцій кешуємо: перераховуємо, лише коли змінилась розкладка сторінки, а не на кожну подію прокрутки.
+    let tops = variant === "welcome" ? sectionTops() : [];
     const measure = () => {
-      if (variant === "welcome") state.target = stageAt(sectionTops(), window.scrollY + window.innerHeight * 0.55);
+      if (variant === "welcome") state.target = stageAt(tops, window.scrollY + window.innerHeight * 0.55);
     };
     measure();
+    // Сторінка відкрилась уже прокрученою (#roles, відновлена прокрутка) — поле одразу в потрібній формі, без
+    // пробігу через усі попередні.
+    state.stage = state.target;
 
     const draw = (now: number) => {
       const dt = Math.min(0.05, (now - last) / 1000);
@@ -183,7 +210,8 @@ export default function ParticleScene({ variant }: { variant: FieldVariant }) {
       state.stage = still ? state.target : variant === "login" ? intro : approach(state.stage, state.target, dt, 2.4);
       if (!still) state.time += dt;
       const outside = Math.abs(mouse.at.x) > 5;
-      mouse.smooth.lerp(mouse.at, outside || Math.abs(mouse.smooth.x) > 5 ? 1 : 0.3);
+      // Згладжування курсора за часом, а не за кадрами: однаково на 60 і 144 Гц.
+      mouse.smooth.lerp(mouse.at, outside || Math.abs(mouse.smooth.x) > 5 ? 1 : 1 - Math.exp(-dt * 21));
       mouse.gazeSmooth.lerp(mouse.gaze, Math.min(1, dt * 3));
       const motion = still ? 0 : 1;
       u.uT.value = state.time;
@@ -218,7 +246,13 @@ export default function ParticleScene({ variant }: { variant: FieldVariant }) {
       mouse.at.set(inside ? x : OFF, inside ? y : OFF);
       mouse.gaze.set(inside ? x : 0, inside ? y : 0);
     };
-    // Наведена (чи у фокусі) картка ролі на landing підсвічує свою сферу.
+    // Курсор пішов за межі вікна — поле перестає від нього відштовхуватись і повертатись за ним.
+    const onPointerGone = (event: Event) => {
+      if (event.type === "pointerout" && (event as PointerEvent).relatedTarget !== null) return;
+      mouse.at.set(OFF, OFF);
+      mouse.gaze.set(0, 0);
+    };
+    // Наведена картка ролі на landing підсвічує свою сферу (декор для миші: ті самі ролі — у тексті карток).
     const onOver = (event: Event) => {
       const card = (event.target as Element | null)?.closest?.("[data-field-focus]");
       state.focus = card ? Number(card.getAttribute("data-field-focus")) : -1;
@@ -240,10 +274,23 @@ export default function ParticleScene({ variant }: { variant: FieldVariant }) {
     io.observe(el);
     const sizes = new ResizeObserver(() => {
       resize();
+      tops = variant === "welcome" ? sectionTops() : [];
       measure();
       wake();
     });
     sizes.observe(el);
+    // Висота сторінки змінюється й без зміни вікна (пісочниця «Try it»): тоді теж перераховуємо межі форм.
+    sizes.observe(document.body);
+    const stopPixelRatio = watchPixelRatio(() => {
+      resize();
+      wake();
+    });
+    // Браузер відновив втрачений контекст WebGL — перемальовуємо (з reduced motion цикл сам не прокинувся б).
+    const onRestored = () => {
+      paint();
+      wake();
+    };
+    renderer.domElement.addEventListener("webglcontextrestored", onRestored);
     const themes = new MutationObserver(onTheme);
     themes.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
     const scheme = window.matchMedia("(prefers-color-scheme: dark)");
@@ -252,7 +299,8 @@ export default function ParticleScene({ variant }: { variant: FieldVariant }) {
     window.addEventListener("pointermove", onPointer, { passive: true });
     window.addEventListener("scroll", onScroll, { passive: true });
     document.addEventListener("pointerover", onOver);
-    document.addEventListener("focusin", onOver);
+    document.addEventListener("pointerout", onPointerGone);
+    window.addEventListener("blur", onPointerGone);
     document.addEventListener("visibilitychange", wake);
     wake();
 
@@ -266,8 +314,11 @@ export default function ParticleScene({ variant }: { variant: FieldVariant }) {
       window.removeEventListener("pointermove", onPointer);
       window.removeEventListener("scroll", onScroll);
       document.removeEventListener("pointerover", onOver);
-      document.removeEventListener("focusin", onOver);
+      document.removeEventListener("pointerout", onPointerGone);
+      window.removeEventListener("blur", onPointerGone);
       document.removeEventListener("visibilitychange", wake);
+      stopPixelRatio();
+      renderer.domElement.removeEventListener("webglcontextrestored", onRestored);
       geometry.dispose();
       material.dispose();
       renderer.dispose();
