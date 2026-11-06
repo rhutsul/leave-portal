@@ -183,8 +183,8 @@ export default async function MyRequestsPage({ searchParams }: PageProps<"/reque
           {months.size === 0 ? (
             <EmptyState title="No records here" text="Records with this status will appear here." />
           ) : (
-            <div className="overflow-x-auto rounded-lg border border-border bg-card">
-              <Table>
+            <div className="overflow-x-auto rounded-lg border border-border bg-card max-md:overflow-visible max-md:border-0 max-md:bg-transparent">
+              <Table stack>
                 <TableHeader className="bg-muted">
                   <TableRow className="hover:bg-transparent">
                     <TableHead>Date</TableHead>
@@ -246,7 +246,7 @@ export default async function MyRequestsPage({ searchParams }: PageProps<"/reque
                               </span>
                             )}
                           </TableCell>
-                          <TableCell className="w-px align-top">
+                          <TableCell data-cell="end" className="w-px align-top">
                             <RecordActions
                               recordId={r.id!}
                               label={`${r.date} ${range}`}

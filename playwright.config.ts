@@ -59,6 +59,15 @@ export default defineConfig({
     {
       name: "chromium",
       dependencies: ["setup"],
+      testIgnore: /\.mobile\.spec\.ts$/,
+      grepInvert: withWrites ? /@negative-control/ : /@negative-control|@writes/,
+    },
+    // Телефон (ADR 0008): ті самі акаунти, емуляція Pixel 7 (Chromium, дотик) — лише для *.mobile.spec.ts.
+    {
+      name: "mobile",
+      dependencies: ["setup"],
+      testMatch: /\.mobile\.spec\.ts$/,
+      use: { ...devices["Pixel 7"] },
       grepInvert: withWrites ? /@negative-control/ : /@negative-control|@writes/,
     },
     ...(withNegativeControls

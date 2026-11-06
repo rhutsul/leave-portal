@@ -119,8 +119,10 @@ export function DecisionForm({
       </div>
 
       {/* Одна висота й одна вага для трьох дій: дві другорядні — outline ліворуч (Reject лише червоним текстом, бо
-          червона кнопка — у підтвердженні), основна Approve — праворуч, як у діалогах (DESIGN.md, розділ 5). */}
-      <div className="flex flex-wrap items-center gap-2 border-t border-border pt-4">
+          червона кнопка — у підтвердженні), основна Approve — праворуч, як у діалогах (DESIGN.md, розділ 5). На телефоні
+          (ADR 0008) дії прикріплені внизу панелі: Reject і Return у два стовпці, Approve на всю ширину під ними, з
+          відступом від смуги жестів iPhone. */}
+      <div className="flex flex-wrap items-center gap-2 border-t border-border pt-4 max-md:sticky max-md:bottom-0 max-md:-mx-5 max-md:-mb-5 max-md:grid max-md:grid-cols-2 max-md:bg-popover/95 max-md:px-5 max-md:pb-[calc(1rem+env(safe-area-inset-bottom))] max-md:backdrop-blur-md max-md:*:h-11">
         <Button
           type="button"
           variant="outline"
@@ -133,7 +135,7 @@ export function DecisionForm({
         <SubmitButton variant="outline" name="decision" value="return" pendingLabel="Returning…">
           Return for revision
         </SubmitButton>
-        <Button type="button" className="ml-auto min-w-28" disabled={pending} onClick={() => ask("approve")}>
+        <Button type="button" className="ml-auto min-w-28 max-md:col-span-2 max-md:ml-0" disabled={pending} onClick={() => ask("approve")}>
           {split ? "Approve with split" : "Approve"}
         </Button>
       </div>

@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DecisionStamp, type StampStatus } from "@/components/ui/decision-stamp";
 import { Sheet, SheetBody, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -237,6 +237,13 @@ export function RecordSheet({
   const header = (
     <SheetHeader
       onKeyDown={onHeaderKey}
+      // Телефон (ADR 0008): панель на весь екран — «назад» ліворуч замість хрестика праворуч, діє так само, як Close.
+      leading={
+        <Button variant="ghost" size="icon" className="-ml-2 size-11 md:hidden" aria-label="Back to list" onClick={() => go(closeHref)}>
+          <ChevronLeft className="size-5" />
+        </Button>
+      }
+      closeClassName="max-md:hidden"
       actions={position && <RecordNav position={position} prevHref={prevHref} nextHref={nextHref} go={step} />}
     >
       <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
@@ -260,7 +267,7 @@ export function RecordSheet({
         go(closeHref);
       }}
     >
-      <SheetContent className="overflow-hidden">
+      <SheetContent className="overflow-hidden max-md:max-w-none max-md:border-0">
         <RecordMotion recordKey={recordKey} direction={direction} header={header}>
           {children}
         </RecordMotion>

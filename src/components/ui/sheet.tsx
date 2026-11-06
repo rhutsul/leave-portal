@@ -6,8 +6,14 @@ import { XIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "./button";
 
+const SIDE = {
+  right:
+    "right-0 border-l data-open:slide-in-from-right-8 data-closed:slide-out-to-right-8",
+  left: "left-0 border-r data-open:slide-in-from-left-8 data-closed:slide-out-to-left-8",
+} as const;
+
 /**
- * Панель, що виїжджає справа поверх сторінки (Dialog з Base UI): фокус усередині, Esc і клік по затемненню
+ * Панель, що виїжджає справа (або зліва — мобільне меню, ADR 0008) поверх сторінки (Dialog з Base UI): фокус усередині, Esc і клік по затемненню
  * закривають. Список під нею видно крізь легке затемнення `scrim` — це робоча панель, а не питання, як Dialog.
  */
 function Sheet(props: DialogPrimitive.Root.Props) {
@@ -22,7 +28,12 @@ function SheetClose(props: DialogPrimitive.Close.Props) {
   return <DialogPrimitive.Close data-slot="sheet-close" {...props} />;
 }
 
-function SheetContent({ className, children, ...props }: DialogPrimitive.Popup.Props) {
+function SheetContent({
+  className,
+  children,
+  side = "right",
+  ...props
+}: DialogPrimitive.Popup.Props & { side?: keyof typeof SIDE }) {
   return (
     <DialogPrimitive.Portal>
       <DialogPrimitive.Backdrop
@@ -33,7 +44,8 @@ function SheetContent({ className, children, ...props }: DialogPrimitive.Popup.P
         data-slot="sheet-content"
         className={cn(
           // «Скло» (ADR 0007): панель лежить над списком, тож прозорість і розмиття — тут, а не на картках.
-          "fixed inset-y-0 right-0 z-50 flex w-full max-w-[480px] flex-col border-l border-border bg-popover/88 backdrop-blur-xl backdrop-saturate-125 text-sm text-popover-foreground shadow-lg duration-(--duration-base) ease-out outline-none data-open:animate-in data-open:slide-in-from-right-8 data-open:fade-in-0 data-closed:animate-out data-closed:slide-out-to-right-8 data-closed:fade-out-0",
+          "fixed inset-y-0 z-50 flex w-full max-w-[480px] flex-col border-border bg-popover/88 backdrop-blur-xl backdrop-saturate-125 text-sm text-popover-foreground shadow-lg duration-(--duration-base) ease-out outline-none data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
+          SIDE[side],
           className,
         )}
         {...props}
@@ -49,18 +61,27 @@ function SheetHeader({
   className,
   children,
   actions,
+  leading,
+  closeClassName,
   ...props
-}: Omit<React.ComponentProps<"div">, "children"> & { children: React.ReactNode; actions?: React.ReactNode }) {
+}: Omit<React.ComponentProps<"div">, "children"> & {
+  children: React.ReactNode;
+  actions?: React.ReactNode;
+  /** Ліворуч від заголовка — напр. «Back to list» повноекранної панелі на телефоні (ADR 0008). */
+  leading?: React.ReactNode;
+  closeClassName?: string;
+}) {
   return (
     <div
       data-slot="sheet-header"
       className={cn("flex items-start gap-3 border-b border-border px-5 py-4", className)}
       {...props}
     >
+      {leading}
       <div className="flex min-w-0 flex-1 flex-col gap-1">{children}</div>
       <div className="flex shrink-0 items-center gap-1">
         {actions}
-        <SheetClose render={<Button variant="ghost" size="icon-sm" aria-label="Close" />}>
+        <SheetClose render={<Button variant="ghost" size="icon-sm" aria-label="Close" className={closeClassName} />}>
           <XIcon />
         </SheetClose>
       </div>

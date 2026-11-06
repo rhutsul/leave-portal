@@ -3,13 +3,20 @@
 import * as React from "react"
 import { cn } from "cn"
 
-function Table({ className, ...props }: React.ComponentProps<"table">) {
+/**
+ * `stack` — вужче за `md` рядки стають картками (ADR 0008, DESIGN.md §12): та сама розмітка й ті самі дані, лише інша
+ * розкладка (стилі — `[data-stack]` у globals.css). Ролі таблиці — явні: коли рядки стають блоками, браузер інакше
+ * міг би забрати їх у зчитувача екрана.
+ */
+function Table({ className, stack, ...props }: React.ComponentProps<"table"> & { stack?: boolean }) {
   return (
     <div
       data-slot="table-container"
+      data-stack={stack || undefined}
       className="relative w-full overflow-x-auto"
     >
       <table
+        role="table"
         data-slot="table"
         className={cn("w-full caption-bottom text-sm", className)}
         {...props}
@@ -21,6 +28,7 @@ function Table({ className, ...props }: React.ComponentProps<"table">) {
 function TableHeader({ className, ...props }: React.ComponentProps<"thead">) {
   return (
     <thead
+      role="rowgroup"
       data-slot="table-header"
       className={cn("[&_tr]:border-b", className)}
       {...props}
@@ -31,6 +39,7 @@ function TableHeader({ className, ...props }: React.ComponentProps<"thead">) {
 function TableBody({ className, ...props }: React.ComponentProps<"tbody">) {
   return (
     <tbody
+      role="rowgroup"
       data-slot="table-body"
       className={cn("[&_tr:last-child]:border-0", className)}
       {...props}
@@ -54,6 +63,7 @@ function TableFooter({ className, ...props }: React.ComponentProps<"tfoot">) {
 function TableRow({ className, ...props }: React.ComponentProps<"tr">) {
   return (
     <tr
+      role="row"
       data-slot="table-row"
       className={cn(
         "border-b border-border transition-colors duration-(--duration-fast) ease-out hover:bg-accent/60 has-aria-expanded:bg-accent/60 data-[state=selected]:bg-accent aria-selected:bg-accent",
@@ -67,6 +77,7 @@ function TableRow({ className, ...props }: React.ComponentProps<"tr">) {
 function TableHead({ className, ...props }: React.ComponentProps<"th">) {
   return (
     <th
+      role={props.scope === "row" || props.scope === "rowgroup" ? "rowheader" : "columnheader"}
       data-slot="table-head"
       className={cn(
         "h-9 px-3 text-left align-middle text-xs font-medium whitespace-nowrap text-muted-foreground [&:has([role=checkbox])]:pr-0",
@@ -80,6 +91,7 @@ function TableHead({ className, ...props }: React.ComponentProps<"th">) {
 function TableCell({ className, ...props }: React.ComponentProps<"td">) {
   return (
     <td
+      role="cell"
       data-slot="table-cell"
       className={cn(
         "px-3 py-2.5 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0",

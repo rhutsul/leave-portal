@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { MobileNav } from "@/components/mobile-nav";
 import { Sidebar } from "@/components/sidebar";
 import { isSidebarCollapsed, parseTheme, SIDEBAR_COOKIE, THEME_COOKIE } from "@/lib/preferences";
 import { createClient } from "@/lib/supabase/server";
@@ -32,19 +33,30 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
   const email = profile?.email ?? claims.email ?? "";
   // Тема й згорнута панель — з cookie (ADR 0005), щоб перша відповідь сервера вже була в потрібному вигляді.
   const cookieStore = await cookies();
+  const theme = parseTheme(cookieStore.get(THEME_COOKIE)?.value);
+  const name = profile?.full_name ?? email;
 
+  // Від lg — бічна панель; вужче — шапка з кнопкою меню (ADR 0008). Поля сторінки — p-4 / md:p-6 / lg:p-8.
   return (
-    <div className="flex min-h-full flex-1 bg-background text-sm text-foreground">
+    <div className="flex min-h-full flex-1 flex-col bg-background text-sm text-foreground lg:flex-row">
       <Sidebar
-        name={profile?.full_name ?? email}
+        name={name}
         email={email}
         awaiting={awaiting ?? 0}
         toDecide={toDecide ?? 0}
         canDecide={canDecide}
-        theme={parseTheme(cookieStore.get(THEME_COOKIE)?.value)}
+        theme={theme}
         initialCollapsed={isSidebarCollapsed(cookieStore.get(SIDEBAR_COOKIE)?.value)}
       />
-      <main className="min-w-0 flex-1 px-8 pt-8 pb-12">
+      <MobileNav
+        name={name}
+        email={email}
+        awaiting={awaiting ?? 0}
+        toDecide={toDecide ?? 0}
+        canDecide={canDecide}
+        theme={theme}
+      />
+      <main className="min-w-0 flex-1 px-4 pt-4 pb-10 md:px-6 md:pt-6 lg:px-8 lg:pt-8 lg:pb-12">
         <div className="mx-auto flex max-w-[1220px] flex-col gap-6">{children}</div>
       </main>
     </div>

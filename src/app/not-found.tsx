@@ -10,7 +10,7 @@ export const metadata: Metadata = { title: "Page not found · Leave portal" };
 // показується й без входу.
 export default function NotFound() {
   return (
-    <main className="flex flex-1 items-center justify-center bg-background p-8 text-sm text-foreground">
+    <main className="flex flex-1 items-center justify-center bg-background p-4 text-sm text-foreground md:p-8">
       <EmptyState
         className="w-full max-w-md"
         icon={<SearchX className="size-5" aria-hidden="true" />}
