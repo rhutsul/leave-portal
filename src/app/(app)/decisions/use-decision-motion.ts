@@ -18,14 +18,20 @@ export function useDecisionMotion(done: DecideState["done"], recordId: number) {
   const motion = useSheetMotion();
   useEffect(() => {
     if (!done) return;
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    // Дія сторінку не оновлює (інакше форма зникла б до руху): тут — перехід на наступний запис і оновлення всієї
+    // сторінки, щоб списки й лічильники в меню (layout) показали рішення.
+    const next = () => {
       router.replace(done.href, { scroll: false });
+      router.refresh();
+    };
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      next();
       return;
     }
     if (done.status === "approved" || done.status === "rejected" || done.status === "returned") motion.stamp(done.status);
     document.querySelector(`[data-record-row="${recordId}"]`)?.setAttribute("data-leaving", "");
     const leave = setTimeout(motion.leave, STAMP_MS);
-    const go = setTimeout(() => router.replace(done.href, { scroll: false }), STAMP_MS + LEAVE_MS);
+    const go = setTimeout(next, STAMP_MS + LEAVE_MS);
     return () => {
       clearTimeout(leave);
       clearTimeout(go);
