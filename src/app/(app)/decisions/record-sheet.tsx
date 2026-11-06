@@ -1,11 +1,12 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { createContext, useContext, useMemo, useState, type KeyboardEvent, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DecisionStamp, type StampStatus } from "@/components/ui/decision-stamp";
 import { Sheet, SheetBody, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { RECORD_STATUSES } from "@/lib/leave/request";
 import { cn } from "@/lib/utils";
 
 /** Рух рішення в панелі (ADR 0007): печатка, потім уся панель запису ковзає вгору. */
@@ -35,6 +36,39 @@ function keyTarget(event: KeyboardEvent): Direction | null {
   return event.key === "ArrowDown" ? "next" : null;
 }
 
+const NAV_LABEL: Record<Direction, string> = { prev: "Previous record", next: "Next record" };
+
+/**
+ * Шапка перемонтовується з кожним записом, тож кнопка «Previous / Next», на якій стояв фокус, зникає, і з клавіатури
+ * далі не погортати. Після переходу повертаємо фокус на ту саму кнопку нового запису (або на другу, якщо ця вимкнена),
+ * але лише якщо фокус «загубився» — на `body` чи на самій панелі, куди його переносить Base UI, — а не користувач
+ * переставив його сам.
+ */
+function useNavFocus(recordKey: number | string | undefined) {
+  const pending = useRef<Direction | null>(null);
+  useEffect(() => {
+    const to = pending.current;
+    pending.current = null;
+    if (to) restoreNavFocus(to);
+  }, [recordKey]);
+  return (to: Direction) => {
+    pending.current = to;
+  };
+}
+
+/** Кнопка «Previous / Next» у шапці відкритої панелі; вимкнена не годиться. */
+function navButton(popup: Element | null, direction: Direction) {
+  const selector = `[data-slot="sheet-header"] [aria-label="${NAV_LABEL[direction]}"]:not(:disabled)`;
+  return popup?.querySelector<HTMLButtonElement>(selector) ?? null;
+}
+
+function restoreNavFocus(to: Direction) {
+  const popup = document.querySelector('[data-slot="sheet-content"]');
+  const lost = [null, document.body, popup].includes(document.activeElement);
+  if (!lost) return;
+  (navButton(popup, to) ?? navButton(popup, to === "prev" ? "next" : "prev"))?.focus();
+}
+
 /** «2 of 6» і «Previous / Next» у шапці панелі. */
 function RecordNav({
   position,
@@ -53,7 +87,7 @@ function RecordNav({
       <Button
         variant="ghost"
         size="icon-sm"
-        aria-label="Previous record"
+        aria-label={NAV_LABEL.prev}
         aria-keyshortcuts="ArrowUp"
         disabled={!prevHref}
         onClick={() => go("prev")}
@@ -63,13 +97,41 @@ function RecordNav({
       <Button
         variant="ghost"
         size="icon-sm"
-        aria-label="Next record"
+        aria-label={NAV_LABEL.next}
         aria-keyshortcuts="ArrowDown"
         disabled={!nextHref}
         onClick={() => go("next")}
       >
         <ChevronDown />
       </Button>
+    </>
+  );
+}
+
+/** Постійна жива область поза рамкою запису: зчитувач екрана оголошує рішення, коли в ній з'являється текст. */
+function StampAnnouncer({ stamp }: { stamp: StampStatus | null }) {
+  return (
+    <span role="status" className="sr-only">
+      {stamp ? RECORD_STATUSES[stamp] : ""}
+    </span>
+  );
+}
+
+/**
+ * Тіло запису з печаткою над ним. Поки печатку показано, рішення вже збережено: форма недоступна (`inert`), щоб
+ * другий клік не надіслав його знову.
+ */
+function StampedBody({ stamp, children }: { stamp: StampStatus | null; children: ReactNode }) {
+  // Та сама структура з печаткою й без, щоб форма в тілі не перемонтовувалась і тіло плавно тьмяніло.
+  return (
+    <>
+      <SheetBody
+        inert={stamp !== null}
+        className={cn("transition-opacity duration-(--duration-base) ease-out", stamp && "opacity-20 blur-xs")}
+      >
+        {children}
+      </SheetBody>
+      {stamp && <DecisionStamp status={stamp} className="absolute inset-x-0 top-24 bottom-16" />}
     </>
   );
 }
@@ -107,6 +169,7 @@ function RecordMotion({
   const motion = useMemo<SheetMotion>(() => ({ stamp: setStamp, leave: () => setLeaving(true) }), []);
   return (
     <SheetMotionContext.Provider value={motion}>
+      <StampAnnouncer stamp={stamp} />
       <div
         key={String(recordKey)}
         className={cn(
@@ -115,10 +178,7 @@ function RecordMotion({
         )}
       >
         {header}
-        <SheetBody className={cn("transition-opacity duration-(--duration-base) ease-out", stamp && "opacity-20 blur-xs")}>
-          {children}
-        </SheetBody>
-        {stamp && <DecisionStamp status={stamp} className="absolute inset-x-0 top-24 bottom-16" />}
+        <StampedBody stamp={stamp}>{children}</StampedBody>
       </div>
     </SheetMotionContext.Provider>
   );
@@ -158,10 +218,12 @@ export function RecordSheet({
   const go = (href: string) => router.replace(href, { scroll: false });
   // Після рішення наступний запис приходить знизу, тож напрямок за замовчуванням — «next».
   const [direction, setDirection] = useState<Direction>("next");
+  const keepFocus = useNavFocus(recordKey);
   const step = (to: Direction) => {
     const href = to === "prev" ? prevHref : nextHref;
     if (!href) return;
     setDirection(to);
+    keepFocus(to);
     go(href);
   };
 

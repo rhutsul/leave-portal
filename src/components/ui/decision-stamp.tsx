@@ -19,11 +19,12 @@ const TONE: Record<StampStatus, string> = {
 /**
  * Печатка рішення в панелі запису (ADR 0007, DESIGN.md `DecisionStamp`): кружок кольору статусу, знак малюється
  * лінією, під ним — слово статусу. Лише після того, як рішення збережено, — не замість діалогу підтвердження.
- * Для зчитувача екрана — живе повідомлення словом статусу.
+ * Для зчитувача екрана печатка схована: про рішення каже постійна жива область панелі, бо область, що з'являється
+ * разом із текстом, зчитувачі часто не оголошують.
  */
 export function DecisionStamp({ status, className }: { status: StampStatus; className?: string }) {
   return (
-    <div role="status" className={cn("pointer-events-none grid place-items-center", className)}>
+    <div aria-hidden="true" className={cn("pointer-events-none grid place-items-center", className)}>
       <div className="flex animate-stamp flex-col items-center gap-2.5">
         <span className={cn("grid size-19 place-items-center rounded-full border-2", TONE[status])}>
           <svg
