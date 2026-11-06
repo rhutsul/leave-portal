@@ -12,7 +12,7 @@ test.describe("employee on a phone", () => {
   test("the menu opens from the top bar, closes on a choice and moves focus to the new page", async ({ page }) => {
     await page.goto("/");
     // Бічної панелі вужче за lg немає: навігація — у меню з кнопки.
-    await expect(page.getByRole("link", { name: "My requests" })).toHaveCount(0);
+    await expect(page.getByRole("navigation").getByRole("link", { name: /^My requests/ })).toHaveCount(0);
     await page.getByRole("button", { name: "Open menu" }).click();
     const menu = page.getByRole("dialog", { name: "Menu" });
     await expect(menu.getByRole("link", { name: /^Overview/ })).toBeVisible();
