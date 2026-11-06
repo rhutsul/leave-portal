@@ -31,7 +31,9 @@ test.describe("guest", () => {
     await expect(page.getByText("2 records · 1.00 days")).toBeVisible();
     await page.getByRole("button", { name: "Submit request" }).click();
     await expect(records.getByText("Approved")).toHaveCount(2);
-    await expect(page.getByText("Personal leave left").locator("..")).toContainText("15.64");
+    // «Personal leave left» є ще під числом балансу і в прев'ю Overview: шукаємо лише в секції «Try it».
+    const left = page.locator("#try").getByText("Personal leave left", { exact: true }).locator("..");
+    await expect(left).toContainText("15.64");
     await page.getByRole("button", { name: "Start over" }).click();
     await expect(records.getByText("Not submitted")).toHaveCount(2);
   });
