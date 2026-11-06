@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { DECISION_MESSAGES } from "@/lib/leave/decision";
-import { decidedNotice, decisionErrorPlacement, decisionsTab, neighbours, pickRecord, recordHref } from "./decisions-view";
+import { afterDecision, decidedNotice, decisionErrorPlacement, decisionsTab, neighbours, pickRecord, recordHref } from "./decisions-view";
 
 const awaiting = [{ id: 11 }, { id: 12 }];
 const all = [...awaiting, { id: 20 }];
@@ -54,5 +54,19 @@ describe("Decisions: list and record panel", () => {
     expect(decisionsTab("other")).toBe("awaiting");
     expect(recordHref("awaiting", 5)).toBe("/decisions?record=5");
     expect(recordHref("history", 5)).toBe("/decisions?tab=history&record=5");
+  });
+});
+
+describe("afterDecision (ADR 0007)", () => {
+  it("opens the next record of the queue, the previous one after the last, and closes the panel when the queue is empty", () => {
+    expect(afterDecision([4, 7, 9], 7, "approved")).toBe("/decisions?record=9&decided=approved");
+    expect(afterDecision([4, 7, 9], 9, "rejected")).toBe("/decisions?record=7&decided=rejected");
+    expect(afterDecision([4, 7, 9], 4, "returned")).toBe("/decisions?record=7&decided=returned");
+    expect(afterDecision([7], 7, "approved")).toBe("/decisions?decided=approved");
+    expect(afterDecision([], 7, "approved")).toBe("/decisions?decided=approved");
+  });
+
+  it("a record outside the queue goes to its first record", () => {
+    expect(afterDecision([4, 9], 7, "approved")).toBe("/decisions?record=4&decided=approved");
   });
 });

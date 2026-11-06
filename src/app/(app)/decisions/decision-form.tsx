@@ -22,6 +22,7 @@ import { COMMENT_MAX, commentLength } from "@/lib/leave/request";
 import { cn } from "@/lib/utils";
 import { decideRecord, type DecideState } from "./actions";
 import { decisionErrorPlacement } from "./decisions-view";
+import { useDecisionMotion } from "./use-decision-motion";
 
 const INITIAL: DecideState = { message: "" };
 
@@ -62,6 +63,8 @@ export function DecisionForm({
     setSeen(state);
     setConfirm(null);
   }
+
+  useDecisionMotion(state.done, recordId);
 
   const ids = useId();
   const formId = `${ids}-form`;

@@ -103,3 +103,16 @@ export function Tilt({ children, className }: { children: ReactNode; className?:
     </div>
   );
 }
+
+/**
+ * Число, що ледь підскакує, коли змінюється на місці (ADR 0007: лічильники після рішення). Перше відмальовування —
+ * без руху; reduced motion вимикає анімацію в globals.css.
+ */
+export function Tick({ value, className }: { value: number | string; className?: string }) {
+  const [first] = useState(value);
+  return (
+    <span key={String(value)} className={cn("inline-block", value !== first && "animate-tick", className)}>
+      {value}
+    </span>
+  );
+}

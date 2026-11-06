@@ -62,3 +62,12 @@ WS7 вище (`ws7-after-decisions-*.png`).
 | `v2-overview-teacher1-light.jpg`, `v2-overview-teacher1-dark.jpg` | `teacher1@example.test` | 1280 px: місяць із точок (записи кольором статусу, сьогодні підсвічено), смуга чисел, діаграма за двома посадами, «Next leave», «Needs your attention» з коментарем менеджера |
 | `v2-overview-manager1-light.jpg`, `v2-overview-manager1-dark.jpg` | `manager1@example.test` | 1280 px: «To decide» у смузі й праворуч, «Away» — хто з посад відсутній, «Activity» |
 | `v2-overview-manager1-1000-light.jpg` | `manager1@example.test` | 1000 px: шапка в один рядок, смуга чисел 4 в ряд; години в смугах діаграми скорочено, повні — у підказці |
+
+### Рух рішення й легенда місяця (ADR 0007)
+
+З Preview гілки `task/decision-motion`, `manager1@example.test`, темна тема, 1280 px.
+
+| Файл | Що видно |
+|---|---|
+| `v2-overview-dot-month-legend-dark.jpg` | місяць із точок: заголовок одним рядком, підпис дня під сіткою окремим рядком сталої висоти, легенда кольорів |
+| `v2-decisions-sheet-motion-dark.jpg` | панель запису перед рішенням (рух — печатка, виїзд угору, наступний запис знизу — у кадрі не видно; рішень на спільній базі під час знімків не ухвалювали) |
