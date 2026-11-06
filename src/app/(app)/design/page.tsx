@@ -39,7 +39,11 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
+import { DotMonth } from "@/components/ui/dot-month";
+import { StatStrip } from "@/components/ui/stat-strip";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { WeekTimeline } from "@/components/ui/week-timeline";
+import { timelineDays, twoWeeks } from "@/lib/leave/overview";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { ThemeMenu } from "@/components/ui/theme-menu";
@@ -98,6 +102,8 @@ const NOVEMBER: (DayState | null)[] = [
     return "free";
   }),
 ];
+
+const DEMO_DAYS = timelineDays(twoWeeks("2026-11-05"), "2026-11-05");
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -366,6 +372,37 @@ export default async function DesignPage() {
           <Info className="size-3.5" aria-hidden="true" />
           Balances are in working days: 1 day is all the employee&apos;s working hours on that date.
         </p>
+      </Section>
+
+      {/* Overview v3 (ADR 0007): смуга чисел, діаграма на два тижні і місяць із точок — на синтетичних даних. */}
+      <Section title="Overview">
+        <StatStrip
+          stats={[
+            { label: "Sick leave left", value: "17.50", decimals: 2, unit: "days", sub: "0.50 of 18.00 used · 2026–2027" },
+            { label: "Personal leave left", value: "16.64", decimals: 2, unit: "days", sub: "1.36 of 18.00 used · 2026–2027" },
+            { label: "Your records awaiting decision", value: "1", unit: "record", sub: "Open My requests", href: "/requests?status=awaiting" },
+            { label: "To decide", value: "6", unit: "records", sub: "Open Decisions", href: "/decisions", tone: "primary" },
+          ]}
+        />
+        <WeekTimeline
+          label="Example: leave of your positions this week and next"
+          empty="Nobody is away these two weeks."
+          days={DEMO_DAYS}
+          rows={[
+            { key: "1", name: "Teacher One", sub: "Elementary school / Teacher", bars: [{ col: 0, status: "approved", hours: "08:30–15:30" }, { col: 5, status: "awaiting", hours: "08:30–12:00" }] },
+            { key: "2", name: "Assistant Two", sub: "Elementary school / Assistant", bars: [{ col: 2, status: "approved", hours: "12:30–15:30" }, { col: 6, status: "returned", hours: "09:00–11:00" }] },
+          ]}
+        />
+        <DotMonth
+          month="2026-11"
+          today="2026-11-05"
+          className="max-w-[460px]"
+          marks={{
+            12: { status: "awaiting", label: "Thu 12 Nov · 08:30–12:00 · Awaiting decision", href: "/design" },
+            17: { status: "returned", label: "Tue 17 Nov · 09:00–11:00 · Returned for revision", href: "/design" },
+            27: { status: "approved", label: "Fri 27 Nov · 08:30–15:30 · Approved", href: "/design" },
+          }}
+        />
       </Section>
 
       <Section title="Calendar">
