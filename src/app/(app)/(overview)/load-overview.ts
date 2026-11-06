@@ -85,30 +85,32 @@ export interface ActivityLine {
  * адміністратор). Тема рядка — дата й години запису, у менеджера ще й ім'я працівника.
  */
 async function loadActivity(supabase: Supabase, decider: boolean): Promise<ActivityLine[]> {
-  const subjects = new Map<number, string>();
+  const subjects = new Map<number, { name: string | null; text: string }>();
   if (decider) {
     // Сортуємо тут, а не в запиті: order за полем, якого немає у вибірці функції, повертав порожньо.
     const { data } = await supabase.rpc("decision_records").select("id, employee_name, date, start_min, end_min, created_at");
     const fresh = [...(data ?? [])].sort((a, b) => b.created_at.localeCompare(a.created_at)).slice(0, 8);
-    for (const r of fresh) subjects.set(r.id, `${r.employee_name} · ${formatDateLong(r.date)} · ${formatRange(r.start_min, r.end_min)}`);
+    for (const r of fresh) subjects.set(r.id, { name: r.employee_name, text: `${formatDateLong(r.date)} · ${formatRange(r.start_min, r.end_min)}` });
   } else {
     const { data } = await supabase
       .from("my_leave_records")
       .select("id, date, start_min, end_min")
       .order("created_at", { ascending: false })
       .limit(8);
-    for (const r of data ?? []) subjects.set(r.id!, `${formatDateLong(r.date!)} · ${formatRange(r.start_min!, r.end_min!)}`);
+    for (const r of data ?? []) subjects.set(r.id!, { name: null, text: `${formatDateLong(r.date!)} · ${formatRange(r.start_min!, r.end_min!)}` });
   }
   if (!subjects.size) return [];
   const { data } = await supabase.rpc("record_histories", { p_record_ids: [...subjects.keys()] });
   return [...(data ?? [])]
     .sort((a, b) => b.created_at.localeCompare(a.created_at))
     .slice(0, ACTIVITY_LIMIT)
-    .map((h) => ({
-      ...historyLine({ createdAt: h.created_at, action: h.action, actorName: h.actor_name, comment: h.comment }),
-      action: h.action,
-      subject: subjects.get(h.record_id) ?? "",
-    }));
+    .map((h) => {
+      const line = historyLine({ createdAt: h.created_at, action: h.action, actorName: h.actor_name, comment: h.comment });
+      const subject = subjects.get(h.record_id);
+      // Ім'я працівника — лише коли дію зробив хтось інший: «Андрій · Андрій · …» нічого не додає.
+      const whose = subject?.name && subject.name !== line.who ? `${subject.name} · ` : "";
+      return { ...line, action: h.action, subject: `${whose}${subject?.text ?? ""}` };
+    });
 }
 
 export async function loadOverview(supabase: Supabase, userId: string, today: string) {
