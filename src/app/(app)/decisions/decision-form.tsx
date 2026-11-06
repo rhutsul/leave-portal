@@ -122,7 +122,7 @@ export function DecisionForm({
           червона кнопка — у підтвердженні), основна Approve — праворуч, як у діалогах (DESIGN.md, розділ 5). На телефоні
           (ADR 0008) дії прикріплені внизу панелі: Reject і Return у два стовпці, Approve на всю ширину під ними, з
           відступом від смуги жестів iPhone. */}
-      <div className="flex flex-wrap items-center gap-2 border-t border-border pt-4 max-md:sticky max-md:bottom-0 max-md:-mx-5 max-md:-mb-5 max-md:grid max-md:grid-cols-2 max-md:bg-popover/95 max-md:px-5 max-md:pb-[calc(1rem+env(safe-area-inset-bottom))] max-md:backdrop-blur-md max-md:*:h-11">
+      <div className="flex flex-wrap items-center gap-2 border-t border-border pt-4 max-md:fixed max-md:inset-x-0 max-md:bottom-0 max-md:z-10 max-md:grid max-md:grid-cols-2 max-md:bg-popover/95 max-md:px-5 max-md:pb-[calc(1rem+env(safe-area-inset-bottom))] max-md:backdrop-blur-md max-md:*:h-11">
         <Button
           type="button"
           variant="outline"

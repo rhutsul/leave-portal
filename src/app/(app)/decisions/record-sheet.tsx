@@ -127,7 +127,8 @@ function StampedBody({ stamp, children }: { stamp: StampStatus | null; children:
     <>
       <SheetBody
         inert={stamp !== null}
-        className={cn("transition-opacity duration-(--duration-base) ease-out", stamp && "opacity-20 blur-xs")}
+        // max-md:pb-44 — на телефоні дії рішення прикріплені внизу панелі (ADR 0008): тіло прокручується з-під них.
+        className={cn("transition-opacity duration-(--duration-base) ease-out max-md:pb-44", stamp && "opacity-20 blur-xs")}
       >
         {children}
       </SheetBody>
