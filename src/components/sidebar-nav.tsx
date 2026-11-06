@@ -4,7 +4,7 @@ import Link, { useLinkStatus } from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { ChartColumn, ClipboardCheck, House, List, Plus } from "lucide-react";
-import { markHydrated } from "@/components/ui/motion";
+import { markHydrated, Tick } from "@/components/ui/motion";
 import { highlightTarget } from "@/lib/motion";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
@@ -51,7 +51,7 @@ function Counter({ value, label, collapsed, className }: { value: number; label:
         className,
       )}
     >
-      {value}
+      <Tick value={value} />
       <span className="sr-only"> {label}</span>
     </span>
   );

@@ -11,10 +11,14 @@ import {
   reviewedHours,
   type Role,
 } from "@/lib/leave/decision";
+import type { RecordStatus } from "@/lib/leave/request";
 import { createClient } from "@/lib/supabase/server";
+import { afterDecision } from "./decisions-view";
 
 export interface DecideState {
   message: string;
+  /** Рішення збережено: панель програє печатку й відкриває наступний запис черги (ADR 0007). */
+  done?: { status: RecordStatus; href: string };
 }
 
 const FAILED = "The decision could not be saved. Please try again.";
@@ -37,9 +41,11 @@ export async function decideRecord(_prev: DecideState, formData: FormData): Prom
   const split = formData.get("split") === "1";
 
   // decision_records віддає лише записи посад користувача (адміністратору — усі): немає рядка — немає доступу.
-  const [{ data: profile, error: profileError }, { data: row, error: rowError }] = await Promise.all([
+  // Черга «Awaiting decision» до рішення — щоб після нього відкрити наступний запис (порядок той самий, що в списку).
+  const [{ data: profile, error: profileError }, { data: row, error: rowError }, { data: queue }] = await Promise.all([
     supabase.from("profiles").select("role").eq("id", claims.sub).maybeSingle(),
     supabase.rpc("decision_records").eq("id", recordId).maybeSingle(),
+    supabase.rpc("decision_records").select("id").eq("status", "awaiting"),
   ]);
   if (profileError || rowError) return { message: FAILED };
   if (!profile || !ROLES.includes(profile.role)) return { message: DECISION_MESSAGES.noAccess };
@@ -87,5 +93,6 @@ export async function decideRecord(_prev: DecideState, formData: FormData): Prom
   }
 
   revalidatePath("/decisions");
-  redirect(`/decisions?decided=${check.status}`);
+  // Без redirect: панель спершу показує печатку рішення, а тоді сама переходить на наступний запис.
+  return { message: "", done: { status: check.status, href: afterDecision((queue ?? []).map((r) => r.id), recordId, check.status) } };
 }

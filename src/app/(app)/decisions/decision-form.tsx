@@ -1,6 +1,7 @@
 "use client";
 
-import { useActionState, useId, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useActionState, useEffect, useId, useState } from "react";
 import { CircleAlert } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -22,6 +23,11 @@ import { COMMENT_MAX, commentLength } from "@/lib/leave/request";
 import { cn } from "@/lib/utils";
 import { decideRecord, type DecideState } from "./actions";
 import { decisionErrorPlacement } from "./decisions-view";
+import { useSheetMotion } from "./record-sheet";
+
+/** Скільки триває кожен крок руху рішення (ADR 0007): печатка, потім виїзд панелі вгору. */
+const STAMP_MS = 620;
+const LEAVE_MS = 320;
 
 const INITIAL: DecideState = { message: "" };
 
@@ -48,6 +54,8 @@ export function DecisionForm({
   summary: { date: string; hours: string; meta: string };
 }) {
   const [state, action, pending] = useActionState(decideRecord, INITIAL);
+  const router = useRouter();
+  const motion = useSheetMotion();
   const [comment, setComment] = useState("");
   const [confirm, setConfirm] = useState<FinalDecision | null>(null);
   // Що показує діалог: лишається й під час анімації закриття, коли confirm уже null.
@@ -62,6 +70,25 @@ export function DecisionForm({
     setSeen(state);
     setConfirm(null);
   }
+
+  // Рішення збережено (ADR 0007): печатка в панелі, рядок у списку виїжджає, панель ковзає вгору — і відкривається
+  // наступний запис черги. Без руху (prefers-reduced-motion) — одразу.
+  const done = state.done;
+  useEffect(() => {
+    if (!done) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      router.replace(done.href, { scroll: false });
+      return;
+    }
+    if (done.status === "approved" || done.status === "rejected" || done.status === "returned") motion.stamp(done.status);
+    document.querySelector(`[data-record-row="${recordId}"]`)?.setAttribute("data-leaving", "");
+    const leave = setTimeout(motion.leave, STAMP_MS);
+    const go = setTimeout(() => router.replace(done.href, { scroll: false }), STAMP_MS + LEAVE_MS);
+    return () => {
+      clearTimeout(leave);
+      clearTimeout(go);
+    };
+  }, [done, motion, recordId, router]);
 
   const ids = useId();
   const formId = `${ids}-form`;

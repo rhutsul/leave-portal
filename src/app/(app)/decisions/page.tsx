@@ -10,6 +10,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { RecordSummary } from "@/components/ui/record-summary";
 import { Separator } from "@/components/ui/separator";
 import { isRecordStatus, StatusBadge } from "@/components/ui/status-badge";
+import { Tick } from "@/components/ui/motion";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
   daysToHundredths,
@@ -165,7 +166,7 @@ export default async function DecisionsPage({ searchParams }: PageProps<"/decisi
             >
               {t.label}
               <span className="text-xs tabular-nums text-muted-foreground">
-                {t.id === "awaiting" ? awaiting.length : history.length}
+                <Tick value={t.id === "awaiting" ? awaiting.length : history.length} />
                 <span className="sr-only"> records</span>
               </span>
             </Link>
@@ -203,6 +204,7 @@ export default async function DecisionsPage({ searchParams }: PageProps<"/decisi
               closeHref={listHref}
               prevHref={around?.prev ? recordHref(tab, around.prev.id) : null}
               nextHref={around?.next ? recordHref(tab, around.next.id) : null}
+              recordKey={selected.id}
             >
               <RecordPanel
                 record={selected}
@@ -276,8 +278,9 @@ function RecordTable({
               <TableRow
                 key={r.id}
                 data-testid="decision-record"
+                data-record-row={r.id}
                 data-state={selected ? "selected" : undefined}
-                className="relative cursor-pointer"
+                className="relative cursor-pointer data-leaving:animate-row-leave"
               >
                 <TableCell className="min-w-44 whitespace-normal">
                   <Link

@@ -53,3 +53,14 @@ export function neighbours<T extends { id: number }>(
   if (index < 0) return { index, prev: null, next: null };
   return { index, prev: shown[index - 1] ?? null, next: shown[index + 1] ?? null };
 }
+
+/**
+ * Куди після рішення (ADR 0007): наступний запис черги «Awaiting decision» після вирішеного, а якщо він був
+ * останнім — попередній; порожня черга — список без панелі. `queue` — id черги до рішення, у порядку списку.
+ */
+export function afterDecision(queue: readonly number[], decidedId: number, status: RecordStatus): string {
+  const index = queue.indexOf(decidedId);
+  const rest = queue.filter((id) => id !== decidedId);
+  const next = index < 0 ? rest[0] : (rest[index] ?? rest[index - 1]);
+  return next === undefined ? `/decisions?decided=${status}` : `/decisions?record=${next}&decided=${status}`;
+}

@@ -173,9 +173,11 @@ export function DotMonth({
 
   return (
     <div aria-hidden="true" className={cn("flex flex-col gap-1.5", className)}>
-      <div className="flex items-baseline justify-between gap-3 font-mono text-[11px] text-muted-foreground">
-        <span className="tracking-wide uppercase">Your records this month</span>
-        <span className="truncate">{hoverLabel}</span>
+      {/* Один рядок сталої висоти: довгий підпис при наведенні обрізається, а не переносить заголовок — інакше вся
+          шапка стрибала б угору-вниз, поки курсор ходить по днях. */}
+      <div className="flex h-4 items-baseline justify-between gap-3 overflow-hidden font-mono text-[11px] leading-4 text-muted-foreground">
+        <span className="shrink-0 tracking-wide whitespace-nowrap uppercase">Your records this month</span>
+        <span className="min-w-0 truncate text-right">{hoverLabel}</span>
       </div>
       <div className="grid grid-cols-7 text-center font-mono text-[10px] text-muted-foreground">
         {WEEKDAY_SHORT.map((d) => (
