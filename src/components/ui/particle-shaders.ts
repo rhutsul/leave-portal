@@ -2,7 +2,8 @@
  * Шейдери поля частинок (ADR 0007): GLSL ES 3.0 для RawShaderMaterial three.js (рядок `#version` додає three).
  * Кожна точка має п'ять позицій (`position`, p1…p4) і п'ять тонів (t0…t4: індекс палітри й вага). Стадія `uP` — від 0
  * до 4: між сусідніми формами точки рушають із розкидом у часі (aR.x) і легким розльотом посередині. Курсор
- * розштовхує точки, наведена картка ролі збільшує й підсвічує свою сферу, решта тьмяніє.
+ * розштовхує точки, наведена картка ролі збільшує й підсвічує свою сферу, решта тьмяніє. `uIntro` (0 → 1) — поява:
+ * кожна точка зі своєю затримкою злітається з розсипу на місце й проявляється, тож поле не виникає різко.
  */
 
 export const VERTEX = /* glsl */ `
@@ -11,7 +12,7 @@ in vec3 position; in vec3 p1; in vec3 p2; in vec3 p3; in vec3 p4;
 in vec2 t0; in vec2 t1; in vec2 t2; in vec2 t3; in vec2 t4;
 in vec4 aR; in float aK;
 uniform float uT; uniform float uP; uniform float uAspect; uniform float uMotion; uniform float uDpr;
-uniform float uYaw; uniform float uPitch; uniform float uFocus; uniform float uDepth;
+uniform float uYaw; uniform float uPitch; uniform float uFocus; uniform float uDepth; uniform float uIntro;
 uniform vec2 uMouse;
 uniform vec3 uPal[6];
 out vec3 vC; out float vA;
@@ -35,6 +36,9 @@ void main(){
   float wave = is(s, 3.) * k;
   pos.y += uMotion * wave * (0.08 * sin(pos.x * 2.4 + uT * 1.1) + 0.06 * sin(pos.z * 3.1 + uT * 0.8));
   pos += uMotion * 0.012 * vec3(sin(uT * 0.7 + aR.y * 40.), cos(uT * 0.6 + aR.z * 40.), sin(uT * 0.5 + aR.w * 40.));
+  // Поява: з широкого розсипу на місце, з розкидом у часі (aR.x) і м'яким гальмуванням наприкінці.
+  float arrive = 1. - pow(1. - clamp((uIntro - aR.x * 0.45) / 0.55, 0., 1.), 3.);
+  pos = mix((aR.wzy - 0.5) * vec3(6., 4., 3.), pos, arrive);
   float focus = 0.;
   if (uFocus > -0.5 && aK > -0.5) focus = abs(aK - uFocus) < 0.5 ? 1. : -1.;
   pos = rX(rY(pos, uYaw), uPitch);
@@ -48,6 +52,7 @@ void main(){
   gl_PointSize = uDpr * (1.1 + aR.y * 1.7) * (uDepth / (-pos.z)) * grow;
   vA = weight * (0.55 + 0.45 * aR.z) * (1. - uMotion * 0.25 * (0.5 + 0.5 * sin(uT * 2. + aR.w * 50.)));
   vA *= 1. + nearRoles * (focus > 0. ? 0.9 : (focus < 0. ? -0.6 : 0.));
+  vA *= arrive;
   vC = col;
 }
 `;

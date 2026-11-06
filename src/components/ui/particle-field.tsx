@@ -39,10 +39,11 @@ export function ParticleField({ variant, className }: { variant: FieldVariant; c
     if (!wide || ready) return;
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches || !hasWebGL2()) return;
     if ("requestIdleCallback" in window) {
-      const id = window.requestIdleCallback(() => setReady(true), { timeout: 1500 });
+      // Короткий тайм-аут: поле не чекає довго на вільну хвилину, а починає вантажитись одразу після першого кадру.
+      const id = window.requestIdleCallback(() => setReady(true), { timeout: 300 });
       return () => window.cancelIdleCallback(id);
     }
-    const id = setTimeout(() => setReady(true), 200);
+    const id = setTimeout(() => setReady(true), 100);
     return () => clearTimeout(id);
   }, [wide, ready]);
 

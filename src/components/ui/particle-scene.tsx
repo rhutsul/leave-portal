@@ -37,7 +37,7 @@ const CONFIG: Record<FieldVariant, VariantConfig> = {
   login: { depth: 3.4, yaw: [-0.38], pitch: [-0.14] },
 };
 
-/** На вході точки складаються з хмари в аркуш за 1.6 с. */
+/** Поява поля: точки злітаються з розсипу й проявляються за 1.6 с (на вході — у аркуш, на landing — у поточну форму). */
 const INTRO_SECONDS = 1.6;
 const OFF = 9;
 
@@ -103,6 +103,7 @@ function createPoints(variant: FieldVariant) {
       uYaw: { value: 0 },
       uPitch: { value: 0 },
       uFocus: { value: -1 },
+      uIntro: { value: 0 },
       uDepth: { value: CONFIG[variant].depth },
       uMouse: { value: new Vector2(OFF, OFF) },
       uPal: { value: PALETTE_TOKENS.map(() => new Vector3()) },
@@ -208,9 +209,9 @@ export default function ParticleScene({ variant }: { variant: FieldVariant }) {
       const dt = Math.min(0.05, (now - last) / 1000);
       last = now;
       const still = reduced.matches;
-      // Вхід: аркуш складається за реальний час від появи сцени, а не за кількість кадрів.
-      const intro = Math.min(1, (now - born) / 1000 / INTRO_SECONDS);
-      state.stage = still ? state.target : variant === "login" ? intro : approach(state.stage, state.target, dt, 2.4);
+      // Поява — за реальний час від появи сцени, а не за кількість кадрів; reduced motion — одразу на місці.
+      u.uIntro.value = still ? 1 : Math.min(1, (now - born) / 1000 / INTRO_SECONDS);
+      state.stage = still ? state.target : approach(state.stage, state.target, dt, 2.4);
       if (!still) state.time += dt;
       const outside = Math.abs(mouse.at.x) > 5;
       // Згладжування курсора за часом, а не за кадрами: однаково на 60 і 144 Гц.
