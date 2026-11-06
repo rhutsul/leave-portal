@@ -92,7 +92,8 @@ export async function decideRecord(_prev: DecideState, formData: FormData): Prom
     return { message: FAILED };
   }
 
-  revalidatePath("/decisions");
-  // Без redirect: панель спершу показує печатку рішення, а тоді сама переходить на наступний запис.
+  // Без redirect і без revalidatePath: інакше разом із відповіддю прийшла б оновлена сторінка, де запис уже вирішено,
+  // і форма зникла б раніше, ніж почнеться рух рішення (на проді так і було). Панель спершу показує печатку, а тоді
+  // клієнт сам переходить на наступний запис і оновлює сторінку з лічильниками (useDecisionMotion).
   return { message: "", done: { status: check.status, href: afterDecision((queue ?? []).map((r) => r.id), recordId, check.status) } };
 }
