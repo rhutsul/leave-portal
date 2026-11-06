@@ -13,12 +13,31 @@ import { Sheet, SheetClose, SheetContent, SheetTitle } from "./ui/sheet";
 import { ThemeMenu } from "./ui/theme-menu";
 import { SidebarNav } from "./sidebar-nav";
 
-/** Заголовок сторінки отримує фокус після переходу з меню: зчитувач екрана починає з нової сторінки. */
+/** Фокус «ніде»: на `body` чи ще в меню, що закривається. Тоді його можна перенести на заголовок. */
+function focusIsFree(heading: HTMLElement | null) {
+  const active = document.activeElement;
+  if (!active || active === document.body) return true;
+  return active !== heading && active.closest('[data-slot="sheet-content"]') !== null;
+}
+
+/**
+ * Заголовок сторінки отримує фокус після переходу з меню: зчитувач екрана починає з нової сторінки. Меню ще може
+ * закриватись, а сторінка — спершу показати скелетон і потім замінити його вмістом разом із заголовком; тому до 2 с
+ * повторюємо, поки фокус «ніде», — і зупиняємось, щойно користувач сам перевів фокус деінде.
+ */
 function focusHeading() {
-  const heading = document.querySelector<HTMLElement>("main h1");
-  if (!heading) return;
-  heading.tabIndex = -1;
-  heading.focus({ preventScroll: true });
+  const until = Date.now() + 2000;
+  const step = () => {
+    const heading = document.querySelector<HTMLElement>("main h1");
+    if (heading && focusIsFree(heading)) {
+      heading.tabIndex = -1;
+      heading.focus({ preventScroll: true });
+    }
+    const active = document.activeElement;
+    const ours = active === heading || focusIsFree(heading);
+    if (Date.now() < until && ours) setTimeout(step, 100);
+  };
+  step();
 }
 
 /**
@@ -46,51 +65,45 @@ export function MobileNav({
   const pathname = usePathname();
   const search = useSearchParams().toString();
   const location = search ? `${pathname}?${search}` : pathname;
-  // Меню закрили вибором пункту: фокус — на заголовок нової сторінки (а не назад на кнопку меню). Мусять статись
-  // обидві події — нова сторінка на місці і меню доїхало (поки воно відкрите, фокус тримається всередині), — у
-  // будь-якому порядку.
-  const viaLink = useRef({ pending: false, navigated: false, closed: true });
-
-  const focusWhenReady = () => {
-    const step = viaLink.current;
-    if (!step.pending || !step.navigated || !step.closed) return;
-    viaLink.current = { pending: false, navigated: false, closed: true };
-    focusHeading();
-  };
+  // Меню закрили вибором пункту: фокус — на заголовок нової сторінки, а не назад на «Open menu» (finalFocus вимкнено,
+  // поки триває такий перехід; знову відкрите меню повертає звичну поведінку).
+  const viaLink = useRef(false);
+  // Заголовок наступної сторінки — один раз, для цього переходу.
+  const headingPending = useRef(false);
 
   useEffect(() => {
-    if (!viaLink.current.pending) return;
-    viaLink.current.navigated = true;
-    focusWhenReady();
+    if (!headingPending.current) return;
+    headingPending.current = false;
+    focusHeading();
   }, [location]);
 
   function onNavClick(event: MouseEvent<HTMLDivElement>) {
     const link = (event.target as Element).closest("a");
     if (!link) return;
-    const url = new URL(link.href);
-    // Той самий пункт — сторінка не зміниться: чекаємо лише закриття меню.
-    viaLink.current = { pending: true, navigated: `${url.pathname}${url.search}` === location, closed: false };
+    viaLink.current = true;
     setOpen(false);
+    // Той самий пункт — сторінка не зміниться, тож і ефект вище не спрацює: фокус — одразу.
+    const url = new URL(link.href);
+    const same = `${url.pathname}${url.search}` === location;
+    headingPending.current = !same;
+    if (same) focusHeading();
+  }
+
+  function onOpenChange(next: boolean) {
+    if (next) viaLink.current = false;
+    setOpen(next);
   }
 
   return (
     <header className="sticky top-0 z-30 flex h-14 items-center gap-1.5 border-b border-border/70 bg-background/80 pr-3 pl-1 backdrop-blur-md backdrop-saturate-125 lg:hidden">
-      <Sheet
-        open={open}
-        onOpenChange={setOpen}
-        onOpenChangeComplete={(isOpen) => {
-          if (isOpen) return;
-          viaLink.current.closed = true;
-          focusWhenReady();
-        }}
-      >
-        <Button variant="ghost" size="icon" className="size-11" aria-label="Open menu" onClick={() => setOpen(true)}>
+      <Sheet open={open} onOpenChange={onOpenChange}>
+        <Button variant="ghost" size="icon" className="size-11" aria-label="Open menu" onClick={() => onOpenChange(true)}>
           <Menu className="size-5" />
         </Button>
         <SheetContent
           side="left"
           className="max-w-[300px] bg-sidebar/95 text-sidebar-foreground"
-          finalFocus={() => !viaLink.current.pending}
+          finalFocus={() => !viaLink.current}
         >
           <SheetTitle className="sr-only">Menu</SheetTitle>
           <div className="flex h-14 items-center gap-1 border-b border-border pr-2 pl-4">
