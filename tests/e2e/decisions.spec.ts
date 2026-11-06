@@ -37,6 +37,8 @@ test("after Approve the record panel shows the stamp, then the record leaves the
 
   // Печатка рішення: жива область панелі каже «Approved», поки панель ще на цьому записі.
   await expect(queue.getByRole("status").filter({ hasText: "Approved" })).toBeAttached();
+  // І сама печатка на екрані — саме її й не було на проді.
+  await expect(queue.locator('[data-slot="sheet-content"] .animate-stamp')).toBeVisible();
   // Потім панель переходить далі, а запис іде з черги «Awaiting decision».
   await expect(queue).not.toHaveURL(new RegExp(`record=${opened}(?!\\d)`));
   await expect(rows).toHaveCount(before - 1);

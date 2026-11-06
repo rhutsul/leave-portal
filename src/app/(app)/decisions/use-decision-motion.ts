@@ -30,11 +30,18 @@ export function useDecisionMotion(done: DecideState["done"], recordId: number) {
     }
     if (done.status === "approved" || done.status === "rejected" || done.status === "returned") motion.stamp(done.status);
     document.querySelector(`[data-record-row="${recordId}"]`)?.setAttribute("data-leaving", "");
+    let moved = false;
     const leave = setTimeout(motion.leave, STAMP_MS);
-    const go = setTimeout(next, STAMP_MS + LEAVE_MS);
+    const go = setTimeout(() => {
+      moved = true;
+      next();
+    }, STAMP_MS + LEAVE_MS);
     return () => {
       clearTimeout(leave);
       clearTimeout(go);
+      // Менеджер закрив панель чи відкрив інший запис посеред руху: переходу вже не буде, але рішення збережено —
+      // оновлюємо сторінку, щоб списки й лічильник у меню не лишились старими.
+      if (!moved) router.refresh();
     };
   }, [done, motion, recordId, router]);
 }
