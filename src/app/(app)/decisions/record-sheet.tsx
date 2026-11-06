@@ -1,28 +1,11 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import {
-  createContext,
-  useContext,
-  useMemo,
-  useState,
-  type KeyboardEvent,
-  type ReactNode,
-} from "react";
+import { createContext, useContext, useMemo, useState, type KeyboardEvent, type ReactNode } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  DecisionStamp,
-  type StampStatus,
-} from "@/components/ui/decision-stamp";
-import {
-  Sheet,
-  SheetBody,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
+import { DecisionStamp, type StampStatus } from "@/components/ui/decision-stamp";
+import { Sheet, SheetBody, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 
 /** Рух рішення в панелі (ADR 0007): печатка, потім уся панель запису ковзає вгору. */
@@ -31,10 +14,7 @@ interface SheetMotion {
   leave: () => void;
 }
 
-const SheetMotionContext = createContext<SheetMotion>({
-  stamp: () => {},
-  leave: () => {},
-});
+const SheetMotionContext = createContext<SheetMotion>({ stamp: () => {}, leave: () => {} });
 
 export function useSheetMotion() {
   return useContext(SheetMotionContext);
@@ -42,8 +22,85 @@ export function useSheetMotion() {
 
 /** Набраний, але не надісланий коментар менеджера в панелі. */
 function hasDraft(popup: Element | null) {
-  return Boolean(
-    popup?.querySelector<HTMLTextAreaElement>("textarea")?.value.trim(),
+  return Boolean(popup?.querySelector<HTMLTextAreaElement>("textarea")?.value.trim());
+}
+
+/** Клавіша в шапці панелі → куди перейти: ↑ — попередній запис, ↓ — наступний; з модифікаторами — нікуди. */
+function keyTarget(event: KeyboardEvent, prevHref: string | null, nextHref: string | null): string | null {
+  if (event.defaultPrevented || event.repeat || event.altKey || event.ctrlKey || event.metaKey) return null;
+  if (event.key === "ArrowUp") return prevHref;
+  return event.key === "ArrowDown" ? nextHref : null;
+}
+
+/** «2 of 6» і «Previous / Next» у шапці панелі. */
+function RecordNav({
+  position,
+  prevHref,
+  nextHref,
+  go,
+}: {
+  position: string;
+  prevHref: string | null;
+  nextHref: string | null;
+  go: (href: string) => void;
+}) {
+  return (
+    <>
+      <span className="mr-1 text-xs tabular-nums text-muted-foreground">{position}</span>
+      <Button
+        variant="ghost"
+        size="icon-sm"
+        aria-label="Previous record"
+        aria-keyshortcuts="ArrowUp"
+        disabled={!prevHref}
+        onClick={() => prevHref && go(prevHref)}
+      >
+        <ChevronUp />
+      </Button>
+      <Button
+        variant="ghost"
+        size="icon-sm"
+        aria-label="Next record"
+        aria-keyshortcuts="ArrowDown"
+        disabled={!nextHref}
+        onClick={() => nextHref && go(nextHref)}
+      >
+        <ChevronDown />
+      </Button>
+    </>
+  );
+}
+
+/**
+ * Рамка запису в панелі з рухом рішення (ADR 0007): печатка над тілом, виїзд угору, а інший запис у вже відкритій
+ * панелі (після рішення чи «Next») підіймається знизу. Перший запис — без руху: панель і так виїжджає справа.
+ */
+function RecordMotion({ recordKey, header, children }: { recordKey?: number | string; header: ReactNode; children: ReactNode }) {
+  const [stamp, setStamp] = useState<StampStatus | null>(null);
+  const [leaving, setLeaving] = useState(false);
+  const [shownKey, setShownKey] = useState(recordKey);
+  const [arrived, setArrived] = useState(false);
+  if (shownKey !== recordKey) {
+    setShownKey(recordKey);
+    setArrived(true);
+    setStamp(null);
+    setLeaving(false);
+  }
+  // Стабільний об'єкт для контексту: setState сталі, тож useMemo без залежностей.
+  const motion = useMemo<SheetMotion>(() => ({ stamp: setStamp, leave: () => setLeaving(true) }), []);
+  return (
+    <SheetMotionContext.Provider value={motion}>
+      <div
+        key={String(recordKey)}
+        className={cn("relative flex min-h-0 flex-1 flex-col", leaving ? "animate-sheet-out" : arrived && "animate-sheet-in")}
+      >
+        {header}
+        <SheetBody className={cn("transition-opacity duration-(--duration-base) ease-out", stamp && "opacity-20 blur-xs")}>
+          {children}
+        </SheetBody>
+        {stamp && <DecisionStamp status={stamp} className="absolute inset-x-0 top-24 bottom-16" />}
+      </div>
+    </SheetMotionContext.Provider>
   );
 }
 
@@ -73,46 +130,32 @@ export function RecordSheet({
   closeHref: string;
   prevHref: string | null;
   nextHref: string | null;
-  /** Id показаного запису: новий запис у тій самій панелі підіймається знизу (після рішення чи «Next»). */
+  /** Id показаного запису: новий запис у тій самій панелі підіймається знизу (ADR 0007). */
   recordKey?: number | string;
   children: ReactNode;
 }) {
   const router = useRouter();
   const go = (href: string) => router.replace(href, { scroll: false });
-  const [stamp, setStamp] = useState<StampStatus | null>(null);
-  const [leaving, setLeaving] = useState(false);
-  // Інший запис у вже відкритій панелі — скидаємо печатку й виїзд і даємо йому піднятися знизу; перший — без руху,
-  // панель і так виїжджає справа.
-  const [shownKey, setShownKey] = useState(recordKey);
-  const [arrived, setArrived] = useState(false);
-  if (shownKey !== recordKey) {
-    setShownKey(recordKey);
-    setArrived(true);
-    setStamp(null);
-    setLeaving(false);
-  }
-  // Стабільний об'єкт для контексту: setState сталі, тож useMemo без залежностей.
-  const motion = useMemo<SheetMotion>(() => ({ stamp: setStamp, leave: () => setLeaving(true) }), []);
 
   function onHeaderKey(event: KeyboardEvent<HTMLDivElement>) {
-    if (
-      event.defaultPrevented ||
-      event.repeat ||
-      event.altKey ||
-      event.ctrlKey ||
-      event.metaKey
-    )
-      return;
-    const href =
-      event.key === "ArrowUp"
-        ? prevHref
-        : event.key === "ArrowDown"
-          ? nextHref
-          : null;
+    const href = keyTarget(event, prevHref, nextHref);
     if (!href) return;
     event.preventDefault();
     go(href);
   }
+
+  const header = (
+    <SheetHeader
+      onKeyDown={onHeaderKey}
+      actions={position && <RecordNav position={position} prevHref={prevHref} nextHref={nextHref} go={go} />}
+    >
+      <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
+        <SheetTitle>{title}</SheetTitle>
+        {badge}
+      </div>
+      {description && <SheetDescription>{description}</SheetDescription>}
+    </SheetHeader>
+  );
 
   return (
     <Sheet
@@ -120,11 +163,7 @@ export function RecordSheet({
       onOpenChange={(open, details) => {
         if (open) return;
         const popup = document.querySelector('[data-slot="sheet-content"]');
-        if (
-          (details.reason === "escape-key" ||
-            details.reason === "outside-press") &&
-          hasDraft(popup)
-        ) {
+        if ((details.reason === "escape-key" || details.reason === "outside-press") && hasDraft(popup)) {
           details.cancel();
           return;
         }
@@ -132,70 +171,9 @@ export function RecordSheet({
       }}
     >
       <SheetContent className="overflow-hidden">
-        <SheetMotionContext.Provider value={motion}>
-          <div
-            key={String(recordKey)}
-            className={cn(
-              "relative flex min-h-0 flex-1 flex-col",
-              leaving ? "animate-sheet-out" : arrived && "animate-sheet-in",
-            )}
-          >
-            <SheetHeader
-              onKeyDown={onHeaderKey}
-              actions={
-                position && (
-                  <>
-                    <span className="mr-1 text-xs tabular-nums text-muted-foreground">
-                      {position}
-                    </span>
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      aria-label="Previous record"
-                      aria-keyshortcuts="ArrowUp"
-                      disabled={!prevHref}
-                      onClick={() => prevHref && go(prevHref)}
-                    >
-                      <ChevronUp />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      aria-label="Next record"
-                      aria-keyshortcuts="ArrowDown"
-                      disabled={!nextHref}
-                      onClick={() => nextHref && go(nextHref)}
-                    >
-                      <ChevronDown />
-                    </Button>
-                  </>
-                )
-              }
-            >
-              <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
-                <SheetTitle>{title}</SheetTitle>
-                {badge}
-              </div>
-              {description && (
-                <SheetDescription>{description}</SheetDescription>
-              )}
-            </SheetHeader>
-            <SheetBody
-              className={cn(
-                "transition-[opacity,filter] duration-(--duration-base) ease-out",
-                stamp && "opacity-20 blur-[2px]",
-              )}
-            >
-              {children}
-            </SheetBody>
-            {stamp && (
-              <DecisionStamp
-                status={stamp}
-                className="absolute inset-x-0 top-24 bottom-16"
-              />
-            )}
-          </div>
-        </SheetMotionContext.Provider>
+        <RecordMotion recordKey={recordKey} header={header}>
+          {children}
+        </RecordMotion>
       </SheetContent>
     </Sheet>
   );

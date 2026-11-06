@@ -16,6 +16,14 @@ export interface DotMonthMark {
 }
 
 const ROW_HEIGHT = 32;
+
+// Легенда під місяцем: ті самі кольори, що й точки (токени статусів і `highlight`).
+const LEGEND = [
+  { label: "Awaiting decision", dot: "bg-status-awaiting-foreground" },
+  { label: "Returned for revision", dot: "bg-status-returned-foreground" },
+  { label: "Approved", dot: "bg-status-approved-foreground" },
+  { label: "Today", dot: "bg-highlight" },
+] as const;
 const reducedMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 /** Кольори токенів теми (DESIGN.md, розділ 2): canvas малює OKLCH сам. */
@@ -173,12 +181,9 @@ export function DotMonth({
 
   return (
     <div aria-hidden="true" className={cn("flex flex-col gap-1.5", className)}>
-      {/* Один рядок сталої висоти: довгий підпис при наведенні обрізається, а не переносить заголовок — інакше вся
-          шапка стрибала б угору-вниз, поки курсор ходить по днях. */}
-      <div className="flex h-4 items-baseline justify-between gap-3 overflow-hidden font-mono text-[11px] leading-4 text-muted-foreground">
-        <span className="shrink-0 tracking-wide whitespace-nowrap uppercase">Your records this month</span>
-        <span className="min-w-0 truncate text-right">{hoverLabel}</span>
-      </div>
+      <span className="font-mono text-[11px] tracking-wide whitespace-nowrap text-muted-foreground uppercase">
+        Your records this month
+      </span>
       <div className="grid grid-cols-7 text-center font-mono text-[10px] text-muted-foreground">
         {WEEKDAY_SHORT.map((d) => (
           <span key={d}>{d}</span>
@@ -192,6 +197,17 @@ export function DotMonth({
         className={cn("block w-full", hoverMark ? "cursor-pointer" : "cursor-default")}
         style={{ height: rows * ROW_HEIGHT }}
       />
+      {/* Підпис дня — окремим рядком сталої висоти на всю ширину: довгий текст не переносить нічого вище, і шапка не
+          стрибає, поки курсор ходить по днях. Під ним — що означають кольори. */}
+      <span className="h-4 truncate font-mono text-[11px] leading-4 text-muted-foreground">{hoverLabel}</span>
+      <span className="flex flex-wrap gap-x-3.5 gap-y-1 text-[11px] text-muted-foreground">
+        {LEGEND.map((item) => (
+          <span key={item.label} className="inline-flex items-center gap-1.5 whitespace-nowrap">
+            <span className={cn("size-1.5 rounded-full", item.dot)} />
+            {item.label}
+          </span>
+        ))}
+      </span>
     </div>
   );
 }
