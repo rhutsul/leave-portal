@@ -52,3 +52,13 @@ WS7 вище (`ws7-after-decisions-*.png`).
 | `v2-quiet-decisions-sheet-light.jpg`, `v2-quiet-decisions-sheet-dark.jpg` | «Awaiting decision» з відкритим записом, 1280 px: «скляна» панель до 480 px, статус у шапці панелі |
 | `v2-quiet-decisions-sheet-1000-light.jpg` | те саме на 1000 px |
 | `v2-quiet-design-status-light.jpg` | вітрина `/design`, розділ «Status and leave type», 1000 px |
+
+### Overview v3 (ADR 0007)
+
+З Preview гілки `task/overview-v3`; «до» — `ws7-after-overview-*.png`.
+
+| Файл | Хто | Що видно |
+|---|---|---|
+| `v2-overview-teacher1-light.jpg`, `v2-overview-teacher1-dark.jpg` | `teacher1@example.test` | 1280 px: місяць із точок (записи кольором статусу, сьогодні підсвічено), смуга чисел, діаграма за двома посадами, «Next leave», «Needs your attention» з коментарем менеджера |
+| `v2-overview-manager1-light.jpg`, `v2-overview-manager1-dark.jpg` | `manager1@example.test` | 1280 px: «To decide» у смузі й праворуч, «Away» — хто з посад відсутній, «Activity» |
+| `v2-overview-manager1-1000-light.jpg` | `manager1@example.test` | 1000 px: шапка в один рядок, смуга чисел 4 в ряд; години в смугах діаграми скорочено, повні — у підказці |
