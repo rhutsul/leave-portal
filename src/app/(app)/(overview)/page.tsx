@@ -78,28 +78,27 @@ export default async function Overview({ searchParams }: PageProps<"/">) {
         </Alert>
       )}
 
-      <div className="flex flex-wrap items-start gap-6">
-        <section aria-labelledby="timeline-title" className="flex min-w-0 flex-[999_1_560px] flex-col gap-2.5">
-          <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-            <h2 id="timeline-title" className="text-[15px] font-semibold">
-              {decider ? "Away · this week and next" : "Your leave · this week and next"}
-            </h2>
-            <span className="text-xs text-muted-foreground">
-              {decider ? "Records of your positions; dashed — awaiting decision" : "By position; dashed — awaiting decision"}
-            </span>
-          </div>
-          <WeekTimeline
-            days={timelineDays(days, today)}
-            rows={buildRows(data, days, claims.sub)}
-            label={decider ? "Leave of your positions this week and next" : "Your leave this week and next"}
-            empty={decider ? "Nobody is away these two weeks." : "No leave in these two weeks."}
-          />
-        </section>
+      {/* Діаграма — на всю ширину: на 1000–1280 px години в смугах інакше не вміщаються. */}
+      <section aria-labelledby="timeline-title" className="flex min-w-0 flex-col gap-2.5">
+        <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+          <h2 id="timeline-title" className="text-[15px] font-semibold">
+            {decider ? "Away · this week and next" : "Your leave · this week and next"}
+          </h2>
+          <span className="text-xs text-muted-foreground">
+            {decider ? "Records of your positions; dashed — awaiting decision" : "By position; dashed — awaiting decision"}
+          </span>
+        </div>
+        <WeekTimeline
+          days={timelineDays(days, today)}
+          rows={buildRows(data, days, claims.sub)}
+          label={decider ? "Leave of your positions this week and next" : "Your leave this week and next"}
+          empty={decider ? "Nobody is away these two weeks." : "No leave in these two weeks."}
+        />
+      </section>
 
-        <aside className="flex min-w-[300px] flex-[1_1_320px] flex-col gap-6">
-          <NextLeave groups={groups} selected={selected} />
-          {decider ? <ToDecide records={decider.toDecide} count={decider.toDecideCount} /> : <NeedsAttention records={data.returned} />}
-        </aside>
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(320px,1fr))] items-start gap-6">
+        <NextLeave groups={groups} selected={selected} />
+        {decider ? <ToDecide records={decider.toDecide} count={decider.toDecideCount} /> : <NeedsAttention records={data.returned} />}
       </div>
 
       <Activity lines={data.activity} />

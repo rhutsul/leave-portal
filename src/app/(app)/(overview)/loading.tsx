@@ -1,7 +1,7 @@
 import { LoadingPage, RowsShape } from "@/components/loading-shapes";
 import { Skeleton } from "@/components/ui/skeleton";
 
-// Overview v3: шапка з привітанням і місяцем, смуга чисел, діаграма на два тижні з «Next leave» поруч, стрічка дій.
+// Overview v3: шапка з привітанням і місяцем, смуга чисел, діаграма на два тижні, «Next leave» і «To decide» поруч, стрічка дій.
 export default function Loading() {
   return (
     <LoadingPage>
@@ -23,9 +23,10 @@ export default function Loading() {
           </div>
         ))}
       </div>
-      <div className="flex flex-wrap items-start gap-6">
-        <RowsShape rows={4} className="min-w-0 flex-[999_1_560px]" />
-        <RowsShape rows={3} className="min-w-[300px] flex-[1_1_320px]" />
+      <RowsShape rows={3} />
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(320px,1fr))] items-start gap-6">
+        <RowsShape rows={3} />
+        <RowsShape rows={3} />
       </div>
       <RowsShape rows={4} />
     </LoadingPage>
