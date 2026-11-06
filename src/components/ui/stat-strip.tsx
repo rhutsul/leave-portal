@@ -20,9 +20,9 @@ const TONE = {
   returned: "text-status-returned-foreground",
 } as const;
 
-function StatCell({ stat, first }: { stat: Stat; first: boolean }) {
+function StatCell({ stat }: { stat: Stat }) {
   return (
-    <div className={cn("flex min-w-0 flex-col gap-1.5 px-5 py-4", !first && "border-l border-border", stat.tone === "primary" && "bg-primary/5")}>
+    <div className={cn("flex min-w-0 flex-col gap-1.5 px-5 py-4", stat.tone === "primary" ? "bg-accent" : "bg-card")}>
       <span className="truncate text-xs text-muted-foreground">{stat.label}</span>
       <span className={cn("font-mono text-[28px] leading-8 font-medium tracking-tight tabular-nums", TONE[stat.tone ?? "default"])}>
         <CountUp value={stat.value} decimals={stat.decimals ?? 0} />
@@ -41,20 +41,18 @@ function StatCell({ stat, first }: { stat: Stat; first: boolean }) {
 
 /**
  * Смуга з 3–4 чисел однією панеллю, поділеною тонкими межами (ADR 0007, DESIGN.md `StatStrip`): підпис, число
- * моноширинне, одиниця, рядок під ним. Без тіні; клітинка `primary` — ледь підсвічена, щоб її число читалось першим.
+ * моноширинне, одиниця, рядок під ним. Без тіні; клітинка `primary` — на тлі `accent`, щоб її число читалось першим.
  */
 export function StatStrip({ stats, className }: { stats: readonly Stat[]; className?: string }) {
   return (
-    <section
-      aria-label="Summary"
-      className={cn(
-        "grid grid-cols-[repeat(auto-fit,minmax(160px,1fr))] overflow-hidden rounded-lg border border-border bg-card",
-        className,
-      )}
-    >
-      {stats.map((s, i) => (
-        <StatCell key={s.label} stat={s} first={i === 0} />
-      ))}
+    // Межі між клітинками — проміжок 1 px над тлом `border`: так вони правильні й тоді, коли смуга переноситься
+    // (2 × 2 у вузькому контейнері, 4 в ряд від 42rem).
+    <section aria-label="Summary" className={cn("@container overflow-hidden rounded-lg border border-border", className)}>
+      <div className="grid grid-cols-2 gap-px bg-border @2xl:grid-cols-4">
+        {stats.map((s) => (
+          <StatCell key={s.label} stat={s} />
+        ))}
+      </div>
     </section>
   );
 }

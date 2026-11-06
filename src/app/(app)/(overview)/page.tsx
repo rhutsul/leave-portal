@@ -48,7 +48,7 @@ export default async function Overview({ searchParams }: PageProps<"/">) {
   return (
     <>
       <header className="flex flex-wrap items-end justify-between gap-x-10 gap-y-6 border-b border-border pb-6">
-        <div className="flex min-w-[280px] flex-[1_1_320px] flex-col gap-2.5">
+        <div className="flex min-w-[260px] flex-[1_1_260px] flex-col gap-2.5">
           <span className="font-mono text-[11px] tracking-wide text-muted-foreground uppercase">{formatDateLong(today)}</span>
           <h1 className="text-[28px] leading-9 font-semibold tracking-tight">
             {[greeting(kyivHour(now)), firstName].filter(Boolean).join(", ")}
@@ -66,7 +66,7 @@ export default async function Overview({ searchParams }: PageProps<"/">) {
             )}
           </div>
         </div>
-        <DotMonth month={month} today={today} marks={buildMarks(data, month, today)} className="min-w-[340px] flex-[0_1_460px]" />
+        <DotMonth month={month} today={today} marks={buildMarks(data, month, today)} className="min-w-[320px] flex-[0_1_400px]" />
       </header>
 
       {data.balances.ok ? (
