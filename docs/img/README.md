@@ -82,3 +82,15 @@ WS7 вище (`ws7-after-decisions-*.png`).
 | `v2-welcome-hero-light.jpg`, `v2-welcome-hero-dark.jpg` | шапка зі «склом», hero: заголовок, «Sign in» і «Try a request», три факти |
 | `v2-welcome-try-light.jpg` | «Try it» після «Submit request»: два записи на четвер, кожен схвалив менеджер своєї посади, залишок 15.64 |
 | `v2-welcome-roles-dark.jpg` | три ролі за матрицею прав і нахилене прев'ю Overview |
+
+### Поле частинок і Sign in v2 (ADR 0007)
+
+З локальної збірки гілки `task/particle-field`, гість, 1440 px. Полотно — `ParticleField` (three.js); вужче за 1100 px,
+без WebGL2 чи з reduced motion його немає, лишається сітка з крапок (як на знімках `v2-welcome-*` вище).
+
+| Файл | Що видно |
+|---|---|
+| `v2-welcome-field-sheet-dark.jpg` | hero: аркуш місяця з частинок праворуч від тексту, позначені дні кольорами статусів |
+| `v2-welcome-field-ring-dark.jpg` | «Balances»: кільце залишку за числом 16.64 — залишок `primary`, використане тьмяне |
+| `v2-welcome-field-roles-light.jpg` | ролі, світла тема: наведено картку Administrator — її сфера яскравіша й більша, інші тьмяніють |
+| `v2-login-field-dark.jpg` | Sign in v2: тиха картка ліворуч, аркуш місяця праворуч склався з хмари |
