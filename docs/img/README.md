@@ -40,3 +40,15 @@ manager1. Нижче — правильні підписи й окремі зн�
   згортання до 60 px (Ctrl+B) і лічильник «Awaiting decision» на `primary`; пункти — лише доступні ролі.
 - **Sign in.** На полотні — «скляна» картка на фоні з плямами. У реалізації праворуч ще 3D-стос карток-днів (ADR 0006)
   і кнопка «Show password» у полі пароля.
+
+## Друга версія вигляду (ADR 0007)
+
+Знімки з Preview гілки, вхід — `manager1@example.test` (синтетичні дані, `supabase/demo-users.json`). «До» — знімки
+WS7 вище (`ws7-after-decisions-*.png`).
+
+| Файл | Що видно |
+|---|---|
+| `v2-quiet-decisions-history-light.jpg`, `v2-quiet-decisions-history-dark.jpg` | «History», 1280 px: статус — слово з крапкою кольору статусу, без залитої пігулки; таблиця без тіні |
+| `v2-quiet-decisions-sheet-light.jpg`, `v2-quiet-decisions-sheet-dark.jpg` | «Awaiting decision» з відкритим записом, 1280 px: «скляна» панель до 480 px, статус у шапці панелі |
+| `v2-quiet-decisions-sheet-1000-light.jpg` | те саме на 1000 px |
+| `v2-quiet-design-status-light.jpg` | вітрина `/design`, розділ «Status and leave type», 1000 px |
