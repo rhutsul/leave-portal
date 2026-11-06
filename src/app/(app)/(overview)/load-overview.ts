@@ -87,12 +87,10 @@ export interface ActivityLine {
 async function loadActivity(supabase: Supabase, decider: boolean): Promise<ActivityLine[]> {
   const subjects = new Map<number, string>();
   if (decider) {
-    const { data } = await supabase
-      .rpc("decision_records")
-      .select("id, employee_name, date, start_min, end_min")
-      .order("created_at", { ascending: false })
-      .limit(8);
-    for (const r of data ?? []) subjects.set(r.id, `${r.employee_name} · ${formatDateLong(r.date)} · ${formatRange(r.start_min, r.end_min)}`);
+    // Сортуємо тут, а не в запиті: order за полем, якого немає у вибірці функції, повертав порожньо.
+    const { data } = await supabase.rpc("decision_records").select("id, employee_name, date, start_min, end_min, created_at");
+    const fresh = [...(data ?? [])].sort((a, b) => b.created_at.localeCompare(a.created_at)).slice(0, 8);
+    for (const r of fresh) subjects.set(r.id, `${r.employee_name} · ${formatDateLong(r.date)} · ${formatRange(r.start_min, r.end_min)}`);
   } else {
     const { data } = await supabase
       .from("my_leave_records")
