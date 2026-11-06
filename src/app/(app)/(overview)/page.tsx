@@ -1,21 +1,19 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ArrowRight, Plus } from "lucide-react";
-import { BalanceCards } from "@/components/balance-cards";
+import { Plus } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { buttonVariants } from "@/components/ui/button";
-import { Card, CardAction, CardHeader, CardTitle } from "@/components/ui/card";
-import { EmptyState } from "@/components/ui/empty-state";
-import { LeaveTypeTag } from "@/components/ui/leave-type-tag";
-import { PageHeader } from "@/components/ui/page-header";
-import { isRecordStatus, StatusBadge } from "@/components/ui/status-badge";
-import { formatSchoolYear, schoolYearOf } from "@/lib/leave/balance";
-import { positionLabel, type RecordStatus } from "@/lib/leave/request";
-import { formatDateLong, formatRange, kyivDate, kyivHour, monthShort, weekdayName } from "@/lib/leave/time";
+import { DotMonth } from "@/components/ui/dot-month";
+import { StatStrip } from "@/components/ui/stat-strip";
+import { WeekTimeline } from "@/components/ui/week-timeline";
+import { groupByRequestDate, headline, timelineDays } from "@/lib/leave/overview";
+import { formatDateLong, kyivDate, kyivHour } from "@/lib/leave/time";
 import { createClient } from "@/lib/supabase/server";
-import { loadBalances } from "../balances/load-balances";
+import { loadOverview, overviewRange } from "./load-overview";
+import { Activity, NeedsAttention, NextLeave, ToDecide } from "./overview-sections";
+import { awayThisWeek, buildMarks, buildRows, buildStats } from "./overview-view";
 
-const UPCOMING_LIMIT = 5;
+const UPCOMING_LIMIT = 4;
 
 function greeting(hour: number) {
   if (hour < 12) return "Good morning";
@@ -23,146 +21,88 @@ function greeting(hour: number) {
   return "Good evening";
 }
 
-// Overview: найближчі відпустки (власні записи, що ще діють), скільки записів чекає рішення, і власні залишки
-// за поточний навчальний рік.
-export default async function Overview() {
+/**
+ * Overview v3 (ADR 0007): шапка з місяцем із точок, смуга чисел, діаграма на два тижні, найближча відпустка,
+ * «To decide» (manager, admin) або «Needs your attention», стрічка дій. Права — у базі (load-overview.ts).
+ */
+export default async function Overview({ searchParams }: PageProps<"/">) {
   const supabase = await createClient();
-  const { data } = await supabase.auth.getClaims();
-  const claims = data?.claims;
+  const { data: auth } = await supabase.auth.getClaims();
+  const claims = auth?.claims;
   if (!claims) redirect("/login");
 
+  const { day } = await searchParams;
   const now = new Date();
   const today = kyivDate(now);
-  const schoolYear = schoolYearOf(today);
+  const { month, days } = overviewRange(today);
+  const data = await loadOverview(supabase, claims.sub, today);
 
-  const [{ data: profile }, { data: upcoming }, { count: awaiting }, balances] = await Promise.all([
-    supabase.from("profiles").select("full_name").eq("id", claims.sub).maybeSingle(),
-    supabase
-      .from("my_leave_records")
-      .select("id, request_id, date, start_min, end_min, leave_type, status, position_title, division_name")
-      .gte("date", today)
-      .in("status", ["awaiting", "returned", "approved"])
-      .order("date", { ascending: true })
-      .order("start_min", { ascending: true })
-      .limit(20),
-    supabase.from("my_leave_records").select("id", { count: "exact", head: true }).eq("status", "awaiting"),
-    loadBalances(supabase, claims.sub, schoolYear),
-  ]);
-
-  // Одна заявка на одну дату — один рядок, навіть якщо в ній кілька посад.
-  const days = new Map<string, NonNullable<typeof upcoming>>();
-  for (const r of upcoming ?? []) {
-    const key = `${r.request_id}|${r.date}`;
-    days.set(key, [...(days.get(key) ?? []), r]);
-  }
-  const items = [...days.values()].slice(0, UPCOMING_LIMIT);
-  const firstName = profile?.full_name?.split(/\s+/)[0];
+  const groups = groupByRequestDate(data.upcoming).slice(0, UPCOMING_LIMIT);
+  const selected = groups.find((g) => g[0].date === day) ?? groups[0];
+  const firstName = data.profile?.full_name?.split(/\s+/)[0];
+  const decider = data.deciderData;
+  const line = decider
+    ? headline({ decider: true, toDecide: decider.toDecideCount, awayThisWeek: awayThisWeek(data, days, claims.sub) })
+    : headline({ decider: false, nextDate: selected?.[0].date ?? null, returned: data.returned.length });
 
   return (
     <>
-      <PageHeader
-        title={firstName ? `${greeting(kyivHour(now))}, ${firstName}` : greeting(kyivHour(now))}
-        description={formatDateLong(today)}
-        actions={
-          <Link href="/requests/new" className={buttonVariants()}>
-            <Plus />
-            New request
-          </Link>
-        }
-      />
-
-      <div className="flex flex-wrap items-stretch gap-4">
-        <Card className="min-w-0 flex-[999_1_520px] gap-0 py-0">
-          <CardHeader className="border-b border-border py-3.5">
-            <CardTitle>Upcoming leave</CardTitle>
-            <CardAction>
-              <Link href="/requests" className={buttonVariants({ variant: "link", size: "sm" })}>
-                View all
+      <header className="flex flex-wrap items-end justify-between gap-x-10 gap-y-6 border-b border-border pb-6">
+        <div className="flex min-w-[280px] flex-[1_1_320px] flex-col gap-2.5">
+          <span className="font-mono text-[11px] tracking-wide text-muted-foreground uppercase">{formatDateLong(today)}</span>
+          <h1 className="text-[28px] leading-9 font-semibold tracking-tight">
+            {[greeting(kyivHour(now)), firstName].filter(Boolean).join(", ")}
+          </h1>
+          <p className="text-muted-foreground">{line}</p>
+          <div className="mt-1.5 flex flex-wrap gap-2">
+            <Link href="/requests/new" className={buttonVariants()}>
+              <Plus />
+              New request
+            </Link>
+            {decider && (
+              <Link href="/decisions" className={buttonVariants({ variant: "outline" })}>
+                Open Decisions
               </Link>
-            </CardAction>
-          </CardHeader>
-          {items.length === 0 ? (
-            <EmptyState
-              className="rounded-none border-0"
-              title="No upcoming leave"
-              text="Records you submit for future dates appear here."
-            />
-          ) : (
-            <ul>
-              {items.map((records) => {
-                const first = records[0];
-                const statuses = [...new Set(records.map((r) => r.status).filter((s) => s && isRecordStatus(s)))];
-                const hours = records.map((r) => formatRange(r.start_min!, r.end_min!)).join(", ");
-                return (
-                  <li
-                    key={`${first.request_id}|${first.date}`}
-                    className="flex items-center gap-4 border-t border-border px-5 py-3 first:border-t-0"
-                  >
-                    <div className="w-12 shrink-0 rounded-md border border-border py-1 text-center">
-                      <div className="text-[11px] font-semibold uppercase text-muted-foreground">{monthShort(first.date!)}</div>
-                      <div className="text-lg leading-6 font-semibold tabular-nums">{Number(first.date!.slice(8))}</div>
-                    </div>
-                    <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                        <LeaveTypeTag type={first.leave_type ?? ""} variant="inline" className="font-medium" />
-                        <span className="tabular-nums text-muted-foreground">
-                          {weekdayName(first.date!)} · {hours}
-                        </span>
-                      </div>
-                      <div className="truncate text-[13px] text-muted-foreground">
-                        {records.length === 1
-                          ? positionLabel(first.division_name ?? "", first.position_title ?? "")
-                          : `${records.length} positions`}
-                      </div>
-                    </div>
-                    <div className="flex flex-col items-end gap-1">
-                      {statuses.map((s) => (
-                        <StatusBadge key={s} status={s as RecordStatus} />
-                      ))}
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </Card>
+            )}
+          </div>
+        </div>
+        <DotMonth month={month} today={today} marks={buildMarks(data, month, today)} className="min-w-[340px] flex-[0_1_460px]" />
+      </header>
 
-        <Card className="flex-[1_1_260px] gap-2.5 px-5 py-4">
-          <span className="text-[13px] text-muted-foreground">Awaiting decision</span>
-          <span className="text-[26px] leading-[30px] font-semibold tracking-tight tabular-nums">
-            {awaiting ?? 0}
-            <span className="ml-1.5 text-sm font-medium tracking-normal text-muted-foreground">
-              {awaiting === 1 ? "record" : "records"}
+      {data.balances.ok ? (
+        <StatStrip stats={buildStats(data)} />
+      ) : (
+        // Власні залишки видно завжди, тож тут можливий лише збій завантаження.
+        <Alert variant="destructive" role="alert">
+          <AlertDescription>The balances could not be loaded. Please reload the page.</AlertDescription>
+        </Alert>
+      )}
+
+      <div className="flex flex-wrap items-start gap-6">
+        <section aria-labelledby="timeline-title" className="flex min-w-0 flex-[999_1_560px] flex-col gap-2.5">
+          <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+            <h2 id="timeline-title" className="text-[15px] font-semibold">
+              {decider ? "Away · this week and next" : "Your leave · this week and next"}
+            </h2>
+            <span className="text-xs text-muted-foreground">
+              {decider ? "Records of your positions; dashed — awaiting decision" : "By position; dashed — awaiting decision"}
             </span>
-          </span>
-          <Link
-            href="/requests?status=awaiting"
-            className={buttonVariants({ variant: "link", size: "sm", className: "mt-auto self-start" })}
-          >
-            Open the records
-            <ArrowRight />
-          </Link>
-        </Card>
+          </div>
+          <WeekTimeline
+            days={timelineDays(days, today)}
+            rows={buildRows(data, days, claims.sub)}
+            label={decider ? "Leave of your positions this week and next" : "Your leave this week and next"}
+            empty={decider ? "Nobody is away these two weeks." : "No leave in these two weeks."}
+          />
+        </section>
+
+        <aside className="flex min-w-[300px] flex-[1_1_320px] flex-col gap-6">
+          <NextLeave groups={groups} selected={selected} />
+          {decider ? <ToDecide records={decider.toDecide} count={decider.toDecideCount} /> : <NeedsAttention records={data.returned} />}
+        </aside>
       </div>
 
-      <section aria-labelledby="balances-title" className="flex flex-col gap-3">
-        <div className="flex items-baseline justify-between gap-4">
-          <h2 id="balances-title" className="text-base font-semibold">
-            Balances · {formatSchoolYear(schoolYear)}
-          </h2>
-          <Link href="/balances" className={buttonVariants({ variant: "link", size: "sm" })}>
-            All balances
-          </Link>
-        </div>
-        {balances.ok ? (
-          <BalanceCards balances={balances.balances} />
-        ) : (
-          // Власні залишки видно завжди, тож тут можливий лише збій завантаження.
-          <Alert variant="destructive" role="alert">
-            <AlertDescription>The balances could not be loaded. Please reload the page.</AlertDescription>
-          </Alert>
-        )}
-      </section>
+      <Activity lines={data.activity} />
     </>
   );
 }

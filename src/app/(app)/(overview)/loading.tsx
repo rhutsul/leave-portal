@@ -1,23 +1,33 @@
-import { BalanceCardsShape, HeaderShape, LoadingPage, RowsShape } from "@/components/loading-shapes";
+import { LoadingPage, RowsShape } from "@/components/loading-shapes";
 import { Skeleton } from "@/components/ui/skeleton";
 
-// Overview: привітання, найближчі відпустки поруч із лічильником «Awaiting decision», нижче — залишки.
+// Overview v3: шапка з привітанням і місяцем, смуга чисел, діаграма на два тижні з «Next leave» поруч, стрічка дій.
 export default function Loading() {
   return (
     <LoadingPage>
-      <HeaderShape />
-      <div className="flex flex-wrap items-stretch gap-4">
-        <RowsShape rows={3} className="min-w-0 flex-[999_1_520px]" />
-        <div className="flex flex-[1_1_260px] flex-col gap-3 rounded-lg border border-border bg-card px-5 py-4">
-          <Skeleton className="h-3.5 w-32" />
-          <Skeleton className="h-7 w-20" />
-          <Skeleton className="mt-auto h-4 w-28" />
+      <div className="flex flex-wrap items-end justify-between gap-x-10 gap-y-6 border-b border-border pb-6">
+        <div className="flex min-w-[280px] flex-[1_1_320px] flex-col gap-3">
+          <Skeleton className="h-3 w-40" />
+          <Skeleton className="h-8 w-72" />
+          <Skeleton className="h-4 w-96 max-w-full" />
+          <Skeleton className="mt-1.5 h-9 w-36" />
         </div>
+        <Skeleton className="h-48 min-w-[340px] flex-[0_1_460px]" />
       </div>
-      <div className="flex flex-col gap-3">
-        <Skeleton className="h-5 w-48" />
-        <BalanceCardsShape />
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(160px,1fr))] overflow-hidden rounded-lg border border-border bg-card">
+        {[0, 1, 2, 3].map((i) => (
+          <div key={i} className="flex flex-col gap-2.5 border-l border-border px-5 py-4 first:border-l-0">
+            <Skeleton className="h-3 w-28" />
+            <Skeleton className="h-7 w-20" />
+            <Skeleton className="h-3 w-32" />
+          </div>
+        ))}
       </div>
+      <div className="flex flex-wrap items-start gap-6">
+        <RowsShape rows={4} className="min-w-0 flex-[999_1_560px]" />
+        <RowsShape rows={3} className="min-w-[300px] flex-[1_1_320px]" />
+      </div>
+      <RowsShape rows={4} />
     </LoadingPage>
   );
 }
