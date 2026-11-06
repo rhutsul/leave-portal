@@ -36,7 +36,7 @@ export function buildStats(data: OverviewData): Stat[] {
     const n = data.deciderData.toDecideCount;
     stats.push({ label: "To decide", value: String(n), unit: records(n), sub: "Open Decisions", href: "/decisions", tone: "primary" });
   } else {
-    const n = data.returned.length;
+    const n = data.returnedCount;
     stats.push({
       label: "Returned for revision",
       value: String(n),

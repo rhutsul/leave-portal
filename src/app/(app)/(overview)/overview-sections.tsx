@@ -163,11 +163,15 @@ function ActivityWhat({ line }: { line: ActivityLine }) {
 }
 
 /** Стрічка дій: коли, що, хто й щодо якого запису. */
-export function Activity({ lines }: { lines: readonly ActivityLine[] }) {
+export function Activity({ lines }: { lines: readonly ActivityLine[] | null }) {
   return (
     <section aria-labelledby="activity-title" className="flex flex-col gap-2.5">
       <SectionTitle id="activity-title">Activity</SectionTitle>
-      {lines.length ? (
+      {lines === null ? (
+        <p role="alert" className="text-[13px] text-destructive">
+          The activity could not be loaded.
+        </p>
+      ) : lines.length ? (
         <ol className="rounded-lg border border-border bg-card">
           {lines.map((a, i) => (
             <li key={i} className="flex items-center gap-4 border-b border-border px-4 py-2.5 text-[13px] last:border-b-0">

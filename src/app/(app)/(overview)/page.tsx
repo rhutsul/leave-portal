@@ -37,13 +37,17 @@ export default async function Overview({ searchParams }: PageProps<"/">) {
   const { month, days } = overviewRange(today);
   const data = await loadOverview(supabase, claims.sub, today);
 
-  const groups = groupByRequestDate(data.upcoming).slice(0, UPCOMING_LIMIT);
-  const selected = groups.find((g) => g[0].date === day) ?? groups[0];
+  // Вибрану відпустку шукаємо серед усіх найближчих (клік по дню місяця може вести далі за четверту), а список
+  // посилань обмежуємо, лишаючи в ньому вибрану.
+  const all = groupByRequestDate(data.upcoming);
+  const selected = all.find((g) => g[0].date === day) ?? all[0];
+  const groups = all.slice(0, UPCOMING_LIMIT);
+  if (selected && !groups.includes(selected)) groups.push(selected);
   const firstName = data.profile?.full_name?.split(/\s+/)[0];
   const decider = data.deciderData;
   const line = decider
     ? headline({ decider: true, toDecide: decider.toDecideCount, awayThisWeek: awayThisWeek(data, days, claims.sub) })
-    : headline({ decider: false, nextDate: selected?.[0].date ?? null, returned: data.returned.length });
+    : headline({ decider: false, nextDate: selected?.[0].date ?? null, returned: data.returnedCount });
 
   return (
     <>

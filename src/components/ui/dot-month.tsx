@@ -73,6 +73,15 @@ export function DotMonth({
   const pointer = useRef<{ hover: number | null; mouse: [number, number] | null }>({ hover: null, mouse: null });
   const [hover, setHover] = useState<number | null>(null);
   const cells = useMemo(() => monthGrid(month), [month]);
+  // Після кліку по дню сервер віддає ті самі позначки новим об'єктом: розкладку перебудовуємо лише за вмістом, а самі
+  // позначки читаємо через ref, щоб точки не «злітали» знову.
+  const marksKey = Object.entries(marks)
+    .map(([day, m]) => `${day}:${m.status}`)
+    .join(",");
+  const marksRef = useRef(marks);
+  useEffect(() => {
+    marksRef.current = marks;
+  }, [marks]);
   const rows = Math.ceil(cells.length / 7);
 
   useEffect(() => {
@@ -88,7 +97,7 @@ export function DotMonth({
       dotLook({
         inMonth: date !== null,
         weekend: cell % 7 >= 5,
-        status: date ? (marks[Number(date.slice(8))]?.status ?? null) : null,
+        status: date ? (marksRef.current[Number(date.slice(8))]?.status ?? null) : null,
         today: date === today,
       });
 
@@ -131,7 +140,7 @@ export function DotMonth({
       c.removeEventListener("pointermove", kick);
       c.removeEventListener("pointerleave", kick);
     };
-  }, [cells, marks, today]);
+  }, [cells, marksKey, today]);
 
   function place(event: MouseEvent<HTMLCanvasElement>) {
     const box = event.currentTarget.getBoundingClientRect();
