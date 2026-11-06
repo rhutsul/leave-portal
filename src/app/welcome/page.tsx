@@ -35,7 +35,7 @@ const ROLES = [
     text: "Teachers, assistants and office staff.",
     can: [
       "Requests leave by the day or by the hour",
-      "Changes the hours of or cancels own records awaiting a decision",
+      "Changes the hours of or cancels own records awaiting a decision or returned for revision",
       "Sees own schedule and balances",
     ],
   },

@@ -30,6 +30,11 @@ describe("guestRedirect", () => {
     }
   });
 
+  it("does not open paths that only start like a public one", () => {
+    expect(guestRedirect("/login-x")).toBe("/login");
+    expect(guestRedirect("/authors")).toBe("/login");
+  });
+
   it("keeps sign-in, auth callbacks and the health check public", () => {
     for (const path of ["/login", "/auth/callback", "/api/health"]) {
       expect(guestRedirect(path)).toBeNull();

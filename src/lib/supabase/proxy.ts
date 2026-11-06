@@ -16,7 +16,8 @@ const WELCOME_PATH = "/welcome";
  */
 export function guestRedirect(pathname: string): string | null {
   if (pathname === WELCOME_PATH) return null;
-  if (PUBLIC_PATHS.some((path) => pathname.startsWith(path))) return null;
+  // Публічний шлях — сам префікс або його підшляхи (`/auth/callback`), але не `/login-x` чи `/authors`.
+  if (PUBLIC_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`))) return null;
   return pathname === "/" ? WELCOME_PATH : "/login";
 }
 

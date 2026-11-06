@@ -134,6 +134,9 @@ export function ShowcaseCount({ value, decimals = 2 }: { value: string; decimals
     const node = el.current;
     const target = Number(value);
     if (!node || !Number.isFinite(target) || reducedMotion() || !("IntersectionObserver" in window)) return;
+    // Число вже на екрані (посилання на #balances, відновлена прокрутка) — лишаємо готове, без спалаху нуля.
+    const box = node.getBoundingClientRect();
+    if (box.top < window.innerHeight && box.bottom > 0) return;
     let frame = 0;
     // Нуль ставимо до того, як число зайде в екран.
     setShown((0).toFixed(decimals));

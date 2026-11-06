@@ -31,7 +31,7 @@ test.describe("guest", () => {
     await expect(page.getByText("2 records · 1.00 days")).toBeVisible();
     await page.getByRole("button", { name: "Submit request" }).click();
     await expect(records.getByText("Approved")).toHaveCount(2);
-    await expect(page.getByText("15.64")).toBeVisible();
+    await expect(page.getByText("Personal leave left").locator("..")).toContainText("15.64");
     await page.getByRole("button", { name: "Start over" }).click();
     await expect(records.getByText("Not submitted")).toHaveCount(2);
   });

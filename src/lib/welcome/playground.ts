@@ -1,8 +1,11 @@
+import { dayShare } from "@/lib/leave/balance";
+
 /**
  * Пісочниця «Try it» на landing `/welcome` (ADR 0007): заявка на синтетичних даних, без бази. Показує правила з вимог
- * PM — заявка ділиться на записи, один на посаду й дату; частка дня — хвилини запису від усіх робочих хвилин дати
- * (150 / 420 = 0.36), тож одна дата не дає більше 1.00; кожен запис вирішує менеджер своєї посади. Чиста логіка — окремо
- * від компонента, щоб перевірити тестами.
+ * PM — заявка ділиться на записи, один на посаду й дату; частка дня — хвилини записів від усіх робочих хвилин дати,
+ * округлена half-up до 0.01 для кожної дати окремо (загальне правило: 150 / 420 = 0.36), тож одна дата не дає більше
+ * 1.00; кожен запис вирішує менеджер своєї посади. Рахує той самий `dayShare`, що й баланс портала. Чиста логіка —
+ * окремо від компонента, щоб перевірити тестами.
  */
 
 export interface PlaygroundPosition {
@@ -72,14 +75,16 @@ export const INITIAL: PlaygroundState = { days: [12], positions: [true, true], m
 
 export interface PlaygroundRecord {
   key: string;
+  /** День листопада 2026: записи однієї дати рахуються разом. */
+  day: number;
   date: string;
   position: string;
   manager: string;
   from: number;
   to: number;
   minutes: number;
-  /** Частка дня: хвилини запису від усіх робочих хвилин цієї дати. */
-  share: number;
+  /** Усі робочі хвилини цієї дати за розкладами обох посад. */
+  workingMinutes: number;
 }
 
 function works(position: PlaygroundPosition, date: PlaygroundDate) {
@@ -103,27 +108,47 @@ export function playgroundRecords(state: PlaygroundState): PlaygroundRecord[] {
       return [
         {
           key: `${date.day}-${index}`,
+          day: date.day,
           date: `${date.short}, ${date.day} Nov`,
           position: position.title,
           manager: position.manager,
           from,
           to,
           minutes: to - from,
-          share: (to - from) / total,
+          workingMinutes: total,
         },
       ];
     });
   });
 }
 
-/** Сума часток днів, округлена до 0.01, як баланс у портала. */
+/** Сума часток днів у сотих, як баланс портала: частка кожної дати округлюється окремо, потім сумується. */
+function totalHundredths(records: readonly PlaygroundRecord[]): number {
+  const byDay = new Map<number, { minutes: number; working: number }>();
+  for (const r of records) {
+    const day = byDay.get(r.day) ?? { minutes: 0, working: r.workingMinutes };
+    day.minutes += r.minutes;
+    byDay.set(r.day, day);
+  }
+  return [...byDay.values()].reduce((sum, d) => sum + dayShare(d.minutes, d.working), 0);
+}
+
+/** Сума часток днів записів, до 0.01. */
 export function totalDays(records: readonly PlaygroundRecord[]): number {
-  return Math.round(records.reduce((sum, r) => sum + r.share, 0) * 100) / 100;
+  return totalHundredths(records) / 100;
 }
 
 /** Залишок після записів, які вже схвалено: перші `decided` записів заявки. */
 export function personalLeft(records: readonly PlaygroundRecord[], decided: number): number {
-  return Math.round((PERSONAL_LEFT - totalDays(records.slice(0, decided))) * 100) / 100;
+  return (Math.round(PERSONAL_LEFT * 100) - totalHundredths(records.slice(0, decided))) / 100;
+}
+
+/** Чому записів немає: не обрано дату чи посаду, або обрані години не перетинаються з розкладом посад. */
+export function emptyReason(state: PlaygroundState): string {
+  if (!state.days.length || !state.positions.some(Boolean)) {
+    return "Choose a working day and a position: records appear here.";
+  }
+  return "The chosen hours are outside the schedule of the selected positions on these days.";
 }
 
 /** «08:30» з хвилин від півночі. */

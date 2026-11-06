@@ -15,6 +15,7 @@ import {
   DAY_END,
   DAY_START,
   duration,
+  emptyReason,
   END_OPTIONS,
   INITIAL,
   PERSONAL_GRANTED,
@@ -296,15 +297,13 @@ export function TryIt() {
           </div>
           <div className="min-h-65 border-t border-border">
             {records.length ? (
-              <ul aria-label="Records of your request">
+              <ul aria-label="Records of your request" aria-live="polite">
                 {records.map((record, i) => (
                   <RecordRow key={record.key} record={record} index={i} sent={sent !== null} decided={sent !== null && i < decided} />
                 ))}
               </ul>
             ) : (
-              <p className="py-10 text-center text-sm text-muted-foreground">
-                Choose a working day and a position: records appear here.
-              </p>
+              <p className="py-10 text-center text-sm text-muted-foreground">{emptyReason(state)}</p>
             )}
           </div>
           <div className="mt-auto flex items-end justify-between gap-4 border-t border-border pt-4">

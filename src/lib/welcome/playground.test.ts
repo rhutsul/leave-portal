@@ -6,6 +6,7 @@ import {
   duration,
   END_OPTIONS,
   INITIAL,
+  emptyReason,
   personalLeft,
   playgroundRecords,
   START_OPTIONS,
@@ -37,7 +38,7 @@ describe("playgroundRecords", () => {
     const records = playgroundRecords(state({ days: [13] }));
     expect(records).toHaveLength(1);
     expect(records[0].position).toBe("Elementary school / Teacher");
-    expect(records[0].share).toBe(1);
+    expect(totalDays(records)).toBe(1);
   });
 
   it("counts hours as a share of all working minutes on the date", () => {
@@ -48,6 +49,16 @@ describe("playgroundRecords", () => {
     expect(totalDays(records)).toBe(0.38);
   });
 
+  it("rounds the share of each date before adding the dates up", () => {
+    // Mon–Thu, teacher only, 09:00–11:30: 150 of 390 minutes is 0.38 a day, so 4 × 0.38 = 1.52, not 1.54.
+    const records = playgroundRecords(
+      state({ days: [9, 10, 11, 12], positions: [true, false], mode: "hours", start: 540, end: 690 }),
+    );
+    expect(records).toHaveLength(4);
+    expect(totalDays(records)).toBe(1.52);
+    expect(personalLeft(records, 4)).toBe(15.12);
+  });
+
   it("drops a position whose hours do not overlap the chosen time", () => {
     const records = playgroundRecords(state({ days: [12], mode: "hours", start: 540, end: 690 }));
     expect(records.map((r) => r.position)).toEqual(["Elementary school / Teacher"]);
@@ -56,6 +67,15 @@ describe("playgroundRecords", () => {
   it("returns no records without a date or a position", () => {
     expect(playgroundRecords(state({ days: [] }))).toEqual([]);
     expect(playgroundRecords(state({ positions: [false, false] }))).toEqual([]);
+  });
+
+  it("explains why there are no records", () => {
+    const pick = "Choose a working day and a position: records appear here.";
+    expect(emptyReason(state({ days: [] }))).toBe(pick);
+    expect(emptyReason(state({ positions: [false, false] }))).toBe(pick);
+    expect(emptyReason(state({ days: [12], positions: [false, true], mode: "hours", start: 540, end: 690 }))).toBe(
+      "The chosen hours are outside the schedule of the selected positions on these days.",
+    );
   });
 });
 
