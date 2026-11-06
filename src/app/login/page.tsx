@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import Link from "next/link";
 import { CircleAlert } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Card } from "@/components/ui/card";
@@ -74,6 +75,15 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
           </form>
           <p className="text-center text-xs text-muted-foreground">No account? Your school administrator creates it.</p>
         </Card>
+        {/* Тихе посилання на landing (ADR 0007): що таке портал — для того, хто прийшов за посиланням без пояснень. */}
+        <p className="mt-5 text-center">
+          <Link
+            href="/welcome"
+            className="text-xs text-muted-foreground underline-offset-4 transition-colors duration-(--duration-fast) hover:text-foreground hover:underline"
+          >
+            What is Leave Portal?
+          </Link>
+        </p>
       </LoginHero>
     </main>
   );

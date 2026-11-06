@@ -1,15 +1,19 @@
 "use client";
 
-import { useLayoutEffect, useRef, useState, type PointerEvent, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type PointerEvent, type ReactNode } from "react";
 import { countUpText } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 
 const reducedMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-/** Тривалість із токена `--duration-slow` (DESIGN.md, розділ 11), у мілісекундах. */
+/** Тривалість із токена руху (DESIGN.md, розділ 11), у мілісекундах. */
+function tokenMs(name: "--duration-slow" | "--duration-showcase", fallback: number) {
+  const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  return Number.parseFloat(value) || fallback;
+}
+
 function slowMs() {
-  const value = getComputedStyle(document.documentElement).getPropertyValue("--duration-slow").trim();
-  return Number.parseFloat(value) || 420;
+  return tokenMs("--duration-slow", 420);
 }
 
 /**
@@ -113,6 +117,54 @@ export function Tick({ value, className }: { value: number | string; className?:
   return (
     <span key={String(value)} className={cn("inline-block", value !== first && "animate-tick", className)}>
       {value}
+    </span>
+  );
+}
+
+/**
+ * Велике число landing, що «докручується» від нуля за `--duration-showcase`, коли більша його частина заходить в
+ * екран (ADR 0007; лише `/welcome`). Сервер віддає готове число — без JS воно й лишається; reduced motion і браузер без
+ * IntersectionObserver теж показують його одразу. Зчитувач екрана читає готове значення.
+ */
+export function ShowcaseCount({ value, decimals = 2 }: { value: string; decimals?: number }) {
+  const [shown, setShown] = useState(value);
+  const el = useRef<HTMLSpanElement>(null);
+
+  useEffect(() => {
+    const node = el.current;
+    const target = Number(value);
+    if (!node || !Number.isFinite(target) || reducedMotion() || !("IntersectionObserver" in window)) return;
+    // Число вже на екрані (посилання на #balances, відновлена прокрутка) — лишаємо готове, без спалаху нуля.
+    const box = node.getBoundingClientRect();
+    if (box.top < window.innerHeight && box.bottom > 0) return;
+    let frame = 0;
+    // Нуль ставимо до того, як число зайде в екран.
+    setShown((0).toFixed(decimals));
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry.isIntersecting) return;
+        io.disconnect();
+        const duration = tokenMs("--duration-showcase", 1200);
+        const start = performance.now();
+        frame = requestAnimationFrame(function tick(now) {
+          const t = Math.min(1, (now - start) / duration);
+          setShown(t < 1 ? countUpText(target, t, decimals) : value);
+          if (t < 1) frame = requestAnimationFrame(tick);
+        });
+      },
+      { threshold: 0.6 },
+    );
+    io.observe(node);
+    return () => {
+      io.disconnect();
+      cancelAnimationFrame(frame);
+    };
+  }, [value, decimals]);
+
+  return (
+    <span ref={el}>
+      <span aria-hidden="true">{shown}</span>
+      <span className="sr-only">{value}</span>
     </span>
   );
 }

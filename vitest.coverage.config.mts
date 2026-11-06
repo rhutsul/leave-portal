@@ -21,6 +21,7 @@ const FLOORED: string[] = [
   "motion",
   "preferences",
   "utils",
+  "welcome/playground",
 ];
 // Фігурні дужки glob розкриваються лише з комою всередині, тож один файл пишемо без них.
 const FLOORED_GLOB = FLOORED.length === 1 ? `src/lib/${FLOORED[0]}.ts` : `src/lib/{${FLOORED.join(",")}}.ts`;
