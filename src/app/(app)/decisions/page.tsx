@@ -252,8 +252,8 @@ function RecordTable({
   selectedId: number | null;
 }) {
   return (
-    <div className="overflow-x-auto rounded-lg border border-border bg-card">
-      <Table>
+    <div className="overflow-x-auto rounded-lg border border-border bg-card max-md:overflow-visible max-md:border-0 max-md:bg-transparent">
+      <Table stack>
         <TableHeader className="bg-muted">
           <TableRow className="hover:bg-transparent">
             <TableHead>Employee</TableHead>
@@ -307,12 +307,12 @@ function RecordTable({
                   <LeaveTypeTag type={r.leave_type} variant="inline" />
                 </TableCell>
                 {tab === "history" ? (
-                  <TableCell>
+                  <TableCell data-cell="end">
                     {/* Хто й коли вирішив — у панелі запису (Decided, History). */}
                     <StatusBadge status={r.status as RecordStatus} />
                   </TableCell>
                 ) : (
-                  <TableCell className="w-px text-muted-foreground">
+                  <TableCell data-cell="end" className="w-px text-muted-foreground max-md:p-2.5!">
                     <ChevronRight className="size-4" aria-hidden="true" />
                   </TableCell>
                 )}

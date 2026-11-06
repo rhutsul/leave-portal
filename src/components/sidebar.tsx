@@ -52,7 +52,9 @@ export function Sidebar({
     function onKey(event: KeyboardEvent) {
       // code, а не key: в українській розкладці key — «и». Без Shift (Ctrl+Shift+B — панель закладок) і без повтору.
       const shortcut = (event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey && event.code === "KeyB";
-      if (shortcut && !event.repeat && !isEditable(event.target)) {
+      // Вужче за lg бічної панелі немає (меню — з кнопки в шапці, ADR 0008): Ctrl+B нічого не робить.
+      const wide = window.matchMedia("(min-width: 64rem)").matches;
+      if (shortcut && wide && !event.repeat && !isEditable(event.target)) {
         event.preventDefault();
         toggle();
       }
@@ -67,7 +69,7 @@ export function Sidebar({
     <aside
       data-collapsed={collapsed || undefined}
       className={cn(
-        "sticky top-0 flex h-screen shrink-0 flex-col overflow-x-hidden border-r border-border bg-sidebar text-sidebar-foreground transition-[width] duration-(--duration-base) ease-out",
+        "sticky top-0 hidden h-screen shrink-0 flex-col lg:flex overflow-x-hidden border-r border-border bg-sidebar text-sidebar-foreground transition-[width] duration-(--duration-base) ease-out",
         collapsed ? "w-15" : "w-55",
       )}
     >

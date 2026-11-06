@@ -95,3 +95,16 @@ WS7 вище (`ws7-after-decisions-*.png`).
 | `v2-welcome-field-ring-dark.jpg` | «Balances»: кільце залишку за числом 16.64 — залишок `primary`, використане тьмяне |
 | `v2-welcome-field-roles-light.jpg` | ролі, світла тема: наведено картку Administrator — її сфера яскравіша й більша, інші тьмяніють |
 | `v2-login-field-dark.jpg` | Sign in v2: тиха картка ліворуч, аркуш місяця праворуч склався з хмари |
+
+### Адаптив, робочі сторінки (ADR 0008, PR 1/3)
+
+З Preview гілки `task/responsive-app`, `manager1@example.test` (синтетичні дані, `supabase/demo-users.json`). Телефон —
+390 px (Overview — 375 px), настільний — 1280 px.
+
+| Файл | Що видно |
+|---|---|
+| `v2r-phone-overview-dark.jpg` | шапка з кнопкою меню, Overview: місяць із точок на всю ширину, смуга чисел 2×2 |
+| `v2r-phone-menu-light.jpg` | меню зліва: ті самі пункти й лічильник «Decisions», тема й закрити (акаунт і Sign out — унизу панелі, за межею знімка) |
+| `v2r-phone-decisions-dark.jpg` | «Decisions»: записи — картки цілком-посилання зі стрілкою в куті |
+| `v2r-phone-record-dark.jpg` | запис на весь екран: «Back to list», ↑/↓, Reject і Return у два стовпці, Approve на всю ширину, прикріплені внизу |
+| `v2r-desktop-decisions-light.jpg` | 1280 px без змін: бічна панель і таблиця |
