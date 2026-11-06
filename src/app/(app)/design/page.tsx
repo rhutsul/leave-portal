@@ -40,6 +40,7 @@ import {
 } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DotMonth } from "@/components/ui/dot-month";
+import { ShowcaseCount } from "@/components/ui/motion";
 import { StatStrip } from "@/components/ui/stat-strip";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { WeekTimeline } from "@/components/ui/week-timeline";
@@ -403,6 +404,16 @@ export default async function DesignPage() {
             27: { status: "approved", label: "Fri 27 Nov · 08:30–15:30 · Approved", href: "/design" },
           }}
         />
+      </Section>
+
+      {/* Landing /welcome (ADR 0007): велике число, що «докручується» за --duration-showcase, коли заходить в екран. */}
+      <Section title="Landing">
+        <div className="flex flex-col items-start gap-1">
+          <span className="text-[96px] leading-[96px] font-semibold tracking-[-0.04em] tabular-nums">
+            <ShowcaseCount value="16.64" />
+          </span>
+          <span className="text-[15px] text-muted-foreground">days of Personal leave left · 1.36 of 18.00 used</span>
+        </div>
       </Section>
 
       <Section title="Calendar">
