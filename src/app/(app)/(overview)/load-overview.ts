@@ -3,7 +3,7 @@
 // фільтрах — BLOCKING_STATUSES (AGENTS.md, «База даних»).
 import { formatSchoolYear, schoolYearOf } from "@/lib/leave/balance";
 import { historyLine } from "@/lib/leave/decision";
-import { twoWeeks } from "@/lib/leave/overview";
+import { overviewRange } from "@/lib/leave/overview";
 import { BLOCKING_STATUSES } from "@/lib/leave/request";
 import { formatDateLong, formatRange } from "@/lib/leave/time";
 import type { createClient } from "@/lib/supabase/server";
@@ -12,18 +12,6 @@ import { loadBalances } from "../balances/load-balances";
 type Supabase = Awaited<ReturnType<typeof createClient>>;
 
 const ACTIVITY_LIMIT = 6;
-
-/** Діапазон дат, що покриває і поточний місяць, і два робочі тижні діаграми. */
-export function overviewRange(today: string) {
-  const month = today.slice(0, 7);
-  const days = twoWeeks(today);
-  return {
-    month,
-    days,
-    from: days[0] < `${month}-01` ? days[0] : `${month}-01`,
-    to: days[9] > `${month}-31` ? days[9] : `${month}-31`,
-  };
-}
 
 async function loadOwn(supabase: Supabase, userId: string, today: string) {
   const { from, to } = overviewRange(today);

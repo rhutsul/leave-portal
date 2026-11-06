@@ -1,7 +1,7 @@
 // Overview v3 (ADR 0007): чиста логіка головної — два робочі тижні, рядки діаграми, позначки місяця, найближчі
 // відпустки. Дані приходять уже відфільтровані правами бази (my_leave_records, decision_records); тут лише форма.
 import { BLOCKING_STATUSES } from "./request";
-import { formatDateLong, formatRange, isoWeekday, WEEKDAY_SHORT } from "./time";
+import { formatDateLong, formatRange, isoWeekday, monthGrid, WEEKDAY_SHORT } from "./time";
 
 /** Статус, що блокує час (BLOCKING_STATUSES) — лише такі записи видно на діаграмі й у місяці. */
 export type BlockingStatus = (typeof BLOCKING_STATUSES)[number];
@@ -20,6 +20,18 @@ export function addDays(date: string, n: number): string {
 export function twoWeeks(today: string): string[] {
   const monday = addDays(today, 1 - isoWeekday(today));
   return [0, 1, 2, 3, 4, 7, 8, 9, 10, 11].map((n) => addDays(monday, n));
+}
+
+/**
+ * Діапазон дат головної: поточний місяць (для місяця з точок) і два робочі тижні (для діаграми). Останній день
+ * місяця — справжня дата: "2026-11-31" база відхилила б, і запит повернув би порожньо.
+ */
+export function overviewRange(today: string) {
+  const month = today.slice(0, 7);
+  const days = twoWeeks(today);
+  const first = `${month}-01`;
+  const last = monthGrid(month).at(-1)!;
+  return { month, days, from: days[0] < first ? days[0] : first, to: days[9] > last ? days[9] : last };
 }
 
 /**

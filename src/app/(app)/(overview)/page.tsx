@@ -6,10 +6,10 @@ import { buttonVariants } from "@/components/ui/button";
 import { DotMonth } from "@/components/ui/dot-month";
 import { StatStrip } from "@/components/ui/stat-strip";
 import { WeekTimeline } from "@/components/ui/week-timeline";
-import { groupByRequestDate, headline, timelineDays } from "@/lib/leave/overview";
+import { groupByRequestDate, headline, overviewRange, timelineDays } from "@/lib/leave/overview";
 import { formatDateLong, kyivDate, kyivHour } from "@/lib/leave/time";
 import { createClient } from "@/lib/supabase/server";
-import { loadOverview, overviewRange } from "./load-overview";
+import { loadOverview } from "./load-overview";
 import { Activity, NeedsAttention, NextLeave, ToDecide } from "./overview-sections";
 import { awayThisWeek, buildMarks, buildRows, buildStats } from "./overview-view";
 

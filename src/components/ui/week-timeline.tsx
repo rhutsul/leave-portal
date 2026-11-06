@@ -54,8 +54,9 @@ export function WeekTimeline({
     <div className="overflow-x-auto rounded-lg border border-border bg-card">
       <div role="table" aria-label={label} className="min-w-[640px]">
         <div role="row" className={cn(GRID, "border-b border-border")}>
-          <span role="columnheader" className="sr-only">
-            Who
+          {/* Перша колонка — імена: заголовок лише для зчитувача, але сама клітинка лишається в сітці. */}
+          <span role="columnheader">
+            <span className="sr-only">Who</span>
           </span>
           {days.map((d, i) => (
             <span

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addDays, count, groupByRequestDate, headline, isBlocking, leadStatus, monthMarks, timelineDays, timelineRows, twoWeeks } from "./overview";
+import { addDays, count, groupByRequestDate, headline, isBlocking, overviewRange, leadStatus, monthMarks, timelineDays, timelineRows, twoWeeks } from "./overview";
 
 // Форма головної (ADR 0007), а не правило PM: тому без AC ID у назвах. Які записи видно — вирішує база (RLS).
 
@@ -126,5 +126,15 @@ describe("headline", () => {
   it("counts in singular and plural", () => {
     expect(count(1, "record", "records")).toBe("1 record");
     expect(count(0, "record", "records")).toBe("0 records");
+  });
+});
+
+describe("overviewRange", () => {
+  it("covers the whole month and both weeks, ending on a real date", () => {
+    expect(overviewRange("2026-11-06")).toMatchObject({ month: "2026-11", from: "2026-11-01", to: "2026-11-30" });
+    expect(overviewRange("2026-02-10").to).toBe("2026-02-28");
+    // Тижні виходять за межі місяця — діапазон розширюється до них.
+    expect(overviewRange("2026-11-30")).toMatchObject({ from: "2026-11-01", to: "2026-12-11" });
+    expect(overviewRange("2026-12-01")).toMatchObject({ from: "2026-11-30", to: "2026-12-31" });
   });
 });
