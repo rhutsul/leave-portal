@@ -40,6 +40,8 @@ const CONFIG: Record<FieldVariant, VariantConfig> = {
 /** Поява поля: точки злітаються з розсипу й проявляються за 1.6 с (на вході — у аркуш, на landing — у поточну форму). */
 const INTRO_SECONDS = 1.6;
 const OFF = 9;
+/** Курсор «ніде»: поза полотном, точки від нього не відштовхуються. */
+const FAR = new Vector2(OFF, OFF);
 
 const reducedQuery = () => window.matchMedia("(prefers-reduced-motion: reduce)");
 
@@ -157,7 +159,9 @@ export default function ParticleScene({ variant, onReady }: { variant: FieldVari
     try {
       renderer = new WebGLRenderer({ alpha: true, antialias: false, premultipliedAlpha: true, powerPreference: "low-power" });
     } catch {
-      return; // Без WebGL лишається тло з крапок.
+      // Контекст не створився (ліміт контекстів, збій GPU): лишається тло з крапок, а плямку-заглушку гасимо.
+      readyRef.current?.();
+      return;
     }
     renderer.setClearColor(0x000000, 0);
     renderer.domElement.style.display = "block";
@@ -176,9 +180,10 @@ export default function ParticleScene({ variant, onReady }: { variant: FieldVari
     };
     paint();
 
-    const state = { stage: 0, target: variant === "login" ? 1 : 0, time: 0, focus: -1 };
+    const state = { stage: 0, target: 0, time: 0, focus: -1 };
     const mouse = { at: new Vector2(OFF, OFF), smooth: new Vector2(OFF, OFF), gaze: new Vector2(), gazeSmooth: new Vector2() };
     let box = el.getBoundingClientRect();
+    let boxDirty = false;
     let visible = true;
     let frame = 0;
     let last = performance.now();
@@ -202,10 +207,7 @@ export default function ParticleScene({ variant, onReady }: { variant: FieldVari
     // Верхи секцій кешуємо: перераховуємо, лише коли змінилась розкладка сторінки, а не на кожну подію прокрутки.
     let tops = variant === "welcome" ? sectionTops() : [];
     const measure = () => {
-      if (variant === "welcome") {
-        const hold = window.innerHeight * 0.55;
-        state.target = stageAt(tops, window.scrollY + hold, hold);
-      }
+      if (variant === "welcome") state.target = stageAt(tops, window.scrollY, window.innerHeight * 0.55);
     };
     measure();
     // Сторінка відкрилась уже прокрученою (#roles, відновлена прокрутка) — поле одразу в потрібній формі, без
@@ -232,9 +234,10 @@ export default function ParticleScene({ variant, onReady }: { variant: FieldVari
       u.uFocus.value = state.focus;
       u.uYaw.value = along(config.yaw, state.stage) + motion * (0.06 * Math.sin(state.time * sway) + mouse.gazeSmooth.x * 0.16);
       u.uPitch.value = along(config.pitch, state.stage) - motion * mouse.gazeSmooth.y * 0.1;
-      (u.uMouse.value as Vector2).copy(still ? new Vector2(OFF, OFF) : mouse.smooth);
+      (u.uMouse.value as Vector2).copy(still ? FAR : mouse.smooth);
       renderer.render(points, camera);
-      // Перший кадр намальовано — ParticleField гасить плямку-заглушку.
+      // Перший кадр намальовано (ще прозорий: uIntro = 0, точки лише починають злітатись) — ParticleField гасить
+      // плямку-заглушку, і вона перетікає в появу точок.
       if (!announced) {
         announced = true;
         readyRef.current?.();
@@ -257,6 +260,10 @@ export default function ParticleScene({ variant, onReady }: { variant: FieldVari
 
     const onPointer = (event: PointerEvent) => {
       if (event.pointerType !== "mouse") return;
+      if (boxDirty) {
+        box = el.getBoundingClientRect();
+        boxDirty = false;
+      }
       const x = ((event.clientX - box.left) / box.width) * 2 - 1;
       const y = -(((event.clientY - box.top) / box.height) * 2 - 1);
       const inside = Math.abs(x) <= 1 && Math.abs(y) <= 1;
@@ -274,8 +281,9 @@ export default function ParticleScene({ variant, onReady }: { variant: FieldVari
       const card = (event.target as Element | null)?.closest?.("[data-field-focus]");
       state.focus = card ? Number(card.getAttribute("data-field-focus")) : -1;
     };
+    // Межі полотна читаємо ліниво — у наступному русі миші, а не на кожну подію прокрутки.
     const onScroll = () => {
-      box = el.getBoundingClientRect();
+      boxDirty = true;
       measure();
       wake();
     };

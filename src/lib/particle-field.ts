@@ -211,11 +211,10 @@ function welcomeForms(R: Rand): { forms: Point[]; group: number } {
   return { forms: [sheetPoint(R, 1.15), fanPoint(R), ringPoint(R), rolePoint(R, role), wavePoint(R)], group: role };
 }
 
-/** На вході: з хмари (форма 0) точки складаються в аркуш місяця (форма 1) і далі стоять у ньому. */
+/** На вході — лише аркуш місяця в усіх формах: поява з розсипу — у шейдері (`uIntro`), стадія стоїть на 0. */
 function loginForms(R: Rand): { forms: Point[]; group: number } {
-  const cloud = cloudPoint(R, [1.6, 1.4]);
   const sheet = R() < 0.07 ? cloudPoint(R, [1.3, 1.1]) : sheetPoint(R, 0);
-  return { forms: [cloud, sheet, sheet, sheet, sheet], group: -1 };
+  return { forms: Array.from({ length: FORM_COUNT }, () => sheet), group: -1 };
 }
 
 /** Геометрія поля: позиції й тони всіх форм, випадкові числа й групи. */
@@ -237,28 +236,36 @@ export function buildField(variant: FieldVariant, count = POINTS[variant]): Fiel
   return { count, positions, tones, random, group };
 }
 
-/** Зміна форми — за останні 420 px перед наступною секцією (DESIGN.md, розділ 11). */
+/** Найдовший перехід між формами — 420 px прокрутки (DESIGN.md, розділ 11). */
 export const MORPH_SPAN = 420;
+/** Найкоротший: навіть у дуже високому вікні перехід не стає стрибком за кілька пікселів. */
+export const MIN_MORPH = 120;
 
 /**
- * Стадія поля з прокрутки: `tops` — верхи секцій-форм на сторінці, `probe` — точка зору (`hold` px від верху вікна,
- * тобто scrollY + hold). Ціла частина — форма поточної секції, дробова — перехід до наступної.
+ * Стадія поля з прокрутки: `tops` — верхи секцій-форм на сторінці, `scrollY` — прокрутка, `hold` — де у вікні «точка
+ * зору» (55 % висоти). Ціла частина — форма поточної секції, дробова — перехід до наступної.
  *
- * Секція тримає свою форму, доки її верх не дійде до верху вікна (probe = top + hold), і лише потім перетікає в
- * наступну — не довше за останні `span` px перед нею. Так на самому верху сторінки аркуш чіткий на будь-якій висоті
- * вікна, а не вже наполовину у віялі.
+ * Перехід до форми наступної секції закінчується, коли її верх доходить до точки зору, і триває до `span` px прокрутки
+ * перед тим — але не раніше, ніж закінчився попередній, і не коротше за `min`. Тож на самому верху сторінки (scrollY 0)
+ * завжди чітка перша форма — на будь-якій висоті вікна, — а короткі секції не перескакують свій перехід.
  */
-export function stageAt(tops: readonly number[], probe: number, hold = 0, span = MORPH_SPAN): number {
-  if (!tops.length) return 0;
-  let i = 0;
-  tops.forEach((top, k) => {
-    if (top <= probe) i = k;
-  });
-  const next = tops[i + 1];
-  if (next === undefined) return Math.min(FORM_COUNT - 1, i);
-  const start = Math.min(next - 1, Math.max(next - span, tops[i] + hold));
-  const stage = i + Math.min(1, Math.max(0, (probe - start) / (next - start)));
-  return Math.min(FORM_COUNT - 1, stage);
+export function stageAt(
+  tops: readonly number[],
+  scrollY: number,
+  hold = 0,
+  span = MORPH_SPAN,
+  min = MIN_MORPH,
+): number {
+  const last = Math.min(FORM_COUNT, tops.length) - 1;
+  let held = 0;
+  for (let i = 0; i < last; i++) {
+    const end = Math.max(tops[i + 1] - hold, held + min);
+    const start = Math.max(end - span, held);
+    if (scrollY <= start) return i;
+    if (scrollY < end) return i + (scrollY - start) / (end - start);
+    held = end;
+  }
+  return Math.max(0, last);
 }
 
 /** Плавне наближення до цілі за час `dt` (секунди): та сама швидкість на швидкій і повільній машині. */

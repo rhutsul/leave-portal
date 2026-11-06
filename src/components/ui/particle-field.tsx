@@ -20,11 +20,15 @@ function subscribeWide(onChange: () => void) {
 const isWide = () => window.matchMedia(WIDE).matches;
 const isWideOnServer = () => false;
 
-/** Чи є WebGL2; пробний контекст одразу звільняємо. */
+/** Чи є WebGL2; пробний контекст одразу звільняємо, відповідь запам'ятовуємо (strict mode запускає ефект двічі). */
+let webgl2: boolean | null = null;
 function hasWebGL2() {
-  const gl = document.createElement("canvas").getContext("webgl2");
-  gl?.getExtension("WEBGL_lose_context")?.loseContext();
-  return gl !== null;
+  if (webgl2 === null) {
+    const gl = document.createElement("canvas").getContext("webgl2");
+    gl?.getExtension("WEBGL_lose_context")?.loseContext();
+    webgl2 = gl !== null;
+  }
+  return webgl2;
 }
 
 // Де складеться аркуш місяця — там, поки поле вантажиться, «дихає» пляма з точок (на landing — праворуч від тексту
@@ -47,13 +51,15 @@ export function ParticleField({ variant, className }: { variant: FieldVariant; c
   const [waiting, setWaiting] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [shown, setShown] = useState(false);
+  const [ghostGone, setGhostGone] = useState(false);
 
   useEffect(() => {
     if (!wide || mounted) return;
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches || !hasWebGL2()) return;
     // Файл three вантажиться вже зараз, паралельно з рештою сторінки; монтуємо сцену у вільну хвилину після першого
     // кадру — до того часу чанк зазвичай уже в браузері.
-    void loadScene();
+    // Помилку завантаження ловимо тут: сцена не змонтується, а заглушку прибере тайм-аут нижче.
+    loadScene().catch(() => setShown(true));
     const frame = requestAnimationFrame(() => setWaiting(true));
     // Пляма — і в момент монтування: якщо кадр вище ще не стався, вона однаково з'явиться до першого кадру поля.
     const mount = () => {
@@ -74,20 +80,30 @@ export function ParticleField({ variant, className }: { variant: FieldVariant; c
     };
   }, [wide, mounted]);
 
+  // Запобіжник: якщо сцена так і не намалювала кадр (вкладку не відкрили, збій), заглушка не «дихає» вічно.
+  useEffect(() => {
+    if (!waiting || shown) return;
+    const id = setTimeout(() => setShown(true), 8000);
+    return () => clearTimeout(id);
+  }, [waiting, shown]);
+
+  // Вужче за 1100 px поле ховаємо, а не розмонтовуємо: повернення ширини не будує сцену й не програє появу знову.
   return (
-    <div aria-hidden="true" className={cn("pointer-events-none", className)}>
-      {wide && waiting && (
+    <div aria-hidden="true" className={cn("pointer-events-none", !wide && "hidden", className)}>
+      {waiting && !ghostGone && (
         <div
+          onTransitionEnd={() => shown && setGhostGone(true)}
           className={cn(
             "absolute transition-opacity duration-(--duration-slow) ease-out",
             GHOST[variant],
             shown ? "opacity-0" : "opacity-100",
           )}
         >
-          <div className="field-ghost size-full animate-pulse-slow" />
+          {/* Пульс зупиняється, щойно точки почали злітатись: разом з появою — не більше двох рухів. */}
+          <div className={cn("field-ghost size-full", !shown && "animate-pulse-slow")} />
         </div>
       )}
-      {wide && mounted && <ParticleScene variant={variant} onReady={() => setShown(true)} />}
+      {mounted && <ParticleScene variant={variant} onReady={() => setShown(true)} />}
     </div>
   );
 }

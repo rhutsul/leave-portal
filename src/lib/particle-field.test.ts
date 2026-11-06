@@ -1,6 +1,6 @@
 // Поле частинок (ADR 0007) — декор landing і входу, не поведінка за AC PM: тому без AC ID.
 import { describe, expect, it } from "vitest";
-import { approach, buildField, FORM_COUNT, MORPH_SPAN, PALETTE_TOKENS, POINTS, RING_LEFT, rng, stageAt } from "./particle-field";
+import { approach, buildField, FORM_COUNT, MIN_MORPH, MORPH_SPAN, PALETTE_TOKENS, POINTS, RING_LEFT, rng, stageAt } from "./particle-field";
 
 describe("buildField", () => {
   it("keeps within the particle budget of ADR 0007", () => {
@@ -44,9 +44,9 @@ describe("buildField", () => {
     expect(median).toBeGreaterThan(0.8);
   });
 
-  it("keeps the login sheet in place after it forms", () => {
+  it("keeps the login sheet the same in every form", () => {
     const field = buildField("login", 300);
-    for (let s = 2; s < FORM_COUNT; s++) expect(Array.from(field.positions[s])).toEqual(Array.from(field.positions[1]));
+    for (let s = 1; s < FORM_COUNT; s++) expect(Array.from(field.positions[s])).toEqual(Array.from(field.positions[0]));
     expect(Array.from(field.group).every((g) => g === -1)).toBe(true);
   });
 
@@ -72,44 +72,42 @@ describe("rng", () => {
 });
 
 describe("stageAt", () => {
-  const tops = [0, 900, 1900, 2800, 3700];
-
-  it("holds the form of the section in view", () => {
-    expect(stageAt(tops, 100)).toBe(0);
-    expect(stageAt(tops, 1000)).toBe(1);
-  });
-
-  it("morphs over the last span before the next section", () => {
-    expect(stageAt(tops, 900 - MORPH_SPAN)).toBe(0);
-    expect(stageAt(tops, 900 - MORPH_SPAN / 2)).toBeCloseTo(0.5);
-    expect(stageAt(tops, 899)).toBeCloseTo(1, 1);
-  });
+  // Hero from 60, then sections at 780, 1700, 2600, 3500 (as on /welcome at 1440 px).
+  const tops = [60, 780, 1700, 2600, 3500];
 
   it("keeps the first form sharp at the top of the page on any window height", () => {
-    // Hero 60–780, next section at 780; probe at scrollY 0 is 55 % of the window height.
-    const hero = [60, 780, 1700, 2600, 3500];
-    for (const height of [700, 830, 900, 1200]) {
-      const hold = height * 0.55;
-      expect(stageAt(hero, 0 + hold, hold)).toBe(0);
+    for (const height of [700, 830, 900, 1200, 1300, 1500, 2000]) {
+      expect(stageAt(tops, 0, height * 0.55)).toBe(0);
     }
   });
 
-  it("starts the morph only after the section top reaches the top of the window", () => {
-    const hero = [60, 780, 1700, 2600, 3500];
-    const hold = 457;
-    // scrollY 60: the hero top is at the window top — still the sheet; then it morphs until the next section.
-    expect(stageAt(hero, 60 + hold, hold)).toBe(0);
-    expect(stageAt(hero, 400 + hold, hold)).toBeGreaterThan(0);
-    expect(stageAt(hero, 779, hold)).toBeCloseTo(1, 1);
+  it("finishes a morph when the next section reaches the probe line", () => {
+    const hold = 495; // 900 px window
+    expect(stageAt(tops, 780 - hold, hold)).toBe(1);
+    expect(stageAt(tops, 1700 - hold, hold)).toBe(2);
+  });
+
+  it("morphs over at most the span of scroll before that", () => {
+    const hold = 495;
+    expect(stageAt(tops, 1700 - hold - MORPH_SPAN, hold)).toBe(1);
+    expect(stageAt(tops, 1700 - hold - MORPH_SPAN / 2, hold)).toBeCloseTo(1.5);
+  });
+
+  it("never squeezes a morph below the minimum on a very tall window", () => {
+    const hold = 1500 * 0.55; // the hero is shorter than the hold: 825 > 780 - 0
+    expect(stageAt(tops, 0, hold)).toBe(0);
+    expect(stageAt(tops, MIN_MORPH / 2, hold)).toBeCloseTo(0.5);
+    expect(stageAt(tops, MIN_MORPH, hold)).toBe(1);
   });
 
   it("stops at the last form", () => {
-    expect(stageAt(tops, 9000)).toBe(4);
-    expect(stageAt([0, 1, 2, 3, 4, 5, 6], 100)).toBe(4);
+    expect(stageAt(tops, 9000, 495)).toBe(4);
+    expect(stageAt([0, 100, 200, 300, 400, 500, 600], 9000)).toBe(4);
   });
 
   it("starts at the first form without sections", () => {
     expect(stageAt([], 500)).toBe(0);
+    expect(stageAt([0], 500)).toBe(0);
   });
 });
 

@@ -19,8 +19,8 @@ const ERRORS: Record<string, string> = {
 };
 
 /**
- * Вхід, Sign in v2 (ADR 0007): тиха скляна картка ліворуч, праворуч — аркуш місяця з частинок, що складається з
- * хмари. Тло — та сама сітка з крапок, що на landing; вужче за 1100 px, без WebGL чи з reduced motion лишається лише
+ * Вхід, Sign in v2 (ADR 0007): тиха скляна картка ліворуч, праворуч — аркуш місяця з частинок, що злітається з
+ * розсипу. Тло — та сама сітка з крапок, що на landing; вужче за 1100 px, без WebGL чи з reduced motion лишається лише
  * вона, а картка стає по центру.
  */
 export default async function LoginPage({ searchParams }: PageProps<"/login">) {
