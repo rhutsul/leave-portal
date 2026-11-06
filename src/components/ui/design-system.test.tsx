@@ -5,6 +5,7 @@ import { LEAVE_TYPES, RECORD_STATUSES, type LeaveType, type RecordStatus } from 
 import { parseTheme, themeAttribute } from "@/lib/preferences";
 import { Button } from "./button";
 import { CalendarDay } from "./calendar-day";
+import { Card } from "./card";
 import { DialogFooter } from "./dialog";
 import { LeaveTypeTag } from "./leave-type-tag";
 import { PasswordInput } from "./password-input";
@@ -54,6 +55,27 @@ describe("StatusBadge and LeaveTypeTag", () => {
 
   it("shows an unknown leave type as is", () => {
     expect(renderToStaticMarkup(<LeaveTypeTag type="other" />)).toBe("<span>other</span>");
+  });
+
+  it("status is a word with a coloured dot and no fill (ADR 0007)", () => {
+    for (const status of Object.keys(RECORD_STATUSES) as RecordStatus[]) {
+      const html = renderToStaticMarkup(<StatusBadge status={status} />);
+      // Тло статусу (bg-status-awaiting …) не заливає бейдж; лише крапка має колір (…-foreground).
+      expect(html).not.toMatch(new RegExp(`bg-status-${status}(?!-foreground)`));
+      expect(html).toContain(`bg-status-${status}-foreground`);
+      expect(classes(html)).toContain("text-foreground");
+      // Ореол крапки виходить за край бейджа без відступу — бейдж його не обрізає.
+      expect(classes(html)).toContain("overflow-visible");
+      expect(classes(html)).not.toContain("overflow-hidden");
+    }
+  });
+});
+
+describe("Card", () => {
+  it("has a border and no shadow: hierarchy comes from borders (ADR 0007)", () => {
+    const list = classes(renderToStaticMarkup(<Card />));
+    expect(list).toContain("border-border");
+    expect(list.filter((c) => c.startsWith("shadow"))).toEqual([]);
   });
 });
 
