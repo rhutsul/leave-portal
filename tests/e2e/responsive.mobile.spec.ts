@@ -64,9 +64,21 @@ test("on a phone records are cards, and a record opens full screen with Back to 
   await expect.poll(async () => (await panel.boundingBox())?.width).toBe(width);
   await expect(panel.getByRole("button", { name: "Back to list" })).toBeVisible();
   await expect(panel.getByRole("button", { name: "Close" })).toBeHidden();
-  // Дії рішення — на екрані без прокрутки (прикріплені внизу).
-  await expect(panel.getByRole("button", { name: "Approve", exact: true })).toBeInViewport();
+  // Дії рішення прикріплені до низу екрана: і до, і після прокрутки тіла панелі.
+  const approve = panel.getByRole("button", { name: /^Approve/ });
+  const bar = approve.locator("..");
+  const height = phone.viewportSize()!.height;
+  const pinnedBottom = async () => {
+    expect(await bar.evaluate((el) => getComputedStyle(el).position)).toBe("fixed");
+    const box = (await bar.boundingBox())!;
+    expect(Math.round(box.y + box.height)).toBe(height);
+  };
+  await expect(approve).toBeInViewport();
   await expect(panel.getByRole("button", { name: "Reject", exact: true })).toBeInViewport();
+  await pinnedBottom();
+  await panel.locator('[data-slot="sheet-body"]').evaluate((body) => body.scrollTo(0, body.scrollHeight));
+  await expect(approve).toBeInViewport();
+  await pinnedBottom();
 
   await panel.getByRole("button", { name: "Back to list" }).click();
   await expect(phone).not.toHaveURL(/record=/);

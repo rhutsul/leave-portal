@@ -13,11 +13,14 @@ import { Sheet, SheetClose, SheetContent, SheetTitle } from "./ui/sheet";
 import { ThemeMenu } from "./ui/theme-menu";
 import { SidebarNav } from "./sidebar-nav";
 
-/** Фокус «ніде»: на `body` чи ще в меню, що закривається. Тоді його можна перенести на заголовок. */
+/**
+ * Фокус «ніде»: на `body` чи ще в цьому меню, що закривається. Тоді його можна перенести на заголовок. Фокус в іншій
+ * панелі (наприклад, запис, який користувач уже відкрив) — не «ніде»: його не чіпаємо.
+ */
 function focusIsFree(heading: HTMLElement | null) {
   const active = document.activeElement;
   if (!active || active === document.body) return true;
-  return active !== heading && active.closest('[data-slot="sheet-content"]') !== null;
+  return active !== heading && active.closest("[data-mobile-nav]") !== null;
 }
 
 /**
@@ -102,6 +105,7 @@ export function MobileNav({
         </Button>
         <SheetContent
           side="left"
+          data-mobile-nav=""
           className="max-w-[300px] bg-sidebar/95 text-sidebar-foreground"
           finalFocus={() => !viaLink.current}
         >
