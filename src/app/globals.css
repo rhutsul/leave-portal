@@ -274,7 +274,7 @@
      (спінер на пункті меню з'являється замість іконки, лише якщо перехід триває довше за 100 ms), animate-page-in
      (новий вміст сторінки, (app)/template.tsx). Рішення в «Decisions» (ADR 0007): animate-stamp і animate-draw
      (печатка й знак, що малюється лінією), animate-sheet-out / animate-sheet-in (панель запису ковзає вгору, наступний
-     запис підіймається знизу), animate-row-leave (рядок вирішеного запису виїжджає вбік), animate-tick (лічильник). */
+     запис підіймається знизу; animate-sheet-in-down — попередній запис опускається згори), animate-row-leave (рядок вирішеного запису виїжджає вбік), animate-tick (лічильник). */
   --animate-pulse-slow: pulse-slow 2.4s var(--ease-in-out) infinite;
   --animate-row-flash: row-flash var(--duration-slow) var(--ease-out) both;
   --animate-rise: rise var(--duration-slow) var(--ease-out) both;
@@ -286,6 +286,7 @@
   --animate-draw: draw var(--duration-slow) var(--ease-out) 120ms both;
   --animate-sheet-out: sheet-out var(--duration-slow) var(--ease-in-out) forwards;
   --animate-sheet-in: sheet-in var(--duration-slow) var(--ease-out) both;
+  --animate-sheet-in-down: sheet-in-down var(--duration-slow) var(--ease-out) both;
   --animate-row-leave: row-leave var(--duration-slow) var(--ease-out) forwards;
   --animate-tick: tick var(--duration-base) var(--ease-out) both;
 
@@ -354,6 +355,12 @@
     from {
       opacity: 0;
       transform: translateY(32%);
+    }
+  }
+  @keyframes sheet-in-down {
+    from {
+      opacity: 0;
+      transform: translateY(-32%);
     }
   }
   @keyframes row-leave {

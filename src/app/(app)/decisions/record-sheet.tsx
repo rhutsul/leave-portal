@@ -25,11 +25,14 @@ function hasDraft(popup: Element | null) {
   return Boolean(popup?.querySelector<HTMLTextAreaElement>("textarea")?.value.trim());
 }
 
+/** Звідки з'являється інший запис: «Next» і наступний після рішення — знизу, «Previous» — згори. */
+type Direction = "next" | "prev";
+
 /** Клавіша в шапці панелі → куди перейти: ↑ — попередній запис, ↓ — наступний; з модифікаторами — нікуди. */
-function keyTarget(event: KeyboardEvent, prevHref: string | null, nextHref: string | null): string | null {
+function keyTarget(event: KeyboardEvent): Direction | null {
   if (event.defaultPrevented || event.repeat || event.altKey || event.ctrlKey || event.metaKey) return null;
-  if (event.key === "ArrowUp") return prevHref;
-  return event.key === "ArrowDown" ? nextHref : null;
+  if (event.key === "ArrowUp") return "prev";
+  return event.key === "ArrowDown" ? "next" : null;
 }
 
 /** «2 of 6» і «Previous / Next» у шапці панелі. */
@@ -42,7 +45,7 @@ function RecordNav({
   position: string;
   prevHref: string | null;
   nextHref: string | null;
-  go: (href: string) => void;
+  go: (direction: Direction) => void;
 }) {
   return (
     <>
@@ -53,7 +56,7 @@ function RecordNav({
         aria-label="Previous record"
         aria-keyshortcuts="ArrowUp"
         disabled={!prevHref}
-        onClick={() => prevHref && go(prevHref)}
+        onClick={() => go("prev")}
       >
         <ChevronUp />
       </Button>
@@ -63,7 +66,7 @@ function RecordNav({
         aria-label="Next record"
         aria-keyshortcuts="ArrowDown"
         disabled={!nextHref}
-        onClick={() => nextHref && go(nextHref)}
+        onClick={() => go("next")}
       >
         <ChevronDown />
       </Button>
@@ -73,16 +76,30 @@ function RecordNav({
 
 /**
  * Рамка запису в панелі з рухом рішення (ADR 0007): печатка над тілом, виїзд угору, а інший запис у вже відкритій
- * панелі (після рішення чи «Next») підіймається знизу. Перший запис — без руху: панель і так виїжджає справа.
+ * панелі підіймається знизу (після рішення чи «Next») або опускається згори («Previous»). Перший запис — без руху:
+ * панель і так виїжджає справа.
  */
-function RecordMotion({ recordKey, header, children }: { recordKey?: number | string; header: ReactNode; children: ReactNode }) {
+function RecordMotion({
+  recordKey,
+  direction,
+  header,
+  children,
+}: {
+  recordKey?: number | string;
+  direction: Direction;
+  header: ReactNode;
+  children: ReactNode;
+}) {
   const [stamp, setStamp] = useState<StampStatus | null>(null);
   const [leaving, setLeaving] = useState(false);
   const [shownKey, setShownKey] = useState(recordKey);
   const [arrived, setArrived] = useState(false);
+  const [enter, setEnter] = useState<Direction>("next");
   if (shownKey !== recordKey) {
     setShownKey(recordKey);
     setArrived(true);
+    // Після рішення (панель якраз виїжджала) наступний запис завжди приходить знизу, хоч би як гортали перед тим.
+    setEnter(leaving ? "next" : direction);
     setStamp(null);
     setLeaving(false);
   }
@@ -92,7 +109,10 @@ function RecordMotion({ recordKey, header, children }: { recordKey?: number | st
     <SheetMotionContext.Provider value={motion}>
       <div
         key={String(recordKey)}
-        className={cn("relative flex min-h-0 flex-1 flex-col", leaving ? "animate-sheet-out" : arrived && "animate-sheet-in")}
+        className={cn(
+          "relative flex min-h-0 flex-1 flex-col",
+          leaving ? "animate-sheet-out" : arrived && (enter === "prev" ? "animate-sheet-in-down" : "animate-sheet-in"),
+        )}
       >
         {header}
         <SheetBody className={cn("transition-opacity duration-(--duration-base) ease-out", stamp && "opacity-20 blur-xs")}>
@@ -136,18 +156,26 @@ export function RecordSheet({
 }) {
   const router = useRouter();
   const go = (href: string) => router.replace(href, { scroll: false });
+  // Після рішення наступний запис приходить знизу, тож напрямок за замовчуванням — «next».
+  const [direction, setDirection] = useState<Direction>("next");
+  const step = (to: Direction) => {
+    const href = to === "prev" ? prevHref : nextHref;
+    if (!href) return;
+    setDirection(to);
+    go(href);
+  };
 
   function onHeaderKey(event: KeyboardEvent<HTMLDivElement>) {
-    const href = keyTarget(event, prevHref, nextHref);
-    if (!href) return;
+    const to = keyTarget(event);
+    if (!to || !(to === "prev" ? prevHref : nextHref)) return;
     event.preventDefault();
-    go(href);
+    step(to);
   }
 
   const header = (
     <SheetHeader
       onKeyDown={onHeaderKey}
-      actions={position && <RecordNav position={position} prevHref={prevHref} nextHref={nextHref} go={go} />}
+      actions={position && <RecordNav position={position} prevHref={prevHref} nextHref={nextHref} go={step} />}
     >
       <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
         <SheetTitle>{title}</SheetTitle>
@@ -171,7 +199,7 @@ export function RecordSheet({
       }}
     >
       <SheetContent className="overflow-hidden">
-        <RecordMotion recordKey={recordKey} header={header}>
+        <RecordMotion recordKey={recordKey} direction={direction} header={header}>
           {children}
         </RecordMotion>
       </SheetContent>
