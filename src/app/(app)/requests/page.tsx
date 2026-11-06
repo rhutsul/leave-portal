@@ -183,7 +183,7 @@ export default async function MyRequestsPage({ searchParams }: PageProps<"/reque
           {months.size === 0 ? (
             <EmptyState title="No records here" text="Records with this status will appear here." />
           ) : (
-            <div className="overflow-x-auto rounded-lg border border-border bg-card shadow-sm">
+            <div className="overflow-x-auto rounded-lg border border-border bg-card">
               <Table>
                 <TableHeader className="bg-muted">
                   <TableRow className="hover:bg-transparent">

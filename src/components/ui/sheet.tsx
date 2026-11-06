@@ -32,7 +32,8 @@ function SheetContent({ className, children, ...props }: DialogPrimitive.Popup.P
       <DialogPrimitive.Popup
         data-slot="sheet-content"
         className={cn(
-          "fixed inset-y-0 right-0 z-50 flex w-full max-w-[460px] flex-col border-l border-border bg-popover text-sm text-popover-foreground shadow-lg duration-(--duration-base) ease-out outline-none data-open:animate-in data-open:slide-in-from-right-8 data-open:fade-in-0 data-closed:animate-out data-closed:slide-out-to-right-8 data-closed:fade-out-0",
+          // «Скло» (ADR 0007): панель лежить над списком, тож прозорість і розмиття — тут, а не на картках.
+          "fixed inset-y-0 right-0 z-50 flex w-full max-w-[480px] flex-col border-l border-border bg-popover/88 backdrop-blur-xl backdrop-saturate-125 text-sm text-popover-foreground shadow-lg duration-(--duration-base) ease-out outline-none data-open:animate-in data-open:slide-in-from-right-8 data-open:fade-in-0 data-closed:animate-out data-closed:slide-out-to-right-8 data-closed:fade-out-0",
           className,
         )}
         {...props}

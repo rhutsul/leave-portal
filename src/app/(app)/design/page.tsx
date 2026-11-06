@@ -242,7 +242,8 @@ export default async function DesignPage() {
       </Section>
 
       <Section title="Status and leave type">
-        <div className="flex flex-wrap gap-2">
+        {/* Статус — слово з крапкою, без заливки (ADR 0007): між бейджами ширший проміжок, бо в них немає відступів. */}
+        <div className="flex flex-wrap gap-x-5 gap-y-2">
           <StatusBadge status="awaiting" />
           <StatusBadge status="approved" />
           <StatusBadge status="rejected" />

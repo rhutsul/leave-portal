@@ -18,12 +18,13 @@ const badgeVariants = cva(
         ghost:
           "hover:bg-muted hover:text-muted-foreground dark:hover:bg-muted/50",
         link: "text-primary underline-offset-4 hover:underline",
-        // Статуси запису (DESIGN.md, розділ 2): завжди зі словом; крапку додає StatusBadge.
-        awaiting: "bg-status-awaiting text-status-awaiting-foreground",
-        approved: "bg-status-approved text-status-approved-foreground",
-        rejected: "bg-status-rejected text-status-rejected-foreground",
-        returned: "bg-status-returned text-status-returned-foreground",
-        cancelled: "bg-status-cancelled text-status-cancelled-foreground",
+        // Статуси запису (DESIGN.md, розділ 2; ADR 0007): слово кольором тексту, без заливки; крапку кольору статусу
+        // додає StatusBadge.
+        awaiting: "gap-1.5 rounded-none px-0 text-foreground",
+        approved: "gap-1.5 rounded-none px-0 text-foreground",
+        rejected: "gap-1.5 rounded-none px-0 text-foreground",
+        returned: "gap-1.5 rounded-none px-0 text-foreground",
+        cancelled: "gap-1.5 rounded-none px-0 text-foreground",
       },
     },
     defaultVariants: {

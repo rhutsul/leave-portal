@@ -43,7 +43,7 @@ export function TabsShape({ widths }: { widths: string[] }) {
 /** Картка з рядками таблиці чи списку. */
 export function RowsShape({ rows = 5, className }: { rows?: number; className?: string }) {
   return (
-    <div className={cn("flex flex-col gap-2.5 rounded-lg border border-border bg-card p-5 shadow-sm", className)}>
+    <div className={cn("flex flex-col gap-2.5 rounded-lg border border-border bg-card p-5", className)}>
       <Skeleton className="h-4 w-2/5" />
       {Array.from({ length: rows }, (_, i) => (
         <Skeleton key={i} className={cn("h-9", i === rows - 1 && "w-4/5")} />
@@ -57,7 +57,7 @@ export function BalanceCardsShape({ detailed = false }: { detailed?: boolean }) 
   return (
     <div className="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-4">
       {[0, 1, 2, 3].map((i) => (
-        <div key={i} className="flex flex-col gap-3 rounded-lg border border-border bg-card px-5 py-4 shadow-sm">
+        <div key={i} className="flex flex-col gap-3 rounded-lg border border-border bg-card px-5 py-4">
           <Skeleton className="h-3.5 w-28" />
           <Skeleton className="h-7 w-24" />
           {i < 2 && <Skeleton className="h-1.5 rounded-full" />}

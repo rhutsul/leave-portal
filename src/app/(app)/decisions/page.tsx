@@ -250,7 +250,7 @@ function RecordTable({
   selectedId: number | null;
 }) {
   return (
-    <div className="overflow-x-auto rounded-lg border border-border bg-card shadow-sm">
+    <div className="overflow-x-auto rounded-lg border border-border bg-card">
       <Table>
         <TableHeader className="bg-muted">
           <TableRow className="hover:bg-transparent">

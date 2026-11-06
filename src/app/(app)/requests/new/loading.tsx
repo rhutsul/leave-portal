@@ -8,7 +8,7 @@ export default function Loading() {
       <HeaderShape action={false} breadcrumb />
       <TabsShape widths={["w-20", "w-24", "w-20", "w-24"]} />
       <div className="flex flex-wrap items-start gap-6">
-        <div className="flex min-w-0 flex-[999_1_560px] flex-col gap-5 rounded-lg border border-border bg-card px-6 py-5 shadow-sm">
+        <div className="flex min-w-0 flex-[999_1_560px] flex-col gap-5 rounded-lg border border-border bg-card px-6 py-5">
           <div className="flex flex-col gap-2">
             <Skeleton className="h-5 w-24" />
             <Skeleton className="h-3.5 w-80 max-w-full" />
@@ -21,7 +21,7 @@ export default function Loading() {
             </div>
           </div>
         </div>
-        <div className="flex max-w-full flex-[1_1_300px] flex-col gap-3.5 rounded-lg border border-border bg-card px-5 py-4.5 shadow-sm">
+        <div className="flex max-w-full flex-[1_1_300px] flex-col gap-3.5 rounded-lg border border-border bg-card px-5 py-4.5">
           <Skeleton className="h-5 w-32" />
           <Skeleton className="h-4" />
           <Skeleton className="h-4" />
