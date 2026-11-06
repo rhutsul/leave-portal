@@ -64,6 +64,9 @@ describe("StatusBadge and LeaveTypeTag", () => {
       expect(html).not.toMatch(new RegExp(`bg-status-${status}(?!-foreground)`));
       expect(html).toContain(`bg-status-${status}-foreground`);
       expect(classes(html)).toContain("text-foreground");
+      // Ореол крапки виходить за край бейджа без відступу — бейдж його не обрізає.
+      expect(classes(html)).toContain("overflow-visible");
+      expect(classes(html)).not.toContain("overflow-hidden");
     }
   });
 });

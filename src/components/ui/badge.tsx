@@ -19,12 +19,12 @@ const badgeVariants = cva(
           "hover:bg-muted hover:text-muted-foreground dark:hover:bg-muted/50",
         link: "text-primary underline-offset-4 hover:underline",
         // Статуси запису (DESIGN.md, розділ 2; ADR 0007): слово кольором тексту, без заливки; крапку кольору статусу
-        // додає StatusBadge.
-        awaiting: "gap-1.5 rounded-none px-0 text-foreground",
-        approved: "gap-1.5 rounded-none px-0 text-foreground",
-        rejected: "gap-1.5 rounded-none px-0 text-foreground",
-        returned: "gap-1.5 rounded-none px-0 text-foreground",
-        cancelled: "gap-1.5 rounded-none px-0 text-foreground",
+        // додає StatusBadge. Без обрізання: ореол крапки виходить за край бейджа, у якого немає відступу.
+        awaiting: "gap-1.5 overflow-visible rounded-none px-0 text-foreground",
+        approved: "gap-1.5 overflow-visible rounded-none px-0 text-foreground",
+        rejected: "gap-1.5 overflow-visible rounded-none px-0 text-foreground",
+        returned: "gap-1.5 overflow-visible rounded-none px-0 text-foreground",
+        cancelled: "gap-1.5 overflow-visible rounded-none px-0 text-foreground",
       },
     },
     defaultVariants: {
