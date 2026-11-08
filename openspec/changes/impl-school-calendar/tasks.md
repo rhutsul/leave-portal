@@ -31,17 +31,17 @@ AC-CAL-14, AC-CAL-15.
 
 ## 2. Заявка в закритий і скорочений день (`task/calendar-request`)
 
-- [ ] 2.1 Тести з тексту AC (окрема сесія, спершу червоні): unit `clipBlocks`, `positionsOnDate`,
+- [x] 2.1 Тести з тексту AC (окрема сесія, спершу червоні): unit `clipBlocks`, `positionsOnDate`,
       `buildRequestRecords`, `requestShares` (межі: блок, що триває о часі закриття, і блок, що з нього починається;
       попередження в скорочений день — частка 1.00); PGlite `submit_leave_request` у закритий і скорочений день і
       після видалення закриття (AC-CAL-03, -04, -05, -09)
-- [ ] 2.2 Міграція: нові версії `submit_leave_request` (закрита дата — пропуск, як AC-LEAVE-21; жодної — «The school
+- [x] 2.2 Міграція: нові версії `submit_leave_request` (закрита дата — пропуск, як AC-LEAVE-21; жодної — «The school
       is closed on this day: <назва>») і `update_leave_record_hours` (спільний lock календаря після lock працівника)
-- [ ] 2.3 TS (D4): `clipBlocks` у `src/lib/leave/calendar.ts`; `positionsOnDate` / `buildRequestRecords`
+- [x] 2.3 TS (D4): `clipBlocks` у `src/lib/leave/calendar.ts`; `positionsOnDate` / `buildRequestRecords`
       (`src/lib/leave/request.ts`); `workingMinutesOn` / `requestShares` (`src/lib/leave/balance.ts`); server action
       подання `src/app/(app)/requests/new/actions.ts`; зміна годин `src/app/(app)/requests/actions.ts`; «My requests»
       `src/app/(app)/requests/page.tsx` (розклад дня й «Whole day» запису)
-- [ ] 2.4 `/requests/new`: закриття тим самим вікном, що `recordDates` (навчальні роки `year-1 … year+1`); стан
+- [x] 2.4 `/requests/new`: закриття тим самим вікном, що `recordDates` (навчальні роки `year-1 … year+1`); стан
       `closed` — кнопка з повідомленням AC-CAL-03 (`CalendarDay`, вітрина `/design`, `DESIGN.md` розділ 6), легенда з
       «Closed by the school»
 - [ ] 2.5 Stryker `--mutate src/lib/leave/calendar.ts` і SQL-мутант межі скороченого дня (`end_min > closes_at` →

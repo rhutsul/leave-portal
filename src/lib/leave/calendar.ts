@@ -95,6 +95,8 @@ export function clipBlocks<B extends { start: number; end: number }>(
 ): B[] {
   if (!closure) return [...blocks];
   const closesAt = closure.closesAt;
+  // Еквівалентний мутант Stryker (if (false)): без цього рядка фільтр `b.start < null` теж дає [] через приведення
+  // null до 0 — рядок лишаємо, бо він каже правило прямо, а не через приведення типів.
   if (closesAt == null) return [];
   return blocks.filter((b) => b.start < closesAt).map((b) => ({ ...b, end: Math.min(b.end, closesAt) }));
 }
