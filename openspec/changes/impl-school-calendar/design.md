@@ -36,8 +36,9 @@
 - **Без спільних дат — обмеження бази:** `exclude using gist (daterange(start_date, end_date, '[]') with &&)`
   (AC-CAL-11). Для `daterange` розширення не потрібне. Текст «<дата> is already closed: <назва>» формує функція
   додавання до вставки; обмеження — другий рубіж для одночасних дій.
-- **Права:** `enable row level security`; `revoke all … from anon, authenticated`; `grant select` лише
-  `authenticated`; політика `school_closures_select_signed_in for select to authenticated using ((select auth.uid())
+- **Права:** `enable row level security`; `revoke all … from anon, authenticated`; колонковий
+  `grant select (id, name, start_date, end_date, closes_at, created_at)` лише `authenticated` — `created_by` для
+  AC-CAL-02 не потрібен і не відкривається; політика `school_closures_select_signed_in for select to authenticated using ((select auth.uid())
   is not null)` (AC-CAL-02). Ні `insert`, ні `update`, ні `delete` для `authenticated` немає: змінювати можна лише
   функціями D2 (AC-CAL-13). Гість (`anon`) не має `select` (AC-CAL-14).
 
@@ -52,8 +53,10 @@
 2. Назва 1…100 знаків; дати; крок 5 хв часу (тексти — після відповіді PM на #24; до того — технічна помилка `22023`
    без тексту з AC, форма не дає їх надіслати).
 3. AC-CAL-10: «The end date cannot be earlier than the start date».
-4. Блокування `pg_advisory_xact_lock` на календар — той самий ключ бере подання заявки й зміна годин (D4), тож
-   закриття й новий запис не проскочать одне повз одного.
+4. Ексклюзивне `pg_advisory_xact_lock(<ключ календаря>)` до першого читання записів; подання заявки й зміна годин
+   (D4) беруть той самий ключ спільно (`pg_advisory_xact_lock_shared`), тож заявки одна одну не чекають, а закриття
+   й новий запис не проскочать одне повз одного. Порядок у функціях, що вже беруть lock працівника
+   (`hashtextextended(uid)` в `update_leave_record_hours`), — спершу працівник, потім календар.
 5. AC-CAL-11: перше закриття, що перетинає діапазон, → «<перша спільна дата> is already closed: <назва>» (формат для
    кількох — після #23).
 6. AC-CAL-07/08: записи зі статусами з того самого явного списку, що в `leave_records_no_overlap`
@@ -74,14 +77,20 @@
   (AC-CAL-05: «Hours must be within your schedule: 08:30–12:00») і зміна годин запису мають одне правило;
 - `private.working_minutes(employee, date)` — сума `blocks_on_date` по посадах працівника: знаменник частки дня
   (AC-CAL-06), отже й `record_share`, `used_hundredths`, `remaining_hundredths`;
-- `get_balance_inputs` — `working_minutes` за датою замість об'єднання за днем тижня (TS `computeBalances` не
-  змінюється: він уже бере `working_minutes` з даних);
+- `get_balance_inputs` — `working_minutes` за датою замість об'єднання за днем тижня (`computeBalances` бере
+  `working_minutes` з даних, тож сторінка залишків змін не потребує). Але TS-попередження про перевищення
+  (AC-BALANCE-08, -17: `requestShares` → `workingMinutesOn` у `src/lib/leave/balance.ts`, виклик з
+  `requests/new/actions.ts`) рахує знаменник сам за днем тижня — його переводимо на обрізані блоки (D4), інакше в
+  скорочений день попередження дасть 0.50 замість 1.00;
 - `private.closure_on_date(p_date)` → назва закриття цілими днями або `null`.
 
-**Частка дня — від поточного календаря** (власне припущення специфікації): погоджені записи без розподілу рахуються
-наново при кожному читанні, тож додане чи видалене закриття змінює частку. Записи з розподілом
-(`paid_days`/`unpaid_days`, AC-BALANCE-10) лишаються зафіксованими: розподіл — рішення менеджера в момент
-погодження; новий скорочений день цих записів не змінює. Це записано в коментарі міграції й у `docs/spec-reading.md`.
+**Частка дня — від поточного календаря** (власне припущення специфікації): погоджені записи рахуються наново при
+кожному читанні, тож додане чи видалене закриття змінює частку. Межа цього припущення — записи, погоджені з
+розподілом на оплачувану й неоплачувану частини (AC-BALANCE-10, AC-BALANCE-18): за AC це дні, які менеджер погодив
+у момент рішення (`paid_days`/`unpaid_days`), і їх не перераховуємо — інакше пізніше закриття мовчки змінило б
+рішення менеджера. Це уточнення власного припущення, а не нове правило PM: записано в `docs/spec-reading.md`
+(«Власні припущення») і в коментарі міграції; у специфікацію — змінами `clarify-school-calendar`, якщо PM
+відповість інакше.
 
 ### D4. Заявка — закрита дата й скорочений день (AC-CAL-03, -04, -05, -09)
 
@@ -89,15 +98,25 @@
   як дата без годин (AC-LEAVE-21), а якщо не прийнято жодної — помилка «The school is closed on this day: <назва>»
   (AC-CAL-03); скорочений день — через `check_record_hours` / `blocks_on_date` (AC-CAL-04, -05). Бере той самий
   advisory lock, що й D2.
-- `private.update_leave_record_hours` — без змін тіла: уже викликає `check_record_hours`; додаємо лише той самий lock.
-- TS: `loadOwnPositions` лишається, нова `loadClosures(supabase, from, to)` для видимих місяців; `positionsOnDate`
-  отримує закриття: закритий цілий день → `{ ok: false, message: "The school is closed on this day: <назва>" }`,
-  скорочений день → блоки обрізано так само, як `blocks_on_date` (одна чиста функція `clipBlocks` у
-  `src/lib/leave/calendar.ts`, тести на межах: блок, що триває о X, блок, що починається о X). `buildRequestRecords`
-  пропускає закриту дату в `skipped` з її повідомленням.
+- `private.update_leave_record_hours` — уже викликає `check_record_hours`; нова версія лише бере спільний lock
+  календаря після lock працівника.
+- TS — одна чиста функція `clipBlocks(blocks, closure)` у `src/lib/leave/calendar.ts` з тими самими межами, що
+  `blocks_on_date` (тести на межах: блок, що триває о X, блок, що починається о X), і `loadClosures(supabase, from,
+  to)`. Закриття читає **кожне** місце, що зараз бере блоки за днем тижня:
+  - `positionsOnDate` / `buildRequestRecords` (`src/lib/leave/request.ts`): закритий цілий день →
+    `{ ok: false, message: "The school is closed on this day: <назва>" }` і пропуск у `skipped` з цим повідомленням;
+    скорочений день → обрізані блоки;
+  - server action подання `src/app/(app)/requests/new/actions.ts` — сам будує записи `buildRequestRecords`, тож
+    читає закриття й передає їх туди ж (інакше «Whole day» на 2026-11-20 стане 08:30–15:30 і база відмовить);
+  - попередження про перевищення `requestShares` / `workingMinutesOn` (`src/lib/leave/balance.ts`) — знаменник за
+    обрізаними блоками (AC-CAL-06 в попередженні, AC-BALANCE-08, -17);
+  - зміна годин запису `src/app/(app)/requests/actions.ts` і «My requests» `src/app/(app)/requests/page.tsx`
+    (розклад дня й мітка «Whole day» запису) — обрізані блоки дати;
+  - сторінка `/requests/new` (`page.tsx`) вантажить закриття тим самим вікном, що й `recordDates` (навчальні роки
+    `year-1 … year+1`), бо місяць у формі перемикається на клієнті.
 - `CalendarDay`: стан `closed` стає кнопкою без `disabled` (як `off`): натискання показує повідомлення AC-CAL-03
-  замість мовчання; `aria-label` — «…, closed: Winter break». Зміна в `src/components/ui/calendar-day.tsx` і вітрині
-  `/design`.
+  замість мовчання; `aria-label` — «…, closed: Winter break». Зміна в `src/components/ui/calendar-day.tsx`, вітрині
+  `/design` і `DESIGN.md` (розділ 6, «День календаря»: «закрито школою — … натискання пояснює AC-CAL-03»).
 
 ### D5. Сторінки (AC-CAL-01, -02, -09, -10, -11, -12, -14, -15)
 
@@ -125,7 +144,8 @@
 | AC | Рівень | Де |
 |---|---|---|
 | AC-CAL-01, -07, -08, -10, -11 | PGlite (функція додавання) + UAT | `tests/db/school-calendar.test.ts`, `tests/e2e/calendar.spec.ts` |
-| AC-CAL-02, -15 | компонент / unit (фільтр навчального року, текст порожнього стану) + UAT | `src/lib/leave/calendar.test.ts` |
+| AC-CAL-02 | PGlite `asUser(teacher1)` і `asUser(manager1)` бачать закриття (політика select) + рядок `school_closures` у `tests/db/table-visibility.test.ts` + unit фільтра навчального року + UAT | `tests/db/school-calendar.test.ts`, `src/lib/leave/calendar.test.ts` |
+| AC-CAL-15 | unit (текст порожнього стану) + UAT | `src/lib/leave/calendar.test.ts` |
 | AC-CAL-03, -04, -05 | unit (`positionsOnDate`, `clipBlocks`) + PGlite (`submit_leave_request`) + UAT | `src/lib/leave/calendar.test.ts`, `tests/db/school-calendar.test.ts` |
 | AC-CAL-06 | PGlite (`used_hundredths` після погодження) + unit (`computeBalances` з обрізаними хвилинами) + UAT | ті самі |
 | AC-CAL-09 | PGlite (видалення → дата знову приймається з 08:30–15:30) + UAT | ті самі |
@@ -134,8 +154,8 @@
 | AC-CAL-14 | PGlite `asAnon` — `select` заборонено + UAT (сторінка входу, жодних назв) | те саме |
 
 Тести пише окрема сесія з тексту AC до коду (maker ≠ checker). Доказ, що тест відмови падає: SQL-мутанти в
-`scripts/mutants.mjs` для AC-CAL-07 (статус «Rejected» блокує / «Approved» не блокує), AC-CAL-10, AC-CAL-11, AC-CAL-13
-(перевірка ролі → `true`), AC-CAL-14 (`grant select … to anon`), і для скороченого дня (`end_min > closes_at` →
+`scripts/mutants.mjs` для AC-CAL-02 (політика select → `using (false)`), AC-CAL-07 (статус «Rejected» блокує /
+«Approved» не блокує), AC-CAL-10, AC-CAL-11, AC-CAL-13 (перевірка ролі → `true`), AC-CAL-14 (`grant select … to anon`), і для скороченого дня (`end_min > closes_at` →
 `>=`) — `npm run mutation:sql` → `KILLED`; для `clipBlocks` — Stryker `--mutate src/lib/leave/calendar.ts`.
 
 ## Risks / Trade-offs
@@ -144,15 +164,19 @@
   пара тестів на ті самі межі в обох шарах.
 - **Знаменник частки дня змінюється заднім числом** (D3) — свідомо, з тексту PM; записи з розподілом не змінюються.
 - **UAT на проді змінює спільний календар.** AC-CAL-01, -07…-11 додають закриття для всієї школи, AC-CAL-07 потребує
-  запису «Approved» саме `teacher1@example.test` на 2026-12-29. Тест створює все через секретний ключ і прибирає за id
-  в `afterAll`; перед прогоном перевіряє, що на 2026-12-28 – 2027-01-08 і 2026-11-20 немає чужих записів і закриттів.
-  Не вдається безпечно — AC у «Не перевірено» proof pack з причиною.
+  запису «Approved» саме `teacher1@example.test` на 2026-12-29 (демо-користувач, не синтетичний `uat-*`). Нинішнє
+  прибирання UAT (`deleteUatUsers`, звіт `scripts/uat/report.mjs`) знає лише користувачів `uat-*@example.test`, тож
+  потрібен новий хелпер у `tests/e2e/support/`: створити закриття й запис через секретний ключ, запам'ятати id і
+  видалити їх в `afterAll`, а також окремим кроком після прогону (`scripts/uat/run.mjs`), щоб упалий тест не лишив
+  «Winter break», який заблокує заявки на канікули; у звіті — рядок «закриття й записи, що лишились». Перед прогоном
+  тест перевіряє, що на 2026-12-28 – 2027-01-08 і 2026-11-20 немає чужих записів і закриттів. Не вдається безпечно —
+  AC у «Не перевірено» proof pack з причиною.
 - **`/calendar` і `CalendarDay` поруч із візуальною роботою** — та сесія завершила (#50–#60), сторінки робимо за її
   правилами (ADR 0007, 0008).
 
 ## Migration Plan
 
-Одна міграція `school_calendar` (задача 1): таблиця, RLS, функції D2–D4, нові версії `check_record_hours`,
-`working_minutes`, `submit_leave_request`, `update_leave_record_hours`, `get_balance_inputs` (`create or replace`,
-застосовані файли не редагуємо). Відкат — новою міграцією. `db-deploy` після merge; `database.types.ts` — із Summary
+Дві міграції, по одній на задачу: `school_calendar` (задача 1 — таблиця, RLS, функції D2–D3, нові версії
+`check_record_hours`, `working_minutes`, `get_balance_inputs`) і `school_calendar_requests` (задача 2 — нові версії
+`submit_leave_request` і `update_leave_record_hours`, D4). Усе — `create or replace`, застосовані файли не редагуємо. Відкат — новою міграцією. `db-deploy` після merge; `database.types.ts` — із Summary
 `db-check`.
