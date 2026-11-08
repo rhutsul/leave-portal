@@ -55,6 +55,10 @@ else delete env.UAT_BASE_URL;
 
 // Журнал прибирання — лише цього прогону: інакше «видалено» у звіті підсумовує адреси з попередніх прогонів.
 rmSync(path.join(ROOT, "test-results", "uat-cleanup.jsonl"), { force: true });
+// Те саме для журналів шкільного календаря (tests/e2e/support/admin.ts): створене й видалене — лише цього прогону.
+for (const f of ["uat-calendar-rows.jsonl", "uat-calendar-deleted.jsonl", "uat-cleanup.json"]) {
+  rmSync(path.join(ROOT, "test-results", f), { force: true });
+}
 console.log(`UAT: ${url ?? "локальна збірка (npm run build && npm run start)"}${negativeControls ? " — негативні контролі" : ""}`);
 const cli = path.join(ROOT, "node_modules", "@playwright", "test", "cli.js");
 const pw = spawnSync(
