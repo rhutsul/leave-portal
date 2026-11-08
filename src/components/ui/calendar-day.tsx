@@ -3,8 +3,9 @@ import { cn } from "@/lib/utils";
 
 /**
  * Стан дня в календарі заявки (DESIGN.md, розділ 6):
- * selected — вибрано; record — уже є запис; closed — закрито школою (не вибирається); off — немає робочих годин;
- * free — робочий день, можна вибрати (тонка рамка, щоб відрізнявся від off). День off лишається кнопкою: натискання показує повідомлення з AC-LEAVE-06, а не мовчить.
+ * selected — вибрано; record — уже є запис; closed — закрито школою; off — немає робочих годин; free — робочий день,
+ * можна вибрати (тонка рамка, щоб відрізнявся від off). Дні closed і off лишаються кнопками: натискання не вибирає дату,
+ * а показує повідомлення — AC-CAL-03 «The school is closed on this day: …» чи AC-LEAVE-06, а не мовчить.
  */
 export type DayState = "free" | "selected" | "record" | "closed" | "off";
 
@@ -13,7 +14,7 @@ const DAY: Record<DayState, string> = {
   selected: "bg-primary text-primary-foreground hover:bg-primary/90",
   record: "bg-status-awaiting text-status-awaiting-foreground hover:border-status-awaiting-foreground",
   closed:
-    "cursor-not-allowed text-muted-foreground line-through bg-[repeating-linear-gradient(135deg,var(--muted)_0_3px,var(--border)_3px_5px)]",
+    "text-muted-foreground line-through bg-[repeating-linear-gradient(135deg,var(--muted)_0_3px,var(--border)_3px_5px)]",
   // Кнопка, а не disabled: число має контраст muted-foreground (≥ 4.5:1); від робочого дня відрізняє відсутність рамки.
   off: "text-muted-foreground hover:bg-muted",
 };
@@ -24,13 +25,11 @@ export function CalendarDay({
   className,
   ...props
 }: { day: number; state: DayState } & Omit<ButtonHTMLAttributes<HTMLButtonElement>, "children">) {
-  const unavailable = state === "closed";
   return (
     <button
       type="button"
       {...props}
       aria-pressed={state === "selected"}
-      disabled={unavailable || props.disabled}
       className={cn(
         "h-9 rounded-md border border-transparent text-[13px] font-medium tabular-nums transition-colors duration-(--duration-fast) ease-out",
         DAY[state],

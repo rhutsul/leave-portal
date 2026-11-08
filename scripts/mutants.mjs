@@ -23,6 +23,8 @@ const SUBMIT_DB = "tests/db/submit-leave-request.test.ts";
 const CHECK_HOURS = "supabase/migrations/20261108143021_school_calendar.sql";
 const CALENDAR = CHECK_HOURS;
 const CALENDAR_DB = "tests/db/school-calendar.test.ts";
+const CALENDAR_REQUESTS = "supabase/migrations/20261108165906_school_calendar_requests.sql";
+const CALENDAR_REQUEST_DB = "tests/db/school-calendar-request.test.ts";
 const RECORD_EDIT_DB = "tests/db/leave-record-edit.test.ts";
 const START_INSIDE = "p_start >= b.start_min and p_start < b.end_min\n  ) or not exists";
 
@@ -159,5 +161,23 @@ export const mutants = [
     what: "working_minutes: скорочений день не обрізає блоки (знаменник частки знову за днем тижня)",
     find: "  select coalesce(sum(\n    case when c.closes_at is null then b.end_min else least(b.end_min, c.closes_at) end - b.start_min",
     replace: "  select coalesce(sum(\n    b.end_min - b.start_min",
+  },
+  {
+    id: "S20", kind: "sql", ac: "AC-CAL-03", file: CALENDAR_REQUESTS, tests: [CALENDAR_REQUEST_DB],
+    what: "submit_leave_request: закрита дата пояснюється як день без годин (текст AC-CAL-03 зник)",
+    find: "                              then 'The school is closed on this day: ' || v_closed",
+    replace: "                              then 'You have no working hours on this day'",
+  },
+  {
+    id: "S21", kind: "sql", ac: "AC-CAL-05", file: CALENDAR, tests: [CALENDAR_REQUEST_DB],
+    what: "blocks_on_date: блок, що триває о часі закриття, не обрізається (13:00–14:00 приймається)",
+    find: "  select b.start_min, case when c.closes_at is null then b.end_min else least(b.end_min, c.closes_at) end",
+    replace: "  select b.start_min, b.end_min",
+  },
+  {
+    id: "S22", kind: "sql", ac: "AC-CAL-03", file: CALENDAR_REQUESTS, tests: [CALENDAR_REQUEST_DB],
+    what: "submit_leave_request: закрита дата більше не відкидається з заявки на кілька дат (уся заявка падає)",
+    find: "      if v_closed is not null or (v_date is not null and private.working_minutes(v_uid, v_date) = 0) then",
+    replace: "      if v_date is not null and private.working_minutes(v_uid, v_date) = 0 and v_closed is null then",
   },
 ];

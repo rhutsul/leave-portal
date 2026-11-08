@@ -7,6 +7,7 @@ import { schoolYearOf } from "@/lib/leave/balance";
 import { kyivDate } from "@/lib/leave/time";
 import { createClient } from "@/lib/supabase/server";
 import { loadRemaining } from "../../balances/load-balances";
+import { loadClosures } from "../../calendar/load-closures";
 import { loadOwnPositions } from "./load-positions";
 import { NewRequestForm } from "./new-request-form";
 
@@ -20,7 +21,7 @@ export default async function NewRequestPage() {
   // заявки «заднім числом» і наперед. Дати поза ними перевіряє server action під час подання.
   const today = kyivDate(new Date());
   const year = schoolYearOf(today);
-  const [positions, remaining, { data: active, error: activeError }] = await Promise.all([
+  const [positions, remaining, { data: active, error: activeError }, closures] = await Promise.all([
     loadOwnPositions(supabase, claims.sub),
     loadRemaining(supabase, claims.sub, [year - 1, year, year + 1]).catch(() => null),
     // Дати, на які вже є чинні власні записи: календар їх зафарбовує (DESIGN.md, розділ 6). Перетин перевіряє база
@@ -32,6 +33,10 @@ export default async function NewRequestPage() {
       .in("status", ["awaiting", "returned", "approved"])
       .gte("date", `${year - 1}-09-01`)
       .lte("date", `${year + 2}-08-31`),
+    // Закриття шкільного календаря на ті самі три навчальні роки: місяць у формі перемикається на клієнті, тож
+    // вантажимо одразу все вікно (AC-CAL-03 … AC-CAL-05). Збій — null: форма не позначить закритих днів, а подання
+    // однаково перевірить їх.
+    loadClosures(supabase, `${year - 1}-09-01`, `${year + 2}-08-31`).catch(() => null),
   ]);
   const recordDates = activeError
     ? null
@@ -60,6 +65,7 @@ export default async function NewRequestPage() {
           today={today}
           remaining={remaining && Object.fromEntries(remaining)}
           recordDates={recordDates}
+          closures={closures}
         />
       )}
     </>

@@ -58,6 +58,7 @@ import {
 } from "@/lib/leave/time";
 import { cn } from "@/lib/utils";
 import { submitLeaveRequest, type SubmitState } from "./actions";
+import { closureOn, type Closure } from "@/lib/leave/calendar";
 import { calendarDay } from "./calendar-view";
 
 // Кроки без номерів у заголовках (DESIGN.md): лише назви; пройдений крок — з галочкою.
@@ -99,6 +100,7 @@ export function NewRequestForm({
   today,
   remaining,
   recordDates,
+  closures,
 }: {
   positions: PositionSchedule[];
   today: string;
@@ -106,6 +108,8 @@ export function NewRequestForm({
   remaining: Record<number, Record<LimitedType, number>> | null;
   /** Дати з чинними власними записами — у календарі зафарбовані; null — не завантажились (форму не блокуємо). */
   recordDates: string[] | null;
+  /** Закриття шкільного календаря навколо сьогодні (AC-CAL-03 … AC-CAL-05); null — не завантажились (перевірить подання). */
+  closures: Closure[] | null;
 }) {
   const ids = useId();
   const [draft, dispatch] = useReducer(draftReducer, EMPTY_DRAFT);
@@ -124,7 +128,7 @@ export function NewRequestForm({
   };
 
   const daysOf = (date: string) => {
-    const day = positionsOnDate(positions, date);
+    const day = positionsOnDate(positions, date, closures ?? []);
     return day.ok ? day.positions : [];
   };
 
@@ -143,14 +147,14 @@ export function NewRequestForm({
   const allBlocks = positions.flatMap((p) => p.blocks);
   const remainingOf = (year: number) =>
     leaveType && isLimitedType(leaveType) ? (remaining?.[year]?.[leaveType] ?? null) : null;
-  const overBalance = leaveType ? requestOverBalance(leaveType, records, allBlocks, remainingOf) : [];
+  const overBalance = leaveType ? requestOverBalance(leaveType, records, allBlocks, remainingOf, closures ?? []) : [];
   // Залишок не завантажився або дати поза завантаженими роками — кажемо, що перевірка буде під час подання.
   const balanceUnchecked = leaveType !== null && isLimitedType(leaveType) && uncheckedYears(records, remainingOf).length > 0;
   const labelOf = (id: number) => positions.find((p) => p.id === id)?.label ?? "";
 
   function pickDate(date: string) {
     if (!dates.includes(date)) {
-      const day = positionsOnDate(positions, date);
+      const day = positionsOnDate(positions, date, closures ?? []);
       if (!day.ok) {
         setDateError(day.message);
         return;
@@ -225,6 +229,10 @@ export function NewRequestForm({
                     selected={dates}
                     recordDates={recordDates}
                     works={(date) => daysOf(date).length > 0}
+                    closedOn={(date) => {
+                      const c = closureOn(closures ?? [], date);
+                      return c && c.closesAt == null ? c.name : null;
+                    }}
                     onMonth={(delta) => setMonth((m) => addMonths(m, delta))}
                     onPick={pickDate}
                   />
@@ -524,6 +532,7 @@ function DateCalendar({
   selected,
   recordDates,
   works,
+  closedOn,
   onMonth,
   onPick,
 }: {
@@ -532,6 +541,8 @@ function DateCalendar({
   selected: string[];
   recordDates: string[] | null;
   works: (date: string) => boolean;
+  /** Назва закриття цілими днями на дату або null (AC-CAL-03). */
+  closedOn: (date: string) => string | null;
   onMonth: (delta: number) => void;
   onPick: (date: string) => void;
 }) {
@@ -558,7 +569,12 @@ function DateCalendar({
         ))}
         {monthGrid(month).map((date, i) => {
           if (!date) return <div key={`blank-${i}`} />;
-          const { state, label } = calendarDay(date, { selected, recordDates: recordDates ?? [], works: works(date) });
+          const { state, label } = calendarDay(date, {
+            selected,
+            recordDates: recordDates ?? [],
+            works: works(date),
+            closed: closedOn(date),
+          });
           return (
             <CalendarDay
               key={date}
@@ -571,7 +587,7 @@ function DateCalendar({
           );
         })}
       </div>
-      <CalendarLegend states={["free", "selected", "record", "off"]} className="max-md:px-3" />
+      <CalendarLegend states={["free", "selected", "record", "closed", "off"]} className="max-md:px-3" />
       {/* Перетин із наявними записами все одно перевіряє база під час подання (AC-LEAVE-16). */}
       {recordDates === null && (
         <p className="max-w-[60ch] text-xs text-muted-foreground">

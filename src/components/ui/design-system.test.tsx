@@ -80,10 +80,10 @@ describe("Card", () => {
 });
 
 describe("CalendarDay", () => {
-  it("days closed by the school cannot be picked; days without hours stay clickable to explain why", () => {
-    expect(renderToStaticMarkup(<CalendarDay day={3} state="closed" />)).toMatch(/\sdisabled=""/);
-    // День без годин — кнопка: натискання показує повідомлення з AC-LEAVE-06, а не мовчить.
-    for (const state of ["off", "free"] as const) {
+  it("days closed by the school and days without hours stay clickable to explain why", () => {
+    // Закритий день і день без годин — кнопки: натискання не вибирає дату, а показує повідомлення (AC-CAL-03 чи
+    // AC-LEAVE-06), а не мовчить (impl-school-calendar, design.md D4).
+    for (const state of ["closed", "off", "free"] as const) {
       expect(renderToStaticMarkup(<CalendarDay day={3} state={state} />)).not.toMatch(/\sdisabled=""/);
     }
   });

@@ -12,9 +12,11 @@ import {
   type OwnRecord,
   type RecordEdit,
 } from "@/lib/leave/decision";
+import { clipBlocks, closureOn } from "@/lib/leave/calendar";
 import { BLOCKING_STATUSES } from "@/lib/leave/request";
 import { isoWeekday } from "@/lib/leave/time";
 import { createClient } from "@/lib/supabase/server";
+import { loadClosures } from "../calendar/load-closures";
 import { loadOwnPositions } from "./new/load-positions";
 
 export interface RecordActionState {
@@ -92,16 +94,24 @@ export async function changeRecordHours(_prev: RecordActionState, formData: Form
   if (!own.record) return { message: RECORD_EDIT_MESSAGES.notFound, done: false };
   const record = own.record;
 
+  // Розклад дати з урахуванням шкільного календаря: у скорочений день — лише блоки до часу закриття (AC-CAL-05).
   let positions;
+  let closures;
   try {
-    positions = await loadOwnPositions(supabase, userId);
+    [positions, closures] = await Promise.all([
+      loadOwnPositions(supabase, userId),
+      loadClosures(supabase, record.date, record.date),
+    ]);
   } catch {
     return { message: FAILED, done: false };
   }
   const weekday = isoWeekday(record.date);
-  const blocks = (positions.find((p) => p.id === record.positionId)?.blocks ?? [])
-    .filter((b) => b.weekday === weekday)
-    .map(({ start: s, end: e }) => ({ start: s, end: e }));
+  const blocks = clipBlocks(
+    (positions.find((p) => p.id === record.positionId)?.blocks ?? [])
+      .filter((b) => b.weekday === weekday)
+      .map(({ start: s, end: e }) => ({ start: s, end: e })),
+    closureOn(closures, record.date),
+  );
 
   const { data: others, error: othersError } = await supabase
     .from("leave_records")
