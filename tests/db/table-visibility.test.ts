@@ -118,3 +118,25 @@ describe("RLS: role × table → visible rows", () => {
     }
   });
 });
+
+// Шкільний календар — один на школу, без посади й працівника: за матрицею прав його читають усі, хто увійшов
+// (AC-CAL-02), гість — ні (AC-CAL-14). Окремий блок зі своїм beforeAll: закриття додає адміністратор функцією
+// public.add_school_closure (design.md D2), і поки її немає, червоніє лише цей блок, а не таблиці вище.
+describe("RLS: role × school_closures → visible rows", () => {
+  beforeAll(async () => {
+    await t.asUser(t.users["admin@example.test"], "select public.add_school_closure($1, $2::date, $3::date)", [
+      "Winter break",
+      "2026-12-28",
+      "2027-01-08",
+    ]);
+  });
+
+  it.each(ROLES)("AC-CAL-02: %s@ reads school_closures directly and sees every closure", async (role) => {
+    const rows = await t.asUser<{ name: string }>(userOf(role), "select name from public.school_closures order by name");
+    expect(rows.map((r) => r.name)).toEqual(["Winter break"]);
+  });
+
+  it("AC-CAL-14: without signing in school_closures cannot be read at all", async () => {
+    await expect(t.asAnon("select 1 from public.school_closures")).rejects.toMatchObject({ code: "42501" });
+  });
+});

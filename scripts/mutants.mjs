@@ -17,9 +17,12 @@ const BALANCES_DB = "tests/db/balances.test.ts";
 const DECISIONS_DB = "tests/db/leave-decisions.test.ts";
 const VISIBILITY_DB = "tests/db/table-visibility.test.ts";
 const SUBMIT_DB = "tests/db/submit-leave-request.test.ts";
-// Чинна версія private.check_record_hours (create or replace поверх 20261021171135_leave_record_edit.sql): мутуємо її,
-// бо мутант у старішій копії перезаписала б пізніша міграція — і він «вижив» би без жодного тесту.
-const CHECK_HOURS = "supabase/migrations/20261104165058_end_at_next_block.sql";
+// Чинна версія private.check_record_hours (create or replace поверх 20261104165058_end_at_next_block.sql — тепер блоки
+// з private.blocks_on_date, шкільний календар): мутуємо її, бо мутант у старішій копії перезаписала б пізніша
+// міграція — і він «вижив» би без жодного тесту.
+const CHECK_HOURS = "supabase/migrations/20261108143021_school_calendar.sql";
+const CALENDAR = CHECK_HOURS;
+const CALENDAR_DB = "tests/db/school-calendar.test.ts";
 const RECORD_EDIT_DB = "tests/db/leave-record-edit.test.ts";
 const START_INSIDE = "p_start >= b.start_min and p_start < b.end_min\n  ) or not exists";
 
@@ -95,5 +98,66 @@ export const mutants = [
     what: "check_record_hours: кінець на початку наступного блоку знову поза розкладом (>= → >, 09:00–12:30 відмовлено)",
     find: "p_end >= b.start_min and p_end <= b.end_min",
     replace: "p_end > b.start_min and p_end <= b.end_min",
+  },
+  // Шкільний календар (openspec/changes/impl-school-calendar/design.md D6).
+  {
+    id: "S11", kind: "sql", ac: "AC-CAL-02", file: CALENDAR, tests: [CALENDAR_DB],
+    what: "RLS school_closures: працівник і менеджер більше не бачать закриттів (using → false)",
+    find: "  using ((select auth.uid()) is not null);",
+    replace: "  using (false);",
+  },
+  {
+    id: "S12", kind: "sql", ac: "AC-CAL-07", file: CALENDAR, tests: [CALENDAR_DB],
+    what: "add_school_closure: запис «Approved» більше не блокує закриття",
+    find: "     and r.status in ('awaiting', 'returned', 'approved')\n     and (p_closes_at",
+    replace: "     and r.status in ('awaiting', 'returned')\n     and (p_closes_at",
+  },
+  {
+    id: "S13", kind: "sql", ac: "AC-CAL-08", file: CALENDAR, tests: [CALENDAR_DB],
+    what: "add_school_closure: запис «Rejected» теж блокує закриття",
+    find: "     and r.status in ('awaiting', 'returned', 'approved')\n     and (p_closes_at",
+    replace: "     and r.status in ('awaiting', 'returned', 'approved', 'rejected')\n     and (p_closes_at",
+  },
+  {
+    id: "S14", kind: "sql", ac: "AC-CAL-07", file: CALENDAR, tests: [CALENDAR_DB],
+    what: "скорочений день: запис, що закінчується рівно о часі закриття, теж блокує (> → >=)",
+    find: "r.end_min > p_closes_at",
+    replace: "r.end_min >= p_closes_at",
+  },
+  {
+    id: "S15", kind: "sql", ac: "AC-CAL-10", file: CALENDAR, tests: [CALENDAR_DB],
+    what: "add_school_closure: дата кінця раніше за початок більше не перевіряється (лишається лише обмеження таблиці)",
+    find: "  if p_end < p_start then\n    raise exception 'The end date cannot be earlier than the start date';",
+    replace: "  if false then\n    raise exception 'The end date cannot be earlier than the start date';",
+  },
+  {
+    id: "S16", kind: "sql", ac: "AC-CAL-11", file: CALENDAR, tests: [CALENDAR_DB],
+    what: "add_school_closure: спільна дата більше не шукається (лишається лише обмеження таблиці, без тексту PM)",
+    find: "   where daterange(c.start_date, c.end_date, '[]') && daterange(p_start, p_end, '[]')",
+    replace: "   where false",
+  },
+  {
+    id: "S17", kind: "sql", ac: "AC-CAL-13", file: CALENDAR, tests: [CALENDAR_DB],
+    what: "add_school_closure: перевірка ролі → лише «увійшов» (менеджер додає закриття)",
+    find:
+      "  if (select auth.uid()) is null or private.current_app_role() is distinct from 'admin' then\n" +
+      "    raise exception 'Only an administrator can change the school calendar' using errcode = '42501';\n  end if;\n\n  -- Тексти",
+    replace:
+      "  if (select auth.uid()) is null then\n" +
+      "    raise exception 'Only an administrator can change the school calendar' using errcode = '42501';\n  end if;\n\n  -- Тексти",
+  },
+  {
+    id: "S18", kind: "sql", ac: "AC-CAL-14", file: CALENDAR, tests: [CALENDAR_DB],
+    what: "гість отримує select на school_closures",
+    find: "grant select, insert, update, delete on table public.school_closures to service_role;",
+    replace:
+      "grant select, insert, update, delete on table public.school_closures to service_role;\n" +
+      "grant select on table public.school_closures to anon;",
+  },
+  {
+    id: "S19", kind: "sql", ac: "AC-CAL-06", file: CALENDAR, tests: [CALENDAR_DB],
+    what: "working_minutes: скорочений день не обрізає блоки (знаменник частки знову за днем тижня)",
+    find: "  select coalesce(sum(\n    case when c.closes_at is null then b.end_min else least(b.end_min, c.closes_at) end - b.start_min",
+    replace: "  select coalesce(sum(\n    b.end_min - b.start_min",
   },
 ];
