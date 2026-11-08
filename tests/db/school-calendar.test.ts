@@ -293,7 +293,9 @@ describe("day share without closed minutes", () => {
       2026,
     ]);
     const inputs = parseBalanceInputs(row.inputs);
-    expect(inputs.days.find((d) => d.date === "2026-11-20")?.workingMinutes).toBe(210);
+    // Погоджений Sick leave зберігає частку дня в момент рішення (paid_days, AC-BALANCE-10) — тож вона в splits:
+    // 210 з 210 робочих хвилин = 1.00, а не 210 з 420 = 0.50.
+    expect(inputs.splits.find((s) => s.date === "2026-11-20")).toMatchObject({ leaveType: "sick", paidDays: 1 });
     expect(formatDays(computeBalances(inputs, 2026).limited.sick.used)).toBe("1.00");
   });
 
