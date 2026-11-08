@@ -36,7 +36,8 @@ test.describe("administrator on a phone", () => {
       expect((await choice.boundingBox())!.height).toBeGreaterThanOrEqual(44);
     }
     await page.locator("label").filter({ hasText: "Early dismissal" }).click();
-    await expect(page.getByLabel("Closed from")).toBeVisible();
+    // exact: підказка варіанта «Early dismissal» теж містить «closed from».
+    await expect(page.getByLabel("Closed from", { exact: true })).toBeVisible();
     await noSideScroll(page);
   });
 });

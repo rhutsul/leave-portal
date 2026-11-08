@@ -50,7 +50,8 @@ export async function addClosure(_prev: ClosureActionState, form: FormData): Pro
   if (error) return { message: rpcMessage(error), done: false };
 
   revalidatePath("/calendar");
-  redirect(`/calendar?year=${schoolYearOf(input.start)}&added=${id}`);
+  const year = schoolYearOf(input.start);
+  redirect(id == null ? `/calendar?year=${year}` : `/calendar?year=${year}&added=${id}`);
 }
 
 /** «Remove closure» (AC-CAL-09): записів не змінює — дні знову робочі за розкладами. */

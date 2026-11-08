@@ -261,7 +261,7 @@ describe("only an administrator changes the calendar", () => {
     expect(await calendar()).toEqual([]);
   });
 
-  it("admin@ removes a closure: it leaves the calendar and no leave record changes", async () => {
+  it("AC-CAL-09: admin@ removes a closure: it leaves the calendar and no leave record changes", async () => {
     const rejected = await submit(teacher1, "personal", [{ position_id: teacher1Main, date: "2026-12-29", ...WHOLE }]);
     await setStatus(rejected, "rejected");
     const id = await addClosure(admin, "Winter break", "2026-12-28", "2027-01-08");
