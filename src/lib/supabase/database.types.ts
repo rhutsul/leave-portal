@@ -234,6 +234,27 @@ isOneToOne: false
     }
                   ]
                 }
+            "school_closures": {
+                  Row: {
+                    "closes_at": number | null,"created_at": string,"created_by": string | null,"end_date": string,"id": number,"name": string,"start_date": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "closes_at"?: number | null,"created_at"?: string,"created_by"?: string | null,"end_date": string,"id"?: never,"name": string,"start_date": string
+                  }
+                  Update: {
+                    "closes_at"?: number | null,"created_at"?: string,"created_by"?: string | null,"end_date"?: string,"id"?: never,"name"?: string,"start_date"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "school_closures_created_by_fkey"
+      columns: ["created_by"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
+                }
           }
           Views: {
             "my_leave_records": {
@@ -253,6 +274,9 @@ isOneToOne: false
                 }
           }
           Functions: {
+            "add_school_closure":
+{ Args: { "p_closes_at"?: number,"p_end": string,"p_name": string,"p_start": string }; Returns: number
+                           }
             "balance_employees":
 { Args: never; Returns: { "email": string,"full_name": string,"id": string }[]
                            }
@@ -276,6 +300,9 @@ isOneToOne: false
                            }
             "record_history":
 { Args: { "p_record_id": number }; Returns: { "action": string,"actor_name": string,"comment": string,"created_at": string }[]
+                           }
+            "remove_school_closure":
+{ Args: { "p_id": number }; Returns: undefined
                            }
             "resubmit_leave_record":
 { Args: { "p_record_id": number }; Returns: undefined

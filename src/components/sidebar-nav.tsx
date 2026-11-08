@@ -3,7 +3,7 @@
 import Link, { useLinkStatus } from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
-import { ChartColumn, ClipboardCheck, House, List, Plus } from "lucide-react";
+import { CalendarDays, ChartColumn, ClipboardCheck, House, List, Plus } from "lucide-react";
 import { markHydrated, Tick } from "@/components/ui/motion";
 import { highlightTarget } from "@/lib/motion";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -15,6 +15,7 @@ const LINKS: { href: string; label: string; icon: ReactNode; deciders?: true }[]
   { href: "/requests", label: "My requests", icon: <List /> },
   { href: "/decisions", label: "Decisions", icon: <ClipboardCheck />, deciders: true },
   { href: "/balances", label: "Balances", icon: <ChartColumn /> },
+  { href: "/calendar", label: "School calendar", icon: <CalendarDays /> },
 ];
 
 /**
