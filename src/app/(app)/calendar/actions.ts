@@ -3,8 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { schoolYearOf } from "@/lib/leave/balance";
-import { CALENDAR_MESSAGES } from "@/lib/leave/calendar";
-import { isCalendarDate, parseTime } from "@/lib/leave/time";
+import { CALENDAR_MESSAGES, parseClosureForm } from "@/lib/leave/calendar";
 import { createClient } from "@/lib/supabase/server";
 import { manageAccess } from "./manage/access";
 
@@ -39,25 +38,19 @@ export async function addClosure(_prev: ClosureActionState, form: FormData): Pro
   const { supabase, access } = await admin();
   if (!access.allowed) return { message: access.message, done: false };
 
-  const name = String(form.get("name") ?? "").trim();
-  const early = form.get("kind") === "early";
-  const start = String(form.get(early ? "date" : "start") ?? "");
-  const end = early ? start : String(form.get("end") ?? "");
-  const closesAt = early ? parseTime(String(form.get("time") ?? "")) : null;
-  if (!name || !isCalendarDate(start) || !isCalendarDate(end) || (early && closesAt == null)) {
-    return { message: FAILED, done: false };
-  }
+  const input = parseClosureForm((name) => String(form.get(name) ?? ""));
+  if (!input) return { message: FAILED, done: false };
 
   const { data: id, error } = await supabase.rpc("add_school_closure", {
-    p_name: name,
-    p_start: start,
-    p_end: end,
-    ...(early ? { p_closes_at: closesAt! } : {}),
+    p_name: input.name,
+    p_start: input.start,
+    p_end: input.end,
+    ...(input.closesAt != null ? { p_closes_at: input.closesAt } : {}),
   });
   if (error) return { message: rpcMessage(error), done: false };
 
   revalidatePath("/calendar");
-  redirect(`/calendar?year=${schoolYearOf(start)}&added=${id}`);
+  redirect(`/calendar?year=${schoolYearOf(input.start)}&added=${id}`);
 }
 
 /** «Remove closure» (AC-CAL-09): записів не змінює — дні знову робочі за розкладами. */

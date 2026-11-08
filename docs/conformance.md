@@ -102,18 +102,18 @@
 | AC-BALANCE-20 | Менеджер додаткової посади бачить повний залишок | `supabase/migrations/20261020214031_balance_inputs.sql` (can_view_balances, get_balance_inputs), `src/app/(app)/balances/page.tsx` | `tests/db/balances.test.ts` | реалізовано |
 | AC-BALANCE-18 | Один запис із розподілом у «My requests» | `src/lib/leave/balance.ts` (formatSplit), `supabase/migrations/20261021133002_leave_decisions.sql` (decide_leave_record), `src/app/(app)/requests/page.tsx` | `src/lib/leave/balance.test.ts`, `tests/db/leave-decisions.test.ts` | реалізовано |
 | AC-BALANCE-19 | Розподіл при нульовому залишку | `src/lib/leave/balance.ts` (suggestedSplit, formatSplit), `supabase/migrations/20261021133002_leave_decisions.sql` (decide_leave_record), `src/app/(app)/requests/page.tsx` | `src/lib/leave/balance.test.ts`, `tests/db/leave-decisions.test.ts` | реалізовано |
-| AC-CAL-01 | Закриття цілими днями | — | — | відкладено (чекає реалізації) |
-| AC-CAL-02 | Працівник бачить закриття | — | — | відкладено (чекає реалізації) |
+| AC-CAL-01 | Закриття цілими днями | `supabase/migrations/20261108143021_school_calendar.sql` (add_school_closure), `src/app/(app)/calendar/actions.ts` (addClosure), `src/app/(app)/calendar/manage/closure-form.tsx`, `src/app/(app)/calendar/page.tsx` | `tests/db/school-calendar.test.ts` | реалізовано |
+| AC-CAL-02 | Працівник бачить закриття | `supabase/migrations/20261108143021_school_calendar.sql` (school_closures_select_signed_in), `src/lib/leave/calendar.ts` (closuresInSchoolYear, formatClosureDates), `src/app/(app)/calendar/page.tsx` | `tests/db/school-calendar.test.ts`, `tests/db/table-visibility.test.ts`, `src/lib/leave/calendar.test.ts` | реалізовано |
 | AC-CAL-03 | Дата в канікули | — | — | відкладено (чекає реалізації) |
 | AC-CAL-04 | Цілий день у скорочений день | — | — | відкладено (чекає реалізації) |
 | AC-CAL-05 | Години після часу закриття | — | — | відкладено (чекає реалізації) |
-| AC-CAL-06 | Лікарняний у скорочений день | — | — | відкладено (чекає реалізації) |
-| AC-CAL-07 | Погоджений запис не дає закрити день | — | — | відкладено (чекає реалізації) |
-| AC-CAL-08 | Відхилений запис не заважає | — | — | відкладено (чекає реалізації) |
+| AC-CAL-06 | Лікарняний у скорочений день | `supabase/migrations/20261108143021_school_calendar.sql` (working_minutes, get_balance_inputs) | `tests/db/school-calendar.test.ts` | реалізовано |
+| AC-CAL-07 | Погоджений запис не дає закрити день | `supabase/migrations/20261108143021_school_calendar.sql` (add_school_closure), `src/app/(app)/calendar/actions.ts` (addClosure) | `tests/db/school-calendar.test.ts` | реалізовано |
+| AC-CAL-08 | Відхилений запис не заважає | `supabase/migrations/20261108143021_school_calendar.sql` (add_school_closure) | `tests/db/school-calendar.test.ts` | реалізовано |
 | AC-CAL-09 | Після видалення дата знову робоча | — | — | відкладено (чекає реалізації) |
-| AC-CAL-10 | Кінець раніше за початок | — | — | відкладено (чекає реалізації) |
-| AC-CAL-11 | Дата вже закрита | — | — | відкладено (чекає реалізації) |
-| AC-CAL-12 | Працівник відкриває сторінку зміни календаря | — | — | відкладено (чекає реалізації) |
-| AC-CAL-13 | Менеджер закриває день напряму | — | — | відкладено (чекає реалізації) |
-| AC-CAL-14 | Гість за прямим посиланням | — | — | відкладено (чекає реалізації) |
-| AC-CAL-15 | Порожній календар | — | — | відкладено (чекає реалізації) |
+| AC-CAL-10 | Кінець раніше за початок | `supabase/migrations/20261108143021_school_calendar.sql` (add_school_closure, school_closures_dates_check), `src/app/(app)/calendar/actions.ts` | `tests/db/school-calendar.test.ts` | реалізовано |
+| AC-CAL-11 | Дата вже закрита | `supabase/migrations/20261108143021_school_calendar.sql` (add_school_closure, school_closures_no_shared_date), `src/app/(app)/calendar/actions.ts` | `tests/db/school-calendar.test.ts` | реалізовано |
+| AC-CAL-12 | Працівник відкриває сторінку зміни календаря | `src/app/(app)/calendar/manage/access.ts` (manageAccess), `src/app/(app)/calendar/manage/page.tsx` | `src/app/(app)/calendar/manage/access.test.ts` | реалізовано |
+| AC-CAL-13 | Менеджер закриває день напряму | `supabase/migrations/20261108143021_school_calendar.sql` (grants, add_school_closure, remove_school_closure), `src/app/(app)/calendar/actions.ts` | `tests/db/school-calendar.test.ts` | реалізовано |
+| AC-CAL-14 | Гість за прямим посиланням | `supabase/migrations/20261108143021_school_calendar.sql` (revoke from anon), `src/lib/supabase/proxy.ts` (guestRedirect) | `tests/db/school-calendar.test.ts` | реалізовано |
+| AC-CAL-15 | Порожній календар | `src/lib/leave/calendar.ts` (emptyCalendarMessage), `src/app/(app)/calendar/page.tsx` | `src/lib/leave/calendar.test.ts` | реалізовано |

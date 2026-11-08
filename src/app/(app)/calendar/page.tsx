@@ -10,6 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { formatSchoolYear, schoolYearOf } from "@/lib/leave/balance";
 import {
   closuresInSchoolYear,
+  type Closure,
   emptyCalendarMessage,
   formatClosureDates,
   formatClosureTime,
@@ -18,10 +19,8 @@ import {
 import { kyivDate } from "@/lib/leave/time";
 import { createClient } from "@/lib/supabase/server";
 import { cn } from "@/lib/utils";
+import { balancesQuery, MAX_SCHOOL_YEAR, MIN_SCHOOL_YEAR } from "../balances/load-balances";
 import { ClosureActions } from "./closure-actions";
-
-const MIN_YEAR = 2000;
-const MAX_YEAR = 2099;
 
 function first(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
@@ -38,8 +37,7 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
 
   const params = await searchParams;
   const currentYear = schoolYearOf(kyivDate(new Date()));
-  const asked = Number(first(params.year));
-  const year = Number.isInteger(asked) && asked >= MIN_YEAR && asked <= MAX_YEAR ? asked : currentYear;
+  const { year } = balancesQuery({ year: params.year }, claims.sub, currentYear);
   const added = Number(first(params.added));
 
   const [{ data: profile }, { data: rows, error }] = await Promise.all([
@@ -84,8 +82,8 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
         <SchoolYearSwitcher
           year={year}
           current={currentYear}
-          min={MIN_YEAR}
-          max={MAX_YEAR}
+          min={MIN_SCHOOL_YEAR}
+          max={MAX_SCHOOL_YEAR}
           href={(y) => `/calendar?year=${y}`}
         />
       </div>
@@ -97,47 +95,54 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
       ) : closures.length === 0 ? (
         <EmptyState title={emptyCalendarMessage(year)} />
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-border bg-card max-md:overflow-visible max-md:border-0 max-md:bg-transparent">
-          <Table stack>
-            <TableHeader className="bg-muted">
-              <TableRow className="hover:bg-transparent">
-                <TableHead>Dates</TableHead>
-                <TableHead>Name</TableHead>
-                <TableHead>Closed</TableHead>
-                {isAdmin && (
-                  <TableHead className="w-px">
-                    <span className="sr-only">Actions</span>
-                  </TableHead>
-                )}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {closures.map((c) => {
-                const dates = formatClosureDates(c);
-                const time = formatClosureTime(c);
-                return (
-                  <TableRow
-                    key={c.id}
-                    data-testid="closure"
-                    className={cn(c.id === added && "animate-row-flash")}
-                  >
-                    <TableCell className="whitespace-nowrap tabular-nums">{dates}</TableCell>
-                    <TableCell className="font-medium">{c.name}</TableCell>
-                    <TableCell className="whitespace-nowrap tabular-nums text-muted-foreground">
-                      {time ? `Early dismissal ${time}` : "Whole days"}
-                    </TableCell>
-                    {isAdmin && (
-                      <TableCell data-cell="end" className="w-px align-top">
-                        <ClosureActions closureId={c.id} name={c.name} dates={dates} time={time} />
-                      </TableCell>
-                    )}
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </div>
+        <ClosuresTable closures={closures} isAdmin={isAdmin} added={added} />
       )}
     </>
+  );
+}
+
+/** Закриття навчального року: картки нижче md (`<Table stack>`, ADR 0008); у адміна — «⋯» → «Remove closure». */
+function ClosuresTable({ closures, isAdmin, added }: { closures: Closure[]; isAdmin: boolean; added: number }) {
+  return (
+    <div className="overflow-x-auto rounded-lg border border-border bg-card max-md:overflow-visible max-md:border-0 max-md:bg-transparent">
+      <Table stack>
+        <TableHeader className="bg-muted">
+          <TableRow className="hover:bg-transparent">
+            <TableHead>Dates</TableHead>
+            <TableHead>Name</TableHead>
+            <TableHead>Closed</TableHead>
+            {isAdmin && (
+              <TableHead className="w-px">
+                <span className="sr-only">Actions</span>
+              </TableHead>
+            )}
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {closures.map((c) => {
+            const dates = formatClosureDates(c);
+            const time = formatClosureTime(c);
+            return (
+              <TableRow
+                key={c.id}
+                data-testid="closure"
+                className={cn(c.id === added && "animate-row-flash")}
+              >
+                <TableCell className="whitespace-nowrap tabular-nums">{dates}</TableCell>
+                <TableCell className="font-medium">{c.name}</TableCell>
+                <TableCell className="whitespace-nowrap tabular-nums text-muted-foreground">
+                  {time ? `Early dismissal ${time}` : "Whole days"}
+                </TableCell>
+                {isAdmin && (
+                  <TableCell data-cell="end" className="w-px align-top">
+                    <ClosureActions closureId={c.id} name={c.name} dates={dates} time={time} />
+                  </TableCell>
+                )}
+              </TableRow>
+            );
+          })}
+        </TableBody>
+      </Table>
+    </div>
   );
 }

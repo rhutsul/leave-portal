@@ -7,21 +7,21 @@
 
 ## 1. Закриття: додати, переглянути, видалити (`task/calendar-closures`)
 
-- [ ] 1.1 Тести з тексту AC (окрема сесія, спершу червоні): `tests/db/school-calendar.test.ts` — додавання й відмови
+- [x] 1.1 Тести з тексту AC (окрема сесія, спершу червоні): `tests/db/school-calendar.test.ts` — додавання й відмови
       (AC-CAL-01, -07, -08, -10, -11), читання `asUser(teacher1)` / `asUser(manager1)` (AC-CAL-02), роль
       `asUser(manager1)` (AC-CAL-13), `asAnon` (AC-CAL-14), частка дня (AC-CAL-06); рядок `school_closures` у
       `tests/db/table-visibility.test.ts`; unit `src/lib/leave/calendar.test.ts` — навчальний рік (закриття через
       31 серпня — в обох роках), порожній стан (AC-CAL-02, -15); компонент сторінки відмови (AC-CAL-12)
-- [ ] 1.2 Міграція `school_calendar` (D1–D3): таблиця `public.school_closures` з RLS, колонковим `grant select` і
+- [x] 1.2 Міграція `school_calendar` (D1–D3): таблиця `public.school_closures` з RLS, колонковим `grant select` і
       обмеженнями; `add_school_closure` / `remove_school_closure` з ексклюзивним lock; `blocks_on_date`,
       `closure_on_date`; нові версії `check_record_hours`, `working_minutes`, `get_balance_inputs`; перевірка:
       `db-check` зелений, `database.types.ts` з Summary прогону
-- [ ] 1.3 `/calendar` для всіх ролей (`<Table stack>`, перемикач року, `EmptyState`), пункт «School calendar» у
+- [x] 1.3 `/calendar` для всіх ролей (`<Table stack>`, перемикач року, `EmptyState`), пункт «School calendar» у
       `sidebar-nav.tsx` і `mobile-nav.tsx`; у адміна — «Add closure» і «⋯» → «Remove closure» з `Dialog`
-- [ ] 1.4 `/calendar/manage` — форма «Add closure» (цілі дні / скорочений день), server actions `addClosure` /
+- [x] 1.4 `/calendar/manage` — форма «Add closure» (цілі дні / скорочений день), server actions `addClosure` /
       `removeClosure` з `getClaims()` і роллю з `profiles`, помилки бази дослівно в `Alert`; сторінка відмови для
       не-адміна
-- [ ] 1.5 SQL-мутанти в `scripts/mutants.mjs` (D6: AC-CAL-02, -07, -10, -11, -13, -14) → `npm run mutation:sql`
+- [x] 1.5 SQL-мутанти в `scripts/mutants.mjs` (D6: AC-CAL-02, -07, -10, -11, -13, -14) → `npm run mutation:sql`
       `KILLED`
 - [ ] 1.6 Адаптив за ADR 0008: від 360 px, 44 px, `tests/e2e/calendar.mobile.spec.ts`; знімки 390 і 1280 px у
       світлій і темній темах у `docs/img/`

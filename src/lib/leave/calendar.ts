@@ -1,5 +1,5 @@
 import { formatSchoolYear } from "@/lib/leave/balance";
-import { formatTime } from "@/lib/leave/time";
+import { formatTime, isCalendarDate, parseTime } from "@/lib/leave/time";
 
 /**
  * Шкільний календар (openspec/specs/school-calendar/spec.md, design.md D5): закриття цілими днями або скорочений день.
@@ -55,4 +55,26 @@ export function toClosure(row: {
   closes_at: number | null;
 }): Closure {
   return { id: row.id, name: row.name, startDate: row.start_date, endDate: row.end_date, closesAt: row.closes_at };
+}
+
+/** Що адміністратор ввів у формі «Add closure»: назва й або цілі дні, або скорочений день. */
+export interface ClosureInput {
+  name: string;
+  start: string;
+  end: string;
+  closesAt: number | null;
+}
+
+/**
+ * Поля форми «Add closure» → дані для add_school_closure; нечитабельні — null. Межі й тексти помилок (AC-CAL-07, -10,
+ * -11) перевіряє база; тут — лише те, без чого виклик не має сенсу: назва, дати й час скороченого дня.
+ */
+export function parseClosureForm(field: (name: string) => string): ClosureInput | null {
+  const name = field("name").trim();
+  const early = field("kind") === "early";
+  const start = field(early ? "date" : "start");
+  const end = early ? start : field("end");
+  const closesAt = early ? parseTime(field("time")) : null;
+  if (!name || !isCalendarDate(start) || !isCalendarDate(end) || (early && closesAt == null)) return null;
+  return { name, start, end, closesAt };
 }
