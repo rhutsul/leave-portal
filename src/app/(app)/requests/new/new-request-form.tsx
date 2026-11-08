@@ -679,7 +679,7 @@ function PositionCard({
         <span className="text-[13px] tabular-nums text-muted-foreground">{duration}</span>
       </div>
 
-      <div className={cn("mt-3 md:ml-7", !choice.include && "opacity-60")} aria-hidden="true">
+      <div className={cn("mt-3 px-4 md:ml-7 md:px-0", !choice.include && "opacity-60")} aria-hidden="true">
         <div className="relative h-3 rounded-sm bg-muted ring-1 ring-border ring-inset">
           {position.blocks.map((b) => (
             <div
