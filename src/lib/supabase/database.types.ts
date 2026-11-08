@@ -233,8 +233,7 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
-                }
-            "school_closures": {
+                },"school_closures": {
                   Row: {
                     "closes_at": number | null,"created_at": string,"created_by": string | null,"end_date": string,"id": number,"name": string,"start_date": string
                   }
@@ -264,6 +263,12 @@ isOneToOne: false
                   ComputedFields: never
                   Relationships: [
                     {
+      foreignKeyName: "leave_records_position_id_fkey"
+      columns: ["position_id"]
+isOneToOne: false
+      referencedRelation: "positions"
+      referencedColumns: ["id"]
+    },{
       foreignKeyName: "leave_records_request_id_fkey"
       columns: ["request_id"]
 isOneToOne: false
@@ -276,41 +281,49 @@ isOneToOne: false
           Functions: {
             "add_school_closure":
 { Args: { "p_closes_at"?: number,"p_end": string,"p_name": string,"p_start": string }; Returns: number
-                           }
-            "balance_employees":
-{ Args: never; Returns: { "email": string,"full_name": string,"id": string }[]
-                           }
-            "cancel_leave_record":
+                           },
+"balance_employees":
+{ Args: Record<PropertyKey, never>; Returns: {
+              "email": string,"full_name": string,"id": string
+            }[]
+                           },
+"cancel_leave_record":
 { Args: { "p_record_id": number }; Returns: undefined
-                           }
-            "decide_leave_record":
+                           },
+"decide_leave_record":
 { Args: { "p_comment"?: string,"p_decision": string,"p_end_min": number,"p_record_id": number,"p_split"?: boolean,"p_start_min": number }; Returns: Json
-                           }
-            "decision_balance":
+                           },
+"decision_balance":
 { Args: { "p_record_id": number }; Returns: Json
-                           }
-            "decision_records":
-{ Args: never; Returns: { "can_decide": boolean,"created_at": string,"date": string,"decided_at": string,"decided_by_name": string,"division_name": string,"employee_comment": string,"employee_email": string,"employee_id": string,"employee_name": string,"end_min": number,"id": number,"leave_type": string,"manager_comment": string,"minutes": number,"paid_days": number,"position_kind": string,"position_title": string,"relationship": string,"request_id": number,"start_min": number,"status": string,"unpaid_days": number }[]
-                           }
-            "get_balance_inputs":
+                           },
+"decision_records":
+{ Args: Record<PropertyKey, never>; Returns: {
+              "can_decide": boolean,"created_at": string,"date": string,"decided_at": string,"decided_by_name": string,"division_name": string,"employee_comment": string,"employee_email": string,"employee_id": string,"employee_name": string,"end_min": number,"id": number,"leave_type": string,"manager_comment": string,"minutes": number,"paid_days": number,"position_kind": string,"position_title": string,"relationship": string,"request_id": number,"start_min": number,"status": string,"unpaid_days": number
+            }[]
+                           },
+"get_balance_inputs":
 { Args: { "p_employee_id": string,"p_school_year": number }; Returns: Json
-                           }
-            "record_histories":
-{ Args: { "p_record_ids": number[] }; Returns: { "action": string,"actor_name": string,"comment": string,"created_at": string,"record_id": number }[]
-                           }
-            "record_history":
-{ Args: { "p_record_id": number }; Returns: { "action": string,"actor_name": string,"comment": string,"created_at": string }[]
-                           }
-            "remove_school_closure":
+                           },
+"record_histories":
+{ Args: { "p_record_ids": (number)[] }; Returns: {
+              "action": string,"actor_name": string,"comment": string,"created_at": string,"record_id": number
+            }[]
+                           },
+"record_history":
+{ Args: { "p_record_id": number }; Returns: {
+              "action": string,"actor_name": string,"comment": string,"created_at": string
+            }[]
+                           },
+"remove_school_closure":
 { Args: { "p_id": number }; Returns: undefined
-                           }
-            "resubmit_leave_record":
+                           },
+"resubmit_leave_record":
 { Args: { "p_record_id": number }; Returns: undefined
-                           }
-            "submit_leave_request":
+                           },
+"submit_leave_request":
 { Args: { "p_comment"?: string,"p_leave_type": string,"p_records": Json,"p_relationship"?: string }; Returns: number
-                           }
-            "update_leave_record_hours":
+                           },
+"update_leave_record_hours":
 { Args: { "p_end_min": number,"p_record_id": number,"p_start_min": number }; Returns: undefined
                            }
           }
