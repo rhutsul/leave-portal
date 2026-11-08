@@ -127,7 +127,7 @@ test.describe("admin@example.test", () => {
           hidden: ["the school calendar has no «Winter break» (checked on /calendar after the frame)"],
         },
         async () => {
-          await expect(page.getByRole("alert")).toHaveText(
+          await expect(page.getByRole("main").getByRole("alert")).toHaveText(
             "These days have leave records and cannot be closed: 2026-12-29 teacher1@example.test",
           );
           await expect(page.getByLabel("Name")).toHaveValue("Winter break");
@@ -189,7 +189,7 @@ test.describe("admin@example.test", () => {
           hidden: ["the closure is not saved: the calendar has no «Winter break» (checked after the frame)"],
         },
         async () => {
-          await expect(page.getByRole("alert")).toHaveText("The end date cannot be earlier than the start date");
+          await expect(page.getByRole("main").getByRole("alert")).toHaveText("The end date cannot be earlier than the start date");
           await expect(page.getByLabel("Start date", { exact: true })).toHaveValue("2027-01-08");
           await expect(page.getByLabel("End date", { exact: true })).toHaveValue("2026-12-28");
         },
@@ -222,7 +222,7 @@ test.describe("admin@example.test", () => {
           hidden: ["the closure is not saved: the calendar has no «Staff day» (checked after the frame)"],
         },
         async () => {
-          await expect(page.getByRole("alert")).toHaveText("2026-12-30 is already closed: Winter break");
+          await expect(page.getByRole("main").getByRole("alert")).toHaveText("2026-12-30 is already closed: Winter break");
           await expect(page).toHaveURL(/\/calendar\/manage/);
         },
       );
