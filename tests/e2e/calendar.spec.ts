@@ -49,6 +49,17 @@ test.afterEach(async ({ page }, info) => {
   await cleanupRemembered();
 });
 
+/** «N of M used» на картці балансу: використані дні N. */
+function usedDays(cardText: string): number {
+  const m = /(?:^|[^\d.])(\d+\.\d{2}) of [\d.]+ used/.exec(cardText);
+  if (!m) throw new Error(`на картці балансу немає «… of … used»: ${cardText}`);
+  return Number(m[1]);
+}
+
+/** Шаблон «N of … used» для точного числа днів (не збігається з частиною більшого числа). */
+const usedPattern = (days: number) =>
+  new RegExp(String.raw`(^|[^\d.])` + days.toFixed(2).replace(".", "\\.") + String.raw` of [\d.]+ used`);
+
 /** Рядок закриття в таблиці «School calendar» (картка на телефоні). */
 const closureRow = (page: Page, name: string) => page.getByTestId("closure").filter({ hasText: name });
 
@@ -185,8 +196,11 @@ test.describe("admin@example.test", () => {
         page,
         {
           clause: 'the closure is not saved, and the administrator sees the message "The end date cannot be earlier than the start date".',
-          visible: ["the message «The end date cannot be earlier than the start date»", "the form keeps 2027-01-08 and 2026-12-28"],
-          hidden: ["the closure is not saved: the calendar has no «Winter break» (checked after the frame)"],
+          visible: ["the message «The end date cannot be earlier than the start date»"],
+          hidden: [
+            "the form keeps the start date 2027-01-08 and the end date 2026-12-28 (the date fields show them in the browser's format)",
+            "the closure is not saved: the calendar has no «Winter break» (checked after the frame)",
+          ],
         },
         async () => {
           await expect(page.getByRole("main").getByRole("alert")).toHaveText("The end date cannot be earlier than the start date");
@@ -256,8 +270,11 @@ test.describe("teacher1@example.test", () => {
         page,
         {
           clause: 'teacher1@example.test sees "Winter break" with the dates 2026-12-28 – 2027-01-08.',
-          visible: ["the row «Winter break» with the dates «2026-12-28 – 2027-01-08»", "teacher1@example.test in the account menu"],
-          hidden: ["the shown school year is 2026–2027 — the current one on the run dates (November 2026)"],
+          visible: ["the row «Winter break» with the dates «2026-12-28 – 2027-01-08»"],
+          hidden: [
+            "the signed-in user is teacher1@example.test (account menu; on screen the menu may shorten the address)",
+            "the shown school year is 2026–2027 — the current one on the run dates (November 2026)",
+          ],
         },
         async () => {
           await expect(closureRow(page, "Winter break")).toContainText("2026-12-28 – 2027-01-08");
@@ -326,13 +343,15 @@ test.describe("teacher1@example.test", () => {
         page,
         {
           clause: "1 record 2026-11-20 08:30–12:00 is created.",
-          visible: ["«Request submitted»", "one record on Fri 20 with the hours «08:30–12:00» (Whole day)"],
-          hidden: ["exactly one record on 2026-11-20, from 08:30 to 12:00"],
+          visible: ["one record on Fri 20 (November 2026) with the hours «08:30–12:00»"],
+          hidden: ["«Request submitted» was shown after submitting", "exactly one record on 2026-11-20, from 08:30 to 12:00"],
         },
         async () => {
           const records = page.getByTestId("leave-record").filter({ hasText: "Fri 20" });
           await expect(records).toHaveCount(1);
           await expect(records).toContainText("08:30–12:00");
+          // Кадр — лише видима частина сторінки: у teacher1 на проді є й інші записи, тож показуємо саме цей рядок.
+          await records.scrollIntoViewIfNeeded();
         },
       );
     },
@@ -494,12 +513,16 @@ test.describe("manager1@example.test", () => {
       const employee = await browser.newContext({ storageState: "playwright/.auth/teacher1.json" });
       const balances = await employee.newPage();
       const sick = balances.getByRole("group", { name: "Sick leave left" });
+      // AC: «Sick leave» used 0.00 до рішення. На проді в teacher1 вже можуть бути погоджені лікарняні цього року,
+      // тож тест запам'ятовує стартове «used» і перевіряє різницю: +1.00, а не +0.50.
+      let usedBefore = 0;
 
       await given('the early dismissal from AC-CAL-04, an employee with a single position (schedule Fri 08:30–15:30) and "Sick leave" used 0.00', async () => {
         await addClosure("Teachers' meeting", "2026-11-20", "2026-11-20", NOON);
         await addRecord(TEACHER1, { date: "2026-11-20", start: WHOLE_DAY.start, end: NOON, leaveType: "sick", status: "awaiting" });
         await balances.goto("/balances?year=2026");
-        await expect(sick).toContainText(/(^|[^\d.])0\.00 of [\d.]+ used/);
+        await expect(sick).toContainText(/ of [\d.]+ used/);
+        usedBefore = usedDays((await sick.textContent()) ?? "");
       });
 
       await when('the manager approves the whole-day "Sick leave" record 2026-11-20 08:30–12:00', async () => {
@@ -515,13 +538,16 @@ test.describe("manager1@example.test", () => {
         balances,
         {
           clause: 'the employee\'s balances show "Sick leave" used 1.00 (210 of 210 working minutes that day), not 0.50.',
-          visible: ["the card «Sick leave left» with «1.00 of … used»"],
-          hidden: ["used is exactly 1.00, not 0.50: 210 of 210 working minutes on the early dismissal day"],
+          visible: ["the card «Sick leave left» with «… of … used»"],
+          hidden: [
+            "used grew by exactly 1.00, not 0.50: 210 of 210 working minutes on the early dismissal day",
+            "AC starts from used 0.00; on prod the test takes the starting value it finds and checks the difference",
+          ],
         },
         async () => {
           await balances.goto("/balances?year=2026");
-          await expect(sick).toContainText(/1\.00 of [\d.]+ used/);
-          await expect(sick).not.toContainText(/0\.50 of [\d.]+ used/);
+          await expect(sick).toContainText(usedPattern(usedBefore + 1));
+          await expect(sick).not.toContainText(usedPattern(usedBefore + 0.5));
         },
       );
       await employee.close();
@@ -561,9 +587,10 @@ test.describe("manager1@example.test", () => {
         form,
         {
           clause: "the school calendar is unchanged, and 2026-11-27 is still accepted in a new request.",
-          visible: ["a new request with Fri 27 Nov 2026 among the selected dates («Remove Fri, 27 Nov 2026»)"],
+          visible: ["«Fri 27 Nov» under «Selected dates» in a new request"],
           hidden: [
             "both direct attempts were refused by the database (code 42501 for both: the function and the table insert)",
+            "2026-11-27 is accepted: the button «Remove Fri, 27 Nov 2026» is there (its name is for screen readers)",
             "the school calendar is unchanged: the same number of closures, no «Staff day»",
           ],
         },
