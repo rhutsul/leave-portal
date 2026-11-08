@@ -11,6 +11,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { isRecordStatus, StatusBadge } from "@/components/ui/status-badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { daysToHundredths, formatSplit, isLimitedType, overBalanceWarnings } from "@/lib/leave/balance";
+import { CALENDAR_MESSAGES, clipBlocks, closureOn, toClosure } from "@/lib/leave/calendar";
 import { employeeActions } from "@/lib/leave/decision";
 import { isLeaveType, LEAVE_TYPES, positionLabel, type PositionSchedule, type RecordStatus } from "@/lib/leave/request";
 import {
@@ -57,7 +58,7 @@ export default async function MyRequestsPage({ searchParams }: PageProps<"/reque
   // Перевищення залишку на момент подання (AC-BALANCE-08, AC-BALANCE-15, AC-BALANCE-17): "тип:частка:залишок" у сотих.
   const balanceWarnings = typeof over === "string" ? overBalanceWarnings(over) : [];
 
-  const [{ data: rows, error }, positions] = await Promise.all([
+  const [{ data: rows, error }, positions, closures] = await Promise.all([
     supabase
       .from("my_leave_records")
       .select(
@@ -69,9 +70,23 @@ export default async function MyRequestsPage({ searchParams }: PageProps<"/reque
     // Розклад дня для смуги годин і форми зміни годин; збій — смуга на всю ширину, форма каже, що розклад не
     // завантажився (години перевірить server action).
     loadOwnPositions(supabase, data.claims.sub).catch((): PositionSchedule[] | null => null),
+    // Закриття шкільного календаря: скорочений день обрізає розклад дати (мітка «Whole day», форма зміни годин —
+    // AC-CAL-04, AC-CAL-05), а закрита дата з щойно поданої заявки пояснюється текстом AC-CAL-03. Збій — без них.
+    supabase
+      .from("school_closures")
+      .select("id, name, start_date, end_date, closes_at")
+      .then(({ data: rows, error: closuresError }) => (closuresError ? [] : (rows ?? []).map(toClosure))),
   ]);
   const blocksOf = (positionId: number, date: string) =>
-    positions?.find((p) => p.id === positionId)?.blocks.filter((b) => b.weekday === isoWeekday(date)) ?? [];
+    clipBlocks(
+      positions?.find((p) => p.id === positionId)?.blocks.filter((b) => b.weekday === isoWeekday(date)) ?? [],
+      closureOn(closures, date),
+    );
+  // Чому дату не прийнято: закрита школою (AC-CAL-03) чи без робочих годин (AC-LEAVE-21).
+  const skippedReason = (date: string) => {
+    const closure = closureOn(closures, date);
+    return closure && closure.closesAt == null ? CALENDAR_MESSAGES.closedDay(closure.name) : TIME_MESSAGES.noWorkingHours;
+  };
   const scheduleOf = (positionId: number, date: string) => {
     if (!positions) return { failed: true as const };
     const blocks = blocksOf(positionId, date);
@@ -122,7 +137,7 @@ export default async function MyRequestsPage({ searchParams }: PageProps<"/reque
             Each record is now awaiting a decision.
             {skippedDates.map((d) => (
               <span key={d} className="block">
-                {formatDateLong(d)} was not accepted: {TIME_MESSAGES.noWorkingHours}
+                {formatDateLong(d)} was not accepted: {skippedReason(d)}
               </span>
             ))}
             {balance === "unchecked" && (

@@ -13,8 +13,10 @@ import {
   overlapMessage,
   toRpcRecords,
 } from "@/lib/leave/request";
+import { isCalendarDate } from "@/lib/leave/time";
 import { createClient } from "@/lib/supabase/server";
 import { loadRemaining } from "../../balances/load-balances";
+import { dateSpan, loadClosures } from "../../calendar/load-closures";
 import { loadOwnPositions } from "./load-positions";
 import { submitRedirect } from "./submit-redirect";
 
@@ -69,13 +71,19 @@ export async function submitLeaveRequest(_prev: SubmitState, formData: FormData)
   if (!payload) return { message: FAILED };
 
   // Збій читання посад — повідомлення у формі, а не сторінка помилки: введена заявка має лишитися.
+  // Посади й закриття шкільного календаря на дати заявки (AC-CAL-03 … AC-CAL-05): ті самі чисті функції, що у формі.
+  const span = dateSpan(payload.dates.filter(isCalendarDate));
   let positions;
+  let closures;
   try {
-    positions = await loadOwnPositions(supabase, claims.sub);
+    [positions, closures] = await Promise.all([
+      loadOwnPositions(supabase, claims.sub),
+      span ? loadClosures(supabase, span.from, span.to) : [],
+    ]);
   } catch {
     return { message: FAILED };
   }
-  const records = buildRequestRecords(positions, payload.dates, payload.choices);
+  const records = buildRequestRecords(positions, payload.dates, payload.choices, closures);
   if (!records.ok) return { message: records.message };
   const type = checkLeaveType(payload.leaveType, payload.relationship);
   if (!type.ok) return { message: type.message };
@@ -128,6 +136,7 @@ export async function submitLeaveRequest(_prev: SubmitState, formData: FormData)
       remaining,
       records: records.records,
       blocks: positions.flatMap((p) => p.blocks),
+      closures,
       skipped: records.skipped,
     }),
   );

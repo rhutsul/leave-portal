@@ -14,6 +14,7 @@ import {
   wholeDay,
   type TimeBlock,
 } from "./time";
+import { CALENDAR_MESSAGES, clipBlocks, closureOn, type Closure } from "./calendar";
 
 export const LEAVE_TYPES = {
   sick: "Sick leave",
@@ -100,16 +101,25 @@ export type DateCheck = { ok: true; positions: PositionDay[] } | { ok: false; me
 /**
  * Посади, що мають розклад у день тижня дати, з їхніми блоками; основна — першою. Немає жодної — AC-LEAVE-06.
  * Неіснуюча дата (2026-02-30) — та сама відповідь, що й день без розкладу: у такий день робочих годин немає.
+ * Шкільний календар: дата в закритті цілими днями — повідомлення AC-CAL-03; скорочений день — лише блоки до часу
+ * закриття (clipBlocks, AC-CAL-04, AC-CAL-05).
  */
-export function positionsOnDate(positions: PositionSchedule[], date: string): DateCheck {
+export function positionsOnDate(positions: PositionSchedule[], date: string, closures: readonly Closure[] = []): DateCheck {
   if (!isCalendarDate(date)) return { ok: false, message: TIME_MESSAGES.noWorkingHours };
+  const closure = closureOn(closures, date);
+  if (closure && closure.closesAt == null) return { ok: false, message: CALENDAR_MESSAGES.closedDay(closure.name) };
   const weekday = isoWeekday(date);
   const onDate = positions
     .map((p) => ({
       id: p.id,
       label: p.label,
       kind: p.kind,
-      blocks: sortBlocks(p.blocks.filter((b) => b.weekday === weekday).map(({ start, end }) => ({ start, end }))),
+      blocks: sortBlocks(
+        clipBlocks(
+          p.blocks.filter((b) => b.weekday === weekday).map(({ start, end }) => ({ start, end })),
+          closure,
+        ),
+      ),
     }))
     .filter((p) => p.blocks.length > 0)
     .sort((a, b) => (a.kind === b.kind ? a.label.localeCompare(b.label) : a.kind === "main" ? -1 : 1));
@@ -184,17 +194,21 @@ export function buildRequestRecords(
   positions: PositionSchedule[],
   dates: string[],
   choices: DateChoice[],
+  closures: readonly Closure[] = [],
 ): RequestRecordsCheck {
   const unique = [...new Set(dates)].sort();
   if (unique.length === 0) return { ok: false, message: REQUEST_MESSAGES.chooseDate };
   const records: DraftRecord[] = [];
   const skipped: string[] = [];
+  let firstSkipped: string | null = null;
   for (const date of unique) {
     // Нечитабельна дата — помилка, а не пропуск: пропускаємо лише справжню дату без робочих годин.
     if (!isCalendarDate(date)) return { ok: false, message: TIME_MESSAGES.noWorkingHours, date };
-    const day = positionsOnDate(positions, date);
+    const day = positionsOnDate(positions, date, closures);
     if (!day.ok) {
+      // Закрита дата відкидається так само, як дата без робочих годин (Assumptions 04-school-calendar, AC-LEAVE-21).
       skipped.push(date);
+      firstSkipped ??= day.message;
       continue;
     }
     const result = buildDayRecords(
@@ -205,7 +219,9 @@ export function buildRequestRecords(
     if (!result.ok) return { ...result, date };
     records.push(...result.records);
   }
-  if (records.length === 0) return { ok: false, message: TIME_MESSAGES.noWorkingHours, date: skipped[0] };
+  if (records.length === 0) {
+    return { ok: false, message: firstSkipped ?? TIME_MESSAGES.noWorkingHours, date: skipped[0] };
+  }
   return { ok: true, records, skipped };
 }
 

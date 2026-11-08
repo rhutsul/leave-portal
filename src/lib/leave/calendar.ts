@@ -1,4 +1,3 @@
-import { formatSchoolYear } from "@/lib/leave/balance";
 import { formatTime, isCalendarDate, parseTime } from "@/lib/leave/time";
 
 /**
@@ -43,7 +42,8 @@ export function formatClosureTime(c: Pick<Closure, "closesAt">): string | null {
 
 /** Порожній навчальний рік (AC-CAL-15): "No closed days in school year 2026–2027". */
 export function emptyCalendarMessage(schoolYear: number): string {
-  return `No closed days in school year ${formatSchoolYear(schoolYear)}`;
+  // Той самий формат, що formatSchoolYear у balance.ts; без імпорту — balance.ts сам бере clipBlocks звідси.
+  return `No closed days in school year ${schoolYear}–${schoolYear + 1}`;
 }
 
 /** Рядок бази → Closure. */
@@ -77,4 +77,24 @@ export function parseClosureForm(field: (name: string) => string): ClosureInput 
   const closesAt = early ? parseTime(field("time")) : null;
   if (!name || !isCalendarDate(start) || !isCalendarDate(end) || (early && closesAt == null)) return null;
   return { name, start, end, closesAt };
+}
+
+/** Закриття, що охоплює дату, або null (два закриття не мають спільної дати — AC-CAL-11). */
+export function closureOn(closures: readonly Closure[], date: string): Closure | null {
+  return closures.find((c) => c.startDate <= date && date <= c.endDate) ?? null;
+}
+
+/**
+ * Блоки розкладу дати з урахуванням закриття (design.md D3; те саме правило — private.blocks_on_date у базі): без
+ * закриття — як є; закриття цілими днями — жодного; скорочений день із X — блоки, що починаються до X, а блок, що
+ * триває о X, закінчується о X (Assumptions 04-school-calendar; AC-CAL-04, AC-CAL-05).
+ */
+export function clipBlocks<B extends { start: number; end: number }>(
+  blocks: readonly B[],
+  closure: Pick<Closure, "closesAt"> | null,
+): B[] {
+  if (!closure) return [...blocks];
+  const closesAt = closure.closesAt;
+  if (closesAt == null) return [];
+  return blocks.filter((b) => b.start < closesAt).map((b) => ({ ...b, end: Math.min(b.end, closesAt) }));
 }

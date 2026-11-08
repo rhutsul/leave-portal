@@ -2,6 +2,7 @@
 // Дані дає функція бази get_balance_inputs (D4): лише підсумки по датах, без деталей записів.
 // Дні рахуємо в сотих (цілі числа): частка дня округлюється half-up до 0.01, тож дробові числа JS тут зайві.
 
+import { clipBlocks, closureOn, type Closure } from "./calendar";
 import type { LeaveType, ScheduleBlock } from "./request";
 import { isoWeekday } from "./time";
 
@@ -228,22 +229,31 @@ export function daysToHundredths(days: number | string): number {
  * Усі робочі хвилини працівника на дату за розкладами всіх посад (blocks — блоки всіх його посад) — знаменник частки
  * дня; те саме правило, що private.working_minutes у базі.
  */
-export function workingMinutesOn(blocks: readonly ScheduleBlock[], date: string): number {
+export function workingMinutesOn(
+  blocks: readonly ScheduleBlock[],
+  date: string,
+  closures: readonly Closure[] = [],
+): number {
   const weekday = isoWeekday(date);
-  return blocks.filter((b) => b.weekday === weekday).reduce((sum, b) => sum + b.end - b.start, 0);
+  // Скорочений день — лише незакриті хвилини (AC-CAL-06), як private.working_minutes у базі.
+  return clipBlocks(
+    blocks.filter((b) => b.weekday === weekday),
+    closureOn(closures, date),
+  ).reduce((sum, b) => sum + b.end - b.start, 0);
 }
 
 /** Частка заявки в сотих за навчальним роком: для кожної дати — dayShare усіх хвилин заявки на цю дату. */
 export function requestShares(
   records: readonly { date: string; minutes: number }[],
   blocks: readonly ScheduleBlock[],
+  closures: readonly Closure[] = [],
 ): Map<number, number> {
   const perDate = new Map<string, number>();
   for (const r of records) perDate.set(r.date, (perDate.get(r.date) ?? 0) + r.minutes);
   const shares = new Map<number, number>();
   for (const [date, minutes] of perDate) {
     const year = schoolYearOf(date);
-    shares.set(year, (shares.get(year) ?? 0) + dayShare(minutes, workingMinutesOn(blocks, date)));
+    shares.set(year, (shares.get(year) ?? 0) + dayShare(minutes, workingMinutesOn(blocks, date, closures)));
   }
   return shares;
 }
@@ -277,10 +287,11 @@ export function requestOverBalance(
   records: readonly { date: string; minutes: number }[],
   blocks: readonly ScheduleBlock[],
   remainingOf: (schoolYear: number) => number | null,
+  closures: readonly Closure[] = [],
 ): RequestOverBalance[] {
   if (!isLimitedType(leaveType)) return [];
   const over: RequestOverBalance[] = [];
-  for (const [schoolYear, share] of [...requestShares(records, blocks)].sort(([a], [b]) => a - b)) {
+  for (const [schoolYear, share] of [...requestShares(records, blocks, closures)].sort(([a], [b]) => a - b)) {
     const remaining = remainingOf(schoolYear);
     if (remaining !== null && employeeWarning(leaveType, share, remaining)) over.push({ schoolYear, share, remaining });
   }
