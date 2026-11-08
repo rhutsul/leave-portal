@@ -316,7 +316,8 @@ export function NewRequestForm({
                           leaveType === type && "border-ring bg-accent",
                         )}
                       >
-                        <RadioGroupItem id={`${ids}-type-${type}`} value={type} className="sr-only" />
+                        {/* absolute: інакше власний relative радіо перемагає sr-only, і приховане радіо займає місце в картці. */}
+                        <RadioGroupItem id={`${ids}-type-${type}`} value={type} className="sr-only absolute" />
                         <span
                           aria-hidden="true"
                           className={cn(
