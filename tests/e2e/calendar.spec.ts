@@ -56,8 +56,8 @@ async function fillWholeDays(page: Page, name: string, start: string, end: strin
   await expect(page.getByRole("heading", { level: 1, name: "Add closure" })).toBeVisible();
   await page.getByLabel("Name").fill(name);
   await page.locator("label").filter({ hasText: "Whole days" }).click();
-  await page.getByLabel("Start date").fill(start);
-  await page.getByLabel("End date").fill(end);
+  await page.getByLabel("Start date", { exact: true }).fill(start);
+  await page.getByLabel("End date", { exact: true }).fill(end);
 }
 
 // ── Адміністратор додає й видаляє закриття ─────────────────────────────────────
@@ -184,8 +184,8 @@ test.describe("admin@example.test", () => {
         },
         async () => {
           await expect(page.getByRole("alert")).toHaveText("The end date cannot be earlier than the start date");
-          await expect(page.getByLabel("Start date")).toHaveValue("2027-01-08");
-          await expect(page.getByLabel("End date")).toHaveValue("2026-12-28");
+          await expect(page.getByLabel("Start date", { exact: true })).toHaveValue("2027-01-08");
+          await expect(page.getByLabel("End date", { exact: true })).toHaveValue("2026-12-28");
         },
       );
       await openCalendar(page);
