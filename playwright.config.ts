@@ -22,7 +22,14 @@ const withWrites = !deployed && !!process.env.CI;
 // секретним ключем (tests/e2e/support/admin.ts, teardown cleanup). Їх беремо скрізь, де є ключ: на проді з
 // .env.local розробника і в CI на одноразовому Supabase. Без ключа — не вибираємо.
 const withAdminKey = Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SECRET_KEY);
-const excluded = ["@negative-control", ...(withWrites ? [] : ["@writes"]), ...(withAdminKey ? [] : ["@prod-writes"])];
+// Знімки сторінок для docs/img/ (calendar-screenshots.spec.ts) — лише на прохання: UAT_SCREENSHOTS=1.
+const withScreenshots = process.env.UAT_SCREENSHOTS === "1";
+const excluded = [
+  "@negative-control",
+  ...(withWrites ? [] : ["@writes"]),
+  ...(withAdminKey ? [] : ["@prod-writes"]),
+  ...(withScreenshots ? [] : ["@screenshots"]),
+];
 const grepInvert = new RegExp(excluded.join("|"));
 const noRecording = { video: "off", trace: "off", screenshot: "off" } as const;
 
