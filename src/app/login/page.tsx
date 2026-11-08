@@ -13,8 +13,8 @@ import { ThemeMenu } from "@/components/ui/theme-menu";
 import { parseTheme, THEME_COOKIE } from "@/lib/preferences";
 import { login } from "./actions";
 
-// На дотику (ADR 0008): поле 44 px заввишки і шрифт 16 px — iOS не збільшує сторінку, коли поле отримує фокус.
-const TOUCH_FIELD = "pointer-coarse:h-11 pointer-coarse:text-base";
+// На дотику (ADR 0008): поле 44 px заввишки — ціль для пальця (шрифт 16 px на дотику дає сам Input).
+const TOUCH_FIELD = "pointer-coarse:h-11";
 
 const ERRORS: Record<string, string> = {
   missing: "Enter your email and password.",
