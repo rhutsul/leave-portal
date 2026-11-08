@@ -27,9 +27,9 @@ const GUTTER = "px-4 md:px-12";
 
 // Розділи сторінки: у шапці від md, вужче — у меню з кнопки (SectionMenu).
 const SECTIONS = [
-  { href: "#try", label: "Try it" },
-  { href: "#balances", label: "Balances" },
-  { href: "#roles", label: "Who uses it" },
+  { href: "#try", label: "Try it", heading: "try-title" },
+  { href: "#balances", label: "Balances", heading: "balances-title" },
+  { href: "#roles", label: "Who uses it", heading: "roles-title" },
 ] as const;
 
 const FACTS = [
@@ -123,6 +123,9 @@ function Hero({ signedIn }: { signedIn: boolean }) {
       aria-labelledby="hero-title"
       className={cn(
         "relative mx-auto flex w-full max-w-[1280px] items-start pt-[max(9rem,calc(34vh-3rem))] pb-14 lg:min-h-[720px] lg:items-center lg:pt-10 lg:pb-20",
+        // Без поля (reduced motion — одразу за CSS; Save-Data, слабкий пристрій, без WebGL2 — після гідратації) місця
+        // під аркуш не лишаємо.
+        "motion-reduce:pt-10 group-has-[[data-field-tier=none]]/welcome:pt-10",
         GUTTER,
       )}
     >
@@ -219,8 +222,11 @@ function RolesSection() {
           Three roles. One person can hold several.
         </h2>
       </div>
-      {/* Місце для трьох сфер ролей поля частинок; вужче за lg сфери менші, тож і місця менше. */}
-      <div aria-hidden="true" className="h-28 lg:h-55" />
+      {/* Місце для трьох сфер ролей поля частинок; вужче за lg сфери менші, тож і місця менше; без поля — немає. */}
+      <div
+        aria-hidden="true"
+        className="h-28 motion-reduce:hidden group-has-[[data-field-tier=none]]/welcome:hidden lg:h-55"
+      />
       <ul className="grid gap-3 md:grid-cols-3 md:gap-5">
         {ROLES.map((role, index) => (
           // Наведення на картку підсвічує сферу цієї ролі в полі частинок (ParticleField).
@@ -301,7 +307,7 @@ export default async function WelcomePage() {
 
   return (
     // overflow-x-clip: декор, що виступає за край (картки прев'ю Overview), не дає прокрутки вбік, а sticky поля працює.
-    <div className="welcome-field flex flex-1 flex-col overflow-x-clip text-foreground">
+    <div className="welcome-field group/welcome flex flex-1 flex-col overflow-x-clip text-foreground">
       {/* Одне поле на всю сторінку: липке за вмістом, форма змінюється за прокруткою (ADR 0007). */}
       <ParticleField variant="welcome" className="sticky top-0 z-0 -mb-[100vh] h-screen" />
       <Header signedIn={signedIn} theme={theme} />

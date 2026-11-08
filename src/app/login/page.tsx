@@ -13,7 +13,8 @@ import { ThemeMenu } from "@/components/ui/theme-menu";
 import { parseTheme, THEME_COOKIE } from "@/lib/preferences";
 import { login } from "./actions";
 
-// На дотику (ADR 0008): поле 44 px заввишки — ціль для пальця (шрифт 16 px на дотику дає сам Input).
+// На дотику (ADR 0008): поле 44 px заввишки — ціль для пальця (шрифт 16 px дає сам Input, висоту поля пароля —
+// PasswordInput).
 const TOUCH_FIELD = "pointer-coarse:h-11";
 
 const ERRORS: Record<string, string> = {
@@ -32,10 +33,10 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
   const theme = parseTheme((await cookies()).get(THEME_COOKIE)?.value);
 
   return (
-    <div className="welcome-field relative flex flex-1 flex-col overflow-hidden text-sm text-foreground">
+    <div className="welcome-field group/login relative flex flex-1 flex-col overflow-hidden text-sm text-foreground">
       <ParticleField
         variant="login"
-        className="absolute inset-x-0 top-11 z-0 h-[330px] lg:inset-x-auto lg:inset-y-0 lg:right-0 lg:h-auto lg:w-[62%]"
+        className="absolute inset-x-0 top-14 z-0 h-[330px] lg:inset-x-auto lg:inset-y-0 lg:right-0 lg:h-auto lg:w-[62%]"
       />
       <header className="relative z-10 flex h-14 items-center justify-between pr-2 pl-4 md:px-12 lg:h-auto lg:py-4.5">
         <Link href="/welcome" className="flex items-center gap-2.5 text-[15px] font-semibold">
@@ -48,8 +49,8 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
         </span>
       </header>
       {/* Вужче за lg: картка внизу (під аркушем), але не вище за 15rem від верху — аркуш лишається видно й на низькому
-          екрані, сторінка тоді прокручується. */}
-      <main className="relative z-10 mx-auto flex w-[400px] max-w-[calc(100%-32px)] flex-1 flex-col justify-end gap-3 pt-60 pb-7 lg:mx-0 lg:ml-[max(48px,13%)] lg:max-w-[calc(100%-48px)] lg:justify-center lg:gap-4.5 lg:pt-0 lg:pb-16">
+          екрані, сторінка тоді прокручується. Без поля цей відступ не потрібен. */}
+      <main className="relative z-10 mx-auto flex w-[400px] max-w-[calc(100%-32px)] flex-1 flex-col justify-end gap-3 pt-60 pb-7 lg:mx-0 lg:ml-[max(48px,13%)] lg:max-w-[calc(100%-48px)] lg:justify-center lg:gap-4.5 lg:pt-0 lg:pb-16 max-lg:motion-reduce:pt-6 max-lg:group-has-[[data-field-tier=none]]/login:pt-6">
         <Card className="animate-rise gap-5 rounded-xl bg-card/82 px-4.5 py-5.5 shadow-lg backdrop-blur-md backdrop-saturate-125 sm:p-7">
           <div className="flex flex-col gap-1.5">
             {/* Надпис — декор: те саме каже підзаголовок нижче, тож зчитувач екрана читає його один раз. */}
@@ -86,7 +87,6 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
                 name="password"
                 autoComplete="current-password"
                 required
-                className={TOUCH_FIELD}
                 aria-invalid={message ? true : undefined}
                 aria-describedby={message ? "login-error" : undefined}
               />
@@ -100,7 +100,7 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
         {/* Тихе посилання на landing: що таке портал — для того, хто прийшов за посиланням без пояснень. */}
         <Link
           href="/welcome"
-          className="inline-flex min-h-11 items-center gap-1.5 self-center text-[13px] text-muted-foreground transition-colors duration-(--duration-fast) hover:text-foreground"
+          className="inline-flex items-center pointer-coarse:min-h-11 gap-1.5 self-center text-[13px] text-muted-foreground transition-colors duration-(--duration-fast) hover:text-foreground"
         >
           What is Leave Portal?
           <ArrowRight aria-hidden="true" className="size-3.5" />
