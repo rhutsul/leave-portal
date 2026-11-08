@@ -108,3 +108,16 @@ WS7 вище (`ws7-after-decisions-*.png`).
 | `v2r-phone-decisions-dark.jpg` | «Decisions»: записи — картки цілком-посилання зі стрілкою в куті |
 | `v2r-phone-record-dark.jpg` | запис на весь екран: «Back to list», ↑/↓, Reject і Return у два стовпці, Approve на всю ширину, прикріплені внизу |
 | `v2r-desktop-decisions-light.jpg` | 1280 px без змін: бічна панель і таблиця |
+
+### Адаптив, нова заявка (ADR 0008, PR 2/3)
+
+З Preview гілки `task/responsive-new-request`, `teacher1@example.test` (синтетичні дані, `supabase/demo-users.json`);
+заявку не подано. Телефон — 390 px (`pointer: coarse`), настільний — 1280 px.
+
+| Файл | Що видно |
+|---|---|
+| `v2r-newrequest-phone-dates-dark.jpg` | крок «Dates»: кроки смужкою вгорі, календар на всю ширину картки (день 48 px), внизу прикріплена панель «2 dates» і Continue |
+| `v2r-newrequest-phone-hours-light.jpg` | «Positions and hours»: картки посад без лівого відступу, поля часу 16 px в один рядок, на панелі — «2 records · 10 h 30 min» і «назад» іконкою |
+| `v2r-newrequest-phone-summary-light.jpg` | «Check and confirm»: записи — картки з тривалістю в куті, попередження про залишок, Submit request прикріплено внизу |
+| `v2r-newrequest-desktop-summary-light.jpg` | 1280 px без змін: таблиця записів, «Back to editing» і Submit request у картці |
+| `v2r-newrequest-desktop-type-dark.jpg` | 1280 px, темна тема: картки типів — іконка біля краю (приховане радіо більше не займає місця) |
