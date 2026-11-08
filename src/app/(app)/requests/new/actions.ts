@@ -20,6 +20,8 @@ import { dateSpan, loadClosures } from "../../calendar/load-closures";
 import { loadOwnPositions } from "./load-positions";
 import { submitRedirect } from "./submit-redirect";
 
+type Supabase = Awaited<ReturnType<typeof createClient>>;
+
 export interface SubmitState {
   message: string;
 }
@@ -58,6 +60,23 @@ function parsePayload(raw: FormDataEntryValue | null): RequestPayload | null {
   }
 }
 
+/**
+ * Посади працівника й закриття шкільного календаря на дати заявки (AC-CAL-03 … AC-CAL-05) — для тих самих чистих
+ * функцій, що й у формі. Збій — null.
+ */
+async function loadRequestContext(supabase: Supabase, employeeId: string, dates: readonly string[]) {
+  const span = dateSpan(dates.filter(isCalendarDate));
+  try {
+    const [positions, closures] = await Promise.all([
+      loadOwnPositions(supabase, employeeId),
+      span ? loadClosures(supabase, span.from, span.to) : Promise.resolve([]),
+    ]);
+    return { positions, closures };
+  } catch {
+    return null;
+  }
+}
+
 // Подання заявки після підсумку. Записи будуємо заново з розкладу в базі (клієнту не довіряємо), перевіряємо тими
 // самими чистими функціями, що й форма, а submit_leave_request перевіряє все ще раз і створює записи прийнятих дат
 // цілком або нічого. Дату без робочих годин не приймаємо, інші дати лишаються (AC-LEAVE-21).
@@ -70,19 +89,10 @@ export async function submitLeaveRequest(_prev: SubmitState, formData: FormData)
   const payload = parsePayload(formData.get("payload"));
   if (!payload) return { message: FAILED };
 
-  // Збій читання посад — повідомлення у формі, а не сторінка помилки: введена заявка має лишитися.
-  // Посади й закриття шкільного календаря на дати заявки (AC-CAL-03 … AC-CAL-05): ті самі чисті функції, що у формі.
-  const span = dateSpan(payload.dates.filter(isCalendarDate));
-  let positions;
-  let closures;
-  try {
-    [positions, closures] = await Promise.all([
-      loadOwnPositions(supabase, claims.sub),
-      span ? loadClosures(supabase, span.from, span.to) : [],
-    ]);
-  } catch {
-    return { message: FAILED };
-  }
+  // Збій читання посад чи закриттів — повідомлення у формі, а не сторінка помилки: введена заявка має лишитися.
+  const context = await loadRequestContext(supabase, claims.sub, payload.dates);
+  if (!context) return { message: FAILED };
+  const { positions, closures } = context;
   const records = buildRequestRecords(positions, payload.dates, payload.choices, closures);
   if (!records.ok) return { message: records.message };
   const type = checkLeaveType(payload.leaveType, payload.relationship);
