@@ -72,9 +72,10 @@ as $$
 $$;
 
 -- Незакриті робочі хвилини працівника на дату за розкладами всіх посад — знаменник частки дня (AC-BALANCE-05, -06,
--- AC-CAL-06). На ній стоять record_share, used_hundredths, remaining_hundredths і get_balance_inputs. Частку
--- погоджених записів без розподілу рахуємо від поточного календаря; записи з розподілом (paid_days, AC-BALANCE-10)
--- лишаються такими, як погодив менеджер (design.md D3, docs/spec-reading.md).
+-- AC-CAL-06). На ній стоять record_share, used_hundredths, remaining_hundredths і get_balance_inputs. Погоджені
+-- «Sick leave» і «Personal leave» зберігають частку на момент рішення (paid_days, private.decide_leave_record), тож
+-- закриття, додане пізніше, їх не змінює; від поточного календаря рахуються погоджені записи без paid_days
+-- («Unpaid leave», «Family celebration») і частка для рішення й попередження (record_share).
 create or replace function private.working_minutes(p_employee_id uuid, p_date date)
 returns integer
 language sql
