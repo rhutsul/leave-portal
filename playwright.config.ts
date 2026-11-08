@@ -10,6 +10,9 @@ if (existsSync(".env.local")) process.loadEnvFile(".env.local");
 
 // Один ідентифікатор прогону на всі проєкти й воркери: синтетичні адреси uat-<run>…@example.test.
 process.env.UAT_RUN ??= new Date().toISOString().replace(/\D/g, "").slice(2, 14);
+// Початок прогону (той самий для всіх воркерів) з запасом 5 хв на розбіжність годинників машини й бази: teardown
+// cleanup шукає залишки лише серед рядків, створених після нього.
+process.env.UAT_RUN_STARTED ??= new Date(Date.now() - 5 * 60_000).toISOString();
 
 const deployed = process.env.UAT_BASE_URL?.replace(/\/+$/, "");
 const baseURL = deployed ?? "http://localhost:3000";

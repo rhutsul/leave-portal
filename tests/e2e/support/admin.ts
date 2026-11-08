@@ -226,7 +226,9 @@ function deletedThisRun(): string[] {
 
 /**
  * Teardown після прогону: прибирає журнал і перевіряє, що у вікнах дат AC не лишилось закриттів із назвами AC
- * і чинних записів teacher1@example.test. Те, що лишилось, — у `remaining` (teardown тоді падає).
+ * і записів teacher1@example.test, створених цим прогоном (created_at ≥ UAT_RUN_STARTED). Рядки, що були там до
+ * прогону, — не наші: через них assertCalendarClean зупиняє тести, а teardown їх не рахує й не чіпає.
+ * Те, що лишилось від прогону, — у `remaining` / `leftoverRequests` (teardown тоді падає).
  */
 export async function cleanupCalendar(): Promise<{ deleted: string[]; remaining: string[]; leftoverRequests: number }> {
   await cleanupRemembered();
@@ -234,12 +236,14 @@ export async function cleanupCalendar(): Promise<{ deleted: string[]; remaining:
   const supabase = adminClient();
   const remaining: string[] = [];
   let leftoverRequests = 0;
+  const since = process.env.UAT_RUN_STARTED ?? new Date(0).toISOString();
   const teacher1 = await profileId(supabase, "teacher1@example.test");
   for (const w of AC_WINDOWS) {
     const { data: closures, error } = await supabase
       .from("school_closures")
       .select("name, start_date")
       .in("name", ["Winter break", "Teachers' meeting", "Staff day"])
+      .gte("created_at", since)
       .lte("start_date", w.to)
       .gte("end_date", w.from);
     if (error) throw error;
@@ -248,6 +252,7 @@ export async function cleanupCalendar(): Promise<{ deleted: string[]; remaining:
       .from("leave_records")
       .select("*", { count: "exact", head: true })
       .eq("employee_id", teacher1)
+      .gte("created_at", since)
       .gte("date", w.from)
       .lte("date", w.to);
     if (countError) throw countError;
