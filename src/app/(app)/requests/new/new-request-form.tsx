@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useId, useReducer, useState, type FormEvent, type ReactNode } from "react";
+import { useActionState, useEffect, useId, useReducer, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { Banknote, Check, ChevronLeft, ChevronRight, CircleAlert, Gift, HeartPulse, Info, TriangleAlert, UserRound, X } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -208,42 +208,17 @@ export function NewRequestForm({
       : [];
 
   return (
-    <div className="flex flex-col gap-6">
-      <nav aria-label="Request steps">
-        <ol className="flex flex-wrap gap-1.5">
-          {STEPS.map((label, i) => {
-            const n = (i + 1) as Step;
-            const current = n === step;
-            const done = n < step || (n <= maxStep && !current);
-            const locked = n > maxStep || pending;
-            return (
-              <li key={label}>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => !current && go(n)}
-                  disabled={locked && !current}
-                  aria-current={current ? "step" : undefined}
-                  className={cn(current && "bg-sidebar-accent text-sidebar-accent-foreground hover:bg-sidebar-accent")}
-                >
-                  {done && <Check className="text-status-approved-foreground" aria-hidden="true" />}
-                  {label}
-                  {done && <span className="sr-only">(done)</span>}
-                </Button>
-              </li>
-            );
-          })}
-        </ol>
-      </nav>
+    // max-md:pb-24 — на телефоні дія кроку прикріплена внизу екрана (ADR 0008): вміст прокручується з-під неї.
+    <div className="flex flex-col gap-6 max-md:pb-24">
+      <StepBar step={step} maxStep={maxStep} pending={pending} onGo={go} />
 
       <div className="flex flex-wrap items-start gap-6">
         <form action={formAction} onSubmit={onSubmit} className="min-w-0 flex-[999_1_560px]">
           <Card className="gap-0 py-0">
             {step === 1 && (
-              <div className="flex flex-col gap-5 px-6 py-5">
+              <div className="flex flex-col gap-5 px-4 py-5 md:px-6">
                 <StepTitle title="Dates" hint="Pick one or more dates. You can also pick dates in the past." />
-                <div className="flex flex-wrap gap-7">
+                <div className="flex flex-wrap gap-6 md:gap-7">
                   <DateCalendar
                     month={month}
                     today={today}
@@ -264,13 +239,13 @@ export function NewRequestForm({
                         {dates.map((d) => (
                           <li
                             key={d}
-                            className="inline-flex h-8 items-center gap-1 rounded-full bg-accent pr-1 pl-3 text-[13px] font-medium tabular-nums text-accent-foreground"
+                            className="inline-flex h-8 items-center gap-1 rounded-full bg-accent pr-1 pl-3 text-[13px] font-medium tabular-nums text-accent-foreground pointer-coarse:h-11 pointer-coarse:pr-0"
                           >
                             {formatDateShort(d)}
                             <Button
                               variant="ghost"
                               size="icon-xs"
-                              className="rounded-full hover:bg-primary/10"
+                              className="rounded-full hover:bg-primary/10 pointer-coarse:size-11"
                               onClick={() => pickDate(d)}
                               aria-label={`Remove ${formatDateLong(d)}`}
                             >
@@ -295,7 +270,7 @@ export function NewRequestForm({
             )}
 
             {step === 2 && (
-              <div className="flex flex-col gap-5 px-6 py-5">
+              <div className="flex flex-col gap-5 px-4 py-5 md:px-6">
                 <StepTitle
                   title="Positions and hours"
                   hint="For each date, include the positions you will be absent from — for the whole day or for specific hours."
@@ -316,7 +291,7 @@ export function NewRequestForm({
             )}
 
             {step === 3 && (
-              <div className="flex flex-col gap-5 px-6 py-5">
+              <div className="flex flex-col gap-5 px-4 py-5 md:px-6">
                 <div className="flex flex-col gap-3">
                   <StepTitle title="Leave type" hint="One leave type per request. Different types mean different requests." />
                   <RadioGroup
@@ -427,9 +402,9 @@ export function NewRequestForm({
             )}
 
             {step === 4 && leaveType && (
-              <div className="flex flex-col gap-4 px-6 py-5">
+              <div className="flex flex-col gap-4 px-4 py-5 md:px-6">
                 <StepTitle title="Check and confirm" hint="Nothing is saved until you confirm. You can go back and change anything." />
-                <dl className="grid grid-cols-[140px_1fr] gap-x-4 gap-y-2">
+                <dl className="grid grid-cols-[96px_1fr] gap-x-4 gap-y-2 md:grid-cols-[140px_1fr]">
                   <dt className="text-muted-foreground">Leave type</dt>
                   <dd>
                     <LeaveTypeTag type={leaveType} />
@@ -442,8 +417,9 @@ export function NewRequestForm({
                     {formatDuration(totalMinutes)} in {recordCount(records.length)}
                   </dd>
                 </dl>
-                <div className="overflow-x-auto rounded-md border border-border">
-                  <Table>
+                {/* Телефон (ADR 0008): записи — картки (Table stack), тривалість — у правому верхньому куті картки. */}
+                <div className="rounded-md md:overflow-x-auto md:border md:border-border">
+                  <Table stack>
                     <TableHeader className="bg-muted">
                       <TableRow className="hover:bg-transparent">
                         <TableHead>Date</TableHead>
@@ -458,7 +434,7 @@ export function NewRequestForm({
                           <TableCell className="tabular-nums">{formatDateLong(r.date)}</TableCell>
                           <TableCell>{labelOf(r.positionId)}</TableCell>
                           <TableCell className="tabular-nums">{formatRange(r.start, r.end)}</TableCell>
-                          <TableCell className="text-right tabular-nums">{formatDuration(r.minutes)}</TableCell>
+                          <TableCell data-cell="end" className="text-right tabular-nums max-md:px-2 max-md:py-1.5">{formatDuration(r.minutes)}</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -488,29 +464,12 @@ export function NewRequestForm({
               </div>
             )}
 
-            <div className="flex items-center justify-between gap-3 border-t border-border bg-muted/50 px-6 py-3.5">
-              <div>
-                {step > 1 && (
-                  <Button variant="ghost" onClick={() => go((step - 1) as Step)} disabled={pending}>
-                    <ChevronLeft />
-                    {step === 4 ? "Back to editing" : "Back"}
-                  </Button>
-                )}
-              </div>
-              {step < 4 ? (
-                <Button type="submit">
-                  Continue
-                  <ChevronRight />
-                </Button>
-              ) : (
-                <Button type="submit" disabled={pending} aria-busy={pending || undefined}>
-                  {pending && (
-                    <span aria-hidden="true" className="size-3.5 motion-safe:animate-spin rounded-full border-2 border-current border-r-transparent" />
-                  )}
-                  {pending ? "Submitting…" : "Submit request"}
-                </Button>
-              )}
-            </div>
+            <StepActions
+              step={step}
+              pending={pending}
+              summary={step === 1 ? dateCount(dates.length) : `${recordCount(records.length)} · ${totalMinutes ? formatDuration(totalMinutes) : "—"}`}
+              onBack={() => go((step - 1) as Step)}
+            />
           </Card>
         </form>
 
@@ -576,19 +535,21 @@ function DateCalendar({
   onPick: (date: string) => void;
 }) {
   return (
-    <div className="flex w-84 shrink-0 flex-col gap-2.5">
+    // Телефон (ADR 0008): календар на всю ширину картки без її бічних полів, проміжок 2 px — клітинка ≥ 40 px на 360 px
+    // і ≥ 44 px від 390 px. Від md — 336 px, як було.
+    <div className="flex shrink-0 flex-col gap-2.5 max-md:-mx-3 max-md:w-[calc(100%+1.5rem)] md:w-84">
       <div className="flex items-center justify-between">
-        <Button variant="ghost" size="icon-sm" aria-label="Previous month" onClick={() => onMonth(-1)}>
+        <Button variant="ghost" size="icon-sm" className="pointer-coarse:size-11" aria-label="Previous month" onClick={() => onMonth(-1)}>
           <ChevronLeft />
         </Button>
         <div className="font-semibold" aria-live="polite">
           {formatMonth(month)}
         </div>
-        <Button variant="ghost" size="icon-sm" aria-label="Next month" onClick={() => onMonth(1)}>
+        <Button variant="ghost" size="icon-sm" className="pointer-coarse:size-11" aria-label="Next month" onClick={() => onMonth(1)}>
           <ChevronRight />
         </Button>
       </div>
-      <div className="grid grid-cols-7 gap-1">
+      <div className="grid grid-cols-7 gap-0.5 md:gap-1">
         {WEEKDAY_SHORT.map((w) => (
           <div key={w} aria-hidden="true" className="py-1 text-center text-xs text-muted-foreground">
             {w}
@@ -604,12 +565,12 @@ function DateCalendar({
               state={state}
               onClick={() => onPick(date)}
               aria-label={label}
-              className={cn(date === today && state !== "selected" && "underline underline-offset-4")}
+              className={cn("max-md:h-11", date === today && state !== "selected" && "underline underline-offset-4")}
             />
           );
         })}
       </div>
-      <CalendarLegend states={["free", "selected", "record", "off"]} />
+      <CalendarLegend states={["free", "selected", "record", "off"]} className="max-md:px-3" />
       {/* Перетин із наявними записами все одно перевіряє база під час подання (AC-LEAVE-16). */}
       {recordDates === null && (
         <p className="max-w-[60ch] text-xs text-muted-foreground">
@@ -694,7 +655,7 @@ function PositionCard({
   return (
     <li
       className={cn(
-        "rounded-md border px-4 py-3.5 transition-colors duration-(--duration-fast)",
+        "rounded-md border px-3 py-3.5 transition-colors duration-(--duration-fast) md:px-4",
         error ? "border-destructive" : choice.include ? "border-ring bg-accent/40" : "border-border bg-muted/60",
       )}
     >
@@ -718,7 +679,7 @@ function PositionCard({
         <span className="text-[13px] tabular-nums text-muted-foreground">{duration}</span>
       </div>
 
-      <div className={cn("mt-3 ml-7", !choice.include && "opacity-60")} aria-hidden="true">
+      <div className={cn("mt-3 md:ml-7", !choice.include && "opacity-60")} aria-hidden="true">
         <div className="relative h-3 rounded-sm bg-muted ring-1 ring-border ring-inset">
           {position.blocks.map((b) => (
             <div
@@ -745,7 +706,7 @@ function PositionCard({
       </div>
 
       {choice.include && (
-        <div className="mt-3 ml-7 flex flex-wrap items-center gap-4">
+        <div className="mt-3 flex flex-wrap items-center gap-3 md:ml-7 md:gap-4">
           <div role="group" aria-label={`Hours for ${position.label}`} className="inline-flex gap-1 rounded-md bg-muted p-1">
             {[
               { whole: true, label: "Whole day" },
@@ -757,14 +718,14 @@ function PositionCard({
                 size="sm"
                 aria-pressed={choice.wholeDay === option.whole}
                 onClick={() => onChange({ wholeDay: option.whole })}
-                className={cn(choice.wholeDay === option.whole && "bg-card text-foreground shadow-sm hover:bg-card")}
+                className={cn("pointer-coarse:h-11", choice.wholeDay === option.whole && "bg-card text-foreground shadow-sm hover:bg-card")}
               >
                 {option.label}
               </Button>
             ))}
           </div>
           {!choice.wholeDay && (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 max-md:w-full">
               <Label htmlFor={`${idPrefix}-from`}>From</Label>
               <Input
                 id={`${idPrefix}-from`}
@@ -774,7 +735,7 @@ function PositionCard({
                 onChange={(e) => onChange({ start: e.target.value })}
                 aria-invalid={error ? true : undefined}
                 aria-describedby={error ? errorId : undefined}
-                className="w-30"
+                className="w-30 max-md:w-auto max-md:min-w-0 max-md:flex-1 pointer-coarse:h-11"
               />
               <Label htmlFor={`${idPrefix}-to`}>to</Label>
               <Input
@@ -785,16 +746,130 @@ function PositionCard({
                 onChange={(e) => onChange({ end: e.target.value })}
                 aria-invalid={error ? true : undefined}
                 aria-describedby={error ? errorId : undefined}
-                className="w-30"
+                className="w-30 max-md:w-auto max-md:min-w-0 max-md:flex-1 pointer-coarse:h-11"
               />
             </div>
           )}
         </div>
       )}
 
-      <FieldError id={errorId} message={error} className="mt-2.5 ml-7" />
+      <FieldError id={errorId} message={error} className="mt-2.5 md:ml-7" />
     </li>
   );
+}
+
+/**
+ * Кроки заявки. На телефоні (ADR 0008) — смужка вгорі, що прокручується вбік усередині себе, а не переноситься на
+ * другий рядок: поточний крок прокручується в її поле зору, а після «Continue» знизу екрана сторінка повертається
+ * до смужки, щоб новий крок читався з початку.
+ */
+function StepBar({
+  step,
+  maxStep,
+  pending,
+  onGo,
+}: {
+  step: Step;
+  maxStep: Step;
+  pending: boolean;
+  onGo: (step: Step) => void;
+}) {
+  const navRef = useRef<HTMLElement>(null);
+  const first = useRef(true);
+  useEffect(() => {
+    const nav = navRef.current;
+    const current = nav?.querySelector<HTMLElement>('[aria-current="step"]');
+    if (!nav || !current) return;
+    const navBox = nav.getBoundingClientRect();
+    const box = current.getBoundingClientRect();
+    nav.scrollLeft += box.left - navBox.left - (navBox.width - box.width) / 2;
+    if (first.current) {
+      first.current = false;
+      return;
+    }
+    if (navBox.top < 64 && window.matchMedia("(width < 48rem)").matches) window.scrollTo({ top: 0 });
+  }, [step]);
+
+  return (
+    <nav ref={navRef} aria-label="Request steps" className="max-md:-mx-4 max-md:overflow-x-auto max-md:px-4 max-md:[scrollbar-width:none]">
+      <ol className="flex gap-1.5 md:flex-wrap">
+        {STEPS.map((label, i) => {
+          const n = (i + 1) as Step;
+          const current = n === step;
+          const done = n < step || (n <= maxStep && !current);
+          const locked = n > maxStep || pending;
+          return (
+            <li key={label} className="shrink-0">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => !current && onGo(n)}
+                disabled={locked && !current}
+                aria-current={current ? "step" : undefined}
+                className={cn(
+                  "pointer-coarse:h-11",
+                  current && "bg-sidebar-accent text-sidebar-accent-foreground hover:bg-sidebar-accent",
+                )}
+              >
+                {done && <Check className="text-status-approved-foreground" aria-hidden="true" />}
+                {label}
+                {done && <span className="sr-only">(done)</span>}
+              </Button>
+            </li>
+          );
+        })}
+      </ol>
+    </nav>
+  );
+}
+
+/**
+ * Дії кроку: Back ліворуч, основна дія праворуч. На телефоні (ADR 0008, DESIGN.md §12) — прикріплені внизу екрана з
+ * коротким підсумком ліворуч і відступом від смуги жестів iPhone; «Back» — лише іконка, назва та сама для зчитувача.
+ */
+function StepActions({
+  step,
+  pending,
+  summary,
+  onBack,
+}: {
+  step: Step;
+  pending: boolean;
+  summary: string;
+  onBack: () => void;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-3 border-t border-border bg-muted/50 px-6 py-3.5 max-md:fixed max-md:inset-x-0 max-md:bottom-0 max-md:z-10 max-md:gap-2 max-md:bg-popover/95 max-md:px-4 max-md:pt-3 max-md:pb-[calc(0.75rem+env(safe-area-inset-bottom))] max-md:backdrop-blur-md">
+      <div className="flex min-w-0 items-center gap-2">
+        {step > 1 && (
+          <Button variant="ghost" onClick={onBack} disabled={pending} className="max-md:size-11 max-md:px-0">
+            <ChevronLeft />
+            <span className="max-md:sr-only">{step === 4 ? "Back to editing" : "Back"}</span>
+          </Button>
+        )}
+        <span className="truncate text-[13px] font-medium tabular-nums text-muted-foreground md:hidden">{summary}</span>
+      </div>
+      {step < 4 ? (
+        <Button type="submit" className="max-md:h-11">
+          Continue
+          <ChevronRight />
+        </Button>
+      ) : (
+        <Button type="submit" disabled={pending} aria-busy={pending || undefined} className="max-md:h-11">
+          {pending && (
+            <span aria-hidden="true" className="size-3.5 motion-safe:animate-spin rounded-full border-2 border-current border-r-transparent" />
+          )}
+          {pending ? "Submitting…" : "Submit request"}
+        </Button>
+      )}
+    </div>
+  );
+}
+
+function dateCount(n: number) {
+  if (n === 0) return "No dates yet";
+  return n === 1 ? "1 date" : `${n} dates`;
 }
 
 function recordCount(n: number) {
