@@ -30,14 +30,20 @@ const TEACHER1 = "teacher1@example.test";
 const NOON = 12 * 60;
 const WHOLE_DAY = { start: 8 * 60 + 30, end: 15 * 60 + 30 };
 
-// Тести з записом: перевірка «чисто» до і прибирання після (навіть якщо тест упав).
+// Тести з записом: перевірка «чисто» до і прибирання після (навіть якщо тест упав). Прибираємо лише тоді, коли
+// перевірка пройшла: Playwright виконує afterEach і після помилки в beforeEach, а тоді рядки у вікнах AC — чужі.
+let windowsClean = false;
+
 test.beforeEach(async ({}, info) => {
-  if (info.tags.includes("@prod-writes")) await assertCalendarClean();
+  windowsClean = false;
+  if (!info.tags.includes("@prod-writes")) return;
+  await assertCalendarClean();
+  windowsClean = true;
 });
 
 test.afterEach(async ({ page }, info) => {
   await attachRuntimeErrors(page);
-  if (!info.tags.includes("@prod-writes") || !hasAdminKey()) return;
+  if (!info.tags.includes("@prod-writes") || !hasAdminKey() || !windowsClean) return;
   for (const name of ["Winter break", "Teachers' meeting", "Staff day"]) await rememberClosuresNamed(name);
   for (const date of ["2026-11-20", "2026-11-27", "2026-12-29"]) await rememberRequestsOn(TEACHER1, date);
   await cleanupRemembered();
@@ -557,12 +563,12 @@ test.describe("manager1@example.test", () => {
           clause: "the school calendar is unchanged, and 2026-11-27 is still accepted in a new request.",
           visible: ["a new request with Fri 27 Nov 2026 among the selected dates («Remove Fri, 27 Nov 2026»)"],
           hidden: [
-            "both direct attempts were refused by the database (function: 42501, table insert: 42501 / 401)",
+            "both direct attempts were refused by the database (code 42501 for both: the function and the table insert)",
             "the school calendar is unchanged: the same number of closures, no «Staff day»",
           ],
         },
         async () => {
-          for (const a of attempts) expect(a.status, JSON.stringify(a)).toBeGreaterThanOrEqual(400);
+          for (const a of attempts) expect(a.code, JSON.stringify(a)).toBe("42501");
           await openCalendar(page);
           await expect(page.getByTestId("closure")).toHaveCount(before);
           await expect(closureRow(page, "Staff day")).toHaveCount(0);

@@ -137,23 +137,36 @@ export async function rememberRequestsOn(email: string, date: string) {
   }
 }
 
-/** Закриття, які адміністратор додав через сторінку під час тесту (AC-CAL-01, -08): записати в журнал прибирання. */
+/**
+ * Закриття, які адміністратор додав через сторінку під час тесту (AC-CAL-01, -08): записати в журнал прибирання.
+ * Лише у вікнах дат AC: після assertCalendarClean будь-яке закриття там створив цей тест, а закриття з тією самою
+ * назвою на інші дати (наступні зимові канікули) — справжні, їх не чіпаємо.
+ */
 export async function rememberClosuresNamed(name: string) {
   const supabase = adminClient();
-  const { data, error } = await supabase.from("school_closures").select("id, start_date, end_date").eq("name", name);
-  if (error) throw error;
-  for (const c of data ?? []) {
-    remember({ table: "school_closures", id: c.id, what: `закриття «${name}» ${c.start_date}…${c.end_date} (зі сторінки)` });
+  for (const w of AC_WINDOWS) {
+    const { data, error } = await supabase
+      .from("school_closures")
+      .select("id, start_date, end_date")
+      .eq("name", name)
+      .lte("start_date", w.to)
+      .gte("end_date", w.from);
+    if (error) throw error;
+    for (const c of data ?? []) {
+      remember({ table: "school_closures", id: c.id, what: `закриття «${name}» ${c.start_date}…${c.end_date} (зі сторінки)` });
+    }
   }
 }
 
 /**
- * Передумова кожного тесту: у вікнах дат AC немає закриттів і чинних записів, яких не створив цей прогін.
- * Інакше тест не доводить AC, а може зламати чужі дані — зупиняємось із поясненням.
+ * Передумова кожного тесту: у вікнах дат AC немає закриттів і чинних записів, яких не створив цей прогін, і жодного
+ * запису teacher1@example.test у будь-якому статусі (прибирання видаляє всі його заявки на ці дати, тож і Rejected
+ * чи Cancelled там мають бути нашими). Інакше тест не доводить AC, а може зламати чужі дані — зупиняємось із поясненням.
  */
 export async function assertCalendarClean() {
   const supabase = adminClient();
   const problems: string[] = [];
+  const teacher1 = await profileId(supabase, "teacher1@example.test");
   for (const w of AC_WINDOWS) {
     const { data: closures, error } = await supabase
       .from("school_closures")
@@ -170,10 +183,18 @@ export async function assertCalendarClean() {
       .in("status", BLOCKING);
     if (recordsError) throw recordsError;
     for (const r of records ?? []) problems.push(`запис ${r.date} (${r.status})`);
+    const { data: own, error: ownError } = await supabase
+      .from("leave_records")
+      .select("date, status")
+      .eq("employee_id", teacher1)
+      .gte("date", w.from)
+      .lte("date", w.to);
+    if (ownError) throw ownError;
+    for (const r of own ?? []) problems.push(`запис teacher1@example.test ${r.date} (${r.status})`);
   }
   if (problems.length) {
     throw new Error(
-      `Дати AC календаря на проді не чисті — тест зупинено, нічого не змінено: ${problems.join("; ")}. ` +
+      `Дати AC календаря на проді не чисті — тест зупинено, нічого не змінено: ${[...new Set(problems)].join("; ")}. ` +
         "Приберіть ці рядки або перенесіть перевірку на іншу дату.",
     );
   }
@@ -189,6 +210,7 @@ export async function cleanupRemembered(): Promise<string[]> {
     if (data?.length) deleted.push(row.what);
   }
   // Журнал створеного — порожній, видалене — у журнал прогону (його підсумовує teardown для звіту).
+  mkdirSync("test-results", { recursive: true });
   writeFileSync(LOG, "");
   for (const what of deleted) appendFileSync(DELETED_LOG, `${JSON.stringify(what)}\n`);
   return deleted;

@@ -3,7 +3,7 @@
 //   UAT_SCREENSHOTS=1 npx playwright test calendar-screenshots --project chromium     (з .env.local і ключем)
 // Закриття для знімків створює й прибирає той самий помічник, що й UAT (@prod-writes).
 import { expect, test, type Page } from "@playwright/test";
-import { addClosure, assertCalendarClean, cleanupRemembered, rememberClosuresNamed } from "./support/admin";
+import { addClosure, assertCalendarClean, cleanupRemembered } from "./support/admin";
 import { showMonth } from "./support/calendar";
 
 const SIZES = [
@@ -19,8 +19,8 @@ test.describe("school calendar screenshots", { tag: ["@screenshots", "@prod-writ
     await addClosure("Teachers' meeting", "2026-11-20", "2026-11-20", 12 * 60);
   });
 
+  // addClosure запам'ятовує id створеного; прибираємо лише їх (afterAll виконується і після помилки в beforeAll).
   test.afterAll(async () => {
-    for (const name of ["Winter break", "Teachers' meeting"]) await rememberClosuresNamed(name);
     await cleanupRemembered();
   });
 
