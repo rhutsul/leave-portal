@@ -76,7 +76,12 @@ test("on a phone the calendar fills the card, the step action stays pinned at th
   const submit = page.getByRole("button", { name: "Submit request" });
   await pinnedAtBottom(page, submit);
   await expect(submit.locator("..").getByText(/^1 record · /)).toBeVisible();
-  await expect(page.getByRole("button", { name: "Back to editing" })).toBeInViewport();
+  // «Back to editing» на телефоні — кнопка-іконка з тією самою назвою, ціль дотику 44×44 px.
+  const back = page.getByRole("button", { name: "Back to editing" });
+  await expect(back).toBeInViewport();
+  const backBox = (await back.boundingBox())!;
+  expect(backBox.width).toBeGreaterThanOrEqual(44);
+  expect(backBox.height).toBeGreaterThanOrEqual(44);
 });
 
 test.describe("at 360 px", () => {
@@ -89,7 +94,15 @@ test.describe("at 360 px", () => {
     expect(cell.width).toBeGreaterThanOrEqual(40);
     expect(cell.height).toBeGreaterThanOrEqual(40);
     await noHorizontalScroll(page);
+    // Кроки — один рядок, що прокручується вбік усередині смужки, а не переноситься й не обрізається.
     const steps = page.getByRole("navigation", { name: "Request steps" });
     expect((await steps.boundingBox())!.width).toBeLessThanOrEqual(360);
+    expect(await steps.evaluate((el) => getComputedStyle(el).overflowX)).toMatch(/^(auto|scroll)$/);
+    expect(await steps.evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(true);
+    const tops = await steps.getByRole("button").evaluateAll((buttons) => buttons.map((b) => b.getBoundingClientRect().top));
+    expect(new Set(tops).size).toBe(1);
+    await steps.evaluate((el) => el.scrollTo({ left: el.scrollWidth }));
+    expect(await steps.evaluate((el) => el.scrollLeft)).toBeGreaterThan(0);
+    await expect(steps.getByRole("button", { name: "Summary" })).toBeInViewport({ ratio: 1 });
   });
 });
