@@ -123,7 +123,7 @@ function Choices({
 }) {
   const ids = useId();
   return (
-    <div className="flex flex-col gap-5.5 border-border p-7 @3xl:border-r">
+    <div className="flex flex-col gap-5.5 border-border p-5 @md:p-7 @3xl:border-r">
       <div className="flex flex-col gap-2.5">
         <span id={`${ids}-dates`} className={KICKER}>
           Dates · 9–13 Nov 2026
@@ -288,14 +288,14 @@ export function TryIt() {
     <Card className="@container gap-0 overflow-hidden bg-card/85 p-0 backdrop-blur-md">
       <div className="grid @3xl:grid-cols-[minmax(0,5fr)_minmax(0,6fr)]">
         <Choices state={state} sent={sent !== null} onChange={setState} />
-        <div className="flex min-w-0 flex-col gap-4 p-7">
+        <div className="flex min-w-0 flex-col gap-4 border-t border-border p-5 @md:p-7 @3xl:border-t-0">
           <div className="flex items-baseline justify-between gap-3">
             <h3 className="text-base font-semibold">Your request</h3>
             <span className="text-[13px] text-muted-foreground tabular-nums" aria-live="polite">
               {summary(records)}
             </span>
           </div>
-          <div className="min-h-65 border-t border-border">
+          <div className="min-h-36 border-t border-border @3xl:min-h-65">
             {records.length ? (
               <ul aria-label="Records of your request" aria-live="polite">
                 {records.map((record, i) => (
@@ -307,7 +307,7 @@ export function TryIt() {
             )}
           </div>
           <div className="mt-auto flex items-end justify-between gap-4 border-t border-border pt-4">
-            <div className="flex min-w-50 flex-col gap-1.5">
+            <div className="flex max-w-50 min-w-0 flex-1 flex-col gap-1.5">
               <span className="text-[13px] text-muted-foreground">Personal leave left</span>
               <span className="text-3xl leading-9 font-semibold tracking-tight tabular-nums" aria-live="polite">
                 {left.toFixed(2)}

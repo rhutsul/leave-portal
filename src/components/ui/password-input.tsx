@@ -38,7 +38,7 @@ export function PasswordInput({ className, ...props }: Omit<ComponentProps<"inpu
         {...props}
         ref={field}
         type={shown ? "text" : "password"}
-        className={cn("pr-10", className)}
+        className={cn("pr-10 pointer-coarse:h-11 pointer-coarse:pr-12", className)}
       />
       <Button
         type="button"
@@ -56,8 +56,9 @@ export function PasswordInput({ className, ...props }: Omit<ComponentProps<"inpu
           setShown((was) => !was);
         }}
         // Без translate для центрування: натиснута Button зсувається на 1 px через translate, і кнопка стрибала б з-під
-        // курсора. Поле — h-9 (36 px), кнопка — size-8 (32 px): відступ 2 px зверху.
-        className="absolute top-0.5 right-0.5 text-muted-foreground hover:text-foreground"
+        // курсора. Поле — h-9 (36 px), кнопка — size-8 (32 px): відступ 2 px зверху; на дотику поле 44 px, кнопка 40 px —
+        // ціль для пальця (ADR 0008).
+        className="absolute top-0.5 right-0.5 text-muted-foreground hover:text-foreground pointer-coarse:size-10"
       >
         {shown ? <EyeOff /> : <Eye />}
       </Button>

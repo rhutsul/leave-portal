@@ -12,6 +12,7 @@ import { parseTheme, THEME_COOKIE } from "@/lib/preferences";
 import { createClient } from "@/lib/supabase/server";
 import { cn } from "@/lib/utils";
 import { OverviewPreview } from "./overview-preview";
+import { SectionMenu } from "./section-menu";
 import { TryIt } from "./try-it";
 
 export const metadata: Metadata = {
@@ -20,7 +21,16 @@ export const metadata: Metadata = {
 };
 
 const KICKER = "font-mono text-[11px] tracking-wide text-muted-foreground uppercase";
-const H2 = "text-4xl leading-11 font-semibold tracking-tight";
+const H2 = "text-[28px] leading-9 font-semibold tracking-tight md:text-4xl md:leading-11";
+// Поля секцій (ADR 0008): 16 px на телефоні, 48 px від md.
+const GUTTER = "px-4 md:px-12";
+
+// Розділи сторінки: у шапці від md, вужче — у меню з кнопки (SectionMenu).
+const SECTIONS = [
+  { href: "#try", label: "Try it", heading: "try-title" },
+  { href: "#balances", label: "Balances", heading: "balances-title" },
+  { href: "#roles", label: "Who uses it", heading: "roles-title" },
+] as const;
 
 const FACTS = [
   { figure: "150 / 420 = 0.36", text: "150 of 420 working minutes on a date is 0.36 day." },
@@ -74,23 +84,31 @@ function PortalLink({ signedIn, className, size }: { signedIn: boolean; classNam
 function Header({ signedIn, theme }: { signedIn: boolean; theme: ReturnType<typeof parseTheme> }) {
   return (
     <header className="sticky top-0 z-10 border-b border-border/60 bg-background/75 backdrop-blur-md">
-      <nav aria-label="Main" className="mx-auto flex max-w-[1280px] items-center justify-between gap-4 px-12 py-3.5">
-        <Link href="/welcome" className="flex items-center gap-2.5 text-[15px] font-semibold">
-          <Logo className="size-6.5" />
-          Leave Portal
+      <nav
+        aria-label="Main"
+        className="mx-auto flex h-14 max-w-[1280px] items-center justify-between gap-3 pr-2 pl-4 md:h-auto md:px-12 md:py-3.5"
+      >
+        <Link href="/welcome" className="flex min-w-0 items-center gap-2.5 text-[15px] font-semibold">
+          <Logo className="size-6.5 flex-none" />
+          <span className="truncate">Leave Portal</span>
         </Link>
-        <div className="flex items-center gap-5.5 text-sm">
-          <a href="#try" className="text-muted-foreground transition-colors duration-(--duration-fast) hover:text-foreground">
-            Try it
-          </a>
-          <a href="#balances" className="text-muted-foreground transition-colors duration-(--duration-fast) hover:text-foreground">
-            Balances
-          </a>
-          <a href="#roles" className="text-muted-foreground transition-colors duration-(--duration-fast) hover:text-foreground">
-            Who uses it
-          </a>
-          <ThemeMenu initial={theme} />
-          <PortalLink signedIn={signedIn} size="sm" />
+        <div className="flex flex-none items-center gap-1 text-sm md:gap-5.5">
+          {SECTIONS.map((section) => (
+            <a
+              key={section.href}
+              href={section.href}
+              className="hidden text-muted-foreground transition-colors duration-(--duration-fast) hover:text-foreground md:inline"
+            >
+              {section.label}
+            </a>
+          ))}
+          <span className="flex pointer-coarse:*:size-11">
+            <ThemeMenu initial={theme} />
+          </span>
+          <PortalLink signedIn={signedIn} size="sm" className="pointer-coarse:h-9" />
+          <span className="flex md:hidden">
+            <SectionMenu sections={SECTIONS} />
+          </span>
         </div>
       </nav>
     </header>
@@ -99,23 +117,35 @@ function Header({ signedIn, theme }: { signedIn: boolean; theme: ReturnType<type
 
 function Hero({ signedIn }: { signedIn: boolean }) {
   return (
-    <section data-field-stage aria-labelledby="hero-title" className="relative mx-auto flex min-h-[720px] w-full max-w-[1280px] items-center px-12 pt-10 pb-20">
-      <div className="flex w-[560px] max-w-full flex-col gap-6.5">
+    // Вужче за lg аркуш місяця з частинок — над заголовком (ADR 0008, пункт 10): текст починається нижче за нього.
+    <section
+      data-field-stage
+      aria-labelledby="hero-title"
+      className={cn(
+        "relative mx-auto flex w-full max-w-[1280px] items-start pt-[max(9rem,calc(34vh-3rem))] pb-14 lg:min-h-[720px] lg:items-center lg:pt-10 lg:pb-20",
+        // Без поля (reduced motion — одразу за CSS; Save-Data, слабкий пристрій, без WebGL2 — після гідратації) місця
+        // під аркуш не лишаємо.
+        "motion-reduce:pt-10 group-has-[[data-field-tier=none]]/welcome:pt-10",
+        GUTTER,
+      )}
+    >
+      <div className="flex w-[560px] max-w-full flex-col gap-5 md:gap-6.5">
         <span className={KICKER}>Leave requests · decisions · balances</span>
-        <h1 id="hero-title" className="text-[56px] leading-[60px] font-semibold tracking-[-0.03em]">
+        <h1 id="hero-title" className="text-[34px] leading-[38px] font-semibold tracking-[-0.03em] md:text-[56px] md:leading-[60px]">
           Leave by your schedule, decided record by record
         </h1>
-        <p className="max-w-[480px] text-[17px] leading-[26px] text-muted-foreground">
+        <p className="max-w-[480px] text-[15px] leading-[22px] text-muted-foreground md:text-[17px] md:leading-[26px]">
           Request a whole day or specific hours for each of your positions. Each responsible manager decides on their own
           records, and balances are counted to 0.01 day.
         </p>
-        <div className="flex flex-wrap items-center gap-2.5">
-          <PortalLink signedIn={signedIn} size="lg" />
-          <a href="#try" className={buttonVariants({ variant: "outline", size: "lg", className: "bg-transparent" })}>
+        {/* На телефоні кнопки одна під одною на всю ширину (ADR 0008). */}
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-2.5">
+          <PortalLink signedIn={signedIn} size="lg" className="h-11.5 sm:h-10" />
+          <a href="#try" className={buttonVariants({ variant: "outline", size: "lg", className: "h-11.5 bg-transparent sm:h-10" })}>
             Try a request
           </a>
         </div>
-        <div className="flex w-fit gap-5.5 border-t border-border pt-2 font-mono text-xs text-muted-foreground">
+        <div className="flex w-fit max-w-full flex-wrap gap-x-5.5 gap-y-1.5 border-t border-border pt-2 font-mono text-[11px] text-muted-foreground md:text-xs">
           <span>3 roles</span>
           <span>1 record per position and date</span>
           <span>0.01 day precision</span>
@@ -127,7 +157,7 @@ function Hero({ signedIn }: { signedIn: boolean }) {
 
 function TrySection() {
   return (
-    <section id="try" data-field-stage aria-labelledby="try-title" className="welcome-reveal mx-auto flex w-full max-w-[1280px] scroll-mt-16 flex-col gap-9 px-12 py-30">
+    <section id="try" data-field-stage aria-labelledby="try-title" className={cn("welcome-reveal mx-auto flex w-full max-w-[1280px] scroll-mt-16 flex-col gap-6 py-16 md:gap-9 md:py-30", GUTTER)}>
       <div className="flex max-w-[640px] flex-col gap-2.5">
         <span className={KICKER}>01 · Try it</span>
         <h2 id="try-title" className={H2}>
@@ -149,7 +179,10 @@ function BalancesSection() {
       id="balances"
       data-field-stage
       aria-labelledby="balances-title"
-      className="welcome-reveal mx-auto flex w-full max-w-[1280px] scroll-mt-16 flex-col items-center justify-between gap-14 px-12 py-30 min-[1100px]:min-h-[900px]"
+      className={cn(
+        "welcome-reveal mx-auto flex w-full max-w-[1280px] scroll-mt-16 flex-col items-center justify-between gap-10 py-16 md:gap-14 md:py-30 lg:min-h-[900px]",
+        GUTTER,
+      )}
     >
       <div className="flex max-w-[640px] flex-col items-center gap-2.5 text-center">
         <span className={KICKER}>02 · Balances</span>
@@ -158,12 +191,12 @@ function BalancesSection() {
         </h2>
       </div>
       <div className="flex flex-col items-center gap-1">
-        <span className="text-[96px] leading-[96px] font-semibold tracking-[-0.04em] tabular-nums">
+        <span className="text-[64px] leading-[64px] font-semibold tracking-[-0.04em] tabular-nums md:text-[96px] md:leading-[96px]">
           <ShowcaseCount value="16.64" />
         </span>
-        <span className="text-[15px] text-muted-foreground">days of Personal leave left · 1.36 of 18.00 used</span>
+        <span className="text-center text-[15px] text-muted-foreground">days of Personal leave left · 1.36 of 18.00 used</span>
       </div>
-      <div className="grid w-full grid-cols-3 gap-4">
+      <div className="grid w-full gap-3 md:grid-cols-3 md:gap-4">
         {FACTS.map((fact) => (
           <Card key={fact.figure} className="gap-1.5 bg-card/85 p-5 backdrop-blur-md">
             <span className="font-mono text-[22px] font-medium text-primary">{fact.figure}</span>
@@ -177,16 +210,24 @@ function BalancesSection() {
 
 function RolesSection() {
   return (
-    <section id="roles" data-field-stage aria-labelledby="roles-title" className="welcome-reveal mx-auto flex w-full max-w-[1280px] scroll-mt-16 flex-col gap-8 px-12 py-30">
+    <section
+      id="roles"
+      data-field-stage
+      aria-labelledby="roles-title"
+      className={cn("welcome-reveal mx-auto flex w-full max-w-[1280px] scroll-mt-16 flex-col gap-6 py-16 md:gap-8 md:py-30", GUTTER)}
+    >
       <div className="flex flex-col items-center gap-2.5 text-center">
         <span className={KICKER}>03 · Who uses it</span>
         <h2 id="roles-title" className={H2}>
           Three roles. One person can hold several.
         </h2>
       </div>
-      {/* Місце для трьох сфер ролей поля частинок — лише вшир від 1100 px, де поле є. */}
-      <div aria-hidden="true" className="hidden h-55 min-[1100px]:block" />
-      <ul className="grid grid-cols-3 gap-5">
+      {/* Місце для трьох сфер ролей поля частинок; вужче за lg сфери менші, тож і місця менше; без поля — немає. */}
+      <div
+        aria-hidden="true"
+        className="h-28 motion-reduce:hidden group-has-[[data-field-tier=none]]/welcome:hidden lg:h-55"
+      />
+      <ul className="grid gap-3 md:grid-cols-3 md:gap-5">
         {ROLES.map((role, index) => (
           // Наведення на картку підсвічує сферу цієї ролі в полі частинок (ParticleField).
           <li key={role.id} data-field-focus={index}>
@@ -217,7 +258,10 @@ function PreviewSection() {
     <section
       data-field-stage
       aria-labelledby="preview-title"
-      className="welcome-reveal mx-auto grid w-full max-w-[1280px] grid-cols-[minmax(0,4fr)_minmax(0,7fr)] items-center gap-14 px-12 pt-30 pb-20"
+      className={cn(
+        "welcome-reveal mx-auto grid w-full max-w-[1280px] items-center gap-10 pt-16 pb-14 md:pt-30 md:pb-20 lg:grid-cols-[minmax(0,4fr)_minmax(0,7fr)] lg:gap-14",
+        GUTTER,
+      )}
     >
       <div className="flex flex-col gap-3.5">
         <span className={KICKER}>04 · Overview</span>
@@ -235,14 +279,14 @@ function PreviewSection() {
 
 function Closing({ signedIn }: { signedIn: boolean }) {
   return (
-    <section aria-labelledby="cta-title" className="mx-auto flex w-full max-w-[1280px] flex-col gap-16 px-12 pt-35 pb-10">
+    <section aria-labelledby="cta-title" className={cn("mx-auto flex w-full max-w-[1280px] flex-col gap-12 pt-20 pb-8 md:gap-16 md:pt-35 md:pb-10", GUTTER)}>
       <div className="welcome-reveal flex flex-col items-center gap-5.5 text-center">
-        <h2 id="cta-title" className="max-w-[760px] text-[44px] leading-[50px] font-semibold tracking-[-0.03em]">
+        <h2 id="cta-title" className="max-w-[760px] text-[30px] leading-9 font-semibold tracking-[-0.03em] md:text-[44px] md:leading-[50px]">
           Your administrator creates your account. Then sign in and request leave.
         </h2>
-        <PortalLink signedIn={signedIn} size="lg" />
+        <PortalLink signedIn={signedIn} size="lg" className="h-11.5 w-full sm:h-10 sm:w-auto" />
       </div>
-      <footer className="flex items-center justify-between gap-4 border-t border-border pt-5 text-[13px] text-muted-foreground">
+      <footer className="flex flex-col gap-1.5 border-t border-border pt-5 text-[13px] text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:gap-4">
         <span>Leave Portal · internal portal for school staff</span>
         <span className="font-mono text-xs">Requests · Decisions · Balances</span>
       </footer>
@@ -262,7 +306,8 @@ export default async function WelcomePage() {
   const theme = parseTheme((await cookies()).get(THEME_COOKIE)?.value);
 
   return (
-    <div className={cn("welcome-field flex flex-1 flex-col text-foreground")}>
+    // overflow-x-clip: декор, що виступає за край (картки прев'ю Overview), не дає прокрутки вбік, а sticky поля працює.
+    <div className="welcome-field group/welcome flex flex-1 flex-col overflow-x-clip text-foreground">
       {/* Одне поле на всю сторінку: липке за вмістом, форма змінюється за прокруткою (ADR 0007). */}
       <ParticleField variant="welcome" className="sticky top-0 z-0 -mb-[100vh] h-screen" />
       <Header signedIn={signedIn} theme={theme} />

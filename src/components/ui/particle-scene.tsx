@@ -15,14 +15,25 @@ import {
   Vector3,
   WebGLRenderer,
 } from "three";
-import { approach, buildField, FORM_COUNT, PALETTE_TOKENS, stageAt, type FieldVariant } from "@/lib/particle-field";
+import {
+  approach,
+  buildField,
+  FORM_COUNT,
+  PALETTE_TOKENS,
+  stageAt,
+  tierBudget,
+  type FieldLayout,
+  type FieldTier,
+  type FieldVariant,
+} from "@/lib/particle-field";
 import { FRAGMENT, VERTEX } from "./particle-shaders";
 
 /**
  * Сцена поля частинок на three.js (ADR 0007): один `Points`, свої шейдери, один draw call, без тіней і постобробки.
- * Вантажиться окремим чанком лише на `/welcome` і `/login` (через ParticleField). Щільність пікселів ≤ 1.5; рендер
- * стоїть, коли вкладку сховано чи полотно поза екраном; prefers-reduced-motion — статичний кадр без циклу; кольори —
- * з токенів теми; при розмонтуванні все звільняється.
+ * Вантажиться окремим чанком лише на `/welcome` і `/login` (через ParticleField). Повне поле — щільність пікселів
+ * ≤ 1.5, легке (ADR 0008) — до 6 000 точок і щільність 1, той самий шейдер; рендер стоїть, коли вкладку сховано чи
+ * полотно поза екраном; prefers-reduced-motion — статичний кадр без циклу; кольори — з токенів теми; при
+ * розмонтуванні все звільняється. Точки розштовхує миша, а на дотику — палець, і під час прокрутки.
  */
 
 interface VariantConfig {
@@ -76,8 +87,8 @@ function readPalette(probe: CanvasRenderingContext2D) {
   return { colors, dark };
 }
 
-function createPoints(variant: FieldVariant) {
-  const field = buildField(variant);
+function createPoints(variant: FieldVariant, count: number, layout: FieldLayout) {
+  const field = buildField(variant, count, layout);
   const geometry = new BufferGeometry();
   const names = ["position", "p1", "p2", "p3", "p4"];
   for (let s = 0; s < FORM_COUNT; s++) {
@@ -144,7 +155,17 @@ function watchPixelRatio(onChange: () => void) {
   return () => query?.removeEventListener("change", changed);
 }
 
-export default function ParticleScene({ variant, onReady }: { variant: FieldVariant; onReady?: () => void }) {
+export default function ParticleScene({
+  variant,
+  tier,
+  layout,
+  onReady,
+}: {
+  variant: FieldVariant;
+  tier: Exclude<FieldTier, "none">;
+  layout: FieldLayout;
+  onReady?: () => void;
+}) {
   const host = useRef<HTMLDivElement>(null);
   // Свіжий onReady без перезапуску сцени: ефект нижче не залежить від нього.
   const readyRef = useRef(onReady);
@@ -167,7 +188,8 @@ export default function ParticleScene({ variant, onReady }: { variant: FieldVari
     renderer.domElement.style.display = "block";
     el.appendChild(renderer.domElement);
     const camera = new Camera();
-    const { geometry, material, points } = createPoints(variant);
+    const budget = tierBudget(tier, variant);
+    const { geometry, material, points } = createPoints(variant, budget.points, layout);
     const u = material.uniforms;
     const config = CONFIG[variant];
     const probe = document.createElement("canvas").getContext("2d", { willReadFrequently: true });
@@ -195,7 +217,7 @@ export default function ParticleScene({ variant, onReady }: { variant: FieldVari
 
     const resize = () => {
       box = el.getBoundingClientRect();
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, budget.pixelRatio));
       renderer.setSize(el.clientWidth, el.clientHeight, false);
       renderer.domElement.style.width = "100%";
       renderer.domElement.style.height = "100%";
@@ -258,17 +280,34 @@ export default function ParticleScene({ variant, onReady }: { variant: FieldVari
       frame = requestAnimationFrame(loop);
     };
 
-    const onPointer = (event: PointerEvent) => {
-      if (event.pointerType !== "mouse") return;
+    /** Точка екрана → координати полотна; поза полотном точки від неї не відштовхуються. `lean` — наскільки поле
+     * повертається за нею (палець — удвічі менше, ніж миша). */
+    const aim = (clientX: number, clientY: number, lean: number) => {
       if (boxDirty) {
         box = el.getBoundingClientRect();
         boxDirty = false;
       }
-      const x = ((event.clientX - box.left) / box.width) * 2 - 1;
-      const y = -(((event.clientY - box.top) / box.height) * 2 - 1);
+      const x = ((clientX - box.left) / box.width) * 2 - 1;
+      const y = -(((clientY - box.top) / box.height) * 2 - 1);
       const inside = Math.abs(x) <= 1 && Math.abs(y) <= 1;
       mouse.at.set(inside ? x : OFF, inside ? y : OFF);
-      mouse.gaze.set(inside ? x : 0, inside ? y : 0);
+      mouse.gaze.set(inside ? x * lean : 0, inside ? y * lean : 0);
+    };
+    const onPointer = (event: PointerEvent) => {
+      if (event.pointerType === "mouse") aim(event.clientX, event.clientY, 1);
+    };
+    // Дотик (ADR 0008): pointermove на сенсорному екрані зупиняється, щойно браузер бере жест на прокрутку, а
+    // touchmove — ні, тож точки розштовхує палець і під час прокрутки. Обробники пасивні: прокрутку не гальмують.
+    const onTouch = (event: TouchEvent) => {
+      const touch = event.touches[0];
+      if (!touch) return;
+      aim(touch.clientX, touch.clientY, 0.5);
+      wake();
+    };
+    const onTouchEnd = (event: TouchEvent) => {
+      if (event.touches.length) return;
+      mouse.at.set(OFF, OFF);
+      mouse.gaze.set(0, 0);
     };
     // Курсор пішов за межі вікна — поле перестає від нього відштовхуватись і повертатись за ним.
     const onPointerGone = (event: Event) => {
@@ -322,6 +361,10 @@ export default function ParticleScene({ variant, onReady }: { variant: FieldVari
     scheme.addEventListener("change", onTheme);
     reduced.addEventListener("change", wake);
     window.addEventListener("pointermove", onPointer, { passive: true });
+    window.addEventListener("touchstart", onTouch, { passive: true });
+    window.addEventListener("touchmove", onTouch, { passive: true });
+    window.addEventListener("touchend", onTouchEnd, { passive: true });
+    window.addEventListener("touchcancel", onTouchEnd, { passive: true });
     window.addEventListener("scroll", onScroll, { passive: true });
     document.addEventListener("pointerover", onOver);
     document.addEventListener("pointerout", onPointerGone);
@@ -337,6 +380,10 @@ export default function ParticleScene({ variant, onReady }: { variant: FieldVari
       scheme.removeEventListener("change", onTheme);
       reduced.removeEventListener("change", wake);
       window.removeEventListener("pointermove", onPointer);
+      window.removeEventListener("touchstart", onTouch);
+      window.removeEventListener("touchmove", onTouch);
+      window.removeEventListener("touchend", onTouchEnd);
+      window.removeEventListener("touchcancel", onTouchEnd);
       window.removeEventListener("scroll", onScroll);
       document.removeEventListener("pointerover", onOver);
       document.removeEventListener("pointerout", onPointerGone);
@@ -350,7 +397,7 @@ export default function ParticleScene({ variant, onReady }: { variant: FieldVari
       renderer.forceContextLoss();
       renderer.domElement.remove();
     };
-  }, [variant]);
+  }, [variant, tier, layout]);
 
   return <div ref={host} className="size-full" />;
 }

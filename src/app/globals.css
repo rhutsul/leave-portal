@@ -397,7 +397,8 @@
 
 @layer components {
   /* Landing `/welcome` і вхід (ADR 0007): одна тема на всю сторінку, тло — сітка з крапок без швів між секціями.
-     Поле частинок (ParticleField) лягає поверх; вужче за 1100 px, без WebGL чи з reduced motion лишається сама сітка. */
+     Поле частинок (ParticleField) лягає поверх; без WebGL, з reduced motion, а на телефоні ще й з Save-Data чи на слабкому
+     пристрої (ADR 0008) лишається сама сітка. */
   .welcome-field {
     background-color: var(--background);
     background-image: radial-gradient(color-mix(in oklch, var(--foreground) 7%, transparent) 1px, transparent 1px);
