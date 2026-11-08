@@ -204,7 +204,11 @@ export async function assertCalendarClean() {
 export async function cleanupRemembered(): Promise<string[]> {
   const supabase = adminClient();
   const deleted: string[] = [];
-  for (const row of remembered().reverse()) {
+  // Один рядок може потрапити в журнал двічі (addClosure і rememberClosuresNamed) — лишаємо перший опис.
+  const unique = remembered().filter(
+    (row, i, all) => all.findIndex((r) => r.table === row.table && r.id === row.id) === i,
+  );
+  for (const row of unique.reverse()) {
     const { data, error } = await supabase.from(row.table).delete().eq("id", row.id).select("id");
     if (error) throw error;
     if (data?.length) deleted.push(row.what);
