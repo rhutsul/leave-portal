@@ -425,7 +425,8 @@ export default async function DesignPage() {
           <Link href="/login" className="text-primary underline-offset-4 hover:underline">
             /login
           </Link>
-          , from 1100 px, with WebGL2 and without reduced motion.
+          , with WebGL2 and without reduced motion: the full field from 1024 px with a mouse, a light one (6,000 points)
+          on phones and touch screens.
         </p>
       </Section>
 

@@ -108,3 +108,17 @@ WS7 вище (`ws7-after-decisions-*.png`).
 | `v2r-phone-decisions-dark.jpg` | «Decisions»: записи — картки цілком-посилання зі стрілкою в куті |
 | `v2r-phone-record-dark.jpg` | запис на весь екран: «Back to list», ↑/↓, Reject і Return у два стовпці, Approve на всю ширину, прикріплені внизу |
 | `v2r-desktop-decisions-light.jpg` | 1280 px без змін: бічна панель і таблиця |
+
+### Адаптив, landing і вхід (ADR 0008, PR 3/3)
+
+З локальної збірки гілки `task/responsive-welcome-login` (`next start` із заглушками `NEXT_PUBLIC_SUPABASE_*`), гість,
+Playwright: телефон — Pixel 7 на 390×844 (дотик, легке поле), настільний — 1280×800 (миша, повне поле).
+
+| Файл | Що видно |
+|---|---|
+| `v2r-welcome-phone-light.jpg`, `v2r-welcome-phone-dark.jpg` | шапка: знак, тема, «Sign in» і «Open menu» (розділи в меню); легке поле — аркуш місяця над заголовком; кнопки hero на всю ширину |
+| `v2r-welcome-phone-try-dark.jpg` | «Try it» в одну колонку: дати в п'ять колонок, посади, час |
+| `v2r-welcome-phone-roles-light.jpg` | ролі по одній у рядку, три сфери ролей поля в ряд над картками |
+| `v2r-welcome-desktop-light.jpg`, `v2r-welcome-desktop-dark.jpg` | 1280 px без змін: аркуш праворуч від тексту hero, посилання розділів у шапці |
+| `v2r-login-phone-light.jpg`, `v2r-login-phone-dark.jpg` | вхід на телефоні: аркуш місяця смугою вгорі, картка нижче; поля й кнопка 44+ px, шрифт полів 16 px |
+| `v2r-login-desktop-light.jpg`, `v2r-login-desktop-dark.jpg` | 1280 px без змін: картка ліворуч, аркуш праворуч |

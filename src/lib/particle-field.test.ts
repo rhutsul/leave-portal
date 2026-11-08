@@ -1,6 +1,22 @@
 // Поле частинок (ADR 0007) — декор landing і входу, не поведінка за AC PM: тому без AC ID.
 import { describe, expect, it } from "vitest";
-import { approach, buildField, FORM_COUNT, MIN_MORPH, MORPH_SPAN, PALETTE_TOKENS, POINTS, RING_LEFT, rng, stageAt } from "./particle-field";
+import {
+  approach,
+  buildField,
+  fieldTier,
+  FORM_COUNT,
+  LIGHT_POINTS,
+  MIN_MORPH,
+  MORPH_SPAN,
+  NARROW_FIT,
+  PALETTE_TOKENS,
+  POINTS,
+  RING_LEFT,
+  rng,
+  stageAt,
+  tierBudget,
+  type FieldEnvironment,
+} from "./particle-field";
 
 describe("buildField", () => {
   it("keeps within the particle budget of ADR 0007", () => {
@@ -57,6 +73,86 @@ describe("buildField", () => {
 
   it("shows the balance left on the ring as the primary share", () => {
     expect(RING_LEFT).toBeCloseTo(0.924, 3);
+  });
+});
+
+describe("narrow layout", () => {
+  const xsOf = (positions: Float32Array) => Array.from({ length: positions.length / 3 }, (_, i) => positions[i * 3]);
+  const median = (values: number[]) => [...values].sort((a, b) => a - b)[Math.floor(values.length / 2)];
+
+  it("puts the landing month sheet centred above the hero text", () => {
+    const sheet = buildField("welcome", 4000, "narrow").positions[0];
+    expect(Math.abs(median(xsOf(sheet)))).toBeLessThan(0.1);
+    const ys = Array.from({ length: 4000 }, (_, i) => sheet[i * 3 + 1]);
+    expect(median(ys)).toBeGreaterThan(0.8);
+  });
+
+  it("shrinks the landing forms so they fit a narrow window", () => {
+    const wide = buildField("welcome", 3000);
+    const narrow = buildField("welcome", 3000, "narrow");
+    for (let s = 0; s < FORM_COUNT - 1; s++) {
+      const span = (p: Float32Array) => Math.max(...xsOf(p).map(Math.abs));
+      expect(span(narrow.positions[s])).toBeLessThan(span(wide.positions[s]) + 1e-6);
+    }
+    expect(NARROW_FIT).toHaveLength(FORM_COUNT);
+  });
+
+  it("keeps the same tones and groups as the wide layout", () => {
+    const wide = buildField("welcome", 1000);
+    const narrow = buildField("welcome", 1000, "narrow");
+    expect(Array.from(narrow.tones[2])).toEqual(Array.from(wide.tones[2]));
+    expect(Array.from(narrow.group)).toEqual(Array.from(wide.group));
+  });
+
+  it("leaves the login sheet as it is: only its canvas is smaller", () => {
+    expect(Array.from(buildField("login", 400, "narrow").positions[0])).toEqual(Array.from(buildField("login", 400).positions[0]));
+  });
+});
+
+describe("fieldTier", () => {
+  const desktop: FieldEnvironment = { wide: true, finePointer: true, reducedMotion: false, webgl2: true, cores: 8, memory: 8 };
+  const phone: FieldEnvironment = { wide: false, finePointer: false, reducedMotion: false, webgl2: true, cores: 8, memory: 8 };
+
+  it("gives the full field from lg with a mouse", () => {
+    expect(fieldTier(desktop)).toBe("full");
+  });
+
+  it("gives the light field below lg or on touch", () => {
+    expect(fieldTier(phone)).toBe("light");
+    expect(fieldTier({ ...desktop, wide: false })).toBe("light");
+    expect(fieldTier({ ...desktop, finePointer: false })).toBe("light");
+  });
+
+  it("loads no field with reduced motion or without WebGL2, on any screen", () => {
+    for (const env of [desktop, phone]) {
+      expect(fieldTier({ ...env, reducedMotion: true })).toBe("none");
+      expect(fieldTier({ ...env, webgl2: false })).toBe("none");
+    }
+  });
+
+  it("drops the light field with Save-Data or on a weak device", () => {
+    expect(fieldTier({ ...phone, saveData: true })).toBe("none");
+    expect(fieldTier({ ...phone, cores: 4 })).toBe("none");
+    expect(fieldTier({ ...phone, memory: 4 })).toBe("none");
+    expect(fieldTier({ ...phone, cores: 5, memory: 6 })).toBe("light");
+  });
+
+  it("does not count a device as weak when the browser does not say (Safari, Firefox)", () => {
+    expect(fieldTier({ ...phone, cores: undefined, memory: undefined, saveData: undefined })).toBe("light");
+  });
+
+  it("keeps the full field on a desktop with Save-Data or few cores", () => {
+    expect(fieldTier({ ...desktop, saveData: true, cores: 2, memory: 2 })).toBe("full");
+  });
+});
+
+describe("tierBudget", () => {
+  it("keeps the ADR 0007 budget for the full field and 6 000 points at pixel ratio 1 for the light one", () => {
+    expect(tierBudget("full", "welcome")).toEqual({ points: POINTS.welcome, pixelRatio: 1.5 });
+    expect(tierBudget("full", "login")).toEqual({ points: POINTS.login, pixelRatio: 1.5 });
+    expect(tierBudget("light", "welcome")).toEqual({ points: LIGHT_POINTS, pixelRatio: 1 });
+    expect(tierBudget("light", "login")).toEqual({ points: LIGHT_POINTS, pixelRatio: 1 });
+    expect(LIGHT_POINTS).toBeLessThanOrEqual(6_000);
   });
 });
 

@@ -28,6 +28,56 @@ export type FieldVariant = "login" | "welcome";
 /** Скільки точок: до 24 000 на landing, менше на вході (ADR 0007: стеля 32 000). */
 export const POINTS: Record<FieldVariant, number> = { welcome: 24_000, login: 16_000 };
 
+/**
+ * Рівень поля (ADR 0008, пункт 10): `full` — повне поле ADR 0007, `light` — легке для телефона й дотику, `none` — поля
+ * немає, лишається сітка з крапок.
+ */
+export type FieldTier = "full" | "light" | "none";
+
+/** Легке поле: до 6 000 точок і щільність пікселів 1 — на обох сторінках. */
+export const LIGHT_POINTS = 6_000;
+
+/** Скільки точок і яка найбільша щільність пікселів на кожному рівні поля. */
+export function tierBudget(tier: Exclude<FieldTier, "none">, variant: FieldVariant) {
+  return tier === "full" ? { points: POINTS[variant], pixelRatio: 1.5 } : { points: LIGHT_POINTS, pixelRatio: 1 };
+}
+
+/** Що браузер каже про екран і пристрій; `cores`, `memory`, `saveData` — undefined, де властивості немає. */
+export interface FieldEnvironment {
+  /** Від `lg` (1024 px). */
+  wide: boolean;
+  /** `pointer: fine` — миша чи тачпад як основний вказівник. */
+  finePointer: boolean;
+  reducedMotion: boolean;
+  webgl2: boolean;
+  /** `navigator.connection.saveData`. */
+  saveData?: boolean;
+  /** `navigator.hardwareConcurrency`. */
+  cores?: number;
+  /** `navigator.deviceMemory`, ГБ. */
+  memory?: number;
+}
+
+/** Слабкий пристрій: ≤ 4 ядер або ≤ 4 ГБ пам'яті; чого браузер не каже (Safari, Firefox) — те не робить його слабким. */
+export const WEAK_LIMIT = 4;
+
+/**
+ * Рівень поля: повне — від `lg` з мишею; легке — вужче за `lg` або на дотику, але не з економією трафіку й не на
+ * слабкому пристрої; без WebGL2 чи з prefers-reduced-motion поля немає ніде. Повне поле умови легкого не вимикають.
+ */
+export function fieldTier(env: FieldEnvironment): FieldTier {
+  if (env.reducedMotion || !env.webgl2) return "none";
+  if (env.wide && env.finePointer) return "full";
+  const weak = (env.cores !== undefined && env.cores <= WEAK_LIMIT) || (env.memory !== undefined && env.memory <= WEAK_LIMIT);
+  return env.saveData || weak ? "none" : "light";
+}
+
+/**
+ * Розкладка форм: `wide` — як на настільному екрані (аркуш landing праворуч від тексту), `narrow` — вужче за `lg`:
+ * аркуш landing менший і над заголовком hero, решта форм стиснута, щоб уміститися у вузьке високе вікно.
+ */
+export type FieldLayout = "wide" | "narrow";
+
 export interface FieldGeometry {
   count: number;
   /** FORM_COUNT масивів по count × 3: позиція точки в кожній формі. */
@@ -177,10 +227,10 @@ function ringPoint(R: Rand): Point {
 
 const ROLE_TONES = [Tone.Primary, Tone.Returned, Tone.Highlight];
 
-/** Форма 3 — три сфери ролей над картками ролей. */
-function rolePoint(R: Rand, role: number): Point {
+/** Форма 3 — три сфери ролей над картками ролей; `gap` — відстань між центрами сфер. */
+function rolePoint(R: Rand, role: number, gap = 1.5): Point {
   return {
-    p: sphere(R, 0.3 * (0.8 + 0.2 * R()), [(role - 1) * 1.5, 0.35, 0]),
+    p: sphere(R, 0.3 * (0.8 + 0.2 * R()), [(role - 1) * gap, 0.35, 0]),
     tone: ROLE_TONES[role],
     weight: 0.65 + 0.35 * R(),
   };
@@ -201,13 +251,38 @@ function cloudPoint(R: Rand, spread: [number, number]): Point {
   return { p: sphere(R, spread[0] + R() * spread[1], [0, 0, 0], [1.6, 1, 0.6]), tone: Tone.Neutral, weight: 0.22 + R() * 0.15 };
 }
 
+/**
+ * Вужче за `lg` форми landing стискаємо: масштаб і зсув по вертикалі для кожної форми. Аркуш — менший і вгорі, над
+ * заголовком hero (ADR 0008, пункт 10); віяло, кільце й сфери ролей — щоб уміститися у вузьке вікно (сфери ще й
+ * ближче одна до одної й вище); хвиля — як є.
+ */
+export const NARROW_FIT: readonly { scale: number; lift: number }[] = [
+  { scale: 0.42, lift: 1.05 },
+  { scale: 0.62, lift: 0 },
+  { scale: 0.7, lift: 0 },
+  { scale: 0.42, lift: 0.55 },
+  { scale: 1, lift: 0 },
+];
+
+/** Вужче за `lg` сфери ролей ближче одна до одної: три в ряд на ширині телефона. */
+const NARROW_ROLE_GAP = 0.9;
+
+function fit(point: Point, form: number): Point {
+  const { scale, lift } = NARROW_FIT[form];
+  return { ...point, p: [point.p[0] * scale, point.p[1] * scale + lift, point.p[2] * scale] };
+}
+
 /** П'ять форм точки на landing: аркуш (праворуч від тексту hero) → віяло → кільце → сфери ролей → поле. */
-function welcomeForms(R: Rand): { forms: Point[]; group: number } {
+function welcomeForms(R: Rand, layout: FieldLayout): { forms: Point[]; group: number } {
   if (R() < 0.07) {
     const cloud = cloudPoint(R, [1.4, 1.2]);
     return { forms: Array.from({ length: FORM_COUNT }, () => cloud), group: -1 };
   }
   const role = Math.floor(R() * 3);
+  if (layout === "narrow") {
+    const forms = [sheetPoint(R, 0), fanPoint(R), ringPoint(R), rolePoint(R, role, NARROW_ROLE_GAP), wavePoint(R)];
+    return { forms: forms.map(fit), group: role };
+  }
   return { forms: [sheetPoint(R, 1.15), fanPoint(R), ringPoint(R), rolePoint(R, role), wavePoint(R)], group: role };
 }
 
@@ -217,8 +292,11 @@ function loginForms(R: Rand): { forms: Point[]; group: number } {
   return { forms: Array.from({ length: FORM_COUNT }, () => sheet), group: -1 };
 }
 
-/** Геометрія поля: позиції й тони всіх форм, випадкові числа й групи. */
-export function buildField(variant: FieldVariant, count = POINTS[variant]): FieldGeometry {
+/**
+ * Геометрія поля: позиції й тони всіх форм, випадкові числа й групи. Вхід однаковий у будь-якій розкладці: вужче за
+ * `lg` менше саме полотно (смуга над карткою входу), а не аркуш.
+ */
+export function buildField(variant: FieldVariant, count = POINTS[variant], layout: FieldLayout = "wide"): FieldGeometry {
   const R = rng(7);
   const positions = Array.from({ length: FORM_COUNT }, () => new Float32Array(count * 3));
   const tones = Array.from({ length: FORM_COUNT }, () => new Float32Array(count * 2));
@@ -226,7 +304,7 @@ export function buildField(variant: FieldVariant, count = POINTS[variant]): Fiel
   const group = new Float32Array(count);
   for (let i = 0; i < count; i++) {
     for (let k = 0; k < 4; k++) random[i * 4 + k] = R();
-    const { forms, group: g } = variant === "welcome" ? welcomeForms(R) : loginForms(R);
+    const { forms, group: g } = variant === "welcome" ? welcomeForms(R, layout) : loginForms(R);
     forms.forEach((form, s) => {
       positions[s].set(form.p, i * 3);
       tones[s].set([form.tone, form.weight], i * 2);
