@@ -517,7 +517,7 @@ test.describe("manager1@example.test", () => {
       // тож тест запам'ятовує стартове «used» і перевіряє різницю: +1.00, а не +0.50.
       let usedBefore = 0;
 
-      await given('the early dismissal from AC-CAL-04, an employee with a single position (schedule Fri 08:30–15:30) and "Sick leave" used 0.00', async () => {
+      await given('the early dismissal from AC-CAL-04, an employee with a single position (schedule Fri 08:30–15:30) and "Sick leave" used 0.00 (on prod: the used value before the decision is noted, the check is +1.00)', async () => {
         await addClosure("Teachers' meeting", "2026-11-20", "2026-11-20", NOON);
         await addRecord(TEACHER1, { date: "2026-11-20", start: WHOLE_DAY.start, end: NOON, leaveType: "sick", status: "awaiting" });
         await balances.goto("/balances?year=2026");

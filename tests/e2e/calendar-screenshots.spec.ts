@@ -27,7 +27,13 @@ test.describe("school calendar screenshots", { tag: ["@screenshots", "@prod-writ
   for (const theme of THEMES) {
     for (const size of SIZES) {
       test(`calendar pages at ${size.name} px, ${theme}`, async ({ browser, baseURL }) => {
-        const shot = async (role: string, path: string, file: string, before: (p: Page) => Promise<void> = async () => {}) => {
+        const shot = async (
+          role: string,
+          path: string,
+          heading: string,
+          file: string,
+          before: (p: Page) => Promise<void> = async () => {},
+        ) => {
           const context = await browser.newContext({
             storageState: `playwright/.auth/${role}.json`,
             viewport: { width: size.width, height: size.height },
@@ -37,19 +43,21 @@ test.describe("school calendar screenshots", { tag: ["@screenshots", "@prod-writ
           await context.addCookies([{ name: "theme", value: theme, url: baseURL! }]);
           const page = await context.newPage();
           await page.goto(path);
-          // Знімок — лише сторінки, що справді відкрилась (а не сторінки входу чи помилки).
-          await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+          // Знімок — лише тієї сторінки, яку чекаємо (не входу, не відмови замість форми, не помилки).
+          await expect(page.getByRole("heading", { level: 1, name: heading })).toBeVisible();
           await before(page);
           await page.screenshot({ path: `docs/img/ws9-${file}-${size.name}-${theme}.png`, fullPage: true });
           await context.close();
         };
-        await shot("teacher1", "/calendar?year=2026", "calendar-teacher1");
-        await shot("admin", "/calendar?year=2026", "calendar-admin");
-        await shot("admin", "/calendar/manage", "calendar-manage-admin");
-        await shot("teacher1", "/calendar/manage", "calendar-manage-refused-teacher1");
-        await shot("teacher1", "/requests/new", "new-request-closed-day", async (page) => {
+        await shot("teacher1", "/calendar?year=2026", "School calendar", "calendar-teacher1");
+        await shot("admin", "/calendar?year=2026", "School calendar", "calendar-admin");
+        await shot("admin", "/calendar/manage", "Add closure", "calendar-manage-admin");
+        await shot("teacher1", "/calendar/manage", "Change the school calendar", "calendar-manage-refused-teacher1");
+        await shot("teacher1", "/requests/new", "New request", "new-request-closed-day", async (page) => {
           await showMonth(page, 2026, 12);
           await page.getByRole("button", { name: /^Tue, 29 Dec 2026/ }).click();
+          // Кадр лише тоді, коли закриття справді дійшли до форми: інакше 29 грудня просто вибралось би.
+          await expect(page.getByRole("main").getByRole("alert")).toHaveText("The school is closed on this day: Winter break");
         });
       });
     }
