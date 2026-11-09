@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { cellAt, dayLabel, dotLook, dotPosition, drawDots, inClosedPart, layoutDots, layoutHatch, type Dot } from "./dot-month";
+import { cellAt, dayLabel, dotLook, dotPosition, drawDots, drawHatch, inClosedPart, layoutDots, layoutHatch, type Dot } from "./dot-month";
 import { monthGrid } from "./leave/time";
 
 // Правила вигляду DotMonth (ADR 0007), а не AC PM: тому без AC ID у назвах.
@@ -110,5 +110,51 @@ describe("school closures in the month", () => {
       "Mon 28 Dec · 08:30–12:00 · Approved · Winter break",
     );
     expect(dayLabel("2026-12-29", "2026-11-09", undefined, undefined)).toBe("29 · no records");
+  });
+});
+
+describe("drawHatch", () => {
+  const canvas = () => ({
+    strokeStyle: "",
+    lineWidth: 0,
+    globalAlpha: 1,
+    save: vi.fn(),
+    restore: vi.fn(),
+    beginPath: vi.fn(),
+    rect: vi.fn(),
+    clip: vi.fn(),
+    moveTo: vi.fn(),
+    lineTo: vi.fn(),
+    stroke: vi.fn(),
+  });
+
+  it("clips each closed area and strokes diagonal lines across it in the token colour", () => {
+    const ctx = canvas();
+    drawHatch(ctx as unknown as CanvasRenderingContext2D, [{ x: 10, y: 20, w: 30, h: 10 }, { x: 100, y: 20, w: 12, h: 10 }], "m", Infinity);
+    expect(ctx.strokeStyle).toBe("m");
+    expect(ctx.rect.mock.calls).toEqual([
+      [10, 20, 30, 10],
+      [100, 20, 12, 10],
+    ]);
+    expect(ctx.clip).toHaveBeenCalledTimes(2);
+    expect(ctx.stroke).toHaveBeenCalledTimes(2);
+    // Лінії кроком 5 px від -h до w: для першої області — 8 ліній, кожна йде знизу вліво догори вправо.
+    const first = ctx.moveTo.mock.calls.slice(0, 8);
+    expect(first[0]).toEqual([0, 30]);
+    expect(ctx.lineTo.mock.calls[0]).toEqual([10, 20]);
+    expect(ctx.moveTo).toHaveBeenCalledTimes(8 + 5);
+    expect(ctx.globalAlpha).toBeCloseTo(0.22);
+    expect(ctx.save.mock.calls.length).toBe(ctx.restore.mock.calls.length);
+  });
+
+  it("fades in with the dots and draws nothing without closed areas", () => {
+    const ctx = canvas();
+    drawHatch(ctx as unknown as CanvasRenderingContext2D, [{ x: 0, y: 0, w: 10, h: 10 }], "m", 350);
+    expect(ctx.globalAlpha).toBeCloseTo(0.11);
+    drawHatch(ctx as unknown as CanvasRenderingContext2D, [{ x: 0, y: 0, w: 10, h: 10 }], "m", -100);
+    expect(ctx.globalAlpha).toBe(0);
+    const empty = canvas();
+    drawHatch(empty as unknown as CanvasRenderingContext2D, [], "m", Infinity);
+    expect(empty.save).not.toHaveBeenCalled();
   });
 });
