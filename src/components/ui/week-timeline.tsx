@@ -112,12 +112,15 @@ function DayHeader({ day: d, weekStart }: { day: WeekTimelineDay; weekStart: boo
   );
 }
 
-/** У вузькій колонці «from 12:00» не вміщається — лише час; повністю — у `title` і для зчитувача. */
+/**
+ * У вузькій колонці (телефон) «from 12:00» не вміщається — «· 12:00» під датою, тобто «Mon 9 · 12:00»; від 64 px —
+ * «from 12:00». Повністю («School closes early: … from 12:00») — у `title` і в назві заголовка для зчитувача.
+ */
 function ClosureTime({ time }: { time: string | null }) {
   if (!time) return <span className="px-0.5 text-[10px] leading-3">closed</span>;
   return (
     <span className="@container w-full px-0.5 text-[10px] leading-3">
-      <span className="@min-[64px]:hidden">{time.replace(/^from /, "")}</span>
+      <span className="@min-[64px]:hidden">· {time.replace(/^from /, "")}</span>
       <span className="hidden @min-[64px]:inline">{time}</span>
     </span>
   );

@@ -267,7 +267,8 @@ export async function cleanupCalendar(): Promise<{ deleted: string[]; remaining:
 
 /**
  * Дві дати для перевірки закриттів на Overview: робочі дні показаних двох тижнів, не раніше сьогодні (за Києвом), без
- * чужих закриттів; краще — поза вікнами дат AC календаря (AC_WINDOWS). whole — найпізніша, early — найраніша (щоб рядок Overview назвав саме її); null — таких
+ * чужих закриттів і без чинних записів teacher1@ (закриття поверх запису база не допустила б — AC-CAL-07, тож дані
+ * на знімках мають бути можливими); краще — поза вікнами дат AC календаря (AC_WINDOWS). whole — найпізніша, early — найраніша (щоб рядок Overview назвав саме її); null — таких
  * днів немає.
  */
 export async function freeOverviewDates(): Promise<{ whole: string; early: string } | null> {
@@ -289,7 +290,19 @@ export async function freeOverviewDates(): Promise<{ whole: string; early: strin
     .lte("start_date", candidates.at(-1)!)
     .gte("end_date", candidates[0]);
   if (error) throw error;
-  const free = candidates.filter((d) => !(data ?? []).some((c) => c.start_date <= d && d <= c.end_date));
+  const teacher1 = await profileId(supabase, "teacher1@example.test");
+  const { data: records, error: recordsError } = await supabase
+    .from("leave_records")
+    .select("date")
+    .eq("employee_id", teacher1)
+    .in("status", BLOCKING)
+    .gte("date", candidates[0])
+    .lte("date", candidates.at(-1)!);
+  if (recordsError) throw recordsError;
+  const busy = new Set((records ?? []).map((r) => r.date as string));
+  const free = candidates.filter(
+    (d) => !busy.has(d) && !(data ?? []).some((c) => c.start_date <= d && d <= c.end_date),
+  );
   const outsideAc = free.filter((d) => !AC_WINDOWS.some((w) => w.from <= d && d <= w.to));
   const pool = outsideAc.length >= 2 ? outsideAc : free;
   return pool.length < 2 ? null : { whole: pool.at(-1)!, early: pool[0] };
