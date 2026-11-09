@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // D0 smoke розгорнутого застосунку: лише GET, без входу й форм, без секретів (Node 24, без залежностей).
 // Використання: node scripts/smoke.mjs <base-url> [expected-sha]     (або npm run smoke -- <base-url> [sha])
-//   1) "/"           → редірект саме на /login цього ж проду або 200 (не 401/404/5xx і не стіна входу Vercel);
+//   1) "/"           → редірект на /welcome (landing для гостя, ADR 0007) чи /login цього ж проду або 200 (не 401/404/5xx
+//                      і не стіна входу Vercel);
 //   2) "/login"      → 200 і поле пароля (застосунок справді віддає сторінку);
 //   3) "/api/health" → 200 {db:"ok"}; з expected-sha — sha збігається (до 6 спроб × 20 с: прод-домен перемикається
 //                      на новий деплой не миттєво).
@@ -60,16 +61,17 @@ async function main() {
     const hint = root.vercelError === "MIDDLEWARE_INVOCATION_FAILED" ? " — у Vercel бракує NEXT_PUBLIC_SUPABASE_*?" : "";
     fail.push(`"/": HTTP ${root.status} ${root.vercelError}${hint}`.trim());
   } else if (root.status >= 300) {
-    // redirect: "manual" — за редиректом не йдемо, тож перевіряємо, куди він веде: без сесії — лише на /login цього ж проду.
+    // redirect: "manual" — за редиректом не йдемо, тож перевіряємо, куди він веде: без сесії — на landing /welcome
+    // (з #54, ADR 0007) або на /login цього ж проду.
     const target = new URL(root.location || "/", `${base}/`);
     const sameOrigin = target.origin === new URL(base).origin;
-    if (!sameOrigin || !target.pathname.endsWith("/login")) {
+    if (!sameOrigin || !/\/(login|welcome)$/.test(target.pathname)) {
       // Лише шлях (і хост, якщо чужий), без параметрів: у них може бути токен.
       const shown = sameOrigin ? target.pathname : target.origin + target.pathname;
-      fail.push(`"/": редирект ${root.status} на ${shown}, а очікувався /login`);
+      fail.push(`"/": редирект ${root.status} на ${shown}, а очікувався /welcome або /login`);
     }
   } else if (root.status !== 200) {
-    fail.push(`"/": HTTP ${root.status}, а очікувався 200 або редирект на /login`);
+    fail.push(`"/": HTTP ${root.status}, а очікувався 200 або редирект на /welcome чи /login`);
   }
 
   const login = await get("/login");
