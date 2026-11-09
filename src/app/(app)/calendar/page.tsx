@@ -4,9 +4,10 @@ import { CircleCheck, Plus } from "lucide-react";
 import { SchoolYearSwitcher } from "@/components/school-year-switcher";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { buttonVariants } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { ClosureSwatch, SchoolCalendarLegend, SchoolYearCalendar } from "@/components/ui/school-calendar";
 import { formatSchoolYear, schoolYearOf } from "@/lib/leave/balance";
 import {
   closuresInSchoolYear,
@@ -16,6 +17,7 @@ import {
   formatClosureTime,
   toClosure,
 } from "@/lib/leave/calendar";
+import { buildSchoolYear } from "@/lib/leave/calendar-grid";
 import { kyivDate } from "@/lib/leave/time";
 import { createClient } from "@/lib/supabase/server";
 import { cn } from "@/lib/utils";
@@ -27,7 +29,8 @@ function first(value: string | string[] | undefined) {
 }
 
 // «School calendar» (openspec/specs/school-calendar, design.md D5): закриття одного навчального року за датами для
-// всіх, хто увійшов (AC-CAL-02); порожній рік — текст AC-CAL-15. Адміністратор додає закриття на /calendar/manage і
+// всіх, хто увійшов (AC-CAL-02); порожній рік — текст AC-CAL-15. Вигляд за розробником (DESIGN.md, розділи 5–6):
+// сітка 12 місяців і поруч список тих самих закриттів — його читає зчитувач екрана, у ньому дії адміністратора. Адміністратор додає закриття на /calendar/manage і
 // видаляє з меню рядка (AC-CAL-09). Гостя proxy веде на вхід, а RLS і так не дає anon читати (AC-CAL-14).
 export default async function CalendarPage({ searchParams }: PageProps<"/calendar">) {
   const supabase = await createClient();
@@ -36,7 +39,8 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
   if (!claims) redirect("/login");
 
   const params = await searchParams;
-  const currentYear = schoolYearOf(kyivDate(new Date()));
+  const today = kyivDate(new Date());
+  const currentYear = schoolYearOf(today);
   const { year } = balancesQuery({ year: params.year }, claims.sub, currentYear);
   const added = Number(first(params.added));
 
@@ -92,57 +96,58 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
         <Alert variant="destructive" role="alert">
           <AlertDescription>The school calendar could not be loaded. Please reload the page.</AlertDescription>
         </Alert>
-      ) : closures.length === 0 ? (
-        <EmptyState title={emptyCalendarMessage(year)} />
       ) : (
-        <ClosuresTable closures={closures} isAdmin={isAdmin} added={added} />
+        // Від lg список праворуч від сітки, вужче — під нею (ADR 0008).
+        <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
+          <Card className="gap-5 px-3 md:px-5">
+            <SchoolYearCalendar months={buildSchoolYear(year, closures, today)} />
+            <SchoolCalendarLegend className="border-t border-border pt-4" />
+          </Card>
+          {closures.length === 0 ? (
+            <EmptyState title={emptyCalendarMessage(year)} />
+          ) : (
+            <ClosuresList closures={closures} isAdmin={isAdmin} added={added} />
+          )}
+        </div>
       )}
     </>
   );
 }
 
-/** Закриття навчального року: картки нижче md (`<Table stack>`, ADR 0008); у адміна — «⋯» → «Remove closure». */
-function ClosuresTable({ closures, isAdmin, added }: { closures: Closure[]; isAdmin: boolean; added: number }) {
+/** Закриття навчального року за датою початку; у адміна — «⋯» → «Remove closure» (AC-CAL-09). */
+function ClosuresList({ closures, isAdmin, added }: { closures: Closure[]; isAdmin: boolean; added: number }) {
   return (
-    <div className="overflow-x-auto rounded-lg border border-border bg-card max-md:overflow-visible max-md:border-0 max-md:bg-transparent">
-      <Table stack>
-        <TableHeader className="bg-muted">
-          <TableRow className="hover:bg-transparent">
-            <TableHead>Dates</TableHead>
-            <TableHead>Name</TableHead>
-            <TableHead>Closed</TableHead>
-            {isAdmin && (
-              <TableHead className="w-px">
-                <span className="sr-only">Actions</span>
-              </TableHead>
-            )}
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {closures.map((c) => {
-            const dates = formatClosureDates(c);
-            const time = formatClosureTime(c);
-            return (
-              <TableRow
-                key={c.id}
-                data-testid="closure"
-                className={cn(c.id === added && "animate-row-flash")}
-              >
-                <TableCell className="whitespace-nowrap tabular-nums">{dates}</TableCell>
-                <TableCell className="font-medium">{c.name}</TableCell>
-                <TableCell className="whitespace-nowrap tabular-nums text-muted-foreground">
+    <Card className="gap-0 py-0">
+      <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
+        <h2 className="text-base font-semibold">Closures</h2>
+        <span className="text-xs text-muted-foreground tabular-nums">{closures.length}</span>
+      </div>
+      <ul>
+        {closures.map((c) => {
+          const dates = formatClosureDates(c);
+          const time = formatClosureTime(c);
+          return (
+            <li
+              key={c.id}
+              data-testid="closure"
+              className={cn(
+                "flex items-start gap-3 border-b border-border px-4 py-3 last:border-b-0",
+                c.id === added && "animate-row-flash",
+              )}
+            >
+              <ClosureSwatch early={time != null} className="mt-0.5" />
+              <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                <span className="font-medium">{c.name}</span>
+                <span className="tabular-nums">{dates}</span>
+                <span className="text-xs text-muted-foreground tabular-nums">
                   {time ? `Early dismissal ${time}` : "Whole days"}
-                </TableCell>
-                {isAdmin && (
-                  <TableCell data-cell="end" className="w-px align-top">
-                    <ClosureActions closureId={c.id} name={c.name} dates={dates} time={time} />
-                  </TableCell>
-                )}
-              </TableRow>
-            );
-          })}
-        </TableBody>
-      </Table>
-    </div>
+                </span>
+              </div>
+              {isAdmin && <ClosureActions closureId={c.id} name={c.name} dates={dates} time={time} />}
+            </li>
+          );
+        })}
+      </ul>
+    </Card>
   );
 }

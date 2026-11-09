@@ -4,7 +4,10 @@ import { ShieldX } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
+import { kyivDate } from "@/lib/leave/time";
 import { createClient } from "@/lib/supabase/server";
+import { MAX_SCHOOL_YEAR, MIN_SCHOOL_YEAR } from "../../balances/load-balances";
+import { loadClosures } from "../load-closures";
 import { manageAccess } from "./access";
 import { ClosureForm } from "./closure-form";
 
@@ -44,6 +47,12 @@ export default async function ManageCalendarPage() {
     );
   }
 
+  // Наявні закриття для перегляду поруч із формою (вигляд за розробником): перетин усе одно відхиляє база (AC-CAL-11),
+  // тож без них форма працює — перегляд лише каже, що їх не показано.
+  const closures = await loadClosures(supabase, `${MIN_SCHOOL_YEAR}-09-01`, `${MAX_SCHOOL_YEAR + 1}-08-31`).catch(
+    () => null,
+  );
+
   return (
     <>
       <PageHeader
@@ -51,7 +60,7 @@ export default async function ManageCalendarPage() {
         breadcrumb={breadcrumb}
         description="A closure applies to the whole school. Days with leave records awaiting a decision, returned or approved cannot be closed."
       />
-      <ClosureForm />
+      <ClosureForm closures={closures} today={kyivDate(new Date())} />
     </>
   );
 }
