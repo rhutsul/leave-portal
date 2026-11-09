@@ -1,6 +1,6 @@
 {
   "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
-  "_comment": "Мутаційне тестування TS (WS8; джерело — матеріали WS8 курсу, materials/testing/stryker.config.json): npm run mutation:ts; один файл — npm run mutation:ts -- --mutate <шлях>. mutate — модулі з правилами трьох AC шару WS8 (AC-BALANCE-13, AC-LEAVE-06, AC-LEAVE-19): time.ts і request.ts — домен, calendar.ts — розклад дати з урахуванням шкільного календаря (WS9, AC-CAL-03 … AC-CAL-05), calendar-view.ts — стан дня в календарі, load-balances.ts — переклад відмови бази 42501 у «not shown». Тека (app) — через «*»: дужки в glob — група, а не символи. SQL і RLS Stryker не мутує — для них npm run mutation:sql.",
+  "_comment": "Мутаційне тестування TS (WS8; джерело — матеріали WS8 курсу, materials/testing/stryker.config.json): npm run mutation:ts; один файл — npm run mutation:ts -- --mutate <шлях>. mutate — модулі з правилами трьох AC шару WS8 (AC-BALANCE-13, AC-LEAVE-06, AC-LEAVE-19): time.ts і request.ts — домен, calendar.ts — розклад дати з урахуванням шкільного календаря (WS9, AC-CAL-03 … AC-CAL-05), calendar-view.ts — стан дня в календарі, load-balances.ts — переклад відмови бази 42501 у «not shown», calendar/manage/access.ts — сторінку зміни календаря відкриває лише адміністратор (AC-CAL-12). Тека (app) — через «*»: дужки в glob — група, а не символи. SQL і RLS Stryker не мутує — для них npm run mutation:sql.",
   "testRunner": "vitest",
   "vitest": { "configFile": "vitest.stryker.config.mts", "related": true },
   "mutate": [
@@ -8,7 +8,8 @@
     "src/lib/leave/request.ts",
     "src/lib/leave/calendar.ts",
     "src/app/*/requests/new/calendar-view.ts",
-    "src/app/*/balances/load-balances.ts"
+    "src/app/*/balances/load-balances.ts",
+    "src/app/*/calendar/manage/access.ts"
   ],
   "reporters": ["clear-text", "progress", "html", "json"],
   "thresholds": { "high": 80, "low": 60, "break": null },

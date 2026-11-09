@@ -44,17 +44,17 @@ AC-CAL-14, AC-CAL-15.
 - [x] 2.4 `/requests/new`: закриття тим самим вікном, що `recordDates` (навчальні роки `year-1 … year+1`); стан
       `closed` — кнопка з повідомленням AC-CAL-03 (`CalendarDay`, вітрина `/design`, `DESIGN.md` розділ 6), легенда з
       «Closed by the school»
-- [ ] 2.5 Stryker `--mutate src/lib/leave/calendar.ts` і SQL-мутант межі скороченого дня (`end_min > closes_at` →
+- [x] 2.5 Stryker `--mutate src/lib/leave/calendar.ts` і SQL-мутант межі скороченого дня (`end_min > closes_at` →
       `>=`) — вижилі мутанти розібрано
 
 Done when: AC-CAL-03, AC-CAL-04, AC-CAL-05, AC-CAL-09.
 
 ## 3. UAT на кожен AC (`task/uat-school-calendar`)
 
-- [ ] 3.1 Хелпер прибирання глобальних рядків у `tests/e2e/support/` (design, Risks): закриття й запис «Approved»
+- [x] 3.1 Хелпер прибирання глобальних рядків у `tests/e2e/support/` (design, Risks): закриття й запис «Approved»
       `teacher1@example.test` створюються через секретний ключ і видаляються за id в `afterAll` і окремим кроком у
       `scripts/uat/run.mjs`; рядок «закриття й записи, що лишились» у звіті; перевірка «чисто» перед прогоном
-- [ ] 3.2 `tests/e2e/calendar.spec.ts`: один `test` на кожен з 15 AC, анотація `ac`, тег `@uat`, `given` / `when` /
+- [x] 3.2 `tests/e2e/calendar.spec.ts`: один `test` на кожен з 15 AC, анотація `ac`, тег `@uat`, `given` / `when` /
       `thenStep`, твердження з дослівним текстом AC; AC, що пишуть дані, — `@writes`
 - [ ] 3.3 Прогін на проді — людина (`npm run uat -- --url https://leave-portal-olive.vercel.app`), негативний
       контроль NC-1; звіт `docs/qa/uat/<дата>/` (`report.md`, `manifest.json`, `frames/`), відео — в описі PR;
