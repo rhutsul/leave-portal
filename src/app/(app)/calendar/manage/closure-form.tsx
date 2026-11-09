@@ -239,7 +239,8 @@ function ClosurePreview({
       </div>
 
       {overlaps.length > 0 && (
-        <Alert variant="warning">
+        // Підказка, не помилка: role="status", щоб єдиним alert лишалась помилка бази над кнопкою (AC-CAL-11).
+        <Alert variant="warning" role="status">
           <TriangleAlert />
           <AlertDescription>
             These dates are already closed: {overlaps.map((c) => `${c.name} (${formatClosureDates(c)})`).join(", ")}
