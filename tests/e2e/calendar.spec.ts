@@ -56,6 +56,15 @@ function usedDays(cardText: string): number {
   return Number(m[1]);
 }
 
+/**
+ * Стартове «used» для AC-CAL-06. Локально й у CI (одноразова база, у teacher1 немає лікарняних) — рівно 0.00, як у
+ * «Дано» AC; на проді (UAT_BASE_URL) там можуть бути справжні погоджені лікарняні — тоді лише запам'ятовуємо значення.
+ */
+function expectStartUsed(used: number) {
+  if (process.env.UAT_BASE_URL) return;
+  expect(used, "«Дано» AC-CAL-06: Sick leave used 0.00").toBe(0);
+}
+
 /** Шаблон «N of … used» для точного числа днів (не збігається з частиною більшого числа). */
 const usedPattern = (days: number) =>
   new RegExp(String.raw`(^|[^\d.])` + days.toFixed(2).replace(".", "\\.") + String.raw` of [\d.]+ used`);
@@ -523,6 +532,7 @@ test.describe("manager1@example.test", () => {
         await balances.goto("/balances?year=2026");
         await expect(sick).toContainText(/ of [\d.]+ used/);
         usedBefore = usedDays((await sick.textContent()) ?? "");
+        expectStartUsed(usedBefore);
       });
 
       await when('the manager approves the whole-day "Sick leave" record 2026-11-20 08:30–12:00', async () => {

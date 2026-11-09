@@ -44,7 +44,8 @@ test.describe("school calendar screenshots", { tag: ["@screenshots", "@prod-writ
           const page = await context.newPage();
           await page.goto(path);
           // Знімок — лише тієї сторінки, яку чекаємо (не входу, не відмови замість форми, не помилки).
-          await expect(page.getByRole("heading", { level: 1, name: heading })).toBeVisible();
+          await expect(page).toHaveURL(new URL(path, baseURL).toString());
+          await expect(page.getByRole("heading", { level: 1, name: heading, exact: true })).toBeVisible();
           await before(page);
           await page.screenshot({ path: `docs/img/ws9-${file}-${size.name}-${theme}.png`, fullPage: true });
           await context.close();
