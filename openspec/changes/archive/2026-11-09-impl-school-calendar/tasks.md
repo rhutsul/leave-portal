@@ -56,8 +56,9 @@ Done when: AC-CAL-03, AC-CAL-04, AC-CAL-05, AC-CAL-09.
       `scripts/uat/run.mjs`; рядок «закриття й записи, що лишились» у звіті; перевірка «чисто» перед прогоном
 - [x] 3.2 `tests/e2e/calendar.spec.ts`: один `test` на кожен з 15 AC, анотація `ac`, тег `@uat`, `given` / `when` /
       `thenStep`, твердження з дослівним текстом AC; AC, що пишуть дані, — `@writes`
-- [ ] 3.3 Прогін на проді — людина (`npm run uat -- --url https://leave-portal-olive.vercel.app`), негативний
-      контроль NC-1; звіт `docs/qa/uat/<дата>/` (`report.md`, `manifest.json`, `frames/`), відео — в описі PR;
+- [x] 3.3 Прогін на проді — людина (`npm run uat -- --url https://leave-portal-olive.vercel.app`), негативний
+      контроль NC-1; звіт `docs/qa/uat/<дата>/` (`report.md`, `manifest.json`, `frames/`), відео — в описі PR
+      (прогону 08.11 — в описі PR proof pack);
       «UAT готовий» у чат команди
 
 Done when: AC-CAL-01, AC-CAL-02, AC-CAL-03, AC-CAL-04, AC-CAL-05, AC-CAL-06, AC-CAL-07, AC-CAL-08, AC-CAL-09,
@@ -65,10 +66,10 @@ AC-CAL-10, AC-CAL-11, AC-CAL-12, AC-CAL-13, AC-CAL-14, AC-CAL-15 — кожен 
 
 ## 4. Proof pack, ретро й закриття плану (`task/proof-pack-ws9`)
 
-- [ ] 4.1 `docs/qa/proof-pack.md` за шаблоном WS9 (WS8 — `docs/qa/proof-pack-ws8.md`): рядок на кожен AC і «Не
+- [x] 4.1 `docs/qa/proof-pack.md` за шаблоном WS9 (WS8 — `docs/qa/proof-pack-ws8.md`): рядок на кожен AC і «Не
       перевірено»; заповнює нова сесія лише з того, що є в репо
-- [ ] 4.2 Ретро «що взяти з фабрики» — `docs/qa/retro-ws9.md`, до 10 рядків по станціях
-- [ ] 4.3 `npx openspec archive impl-school-calendar -y` — останній PR зрізу
+- [x] 4.2 Ретро «що взяти з фабрики» — `docs/qa/retro-ws9.md`, до 10 рядків по станціях
+- [x] 4.3 `npx openspec archive impl-school-calendar -y` — останній PR зрізу
 
 Done when: AC-CAL-01, AC-CAL-02, AC-CAL-03, AC-CAL-04, AC-CAL-05, AC-CAL-06, AC-CAL-07, AC-CAL-08, AC-CAL-09,
 AC-CAL-10, AC-CAL-11, AC-CAL-12, AC-CAL-13, AC-CAL-14, AC-CAL-15 — кожен має рядок у proof pack або в «Не перевірено»

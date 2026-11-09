@@ -101,7 +101,7 @@ export const mutants = [
     find: "p_end >= b.start_min and p_end <= b.end_min",
     replace: "p_end > b.start_min and p_end <= b.end_min",
   },
-  // Шкільний календар (openspec/changes/impl-school-calendar/design.md D6).
+  // Шкільний календар (openspec/changes/archive/2026-11-09-impl-school-calendar/design.md D6).
   {
     id: "S11", kind: "sql", ac: "AC-CAL-02", file: CALENDAR, tests: [CALENDAR_DB],
     what: "RLS school_closures: працівник і менеджер більше не бачать закриттів (using → false)",
