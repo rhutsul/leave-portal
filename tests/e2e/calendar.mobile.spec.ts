@@ -25,6 +25,30 @@ test.describe("employee on a phone", () => {
   });
 });
 
+test.describe("year grid on a narrow phone", () => {
+  test.use({ storageState: "playwright/.auth/teacher1.json", viewport: { width: 360, height: 780 } });
+
+  test("the year grid shows twelve months two per row at 360 px without side scroll", async ({ page }) => {
+    await page.goto("/calendar?year=2026");
+    await expect(page.getByRole("heading", { level: 1, name: "School calendar" })).toBeVisible();
+    const grid = page.getByTestId("school-year-calendar");
+    const months = grid.getByRole("group");
+    await expect(months).toHaveCount(12);
+    await expect(months.first()).toHaveAccessibleName("September 2026");
+    await expect(months.last()).toHaveAccessibleName("August 2027");
+    // Два місяці в рядку: вересень і жовтень на одній висоті, листопад — нижче.
+    const [sep, oct, nov] = await Promise.all([0, 1, 2].map(async (i) => (await months.nth(i).boundingBox())!));
+    expect(Math.abs(sep.y - oct.y)).toBeLessThan(2);
+    expect(nov.y).toBeGreaterThan(sep.y + sep.height - 1);
+    const box = (await grid.boundingBox())!;
+    expect(box.x).toBeGreaterThanOrEqual(0);
+    expect(box.x + box.width).toBeLessThanOrEqual(360);
+    // Легенда і список (чи порожній стан) — під сіткою, не праворуч.
+    await expect(page.getByRole("list", { name: "Calendar legend" })).toBeVisible();
+    await noSideScroll(page);
+  });
+});
+
 test.describe("administrator on a phone", () => {
   test.use({ storageState: "playwright/.auth/admin.json" });
 
@@ -38,6 +62,10 @@ test.describe("administrator on a phone", () => {
     await page.locator("label").filter({ hasText: "Early dismissal" }).click();
     // exact: підказка варіанта «Early dismissal» теж містить «closed from».
     await expect(page.getByLabel("Closed from", { exact: true })).toBeVisible();
+    // Перегляд «Your closure» — під формою, а не праворуч від неї.
+    const form = (await page.locator("form").filter({ has: page.getByRole("button", { name: "Add closure" }) }).boundingBox())!;
+    const preview = (await page.getByRole("complementary", { name: "Your closure" }).boundingBox())!;
+    expect(preview.y).toBeGreaterThan(form.y + form.height - 1);
     await noSideScroll(page);
   });
 });

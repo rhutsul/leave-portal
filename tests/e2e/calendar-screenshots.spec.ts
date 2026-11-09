@@ -52,7 +52,15 @@ test.describe("school calendar screenshots", { tag: ["@screenshots", "@prod-writ
         };
         await shot("teacher1", "/calendar?year=2026", "School calendar", "calendar-teacher1");
         await shot("admin", "/calendar?year=2026", "School calendar", "calendar-admin");
-        await shot("admin", "/calendar/manage", "Add closure", "calendar-manage-admin");
+        await shot("admin", "/calendar/manage", "Add closure", "calendar-manage-admin", async (page) => {
+          // Перегляд «Your closure» з датами, що заходять на «Winter break»: видно і нові дні, і перетин.
+          await page.getByLabel("Name").fill("Christmas week");
+          await page.getByLabel("Start date", { exact: true }).fill("2026-12-21");
+          await page.getByLabel("End date", { exact: true }).fill("2026-12-29");
+          await expect(page.getByRole("complementary", { name: "Your closure" })).toContainText(
+            "These dates are already closed: Winter break",
+          );
+        });
         await shot("teacher1", "/calendar/manage", "Change the school calendar", "calendar-manage-refused-teacher1");
         await shot("teacher1", "/requests/new", "New request", "new-request-closed-day", async (page) => {
           await showMonth(page, 2026, 12);

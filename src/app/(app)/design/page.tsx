@@ -7,6 +7,9 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { BalanceCard } from "@/components/ui/balance-card";
 import { Button } from "@/components/ui/button";
 import { CalendarDay, CalendarLegend, type DayState } from "@/components/ui/calendar-day";
+import { CalendarMonth, SchoolCalendarLegend, SchoolYearCalendar } from "@/components/ui/school-calendar";
+import type { Closure } from "@/lib/leave/calendar";
+import { buildMonth, buildSchoolYear } from "@/lib/leave/calendar-grid";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -115,6 +118,12 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
     </section>
   );
 }
+
+// Синтетичні закриття для вітрини шкільного календаря.
+const SAMPLE_CLOSURES: Closure[] = [
+  { id: 1, name: "Teachers' meeting", startDate: "2026-11-20", endDate: "2026-11-20", closesAt: 12 * 60 },
+  { id: 2, name: "Winter break", startDate: "2026-12-28", endDate: "2027-01-08", closesAt: null },
+];
 
 export default async function DesignPage() {
   const theme = parseTheme((await cookies()).get(THEME_COOKIE)?.value);
@@ -445,6 +454,26 @@ export default async function DesignPage() {
             </div>
             <CalendarLegend />
           </CardContent>
+        </Card>
+      </Section>
+
+      <Section title="School calendar">
+        <p className="max-w-[60ch] text-sm text-muted-foreground">
+          Year grid of the school calendar: closed days hatched and struck through, an early dismissal hatched in the
+          lower half, today ringed. Hover or focus a closed day for its name. Below is the preview next to the
+          Add closure form, with the new dates and an overlap.
+        </p>
+        <Card className="gap-5 px-3 md:px-5">
+          <SchoolYearCalendar months={buildSchoolYear(2026, SAMPLE_CLOSURES, "2026-11-09").slice(2, 6)} />
+          <SchoolCalendarLegend className="border-t border-border pt-4" />
+        </Card>
+        <Card className="max-w-sm gap-4 px-5">
+          <CalendarMonth
+            month={buildMonth("2026-12", SAMPLE_CLOSURES, "2026-11-09", { start: "2026-12-23", end: "2026-12-29" })}
+            size="md"
+            headingLevel={0}
+          />
+          <SchoolCalendarLegend items={["selected", "overlap", "closed", "early", "today"]} />
         </Card>
       </Section>
 
