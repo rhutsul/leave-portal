@@ -65,7 +65,10 @@ async function main() {
     // (з #54, ADR 0007) або на /login цього ж проду.
     const target = new URL(root.location || "/", `${base}/`);
     const sameOrigin = target.origin === new URL(base).origin;
-    if (!sameOrigin || !/\/(login|welcome)$/.test(target.pathname)) {
+    // Точні шляхи (з урахуванням шляху в PROD_URL, якщо він є), а не «закінчується на»: /other/welcome — це вже збій.
+    const basePath = new URL(base).pathname.replace(/\/$/, "");
+    const allowed = [`${basePath}/welcome`, `${basePath}/login`];
+    if (!sameOrigin || !allowed.includes(target.pathname)) {
       // Лише шлях (і хост, якщо чужий), без параметрів: у них може бути токен.
       const shown = sameOrigin ? target.pathname : target.origin + target.pathname;
       fail.push(`"/": редирект ${root.status} на ${shown}, а очікувався /welcome або /login`);
