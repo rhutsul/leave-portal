@@ -49,7 +49,6 @@ import { StatStrip } from "@/components/ui/stat-strip";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { WeekTimeline } from "@/components/ui/week-timeline";
 import { dayClosures, monthClosures, timelineDays, twoWeeks } from "@/lib/leave/overview";
-import type { Closure } from "@/lib/leave/calendar";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { ThemeMenu } from "@/components/ui/theme-menu";
