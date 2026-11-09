@@ -21,18 +21,44 @@ const GAP = 6;
 const FLY_MS = 700;
 const PUSH_RADIUS = 46;
 
-/** Вигляд точки дня: поза місяцем — немає; вихідний — тихіше; запис — колір статусу; сьогодні — `highlight`. */
-export function dotLook(cell: { inMonth: boolean; weekend: boolean; status: DotTone | null; today: boolean }) {
+export interface DotStyle {
+  tone: DotTone;
+  alpha: number;
+  size: number;
+  /** Частка дня (0–1), з якої школа закрита: точки правіше — приглушені; 0 — закрито цілий день; null — відкрито. */
+  closedFrom: number | null;
+}
+
+/** Приглушена точка закритої частини дня: тихіша за вихідний, щоб штриховка під нею читалась. */
+const CLOSED = { alpha: 0.1, size: 1.2 } as const;
+
+/**
+ * Вигляд точки дня: поза місяцем — немає; вихідний — тихіше; запис — колір статусу; сьогодні — `highlight`. Закриття
+ * школою (`closedFrom`) лише приглушує точки без запису: записи й «сьогодні» лишаються як є.
+ */
+export function dotLook(cell: {
+  inMonth: boolean;
+  weekend: boolean;
+  status: DotTone | null;
+  today: boolean;
+  closedFrom?: number | null;
+}): DotStyle | null {
   if (!cell.inMonth) return null;
-  if (cell.today) return { tone: "today" as const, alpha: 1, size: 2.1 };
-  if (cell.status) return { tone: cell.status, alpha: 0.95, size: 1.9 };
-  return { tone: "base" as const, alpha: cell.weekend ? 0.16 : 0.34, size: 1.5 };
+  const closedFrom = cell.closedFrom ?? null;
+  if (cell.today) return { tone: "today", alpha: 1, size: 2.1, closedFrom };
+  if (cell.status) return { tone: cell.status, alpha: 0.95, size: 1.9, closedFrom };
+  return { tone: "base", alpha: cell.weekend ? 0.16 : 0.34, size: 1.5, closedFrom };
+}
+
+/** Чи точка в стовпці `col` (0–6) блоку дня потрапляє в закриту частину дня. */
+export function inClosedPart(col: number, closedFrom: number | null): boolean {
+  return closedFrom !== null && col / (DOT_COLS - 1) >= closedFrom;
 }
 
 /** Сітка 7 × 3 точок на кожен день; звідки точка злітає й коли — з детермінованого «випадку», щоб кадр був сталим. */
 export function layoutDots(
   cells: readonly (string | null)[],
-  look: (cell: number, date: string | null) => ReturnType<typeof dotLook>,
+  look: (cell: number, date: string | null) => DotStyle | null,
   width: number,
   height: number,
 ): Dot[] {
@@ -53,6 +79,7 @@ export function layoutDots(
     const x0 = (cell % COLS) * cw + GAP;
     const y0 = Math.floor(cell / COLS) * ch + GAP;
     for (let i = 0; i < DOT_COLS * DOT_ROWS; i++) {
+      const muted = style.tone === "base" && inClosedPart(i % DOT_COLS, style.closedFrom);
       dots.push({
         cell,
         x: x0 + (i % DOT_COLS) * sx,
@@ -60,11 +87,70 @@ export function layoutDots(
         fromX: rand() * width,
         fromY: height + rand() * 40,
         delay: (cell / cells.length) * 260 + rand() * 220,
-        ...style,
+        tone: style.tone,
+        alpha: muted ? CLOSED.alpha : style.alpha,
+        size: muted ? CLOSED.size : style.size,
       });
     }
   });
   return dots;
+}
+
+export interface HatchRect {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+/**
+ * Штриховка закритої частини дня (той самий знак «закрито школою», що в календарі заявки): цілий день — уся клітинка,
+ * скорочений день — від `closedFrom` праворуч.
+ */
+export function layoutHatch(
+  cells: readonly (string | null)[],
+  closedFrom: (cell: number, date: string) => number | null,
+  width: number,
+  height: number,
+): HatchRect[] {
+  const rows = Math.ceil(cells.length / COLS);
+  const cw = width / COLS;
+  const ch = height / rows;
+  const rects: HatchRect[] = [];
+  cells.forEach((date, cell) => {
+    const from = date ? closedFrom(cell, date) : null;
+    if (from === null) return;
+    const x = (cell % COLS) * cw + 2;
+    const w = cw - 4;
+    rects.push({ x: x + w * from, y: Math.floor(cell / COLS) * ch + 2, w: w * (1 - from), h: ch - 4 });
+  });
+  return rects;
+}
+
+const HATCH_STEP = 5;
+const HATCH_ALPHA = 0.22;
+
+/** Діагональні лінії в кожному прямокутнику; проявляються разом із прольотом точок (`elapsed`, Infinity — одразу). */
+export function drawHatch(ctx: CanvasRenderingContext2D, rects: readonly HatchRect[], color: string, elapsed: number) {
+  if (rects.length === 0) return;
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1;
+  ctx.globalAlpha = HATCH_ALPHA * Math.min(1, Math.max(0, elapsed / FLY_MS));
+  for (const r of rects) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(r.x, r.y, r.w, r.h);
+    ctx.clip();
+    ctx.beginPath();
+    for (let o = -r.h; o < r.w; o += HATCH_STEP) {
+      ctx.moveTo(r.x + o, r.y + r.h);
+      ctx.lineTo(r.x + o + r.h, r.y);
+    }
+    ctx.stroke();
+    ctx.restore();
+  }
+  ctx.restore();
 }
 
 /** Клітинка під курсором або null (поза полотном чи порожня клітинка до 1-го числа). */
@@ -121,4 +207,18 @@ export function drawDots(
     ctx.fill();
   }
   ctx.globalAlpha = 1;
+}
+
+/**
+ * Підпис дня під місяцем: запис — його підпис; закриття школою — назва ("Winter break", "Teachers' meeting from
+ * 12:00"), разом із записом — через « · »; інакше — "12 · no records".
+ */
+export function dayLabel(
+  date: string,
+  today: string,
+  mark: { label: string } | undefined,
+  closure: { label: string } | undefined,
+): string {
+  if (mark) return closure ? `${mark.label} · ${closure.label}` : mark.label;
+  return `${date === today ? "Today · " : ""}${Number(date.slice(8))} · ${closure ? closure.label : "no records"}`;
 }

@@ -2,8 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
-import { cellAt, dotLook, drawDots, layoutDots, type Dot, type DotTone } from "@/lib/dot-month";
-import type { BlockingStatus } from "@/lib/leave/overview";
+import { cellAt, dayLabel, dotLook, drawDots, drawHatch, layoutDots, layoutHatch, type Dot, type DotTone, type HatchRect } from "@/lib/dot-month";
+import type { BlockingStatus, DayClosure } from "@/lib/leave/overview";
 import { monthGrid, WEEKDAY_SHORT } from "@/lib/leave/time";
 import { cn } from "@/lib/utils";
 
@@ -24,6 +24,8 @@ const LEGEND = [
   { label: "Approved", dot: "bg-status-approved-foreground" },
   { label: "Today", dot: "bg-highlight" },
 ] as const;
+// «Closed by the school»: та сама діагональна штриховка `muted-foreground`, що на полотні (і в календарі заявки).
+const CLOSED_SWATCH = "bg-[repeating-linear-gradient(135deg,var(--muted)_0_2px,var(--muted-foreground)_2px_3px)]";
 const reducedMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 /** Кольори токенів теми (DESIGN.md, розділ 2): canvas малює OKLCH сам. */
@@ -69,11 +71,14 @@ export function DotMonth({
   month,
   today,
   marks,
+  closures = {},
   className,
 }: {
   month: string;
   today: string;
   marks: Readonly<Record<number, DotMonthMark>>;
+  /** Дні, закриті школою (цілий день чи з години): штриховка й приглушені точки, назва — у підписі дня. */
+  closures?: Readonly<Record<number, DayClosure>>;
   className?: string;
 }) {
   const router = useRouter();
@@ -83,13 +88,14 @@ export function DotMonth({
   const cells = useMemo(() => monthGrid(month), [month]);
   // Після кліку по дню сервер віддає ті самі позначки новим об'єктом: розкладку перебудовуємо лише за вмістом, а самі
   // позначки читаємо через ref, щоб точки не «злітали» знову.
-  const marksKey = Object.entries(marks)
-    .map(([day, m]) => `${day}:${m.status}`)
-    .join(",");
-  const marksRef = useRef(marks);
+  const marksKey = [
+    ...Object.entries(marks).map(([day, m]) => `${day}:${m.status}`),
+    ...Object.entries(closures).map(([day, c]) => `${day}:closed@${c.from}`),
+  ].join(",");
+  const marksRef = useRef({ marks, closures });
   useEffect(() => {
-    marksRef.current = marks;
-  }, [marks]);
+    marksRef.current = { marks, closures };
+  }, [marks, closures]);
   const rows = Math.ceil(cells.length / 7);
 
   useEffect(() => {
@@ -97,22 +103,26 @@ export function DotMonth({
     const ctx = c?.getContext("2d");
     if (!c || !ctx) return;
     let dots: Dot[] = [];
+    let hatch: HatchRect[] = [];
     let colors = tokenColors(c);
     let raf = 0;
     let visible = true;
     const start = performance.now();
+    const closedFrom = (date: string) => marksRef.current.closures[Number(date.slice(8))]?.from ?? null;
     const look = (cell: number, date: string | null) =>
       dotLook({
         inMonth: date !== null,
         weekend: cell % 7 >= 5,
-        status: date ? (marksRef.current[Number(date.slice(8))]?.status ?? null) : null,
+        status: date ? (marksRef.current.marks[Number(date.slice(8))]?.status ?? null) : null,
         today: date === today,
+        closedFrom: date ? closedFrom(date) : null,
       });
 
     const frame = (now: number) => {
       raf = 0;
       const still = reducedMotion();
       ctx.clearRect(0, 0, c.clientWidth, c.clientHeight);
+      drawHatch(ctx, hatch, colors.base, still ? Infinity : now - start);
       drawDots(ctx, dots, colors, {
         elapsed: still ? Infinity : now - start,
         pulse: still ? 1 : 0.75 + 0.25 * Math.sin(now / 380),
@@ -132,6 +142,7 @@ export function DotMonth({
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       colors = tokenColors(c);
       dots = layoutDots(cells, look, c.clientWidth, c.clientHeight);
+      hatch = layoutHatch(cells, (_, date) => closedFrom(date), c.clientWidth, c.clientHeight);
       kick();
     };
 
@@ -176,8 +187,10 @@ export function DotMonth({
   }
 
   const hoverDate = hover === null ? null : cells[hover];
-  const hoverMark = hoverDate ? marks[Number(hoverDate.slice(8))] : undefined;
-  const hoverLabel = hoverMark?.label ?? (hoverDate ? `${hoverDate === today ? "Today · " : ""}${Number(hoverDate.slice(8))} · no records` : "Point at a day");
+  const hoverDay = hoverDate ? Number(hoverDate.slice(8)) : null;
+  const hoverMark = hoverDay ? marks[hoverDay] : undefined;
+  const hoverClosure = hoverDay ? closures[hoverDay] : undefined;
+  const hoverLabel = hoverDate ? dayLabel(hoverDate, today, hoverMark, hoverClosure) : "Point at a day";
 
   return (
     <div aria-hidden="true" className={cn("flex flex-col gap-1.5", className)}>
@@ -207,6 +220,10 @@ export function DotMonth({
             {item.label}
           </span>
         ))}
+        <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+          <span className={cn("size-2 rounded-[2px]", CLOSED_SWATCH)} />
+          Closed by the school
+        </span>
       </span>
     </div>
   );

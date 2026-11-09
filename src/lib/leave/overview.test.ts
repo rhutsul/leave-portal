@@ -1,5 +1,25 @@
 import { describe, expect, it } from "vitest";
-import { addDays, count, groupByRequestDate, headline, isBlocking, overviewRange, leadStatus, monthMarks, timelineDays, timelineRows, twoWeeks } from "./overview";
+import type { Closure } from "./calendar";
+import {
+  addDays,
+  closedShare,
+  closureLabel,
+  count,
+  dayClosures,
+  dayShare,
+  groupByRequestDate,
+  monthClosures,
+  nextClosureLine,
+  segmentBox,
+  headline,
+  isBlocking,
+  overviewRange,
+  leadStatus,
+  monthMarks,
+  timelineDays,
+  timelineRows,
+  twoWeeks,
+} from "./overview";
 
 // Форма головної (ADR 0007), а не правило PM: тому без AC ID у назвах. Які записи видно — вирішує база (RLS).
 
@@ -36,7 +56,7 @@ describe("timelineRows", () => {
   const rec = (who: string, date: string, start: number, end: number, status: string) => ({ who, date, start_min: start, end_min: end, status });
   const rowOf = (r: { who: string }) => ({ key: r.who, name: r.who, sub: "" });
 
-  it("one bar per person and day, hours joined in time order, non-blocking and out-of-range records dropped", () => {
+  it("one bar per person and day with a segment per record in time order, non-blocking and out-of-range records dropped", () => {
     const rows = timelineRows(
       [
         rec("Teacher", "2026-11-09", 750, 840, "awaiting"),
@@ -48,7 +68,22 @@ describe("timelineRows", () => {
       rowOf,
     );
     expect(rows).toEqual([
-      { key: "Teacher", name: "Teacher", sub: "", bars: [{ col: 5, status: "awaiting", hours: "08:30–12:00, 12:30–14:00", count: 2 }] },
+      {
+        key: "Teacher",
+        name: "Teacher",
+        sub: "",
+        bars: [
+          {
+            col: 5,
+            status: "awaiting",
+            hours: "08:30–12:00, 12:30–14:00",
+            segments: [
+              { start_min: 510, end_min: 720, status: "approved", hours: "08:30–12:00" },
+              { start_min: 750, end_min: 840, status: "awaiting", hours: "12:30–14:00" },
+            ],
+          },
+        ],
+      },
     ]);
   });
 
@@ -136,5 +171,76 @@ describe("overviewRange", () => {
     // Тижні виходять за межі місяця — діапазон розширюється до них.
     expect(overviewRange("2026-11-30")).toMatchObject({ from: "2026-11-01", to: "2026-12-11" });
     expect(overviewRange("2026-12-01")).toMatchObject({ from: "2026-11-30", to: "2026-12-31" });
+  });
+});
+
+// Закриття школи на Overview — вигляд (DotMonth, WeekTimeline), а не AC PM: тому без AC ID у назвах.
+describe("school closures on Overview", () => {
+  const closures: Closure[] = [
+    { id: 1, name: "Winter break", startDate: "2026-12-28", endDate: "2027-01-08", closesAt: null },
+    { id: 2, name: "Teachers' meeting", startDate: "2026-11-20", endDate: "2026-11-20", closesAt: 12 * 60 },
+    { id: 3, name: "Open day", startDate: "2026-11-27", endDate: "2026-11-27", closesAt: 7 * 60 },
+  ];
+
+  it("closedShare: whole days from the start, an early closing from its hour on the 08:00–18:00 scale", () => {
+    expect(closedShare({ closesAt: null })).toBe(0);
+    expect(closedShare({ closesAt: 12 * 60 })).toBeCloseTo(0.4);
+    expect(closedShare({ closesAt: 7 * 60 })).toBe(0);
+    expect(closedShare({ closesAt: 20 * 60 })).toBe(1);
+  });
+
+  it("segmentBox puts a record on its hours of the 08:00–18:00 day and cuts it at an early closing", () => {
+    const box = segmentBox({ start_min: 8 * 60 + 30, end_min: 12 * 60 });
+    expect(box.left).toBeCloseTo(0.05);
+    expect(box.width).toBeCloseTo(0.35);
+    expect(segmentBox({ start_min: 6 * 60, end_min: 20 * 60 })).toEqual({ left: 0, width: 1 });
+    // Скорочений день з 12:00 (частка 0.4): запис 10:00–15:00 видно лише до 12:00.
+    const cut = segmentBox({ start_min: 10 * 60, end_min: 15 * 60 }, 0.4);
+    expect(cut.left).toBeCloseTo(0.2);
+    expect(cut.width).toBeCloseTo(0.2);
+    // Закритий цілий день (0) запис не обрізає; дуже короткий запис лишається видно.
+    expect(segmentBox({ start_min: 10 * 60, end_min: 15 * 60 }, 0).width).toBeCloseTo(0.5);
+    expect(segmentBox({ start_min: 9 * 60, end_min: 9 * 60 + 5 }).width).toBeCloseTo(0.06);
+    expect(dayShare(13 * 60)).toBeCloseTo(0.5);
+  });
+
+  it("closureLabel names the closure and the hour of an early closing", () => {
+    expect(closureLabel(closures[0])).toBe("Winter break");
+    expect(closureLabel(closures[1])).toBe("Teachers' meeting from 12:00");
+  });
+
+  it("monthClosures marks every closed day of the month and only them", () => {
+    const dec = monthClosures(closures, "2026-12");
+    expect(Object.keys(dec).map(Number)).toEqual([28, 29, 30, 31]);
+    expect(dec[28]).toEqual({ from: 0, label: "Winter break", time: null });
+    const nov = monthClosures(closures, "2026-11");
+    expect(Object.keys(nov).map(Number)).toEqual([20, 27]);
+    expect(nov[20]).toEqual({ from: expect.closeTo(0.4), label: "Teachers' meeting from 12:00", time: "from 12:00" });
+    expect(monthClosures(closures, "2027-01")[9]).toBeUndefined();
+  });
+
+  it("dayClosures follows the order of the two weeks and leaves open days empty", () => {
+    const days = twoWeeks("2026-12-30"); // Mon 28 Dec … Fri 8 Jan.
+    const marks = dayClosures(closures, days);
+    expect(marks).toHaveLength(10);
+    expect(marks.every((m) => m?.label === "Winter break")).toBe(true);
+    const nov = dayClosures(closures, twoWeeks("2026-11-18")); // Mon 16 … Fri 27 Nov.
+    expect(nov.map((m) => m?.time ?? (m ? "closed" : null))).toEqual([null, null, null, null, "from 12:00", null, null, null, null, "from 07:00"]);
+  });
+
+  it("nextClosureLine tells the nearest closure that has not ended, up to the end of what Overview shows", () => {
+    expect(nextClosureLine(closures, "2026-12-01", "2026-12-31")).toBe("School closed: Winter break, Mon 28 Dec – Fri 8 Jan");
+    expect(nextClosureLine(closures, "2026-11-09", "2026-11-30")).toBe(
+      "School closes early: Teachers' meeting, Fri 20 Nov from 12:00 · 1 more by Mon 30 Nov",
+    );
+    expect(nextClosureLine(closures, "2026-11-21", "2026-11-30")).toBe("School closes early: Open day, Fri 27 Nov from 07:00");
+    expect(nextClosureLine(closures, "2026-11-28", "2026-11-30")).toBeNull();
+    // Кінець місяця: друга неділя діаграми вже в грудні, і канікули з 28 грудня — у межах показаного.
+    expect(nextClosureLine(closures, "2026-12-30", "2027-01-08")).toBe("School closed: Winter break, Mon 28 Dec – Fri 8 Jan");
+    expect(nextClosureLine(closures, "2026-12-21", "2026-12-31")).toBe("School closed: Winter break, Mon 28 Dec – Fri 8 Jan");
+    expect(nextClosureLine(closures, "2026-12-01", "2026-12-27")).toBeNull();
+    expect(nextClosureLine([{ ...closures[0], endDate: "2026-12-28" }], "2026-12-01", "2026-12-31")).toBe(
+      "School closed: Winter break, Mon 28 Dec",
+    );
   });
 });

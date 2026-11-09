@@ -192,3 +192,16 @@ export function Activity({ lines }: { lines: readonly ActivityLine[] | null }) {
     </section>
   );
 }
+
+/** Найближче закриття школи — текстом, бо місяць із точок лише декор (`aria-hidden`); null — нічого. */
+export function ClosureLine({ text }: { text: string | null }) {
+  if (!text) return null;
+  return (
+    <p className="text-sm text-muted-foreground">
+      {text} ·{" "}
+      <Link href="/calendar" className="text-primary underline-offset-4 hover:underline">
+        School calendar
+      </Link>
+    </p>
+  );
+}

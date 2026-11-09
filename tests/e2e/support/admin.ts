@@ -264,3 +264,33 @@ export async function cleanupCalendar(): Promise<{ deleted: string[]; remaining:
   }
   return { deleted, remaining, leftoverRequests };
 }
+
+/**
+ * Дві дати для перевірки закриттів на Overview: робочі дні показаних двох тижнів, не раніше сьогодні (за Києвом), без
+ * чужих закриттів; краще — поза вікнами дат AC календаря (AC_WINDOWS). whole — найпізніша, early — найраніша (щоб рядок Overview назвав саме її); null — таких
+ * днів немає.
+ */
+export async function freeOverviewDates(): Promise<{ whole: string; early: string } | null> {
+  const iso = (d: Date) => d.toISOString().slice(0, 10);
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Kyiv" }).format(new Date());
+  const t = new Date(`${today}T00:00:00Z`);
+  const monday = new Date(t);
+  monday.setUTCDate(t.getUTCDate() - ((t.getUTCDay() + 6) % 7));
+  const shown = [0, 1, 2, 3, 4, 7, 8, 9, 10, 11].map((n) => {
+    const d = new Date(monday);
+    d.setUTCDate(monday.getUTCDate() + n);
+    return iso(d);
+  });
+  const candidates = shown.filter((d) => d >= today);
+  const supabase = adminClient();
+  const { data, error } = await supabase
+    .from("school_closures")
+    .select("start_date, end_date")
+    .lte("start_date", candidates.at(-1)!)
+    .gte("end_date", candidates[0]);
+  if (error) throw error;
+  const free = candidates.filter((d) => !(data ?? []).some((c) => c.start_date <= d && d <= c.end_date));
+  const outsideAc = free.filter((d) => !AC_WINDOWS.some((w) => w.from <= d && d <= w.to));
+  const pool = outsideAc.length >= 2 ? outsideAc : free;
+  return pool.length < 2 ? null : { whole: pool.at(-1)!, early: pool[0] };
+}

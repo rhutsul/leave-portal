@@ -45,7 +45,8 @@ import { ShowcaseCount } from "@/components/ui/motion";
 import { StatStrip } from "@/components/ui/stat-strip";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { WeekTimeline } from "@/components/ui/week-timeline";
-import { timelineDays, twoWeeks } from "@/lib/leave/overview";
+import { dayClosures, monthClosures, timelineDays, twoWeeks } from "@/lib/leave/overview";
+import type { Closure } from "@/lib/leave/calendar";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { ThemeMenu } from "@/components/ui/theme-menu";
@@ -105,7 +106,13 @@ const NOVEMBER: (DayState | null)[] = [
   }),
 ];
 
-const DEMO_DAYS = timelineDays(twoWeeks("2026-11-05"), "2026-11-05");
+// Закриття школи для прикладів DotMonth і WeekTimeline: цілий день і скорочений день.
+const DEMO_CLOSURES: Closure[] = [
+  { id: 1, name: "Autumn break", startDate: "2026-11-06", endDate: "2026-11-06", closesAt: null },
+  { id: 2, name: "Teachers' meeting", startDate: "2026-11-11", endDate: "2026-11-11", closesAt: 12 * 60 },
+];
+const DEMO_WEEKS = twoWeeks("2026-11-05");
+const DEMO_DAYS = timelineDays(DEMO_WEEKS, "2026-11-05").map((d, i) => ({ ...d, closure: dayClosures(DEMO_CLOSURES, DEMO_WEEKS)[i] }));
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -393,12 +400,39 @@ export default async function DesignPage() {
           rows={[
             { key: "1", name: "Teacher One", sub: "Elementary school / Teacher", bars: [{ col: 0, status: "approved", hours: "08:30–15:30" }, { col: 5, status: "awaiting", hours: "08:30–12:00" }] },
             { key: "2", name: "Assistant Two", sub: "Elementary school / Assistant", bars: [{ col: 2, status: "approved", hours: "12:30–15:30" }, { col: 6, status: "returned", hours: "09:00–11:00" }] },
+            // Кілька записів в один день — кожен своїм сегментом; 11 Nov — скорочений день, сегменти до 12:00.
+            {
+              key: "3",
+              name: "Teacher Three",
+              sub: "Middle school / Teacher",
+              bars: [
+                {
+                  col: 3,
+                  status: "awaiting",
+                  hours: "08:30–10:00, 13:00–15:30",
+                  segments: [
+                    { start_min: 510, end_min: 600, status: "approved", hours: "08:30–10:00" },
+                    { start_min: 780, end_min: 930, status: "awaiting", hours: "13:00–15:30" },
+                  ],
+                },
+                {
+                  col: 7,
+                  status: "returned",
+                  hours: "08:30–09:30, 10:00–12:00",
+                  segments: [
+                    { start_min: 510, end_min: 570, status: "approved", hours: "08:30–09:30" },
+                    { start_min: 600, end_min: 720, status: "returned", hours: "10:00–12:00" },
+                  ],
+                },
+              ],
+            },
           ]}
         />
         <DotMonth
           month="2026-11"
           today="2026-11-05"
           className="max-w-[460px]"
+          closures={monthClosures(DEMO_CLOSURES, "2026-11")}
           marks={{
             12: { status: "awaiting", label: "Thu 12 Nov · 08:30–12:00 · Awaiting decision", href: "/design" },
             17: { status: "returned", label: "Tue 17 Nov · 09:00–11:00 · Returned for revision", href: "/design" },
