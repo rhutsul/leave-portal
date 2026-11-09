@@ -5,7 +5,7 @@ import type { Stat } from "@/components/ui/stat-strip";
 import type { WeekTimelineRow } from "@/components/ui/week-timeline";
 import { formatDays } from "@/lib/leave/balance";
 import type { Closure } from "@/lib/leave/calendar";
-import { dayClosures, isBlocking, monthClosures, monthMarks, nextClosureLine, timelineDays, timelineRows } from "@/lib/leave/overview";
+import { closuresText, dayClosures, isBlocking, monthClosures, monthMarks, nextClosureLine, timelineDays, timelineRows } from "@/lib/leave/overview";
 import { LEAVE_TYPES, positionLabel, RECORD_STATUSES } from "@/lib/leave/request";
 import { formatDateShort, formatRange } from "@/lib/leave/time";
 import type { OverviewData } from "./load-overview";
@@ -95,13 +95,14 @@ export function awayThisWeek(data: OverviewData, days: readonly string[], userId
  */
 export function buildClosureView(
   closures: readonly Closure[] | null,
-  range: { month: string; days: readonly string[]; to: string },
+  range: { month: string; days: readonly string[]; from: string; to: string },
   today: string,
 ) {
   const list = closures ?? [];
   const closed = dayClosures(list, range.days);
   return {
     line: closures ? nextClosureLine(closures, today, range.to) : "The school calendar could not be loaded.",
+    all: closuresText(list, range.from, range.to),
     month: monthClosures(list, range.month),
     timeline: timelineDays(range.days, today).map((d, i) => ({ ...d, closure: closed[i] })),
     anyInTimeline: closed.some(Boolean),

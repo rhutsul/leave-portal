@@ -14,6 +14,7 @@
 // materials/uat/tests/e2e/support/admin.ts. Помічники календаря — наші.
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { BLOCKING_STATUSES } from "../../../src/lib/leave/request";
 
 export function hasAdminKey(): boolean {
   return Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SECRET_KEY);
@@ -35,7 +36,8 @@ export const AC_WINDOWS = [
   { from: "2026-12-28", to: "2027-01-08" }, // «Winter break» (AC-CAL-01 … -03, -07 … -11)
 ] as const;
 
-const BLOCKING = ["awaiting", "returned", "approved"];
+// Ті самі статуси, що в leave_records_no_overlap і правилах AC-CAL-07 (спільна константа, AGENTS.md «База даних»).
+const BLOCKING = [...BLOCKING_STATUSES];
 const LOG = "test-results/uat-calendar-rows.jsonl";
 const DELETED_LOG = "test-results/uat-calendar-deleted.jsonl";
 
@@ -267,11 +269,13 @@ export async function cleanupCalendar(): Promise<{ deleted: string[]; remaining:
 
 /**
  * Дві дати для перевірки закриттів на Overview: робочі дні показаних двох тижнів, не раніше сьогодні (за Києвом), без
- * чужих закриттів і без чинних записів teacher1@ (закриття поверх запису база не допустила б — AC-CAL-07, тож дані
- * на знімках мають бути можливими); краще — поза вікнами дат AC календаря (AC_WINDOWS). whole — найпізніша, early — найраніша (щоб рядок Overview назвав саме її); null — таких
- * днів немає.
+ * чужих закриттів; краще — поза вікнами дат AC календаря (AC_WINDOWS). addClosure пише секретним ключем повз
+ * private.add_school_closure, тож правило AC-CAL-07 перевіряємо тут самі, як у міграції 20261108143021: whole — день
+ * без блокувальних записів будь-кого (BLOCKING_STATUSES), early — день без записів, що тривають після `closesAt`
+ * (end_min > closes_at). whole — найпізніший такий день, early — найраніший інший (щоб рядок Overview назвав саме його);
+ * null — таких днів немає.
  */
-export async function freeOverviewDates(): Promise<{ whole: string; early: string } | null> {
+export async function freeOverviewDates(closesAt = 12 * 60): Promise<{ whole: string; early: string } | null> {
   const iso = (d: Date) => d.toISOString().slice(0, 10);
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Kyiv" }).format(new Date());
   const t = new Date(`${today}T00:00:00Z`);
@@ -284,26 +288,28 @@ export async function freeOverviewDates(): Promise<{ whole: string; early: strin
   });
   const candidates = shown.filter((d) => d >= today);
   const supabase = adminClient();
-  const { data, error } = await supabase
-    .from("school_closures")
-    .select("start_date, end_date")
-    .lte("start_date", candidates.at(-1)!)
-    .gte("end_date", candidates[0]);
-  if (error) throw error;
-  const teacher1 = await profileId(supabase, "teacher1@example.test");
-  const { data: records, error: recordsError } = await supabase
-    .from("leave_records")
-    .select("date")
-    .eq("employee_id", teacher1)
-    .in("status", BLOCKING)
-    .gte("date", candidates[0])
-    .lte("date", candidates.at(-1)!);
-  if (recordsError) throw recordsError;
-  const busy = new Set((records ?? []).map((r) => r.date as string));
-  const free = candidates.filter(
-    (d) => !busy.has(d) && !(data ?? []).some((c) => c.start_date <= d && d <= c.end_date),
-  );
-  const outsideAc = free.filter((d) => !AC_WINDOWS.some((w) => w.from <= d && d <= w.to));
-  const pool = outsideAc.length >= 2 ? outsideAc : free;
-  return pool.length < 2 ? null : { whole: pool.at(-1)!, early: pool[0] };
+  const [closures, records] = await Promise.all([
+    supabase
+      .from("school_closures")
+      .select("start_date, end_date")
+      .lte("start_date", candidates.at(-1)!)
+      .gte("end_date", candidates[0]),
+    supabase
+      .from("leave_records")
+      .select("date, end_min")
+      .in("status", [...BLOCKING_STATUSES])
+      .gte("date", candidates[0])
+      .lte("date", candidates.at(-1)!),
+  ]);
+  if (closures.error) throw closures.error;
+  if (records.error) throw records.error;
+  const open = candidates.filter((d) => !(closures.data ?? []).some((c) => c.start_date <= d && d <= c.end_date));
+  const preferred = open.filter((d) => !AC_WINDOWS.some((w) => w.from <= d && d <= w.to));
+  const has = (d: string, after: number) => (records.data ?? []).some((r) => r.date === d && r.end_min > after);
+  const pick = (pool: string[]) => {
+    const whole = pool.filter((d) => !has(d, 0)).at(-1);
+    const early = pool.find((d) => d !== whole && !has(d, closesAt));
+    return whole && early ? { whole, early } : null;
+  };
+  return pick(preferred) ?? pick(open);
 }

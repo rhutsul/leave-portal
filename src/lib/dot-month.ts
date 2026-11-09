@@ -50,9 +50,12 @@ export function dotLook(cell: {
   return { tone: "base", alpha: cell.weekend ? 0.16 : 0.34, size: 1.5, closedFrom };
 }
 
-/** Чи точка в стовпці `col` (0–6) блоку дня потрапляє в закриту частину дня. */
+/**
+ * Чи точка в стовпці `col` (0–6) блоку дня потрапляє в закриту частину дня. Закриття о 18:00 і пізніше (частка 1) —
+ * поза шкалою дня: закритої частини немає, як і штриховки (layoutHatch).
+ */
 export function inClosedPart(col: number, closedFrom: number | null): boolean {
-  return closedFrom !== null && col / (DOT_COLS - 1) >= closedFrom;
+  return closedFrom !== null && closedFrom < 1 && col / (DOT_COLS - 1) >= closedFrom;
 }
 
 /** Сітка 7 × 3 точок на кожен день; звідки точка злітає й коли — з детермінованого «випадку», щоб кадр був сталим. */
@@ -119,7 +122,7 @@ export function layoutHatch(
   const rects: HatchRect[] = [];
   cells.forEach((date, cell) => {
     const from = date ? closedFrom(cell, date) : null;
-    if (from === null) return;
+    if (from === null || from >= 1) return;
     const x = (cell % COLS) * cw + 2;
     const w = cw - 4;
     rects.push({ x: x + w * from, y: Math.floor(cell / COLS) * ch + 2, w: w * (1 - from), h: ch - 4 });
@@ -127,8 +130,9 @@ export function layoutHatch(
   return rects;
 }
 
-const HATCH_STEP = 5;
-const HATCH_ALPHA = 0.22;
+const HATCH_STEP = 6;
+// `muted-foreground` 75 %: контраст ліній ≥ 3:1 до тла в обох темах (DESIGN.md, таблиця контрасту).
+export const HATCH_ALPHA = 0.75;
 
 /** Діагональні лінії в кожному прямокутнику; проявляються разом із прольотом точок (`elapsed`, Infinity — одразу). */
 export function drawHatch(ctx: CanvasRenderingContext2D, rects: readonly HatchRect[], color: string, elapsed: number) {

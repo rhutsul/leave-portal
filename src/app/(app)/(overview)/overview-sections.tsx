@@ -193,15 +193,28 @@ export function Activity({ lines }: { lines: readonly ActivityLine[] | null }) {
   );
 }
 
-/** Найближче закриття школи — текстом, бо місяць із точок лише декор (`aria-hidden`); null — нічого. */
-export function ClosureLine({ text }: { text: string | null }) {
-  if (!text) return null;
+/**
+ * Найближче закриття школи — видимим рядком; усі закриття показаного місяця й двох тижнів — списком для зчитувача
+ * екрана, бо місяць із точок (`aria-hidden`) і штриховка діаграми — лише графіка. Без закриттів — нічого.
+ */
+export function ClosureLine({ text, all }: { text: string | null; all: readonly string[] }) {
   return (
-    <p className="text-sm text-muted-foreground">
-      {text} ·{" "}
-      <Link href="/calendar" className="text-primary underline-offset-4 hover:underline">
-        School calendar
-      </Link>
-    </p>
+    <>
+      {text && (
+        <p className="text-sm text-muted-foreground">
+          {text} ·{" "}
+          <Link href="/calendar" className="text-primary underline-offset-4 hover:underline">
+            School calendar
+          </Link>
+        </p>
+      )}
+      {all.length > 0 && (
+        <ul className="sr-only" aria-label="School closures this month and the next two weeks">
+          {all.map((line) => (
+            <li key={line}>{line}</li>
+          ))}
+        </ul>
+      )}
+    </>
   );
 }

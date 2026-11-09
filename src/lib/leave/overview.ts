@@ -253,13 +253,29 @@ export function dayClosures(closures: readonly Closure[], days: readonly string[
  * 12:00"; ще кілька — " · 2 more by Mon 30 Nov".
  */
 export function nextClosureLine(closures: readonly Closure[], today: string, until: string): string | null {
-  const ahead = closures
-    .filter((c) => c.endDate >= today && c.startDate <= until)
-    .sort((a, b) => a.startDate.localeCompare(b.startDate) || a.id - b.id);
+  const ahead = closuresBetween(closures, today, until);
   if (ahead.length === 0) return null;
-  const [c] = ahead;
-  const dates = c.startDate === c.endDate ? formatDateShort(c.startDate) : `${formatDateShort(c.startDate)} – ${formatDateShort(c.endDate)}`;
-  const text =
-    c.closesAt == null ? `School closed: ${c.name}, ${dates}` : `School closes early: ${c.name}, ${dates} ${formatClosureTime(c)}`;
+  const text = describeClosure(ahead[0]);
   return ahead.length > 1 ? `${text} · ${ahead.length - 1} more by ${formatDateShort(until)}` : text;
+}
+
+/** Закриття, що перетинають from…to, за датою початку. */
+function closuresBetween(closures: readonly Closure[], from: string, to: string): Closure[] {
+  return closures
+    .filter((c) => c.endDate >= from && c.startDate <= to)
+    .sort((a, b) => a.startDate.localeCompare(b.startDate) || a.id - b.id);
+}
+
+/** "School closed: Winter break, Mon 28 Dec – Fri 8 Jan"; "School closes early: Teachers' meeting, Fri 20 Nov from 12:00". */
+export function describeClosure(c: Closure): string {
+  const dates = c.startDate === c.endDate ? formatDateShort(c.startDate) : `${formatDateShort(c.startDate)} – ${formatDateShort(c.endDate)}`;
+  return c.closesAt == null ? `School closed: ${c.name}, ${dates}` : `School closes early: ${c.name}, ${dates} ${formatClosureTime(c)}`;
+}
+
+/**
+ * Усі закриття показаного на Overview (місяць і два тижні, from…to) — текстом для зчитувача екрана: місяць із точок і
+ * штриховка діаграми — графіка, а DESIGN.md вимагає ті самі дані в тексті сторінки.
+ */
+export function closuresText(closures: readonly Closure[], from: string, to: string): string[] {
+  return closuresBetween(closures, from, to).map(describeClosure);
 }

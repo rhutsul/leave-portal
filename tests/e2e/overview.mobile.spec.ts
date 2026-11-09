@@ -14,11 +14,14 @@ test.afterEach(async ({ page }) => {
 
 test("on a 360 px phone Overview does not scroll sideways, the two weeks scroll inside their card, and the nearest closure is in text", { tag: ["@prod-writes"] }, async ({ page }) => {
   const dates = await freeOverviewDates();
-  expect(dates, "two working days of the shown weeks without closures and records").not.toBeNull();
+  expect(dates, "two working days of the shown weeks without closures and conflicting records").not.toBeNull();
   await addClosure("Overview phone meeting", dates!.early, dates!.early, 12 * 60);
 
   await page.goto("/");
-  await expect(page.getByRole("main").getByText(/^School closes early: Overview phone meeting, .+ from 12:00/)).toBeVisible();
+  await expect(page.getByRole("main").getByText(/^School (closed|closes early): .+ · School calendar$/)).toBeVisible();
+  await expect(
+    page.getByRole("list", { name: "School closures this month and the next two weeks" }).getByText(/^School closes early: Overview phone meeting, .+ from 12:00$/),
+  ).toHaveCount(1);
   await expect(page.getByRole("main").getByRole("link", { name: "School calendar" })).toBeVisible();
 
   // Сторінка — не ширша за екран.

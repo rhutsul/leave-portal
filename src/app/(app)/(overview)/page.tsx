@@ -39,7 +39,11 @@ export default async function Overview({ searchParams }: PageProps<"/">) {
   // Закриття школи — для позначок місяця й діаграми; їхній збій не валить сторінку: тоді лише рядок-пояснення.
   const [data, closures] = await Promise.all([
     loadOverview(supabase, claims.sub, today),
-    loadClosures(supabase, from, to).catch(() => null),
+    loadClosures(supabase, from, to).catch((error: unknown) => {
+      // Сторінка лишається (рядок каже, що календар не завантажився), а причина — у журналі сервера.
+      console.error("Overview: the school closures could not be loaded", error);
+      return null;
+    }),
   ]);
 
   // Вибрану відпустку шукаємо серед усіх найближчих (клік по дню місяця може вести далі за четверту), а список
@@ -54,7 +58,7 @@ export default async function Overview({ searchParams }: PageProps<"/">) {
     ? headline({ decider: true, toDecide: decider.toDecideCount, awayThisWeek: awayThisWeek(data, days, claims.sub) })
     : headline({ decider: false, nextDate: selected?.[0].date ?? null, returned: data.returnedCount });
 
-  const closed = buildClosureView(closures, { month, days, to }, today);
+  const closed = buildClosureView(closures, { month, days, from, to }, today);
 
   return (
     <>
@@ -65,7 +69,7 @@ export default async function Overview({ searchParams }: PageProps<"/">) {
             {[greeting(kyivHour(now)), firstName].filter(Boolean).join(", ")}
           </h1>
           <p className="text-muted-foreground">{line}</p>
-          <ClosureLine text={closed.line} />
+          <ClosureLine text={closed.line} all={closed.all} />
           <div className="mt-1.5 flex flex-wrap gap-2">
             <Link href="/requests/new" className={buttonVariants()}>
               <Plus />

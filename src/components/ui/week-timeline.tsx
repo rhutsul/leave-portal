@@ -37,8 +37,10 @@ const BAR: Record<BlockingStatus, string> = {
 
 const GRID = "grid grid-cols-[170px_repeat(10,minmax(0,1fr))]";
 
-// Закрито школою — діагональна штриховка, той самий знак, що в календарі заявки й у DotMonth.
-const HATCH = "bg-[repeating-linear-gradient(135deg,transparent_0_4px,var(--border)_4px_5px)]";
+// Закрито школою — діагональна штриховка, той самий знак, що в DotMonth: лінії `muted-foreground` 75 % — контраст
+// ≥ 3:1 до `card` і `background` в обох темах (DESIGN.md, таблиця контрасту): скорочений день видно лише за нею.
+const HATCH =
+  "bg-[repeating-linear-gradient(135deg,transparent_0_5px,color-mix(in_oklab,var(--muted-foreground)_75%,transparent)_5px_6px)]";
 
 /** Штриховка закритої частини дня в колонці: цілий день — уся колонка, скорочений — від години закриття праворуч. */
 function ClosedHatch({ closure, col }: { closure: DayClosure; col: number }) {
@@ -92,7 +94,10 @@ function dayTitle(d: WeekTimelineDay): string {
   return `${d.long} · ${d.closure.time ? "School closes early" : "School closed"}: ${d.closure.label}`;
 }
 
-/** Заголовок колонки дня: "Mon 2"; закритий школою — штриховка й «closed», скорочений — час закриття. */
+/**
+ * Заголовок колонки дня: "Mon 2"; закритий школою — «closed», скорочений — час закриття. Штриховка — лише в рядках:
+ * під текстом заголовка вона заважала б читати.
+ */
 function DayHeader({ day: d, weekStart }: { day: WeekTimelineDay; weekStart: boolean }) {
   return (
     <span
@@ -103,7 +108,6 @@ function DayHeader({ day: d, weekStart }: { day: WeekTimelineDay; weekStart: boo
         "flex flex-col items-center justify-center py-2 text-center font-mono text-[11px] text-muted-foreground",
         weekStart && "border-l border-border",
         d.today && "bg-highlight/10 font-medium text-foreground",
-        d.closure && !d.closure.time && HATCH,
       )}
     >
       {d.label}
@@ -165,7 +169,7 @@ export function WeekTimeline({
                 <span className="truncate text-[11px] text-muted-foreground">{row.sub}</span>
               </span>
               {today >= 0 && <span aria-hidden="true" className="row-start-1 bg-highlight/10" style={{ gridColumn: today + 2 }} />}
-              {days.map((d, i) => d.closure && <ClosedHatch key={d.date} closure={d.closure} col={i} />)}
+              {days.map((d, i) => d.closure && d.closure.from < 1 && <ClosedHatch key={d.date} closure={d.closure} col={i} />)}
               {row.bars.map((b) =>
                 b.segments && b.segments.length > 1 ? (
                   <SegmentedCell key={b.col} bar={b as WeekTimelineBar & { segments: readonly TimelineSegment[] }} day={days[b.col]} />

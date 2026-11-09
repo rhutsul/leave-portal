@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { cellAt, dayLabel, dotLook, dotPosition, drawDots, drawHatch, inClosedPart, layoutDots, layoutHatch, type Dot } from "./dot-month";
+import { cellAt, dayLabel, dotLook, dotPosition, drawDots, drawHatch, HATCH_ALPHA, inClosedPart, layoutDots, layoutHatch, type Dot } from "./dot-month";
 import { monthGrid } from "./leave/time";
 
 // Правила вигляду DotMonth (ADR 0007), а не AC PM: тому без AC ID у назвах.
@@ -82,6 +82,9 @@ describe("school closures in the month", () => {
     expect(early.filter((d) => d.alpha < open[0].alpha)).toHaveLength(4 * 3);
     expect([0, 1, 2, 3, 6].map((c) => inClosedPart(c, 0.4))).toEqual([false, false, false, true, true]);
     expect(inClosedPart(0, null)).toBe(false);
+    // Закриття о 18:00 і пізніше — поза шкалою: жодна точка не приглушена, штриховки немає.
+    expect([0, 6].map((c) => inClosedPart(c, 1))).toEqual([false, false]);
+    expect(layoutHatch(cells, (_, date) => (date === "2026-11-20" ? 1 : null), 420, 192)).toEqual([]);
   });
 
   it("records and today stay as they are on a closed day", () => {
@@ -138,19 +141,18 @@ describe("drawHatch", () => {
     ]);
     expect(ctx.clip).toHaveBeenCalledTimes(2);
     expect(ctx.stroke).toHaveBeenCalledTimes(2);
-    // Лінії кроком 5 px від -h до w: для першої області — 8 ліній, кожна йде знизу вліво догори вправо.
-    const first = ctx.moveTo.mock.calls.slice(0, 8);
-    expect(first[0]).toEqual([0, 30]);
+    // Лінії кроком 6 px від -h до w: для першої області — 7 ліній, для другої — 4; кожна йде знизу вліво догори вправо.
+    expect(ctx.moveTo.mock.calls[0]).toEqual([0, 30]);
     expect(ctx.lineTo.mock.calls[0]).toEqual([10, 20]);
-    expect(ctx.moveTo).toHaveBeenCalledTimes(8 + 5);
-    expect(ctx.globalAlpha).toBeCloseTo(0.22);
+    expect(ctx.moveTo).toHaveBeenCalledTimes(7 + 4);
+    expect(ctx.globalAlpha).toBe(HATCH_ALPHA);
     expect(ctx.save.mock.calls.length).toBe(ctx.restore.mock.calls.length);
   });
 
   it("fades in with the dots and draws nothing without closed areas", () => {
     const ctx = canvas();
     drawHatch(ctx as unknown as CanvasRenderingContext2D, [{ x: 0, y: 0, w: 10, h: 10 }], "m", 350);
-    expect(ctx.globalAlpha).toBeCloseTo(0.11);
+    expect(ctx.globalAlpha).toBeCloseTo(HATCH_ALPHA / 2);
     drawHatch(ctx as unknown as CanvasRenderingContext2D, [{ x: 0, y: 0, w: 10, h: 10 }], "m", -100);
     expect(ctx.globalAlpha).toBe(0);
     const empty = canvas();

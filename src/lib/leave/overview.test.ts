@@ -4,6 +4,7 @@ import {
   addDays,
   closedShare,
   closureLabel,
+  closuresText,
   count,
   dayClosures,
   dayShare,
@@ -226,6 +227,15 @@ describe("school closures on Overview", () => {
     expect(marks.every((m) => m?.label === "Winter break")).toBe(true);
     const nov = dayClosures(closures, twoWeeks("2026-11-18")); // Mon 16 … Fri 27 Nov.
     expect(nov.map((m) => m?.time ?? (m ? "closed" : null))).toEqual([null, null, null, null, "from 12:00", null, null, null, null, "from 07:00"]);
+  });
+
+  it("closuresText names every closure of the shown range in date order, including one that already started", () => {
+    expect(closuresText(closures, "2026-11-01", "2026-11-30")).toEqual([
+      "School closes early: Teachers' meeting, Fri 20 Nov from 12:00",
+      "School closes early: Open day, Fri 27 Nov from 07:00",
+    ]);
+    expect(closuresText(closures, "2027-01-01", "2027-01-31")).toEqual(["School closed: Winter break, Mon 28 Dec – Fri 8 Jan"]);
+    expect(closuresText(closures, "2027-02-01", "2027-02-28")).toEqual([]);
   });
 
   it("nextClosureLine tells the nearest closure that has not ended, up to the end of what Overview shows", () => {
