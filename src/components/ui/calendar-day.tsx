@@ -9,12 +9,14 @@ import { cn } from "@/lib/utils";
  */
 export type DayState = "free" | "selected" | "record" | "closed" | "off";
 
+/** Штриховка дня, закритого школою (DESIGN.md, розділ 6); та сама — у сітці шкільного календаря (school-calendar.tsx). */
+export const CLOSED_HATCH = "bg-[repeating-linear-gradient(135deg,var(--muted)_0_3px,var(--border)_3px_5px)]";
+
 const DAY: Record<DayState, string> = {
   free: "border-border text-foreground hover:bg-accent hover:text-accent-foreground",
   selected: "bg-primary text-primary-foreground hover:bg-primary/90",
   record: "bg-status-awaiting text-status-awaiting-foreground hover:border-status-awaiting-foreground",
-  closed:
-    "text-muted-foreground line-through bg-[repeating-linear-gradient(135deg,var(--muted)_0_3px,var(--border)_3px_5px)]",
+  closed: `text-muted-foreground line-through ${CLOSED_HATCH}`,
   // Кнопка, а не disabled: число має контраст muted-foreground (≥ 4.5:1); від робочого дня відрізняє відсутність рамки.
   off: "text-muted-foreground hover:bg-muted",
 };
@@ -46,7 +48,7 @@ const SWATCH: Record<DayState, { className: string; label: string }> = {
   selected: { className: "bg-primary", label: "Selected" },
   record: { className: "bg-status-awaiting ring-1 ring-inset ring-status-awaiting-foreground", label: "You already have a record" },
   closed: {
-    className: "bg-[repeating-linear-gradient(135deg,var(--muted)_0_3px,var(--border)_3px_5px)]",
+    className: CLOSED_HATCH,
     label: "Closed by the school",
   },
   off: { className: "bg-muted", label: "No working hours" },
