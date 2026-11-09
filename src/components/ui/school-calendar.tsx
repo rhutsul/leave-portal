@@ -1,14 +1,14 @@
 import { CLOSED_HATCH } from "@/components/ui/calendar-day";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { closureCaption, dayLabel, type GridDay, type GridMonth } from "@/lib/leave/calendar-grid";
+import { dayLabel, type GridDay, type GridMonth } from "@/lib/leave/calendar-grid";
 import { WEEKDAY_SHORT } from "@/lib/leave/time";
 import { cn } from "@/lib/utils";
 
 /**
  * Сітка шкільного календаря (DESIGN.md, розділи 5–6): місяць з понеділка, закритий цілий день — штриховка й
- * перекреслення, як у календарі «New request»; скорочений день — штриховка нижньої половини; сьогодні — кільце
- * `primary`. Дні із закриттям і сьогодні фокусуються: наведення чи фокус показує назву закриття (`Tooltip`), а
- * `aria-label` каже дату й назву. Інші числа сховано від зчитувача екрана — ті самі закриття є списком поруч.
+ * перекреслення, як у календарі «New request»; скорочений день — рамка й штриховка нижньої половини; сьогодні — кільце
+ * `primary`. Сітка — лише картинка для очей, як `DotMonth`: `aria-hidden` і без зупинок Tab, бо ті самі закриття (і
+ * дії адміністратора) — у списку поруч, і зчитувач не читатиме їх двічі. Наведення мишею на закритий день показує
+ * дату й назву закриття (`title`).
  */
 
 /** Скорочений день: штриховка лише нижньої половини — школа закрита з певної години до кінця дня. */
@@ -23,79 +23,55 @@ const KIND: Record<GridDay["kind"], string> = {
 function dayClass(day: GridDay, size: "sm" | "md") {
   const overlap = day.selected && day.closure;
   return cn(
-    "flex items-center justify-center rounded-sm tabular-nums outline-none",
-    size === "sm" ? "h-6 text-[11px] md:h-7 md:text-xs" : "h-8 text-[13px] font-medium",
+    "flex items-center justify-center rounded-sm tabular-nums",
+    size === "sm" ? "h-6 text-xs md:h-7" : "h-8 text-sm font-medium",
     !day.selected && KIND[day.kind],
     day.selected && !day.closure && "bg-primary text-primary-foreground",
     // Вибрано у формі, але день уже закрито: штриховка лишається, межа й число — destructive (база відхилить, AC-CAL-11).
     overlap && cn(KIND[day.kind], "font-semibold text-destructive ring-2 ring-destructive ring-inset"),
     day.today && !day.selected && "font-semibold text-primary ring-2 ring-primary ring-inset",
     day.closure &&
-      "cursor-default transition-shadow duration-(--duration-fast) ease-out hover:ring-1 hover:ring-ring hover:ring-inset focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring",
+      "cursor-default transition-shadow duration-(--duration-fast) ease-out hover:ring-1 hover:ring-ring hover:ring-inset",
   );
 }
 
 function Day({ day, size }: { day: GridDay; size: "sm" | "md" }) {
-  const className = dayClass(day, size);
-  if (day.closure) {
-    return (
-      <Tooltip>
-        <TooltipTrigger
-          render={
-            <span
-              tabIndex={0}
-              role="img"
-              aria-label={dayLabel(day)}
-              aria-current={day.today ? "date" : undefined}
-              data-day={day.kind}
-              className={className}
-            />
-          }
-        >
-          {day.day}
-        </TooltipTrigger>
-        <TooltipContent>{closureCaption(day.closure)}</TooltipContent>
-      </Tooltip>
-    );
-  }
-  if (day.today) {
-    return (
-      <span role="img" aria-label={dayLabel(day)} aria-current="date" data-day={day.kind} className={className}>
-        {day.day}
-      </span>
-    );
-  }
   return (
-    <span aria-hidden="true" data-day={day.kind} data-selected={day.selected || undefined} className={className}>
+    <span
+      title={day.closure ? dayLabel(day) : undefined}
+      data-day={day.kind}
+      data-today={day.today || undefined}
+      data-selected={day.selected || undefined}
+      className={dayClass(day, size)}
+    >
       {day.day}
     </span>
   );
 }
 
-/** Один місяць сітки: назва, дні тижня з понеділка і дні. `size="md"` — більші клітинки для перегляду в формі. */
+/**
+ * Один місяць сітки: назва, дні тижня з понеділка і дні. `size="md"` — більші клітинки для перегляду в формі.
+ * `aria-hidden`: дати й закриття є текстом поруч (список закриттів, підсумок форми).
+ */
 export function CalendarMonth({
   month,
   size = "sm",
-  headingLevel = 3,
   className,
 }: {
   month: GridMonth;
   size?: "sm" | "md";
-  /** Рівень заголовка місяця; 0 — не заголовок, а підпис (у картці перегляду). */
-  headingLevel?: 0 | 3 | 4;
   className?: string;
 }) {
-  const Heading = headingLevel === 0 ? "div" : (`h${headingLevel}` as const);
   return (
-    <div role="group" aria-label={month.label} data-month={month.month} className={cn("flex min-w-0 flex-col gap-1.5", className)}>
-      <Heading className="text-sm font-semibold">{month.label}</Heading>
+    <div aria-hidden="true" data-month={month.month} className={cn("flex min-w-0 flex-col gap-1.5", className)}>
+      <div className="text-sm font-semibold">{month.label}</div>
       <div className={cn("grid grid-cols-7", size === "sm" ? "gap-px md:gap-0.5" : "gap-1")}>
         {WEEKDAY_SHORT.map((w) => (
-          <div key={w} aria-hidden="true" className="py-0.5 text-center text-[11px] text-muted-foreground">
+          <div key={w} className="py-0.5 text-center text-xs text-muted-foreground">
             {size === "sm" ? w.slice(0, 2) : w}
           </div>
         ))}
-        {month.cells.map((day, i) => (day ? <Day key={day.date} day={day} size={size} /> : <span key={`blank-${i}`} aria-hidden="true" />))}
+        {month.cells.map((day, i) => (day ? <Day key={day.date} day={day} size={size} /> : <span key={`blank-${i}`} />))}
       </div>
     </div>
   );
@@ -143,7 +119,7 @@ export function SchoolCalendarLegend({
     <ul className={cn("flex flex-wrap gap-x-4.5 gap-y-2 text-xs text-muted-foreground", className)} aria-label="Calendar legend">
       {items.map((s) => (
         <li key={s} className="inline-flex items-center gap-1.5">
-          <span aria-hidden="true" className={cn("size-3.5 rounded-[4px]", SWATCH[s].className)} />
+          <span aria-hidden="true" className={cn("size-3.5 rounded-sm", SWATCH[s].className)} />
           {SWATCH[s].label}
         </li>
       ))}
@@ -156,7 +132,7 @@ export function ClosureSwatch({ early, className }: { early: boolean; className?
   return (
     <span
       aria-hidden="true"
-      className={cn("inline-block size-3.5 shrink-0 rounded-[4px]", early ? SWATCH.early.className : SWATCH.closed.className, className)}
+      className={cn("inline-block size-3.5 shrink-0 rounded-sm", early ? SWATCH.early.className : SWATCH.closed.className, className)}
     />
   );
 }

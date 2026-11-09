@@ -109,6 +109,13 @@ describe("previewMonths", () => {
       more: 2,
     });
   });
+
+  it("counts the rest of a very long range without walking through it", () => {
+    expect(previewMonths({ start: "2026-12-28", end: "9999-12-31" }, "2026-11-09")).toEqual({
+      months: ["2026-12", "2027-01", "2027-02"],
+      more: 95_674, // грудень 2026 – грудень 9999: (9999 − 2026) × 12 + 1 = 95 677 місяців, 3 показано
+    });
+  });
 });
 
 describe("labels", () => {

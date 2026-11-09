@@ -228,7 +228,7 @@ function ClosurePreview({
 
       <div className="flex flex-col gap-4 border-t border-border pt-3.5" data-testid="closure-preview">
         {months.map((m) => (
-          <CalendarMonth key={m} month={buildMonth(m, known, today, selection)} size="md" headingLevel={0} />
+          <CalendarMonth key={m} month={buildMonth(m, known, today, selection)} size="md" />
         ))}
         {more > 0 && (
           <p className="text-xs text-muted-foreground">
@@ -238,15 +238,19 @@ function ClosurePreview({
         <SchoolCalendarLegend items={["selected", "overlap", "closed", "early", "today"]} />
       </div>
 
-      {overlaps.length > 0 && (
-        // Підказка, не помилка: role="status", щоб єдиним alert лишалась помилка бази над кнопкою (AC-CAL-11).
-        <Alert variant="warning" role="status">
-          <TriangleAlert />
-          <AlertDescription>
-            These dates are already closed: {overlaps.map((c) => `${c.name} (${formatClosureDates(c)})`).join(", ")}
-          </AlertDescription>
-        </Alert>
-      )}
+      {/* Підказка, не помилка: role="status", щоб єдиним alert лишалась помилка бази над кнопкою (AC-CAL-11).
+          Контейнер змонтовано завжди — тоді зчитувач оголошує текст, що в ньому з'являється. */}
+      {/* empty:-mt-3.5 — порожній контейнер не додає проміжку картки; role="none" знімає з Alert його role="alert". */}
+      <div role="status" className="empty:-mt-3.5">
+        {overlaps.length > 0 && (
+          <Alert variant="warning" role="none">
+            <TriangleAlert />
+            <AlertDescription>
+              These dates are already closed: {overlaps.map((c) => `${c.name} (${formatClosureDates(c)})`).join(", ")}
+            </AlertDescription>
+          </Alert>
+        )}
+      </div>
 
       <section aria-labelledby="closures-in-year" className="flex flex-col gap-2 border-t border-border pt-3.5">
         <h3 id="closures-in-year" className="text-sm font-semibold">

@@ -460,8 +460,9 @@ export default async function DesignPage() {
       <Section title="School calendar">
         <p className="max-w-[60ch] text-sm text-muted-foreground">
           Year grid of the school calendar: closed days hatched and struck through, an early dismissal hatched in the
-          lower half, today ringed. Hover or focus a closed day for its name. Below is the preview next to the
-          Add closure form, with the new dates and an overlap.
+          lower half, today ringed. Hover a closed day for its name; the grid is hidden from screen readers, because the
+          list next to it carries the same closures. Below is the preview next to the Add closure form, with the new
+          dates and an overlap.
         </p>
         <Card className="gap-5 px-3 md:px-5">
           <SchoolYearCalendar months={buildSchoolYear(2026, SAMPLE_CLOSURES, "2026-11-09").slice(2, 6)} />
@@ -471,7 +472,6 @@ export default async function DesignPage() {
           <CalendarMonth
             month={buildMonth("2026-12", SAMPLE_CLOSURES, "2026-11-09", { start: "2026-12-23", end: "2026-12-29" })}
             size="md"
-            headingLevel={0}
           />
           <SchoolCalendarLegend items={["selected", "overlap", "closed", "early", "today"]} />
         </Card>

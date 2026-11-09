@@ -86,9 +86,11 @@ export function previewMonths(
   if (!selection) return { months: [fallback.slice(0, 7)], more: 0 };
   const first = selection.start.slice(0, 7);
   const last = (selection.end < selection.start ? selection.start : selection.end).slice(0, 7);
-  const months: string[] = [];
-  for (let m = first; m <= last; m = addMonths(m, 1)) months.push(m);
-  return { months: months.slice(0, max), more: Math.max(0, months.length - max) };
+  // Кількість місяців — арифметикою, а цикл не довший за max: кінцева дата може бути дуже далекою (рік 9999).
+  const index = (m: string) => Number(m.slice(0, 4)) * 12 + Number(m.slice(5, 7));
+  const total = index(last) - index(first) + 1;
+  const months = Array.from({ length: Math.min(total, max) }, (_, i) => addMonths(first, i));
+  return { months, more: total - months.length };
 }
 
 /** Назва закриття дня для підказки й зчитувача: "Winter break" або "Teachers' meeting from 12:00". */

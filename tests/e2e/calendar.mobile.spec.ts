@@ -32,10 +32,11 @@ test.describe("year grid on a narrow phone", () => {
     await page.goto("/calendar?year=2026");
     await expect(page.getByRole("heading", { level: 1, name: "School calendar" })).toBeVisible();
     const grid = page.getByTestId("school-year-calendar");
-    const months = grid.getByRole("group");
+    // Сітка сховано від зчитувача (aria-hidden; ті самі закриття — у списку), тож місяці — за data-month.
+    const months = grid.locator("[data-month]");
     await expect(months).toHaveCount(12);
-    await expect(months.first()).toHaveAccessibleName("September 2026");
-    await expect(months.last()).toHaveAccessibleName("August 2027");
+    await expect(months.first()).toContainText("September 2026");
+    await expect(months.last()).toContainText("August 2027");
     // Два місяці в рядку: вересень і жовтень на одній висоті, листопад — нижче.
     const [sep, oct, nov] = await Promise.all([0, 1, 2].map(async (i) => (await months.nth(i).boundingBox())!));
     expect(Math.abs(sep.y - oct.y)).toBeLessThan(2);

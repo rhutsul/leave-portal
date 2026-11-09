@@ -13,18 +13,23 @@ const html = (selection: { start: string; end: string } | null = null) =>
   renderToStaticMarkup(<CalendarMonth month={buildMonth("2026-11", [MEETING, STAFF], "2026-11-09", selection)} />);
 
 describe("CalendarMonth", () => {
-  it("lets keyboard reach only days with a closure, named by date and closure", () => {
+  it("is hidden from screen readers and has no tab stops: the list next to it carries the closures", () => {
     const out = html();
-    expect(out.match(/tabindex="0"/g)).toHaveLength(3);
-    // Апостроф у назві React екранує як &#x27;.
-    expect(out).toContain('aria-label="Fri, 20 Nov 2026: Teachers&#x27; meeting from 12:00"');
-    expect(out).toContain('aria-label="Thu, 26 Nov 2026: Staff day"');
+    expect(out).toMatch(/^<div aria-hidden="true"/);
+    expect(out).not.toContain("tabindex");
+    expect(out).not.toContain("role=");
   });
 
-  it("marks today for a screen reader and hides plain day numbers", () => {
+  it("names a closed day by date and closure on mouse hover", () => {
     const out = html();
-    expect(out).toContain('aria-label="Today, Mon, 9 Nov 2026" aria-current="date"');
-    expect(out.match(/aria-hidden="true" data-day="open"/g)).toHaveLength(26); // 30 днів − 3 із закриттям − сьогодні
+    // Апостроф у назві React екранує як &#x27;.
+    expect(out).toContain('title="Fri, 20 Nov 2026: Teachers&#x27; meeting from 12:00"');
+    expect(out).toContain('title="Thu, 26 Nov 2026: Staff day"');
+    expect(out.match(/title="/g)).toHaveLength(3);
+  });
+
+  it("rings today", () => {
+    expect(html()).toMatch(/data-today="true" class="[^"]*ring-primary/);
   });
 
   it("strikes through whole closed days but not an early dismissal", () => {
@@ -38,6 +43,6 @@ describe("CalendarMonth", () => {
   it("shows a selected day that is already closed with a destructive ring", () => {
     const out = html({ start: "2026-11-25", end: "2026-11-26" });
     expect(out).toMatch(/data-day="open" data-selected="true" class="[^"]*bg-primary/);
-    expect(out).toMatch(/data-day="closed" class="[^"]*ring-destructive/);
+    expect(out).toMatch(/data-day="closed" data-selected="true" class="[^"]*ring-destructive/);
   });
 });
