@@ -90,7 +90,11 @@ export function report(rows = combine(), { out } = {}) {
     `- **Прогін:** ${kyivTime(started)} (Київ), Playwright ${run.playwrightMs ? sec(run.playwrightMs) : "—"}; AC: ${real.length} — PASS ${count("PASS")}, FAIL ${count("FAIL")}, NEEDS-HUMAN ${count("NEEDS-HUMAN")}${nc.length ? `; негативних контролів: ${nc.length}` : ""}`,
     `- **Рецензент:** \`${HAIKU}\`; суперечки → \`${SONNET}\`. Разом за розбір: ${usd(totalCost)} (ціни API; за підпискою — у межах ліміту плану)`,
     cleanup
-      ? `- **Прибирання:** синтетичних uat-*@example.test видалено ${cleanup.deleted.length}, лишилось ${cleanup.remaining.length}, їхніх рядків, що лишились: ${cleanup.leftoverRequests}`
+      ? cleanup.scope === "school-calendar" && cleanup.error
+        ? `- **Прибирання:** ПОМИЛКА — прибирання почалось, але впало: ${cleanup.error}. Перевірте дати AC вручну (test-results/uat-calendar-rows.jsonl — що лишилось)`
+        : cleanup.scope === "school-calendar"
+        ? `- **Прибирання:** рядків UAT шкільного календаря видалено ${cleanup.deleted.length} (${cleanup.deleted.join("; ") || "—"}), закриттів AC лишилось ${cleanup.remaining.length}, записів teacher1@ у датах AC лишилось ${cleanup.leftoverRequests}`
+        : `- **Прибирання:** синтетичних uat-*@example.test видалено ${cleanup.deleted.length}, лишилось ${cleanup.remaining.length}, їхніх рядків, що лишились: ${cleanup.leftoverRequests}`
       : "- **Прибирання:** не запускалось (прогін без SUPABASE_SECRET_KEY — лише AC, що нічого не пишуть)",
     "- **Відео й траси:** не в git — `test-results/` локально або артефакт CI; трасу відкриває `npx playwright show-trace <trace.zip>`",
     "",

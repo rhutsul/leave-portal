@@ -1,0 +1,704 @@
+{
+  "kind": "uat",
+  "generatedAt": "2026-11-08T21:47:54.158Z",
+  "baseURL": "https://leave-portal-olive.vercel.app",
+  "deployedSha": "c77502a492ae9ef759b64e16173fffc761747020",
+  "testsCommit": "aac446976ee22e7c5830daaa3dba2773c5b95461",
+  "reviewer": {
+    "model": "claude-haiku-5-5",
+    "disputes": "claude-sonnet-5-5"
+  },
+  "note": "Відео й траси не в git (test-results/ локально, артефакт CI). check-recordings конвеєра WS9 вимагає відео на диску — для нього цей manifest треба доповнити.",
+  "results": [
+    {
+      "id": "AC-BALANCE-13",
+      "proof": "AC-BALANCE-13",
+      "title": "AC-BALANCE-13: teacher1@example.test opens another employee's balances by a direct link — the balances are not shown",
+      "screenshot": "docs/qa/uat/2026-11-08/frames/AC-BALANCE-13-then-1.png",
+      "video": "test-results/artifacts/balances-AC-BALANCE-13-tea-88477--the-balances-are-not-shown-chromium/video.webm",
+      "trace": "test-results/artifacts/balances-AC-BALANCE-13-tea-88477--the-balances-are-not-shown-chromium/trace.zip",
+      "asserted": true,
+      "vision": {
+        "met": true,
+        "readable": true,
+        "notes": "На кадрі сторінка /balances із заголовком «Balances» і текстом «These balances are not available to you.» під піктограмою замка; карток балансів і чисел днів не видно. Текст повністю збігається з критерієм, тож видима частина «Тоді» виконана."
+      },
+      "agentModel": "claude-haiku-5-5",
+      "agentVerdicts": {
+        "claude-haiku-5-5": "PASS",
+        "claude-sonnet-5-5": null
+      },
+      "escalated": false,
+      "quotesVerified": [
+        {
+          "quote": "These balances are not available to you.",
+          "onPage": true
+        }
+      ],
+      "verdict": "PASS",
+      "factoryGate": "PASS",
+      "rule": "R6: перевірки, агент і цитати збігаються",
+      "playwrightMs": 8122,
+      "reviewCostUsd": 0.00186,
+      "reviewWallMs": 7586
+    },
+    {
+      "id": "AC-CAL-01",
+      "proof": "AC-CAL-01",
+      "title": "AC-CAL-01: the administrator adds \"Winter break\" for whole days 2026-12-28 – 2027-01-08 and the calendar shows it",
+      "screenshot": "docs/qa/uat/2026-11-08/frames/AC-CAL-01-then-1.png",
+      "video": "test-results/artifacts/calendar-admin-example-tes-f5411-8-and-the-calendar-shows-it-chromium/video.webm",
+      "trace": "test-results/artifacts/calendar-admin-example-tes-f5411-8-and-the-calendar-shows-it-chromium/trace.zip",
+      "asserted": true,
+      "vision": {
+        "met": true,
+        "readable": true,
+        "notes": "На кадрі сторінка «School calendar» (шлях /calendar) з таблицею, де в рядку є дати «2026-12-28 – 2027-01-08» і назва «Winter break» з позначкою «Whole days». Зверху зелено-синє сповіщення «Closure added» з тим самим текстом «Winter break · 2026-12-28 – 2027-01-08», що підтверджує додавання. Частина «exactly one closure» не з кадрів, тому не оцінювалась."
+      },
+      "agentModel": "claude-haiku-5-5",
+      "agentVerdicts": {
+        "claude-haiku-5-5": "PASS",
+        "claude-sonnet-5-5": null
+      },
+      "escalated": false,
+      "quotesVerified": [
+        {
+          "quote": "Winter break",
+          "onPage": true
+        },
+        {
+          "quote": "2026-12-28 – 2027-01-08",
+          "onPage": true
+        }
+      ],
+      "verdict": "PASS",
+      "factoryGate": "PASS",
+      "rule": "R6: перевірки, агент і цитати збігаються",
+      "playwrightMs": 12903,
+      "reviewCostUsd": 0.00204,
+      "reviewWallMs": 9179
+    },
+    {
+      "id": "AC-CAL-02",
+      "proof": "AC-CAL-02",
+      "title": "AC-CAL-02: teacher1@example.test opens the school calendar and sees \"Winter break\" 2026-12-28 – 2027-01-08",
+      "screenshot": "docs/qa/uat/2026-11-08/frames/AC-CAL-02-then-1.png",
+      "video": "test-results/artifacts/calendar-teacher1-example--18898-eak-2026-12-28-–-2027-01-08-chromium/video.webm",
+      "trace": "test-results/artifacts/calendar-teacher1-example--18898-eak-2026-12-28-–-2027-01-08-chromium/trace.zip",
+      "asserted": true,
+      "vision": {
+        "met": true,
+        "readable": true,
+        "notes": "На кадрі сторінки «School calendar» (школальний рік 2026–2027) видно один рядок таблиці: дати «2026-12-28 – 2027-01-08» і назва «Winter break». Текст читабельний і збігається з критерієм посимвольно, включно з en-dash у діапазоні дат. Ідентичність користувача та навчальний рік не оцінювалися, бо це не з кадрів."
+      },
+      "agentModel": "claude-haiku-5-5",
+      "agentVerdicts": {
+        "claude-haiku-5-5": "PASS",
+        "claude-sonnet-5-5": null
+      },
+      "escalated": false,
+      "quotesVerified": [
+        {
+          "quote": "2026-12-28 – 2027-01-08",
+          "onPage": true
+        },
+        {
+          "quote": "Winter break",
+          "onPage": true
+        }
+      ],
+      "verdict": "PASS",
+      "factoryGate": "PASS",
+      "rule": "R6: перевірки, агент і цитати збігаються",
+      "playwrightMs": 7221,
+      "reviewCostUsd": 0.00193,
+      "reviewWallMs": 8124
+    },
+    {
+      "id": "AC-CAL-03",
+      "proof": "AC-CAL-03",
+      "title": "AC-CAL-03: Tuesday 2026-12-29 in \"Winter break\" is not accepted — «The school is closed on this day: Winter break»",
+      "screenshot": "docs/qa/uat/2026-11-08/frames/AC-CAL-03-then-1.png",
+      "video": "test-results/artifacts/calendar-teacher1-example--69095-d-on-this-day-Winter-break»-chromium/video.webm",
+      "trace": "test-results/artifacts/calendar-teacher1-example--69095-d-on-this-day-Winter-break»-chromium/trace.zip",
+      "asserted": true,
+      "vision": {
+        "met": true,
+        "readable": true,
+        "notes": "На кадрі в «Selected dates» видно «No dates yet — pick them in the calendar.», а під календарем червоне повідомлення «The school is closed on this day: Winter break» (перенесене на два рядки через «Winter» / «break», текст збігається). 29 грудня в календарі позначено як «Closed by the school», і в блоці «Selected dates» немає вибраних дат."
+      },
+      "agentModel": "claude-haiku-5-5",
+      "agentVerdicts": {
+        "claude-haiku-5-5": "PASS",
+        "claude-sonnet-5-5": null
+      },
+      "escalated": false,
+      "quotesVerified": [
+        {
+          "quote": "The school is closed on this day: Winter break",
+          "onPage": true
+        },
+        {
+          "quote": "No dates yet — pick them in the calendar.",
+          "onPage": true
+        }
+      ],
+      "verdict": "PASS",
+      "factoryGate": "PASS",
+      "rule": "R6: перевірки, агент і цитати збігаються",
+      "playwrightMs": 8433,
+      "reviewCostUsd": 0.00202,
+      "reviewWallMs": 7720
+    },
+    {
+      "id": "AC-CAL-04",
+      "proof": "AC-CAL-04",
+      "title": "AC-CAL-04: Personal leave for the whole day on the early dismissal 2026-11-20 — 1 record 2026-11-20 08:30–12:00",
+      "screenshot": "docs/qa/uat/2026-11-08/frames/AC-CAL-04-then-1.png",
+      "video": "test-results/artifacts/calendar-teacher1-example--a780b-cord-2026-11-20-08-30–12-00-chromium/video.webm",
+      "trace": "test-results/artifacts/calendar-teacher1-example--a780b-cord-2026-11-20-08-30–12-00-chromium/trace.zip",
+      "asserted": true,
+      "vision": {
+        "met": true,
+        "readable": true,
+        "notes": "На кадрі сторінки /requests в розділі «November 2026» є один рядок «Fri 20» з «Whole day · 08:30–12:00», тип «Personal leave», статус «Awaiting decision». Інших рядків із датою 20 у видимій частині списку немає, а сам запис відповідає вимозі за годинами. Рядок позначено «Whole day», але це мітка типу відсутності, а не суперечність критерію; «Request submitted» і кількість записів за межами кадру не оцінювалися."
+      },
+      "agentModel": "claude-haiku-5-5",
+      "agentVerdicts": {
+        "claude-haiku-5-5": "PASS",
+        "claude-sonnet-5-5": null
+      },
+      "escalated": false,
+      "quotesVerified": [
+        {
+          "quote": "November 2026",
+          "onPage": true
+        },
+        {
+          "quote": "Fri 20",
+          "onPage": true
+        },
+        {
+          "quote": "Whole day · 08:30–12:00",
+          "onPage": true
+        },
+        {
+          "quote": "Personal leave",
+          "onPage": true
+        },
+        {
+          "quote": "Awaiting decision",
+          "onPage": true
+        }
+      ],
+      "verdict": "PASS",
+      "factoryGate": "PASS",
+      "rule": "R6: перевірки, агент і цитати збігаються",
+      "playwrightMs": 15495,
+      "reviewCostUsd": 0.00243,
+      "reviewWallMs": 10224
+    },
+    {
+      "id": "AC-CAL-05",
+      "proof": "AC-CAL-05",
+      "title": "AC-CAL-05: hours 13:00–14:00 on the early dismissal 2026-11-20 — no request, «Hours must be within your schedule: 08:30–12:00»",
+      "screenshot": "docs/qa/uat/2026-11-08/frames/AC-CAL-05-then-1.png",
+      "video": "test-results/artifacts/calendar-teacher1-example--73228--your-schedule-08-30–12-00»-chromium/video.webm",
+      "trace": "test-results/artifacts/calendar-teacher1-example--73228--your-schedule-08-30–12-00»-chromium/trace.zip",
+      "asserted": true,
+      "vision": {
+        "met": true,
+        "readable": true,
+        "notes": "На кадрі видно сторінку «New request» з активною вкладкою «Positions & hours» і заголовком картки «Positions and hours». Поля To/From показують 13:00 і 14:00, під ними червоний напис «Hours must be within your schedule: 08:30–12:00». Кнопка внизу — «Continue», без «Submit request»; «Your request» показує «0 records». Точний символ тире перевірятиметься автоматично, тут оцінено лише видимий текст."
+      },
+      "agentModel": "claude-haiku-5-5",
+      "agentVerdicts": {
+        "claude-haiku-5-5": "PASS",
+        "claude-sonnet-5-5": null
+      },
+      "escalated": false,
+      "quotesVerified": [
+        {
+          "quote": "Hours must be within your schedule: 08:30–12:00",
+          "onPage": true
+        },
+        {
+          "quote": "Positions and hours",
+          "onPage": true
+        }
+      ],
+      "verdict": "PASS",
+      "factoryGate": "PASS",
+      "rule": "R6: перевірки, агент і цитати збігаються",
+      "playwrightMs": 12443,
+      "reviewCostUsd": 0.00211,
+      "reviewWallMs": 8909
+    },
+    {
+      "id": "AC-CAL-06",
+      "proof": "AC-CAL-06",
+      "title": "AC-CAL-06: the manager approves the whole-day \"Sick leave\" 2026-11-20 08:30–12:00 — balances show \"Sick leave\" used 1.00, not 0.50",
+      "screenshot": "docs/qa/uat/2026-11-08/frames/AC-CAL-06-then-1.png",
+      "video": "test-results/artifacts/calendar-manager1-example--ee997-ck-leave-used-1-00-not-0-50-chromium/video.webm",
+      "trace": "test-results/artifacts/calendar-manager1-example--ee997-ck-leave-used-1-00-not-0-50-chromium/trace.zip",
+      "asserted": true,
+      "vision": {
+        "met": true,
+        "readable": true,
+        "notes": "На кадрі /balances картка «Sick leave left» показує «2.85 of 18.00 used» з полем Used 2.85, тобто видима частина «Тоді» присутня. Стартове значення 0.00 і різницю 1.00 (а не 0.50) з одного кадру не перевірити — це частина автоматичних перевірок, яку я не оцінюю."
+      },
+      "agentModel": "claude-haiku-5-5",
+      "agentVerdicts": {
+        "claude-haiku-5-5": "PASS",
+        "claude-sonnet-5-5": null
+      },
+      "escalated": false,
+      "quotesVerified": [
+        {
+          "quote": "Sick leave left",
+          "onPage": true
+        },
+        {
+          "quote": "2.85 of 18.00 used",
+          "onPage": true
+        }
+      ],
+      "verdict": "PASS",
+      "factoryGate": "PASS",
+      "rule": "R6: перевірки, агент і цитати збігаються",
+      "playwrightMs": 14570,
+      "reviewCostUsd": 0.00221,
+      "reviewWallMs": 9327
+    },
+    {
+      "id": "AC-CAL-07",
+      "proof": "AC-CAL-07",
+      "title": "AC-CAL-07: teacher1@example.test's Approved record on 2026-12-29 — \"Winter break\" is not saved, the message lists the record",
+      "screenshot": "docs/qa/uat/2026-11-08/frames/AC-CAL-07-then-1.png",
+      "video": "test-results/artifacts/calendar-admin-example-tes-975ac-he-message-lists-the-record-chromium/video.webm",
+      "trace": "test-results/artifacts/calendar-admin-example-tes-975ac-he-message-lists-the-record-chromium/trace.zip",
+      "asserted": true,
+      "vision": {
+        "met": true,
+        "readable": true,
+        "notes": "На кадрі /calendar/manage сторінка «Add closure» відкрита, у полі Name стоїть «Winter break», з датами 28.12.2026 і 08.01.2027. Червоним показано точне повідомлення про заборону закриття з датою 2026-12-29 і адресою teacher1@example.test. Частину про відсутність «Winter break» у календарі кадр не показує, тому її не оцінено."
+      },
+      "agentModel": "claude-haiku-5-5",
+      "agentVerdicts": {
+        "claude-haiku-5-5": "PASS",
+        "claude-sonnet-5-5": null
+      },
+      "escalated": false,
+      "quotesVerified": [
+        {
+          "quote": "These days have leave records and cannot be closed: 2026-12-29 teacher1@example.test",
+          "onPage": true
+        },
+        {
+          "quote": "Add closure",
+          "onPage": true
+        },
+        {
+          "quote": "Winter break",
+          "onPage": true
+        }
+      ],
+      "verdict": "PASS",
+      "factoryGate": "PASS",
+      "rule": "R6: перевірки, агент і цитати збігаються",
+      "playwrightMs": 13972,
+      "reviewCostUsd": 0.0022,
+      "reviewWallMs": 8702
+    },
+    {
+      "id": "AC-CAL-08",
+      "proof": "AC-CAL-08",
+      "title": "AC-CAL-08: the only record on 2026-12-29 is Rejected — \"Winter break\" is saved and shown",
+      "screenshot": "docs/qa/uat/2026-11-08/frames/AC-CAL-08-then-1.png",
+      "video": "test-results/artifacts/calendar-admin-example-tes-eb789-er-break-is-saved-and-shown-chromium/video.webm",
+      "trace": "test-results/artifacts/calendar-admin-example-tes-eb789-er-break-is-saved-and-shown-chromium/trace.zip",
+      "asserted": true,
+      "vision": {
+        "met": true,
+        "readable": true,
+        "notes": "На кадрі сторінки «School calendar» видно банер «Closure added» з рядком «Winter break · 2026-12-28 – 2027-01-08». Нижче в таблиці є рядок із датами «2026-12-28 – 2027-01-08», назвою «Winter break» і типом «Whole days». Обидві видимі частини «Тоді» підтверджено дослівно."
+      },
+      "agentModel": "claude-haiku-5-5",
+      "agentVerdicts": {
+        "claude-haiku-5-5": "PASS",
+        "claude-sonnet-5-5": null
+      },
+      "escalated": false,
+      "quotesVerified": [
+        {
+          "quote": "Closure added",
+          "onPage": true
+        },
+        {
+          "quote": "2026-12-28 – 2027-01-08",
+          "onPage": true
+        },
+        {
+          "quote": "Winter break",
+          "onPage": true
+        }
+      ],
+      "verdict": "PASS",
+      "factoryGate": "PASS",
+      "rule": "R6: перевірки, агент і цитати збігаються",
+      "playwrightMs": 11941,
+      "reviewCostUsd": 0.00198,
+      "reviewWallMs": 7639
+    },
+    {
+      "id": "AC-CAL-09",
+      "proof": "AC-CAL-09",
+      "title": "AC-CAL-09: after the administrator removes \"Winter break\", Tuesday 2026-12-29 is accepted with the hours 08:30–15:30",
+      "screenshot": "docs/qa/uat/2026-11-08/frames/AC-CAL-09-then-1.png",
+      "video": "test-results/artifacts/calendar-teacher1-example--95f0c--with-the-hours-08-30–15-30-chromium/video.webm",
+      "trace": "test-results/artifacts/calendar-teacher1-example--95f0c--with-the-hours-08-30–15-30-chromium/trace.zip",
+      "asserted": true,
+      "vision": {
+        "met": true,
+        "readable": true,
+        "notes": "На кадрі сторінка «New request» з кроком «Positions and hours» (картка з цим заголовком). Для «Tue, 29 Dec 2026» показано «Elementary school / Teacher», «Schedule: 08:30–15:30», вибрано «Whole day», у блоці «Your request» — 08:30–15:30, 7 h. Частину «school calendar no longer shows» кадр не перевіряє і я її не оцінював."
+      },
+      "agentModel": "claude-haiku-5-5",
+      "agentVerdicts": {
+        "claude-haiku-5-5": "PASS",
+        "claude-sonnet-5-5": null
+      },
+      "escalated": false,
+      "quotesVerified": [
+        {
+          "quote": "Positions and hours",
+          "onPage": true
+        },
+        {
+          "quote": "Tue, 29 Dec 2026",
+          "onPage": true
+        },
+        {
+          "quote": "Schedule: 08:30–15:30",
+          "onPage": true
+        },
+        {
+          "quote": "Whole day",
+          "onPage": true
+        }
+      ],
+      "verdict": "PASS",
+      "factoryGate": "PASS",
+      "rule": "R6: перевірки, агент і цитати збігаються",
+      "playwrightMs": 13039,
+      "reviewCostUsd": 0.00228,
+      "reviewWallMs": 9782
+    },
+    {
+      "id": "AC-CAL-10",
+      "proof": "AC-CAL-10",
+      "title": "AC-CAL-10: an end date 2026-12-28 before the start date 2027-01-08 — not saved, «The end date cannot be earlier than the start date»",
+      "screenshot": "docs/qa/uat/2026-11-08/frames/AC-CAL-10-then-1.png",
+      "video": "test-results/artifacts/calendar-admin-example-tes-8153d-arlier-than-the-start-date»-chromium/video.webm",
+      "trace": "test-results/artifacts/calendar-admin-example-tes-8153d-arlier-than-the-start-date»-chromium/trace.zip",
+      "asserted": true,
+      "vision": {
+        "met": true,
+        "readable": true,
+        "notes": "На кадрі форма «Add closure» з червоним повідомленням під полями дат: «The end date cannot be earlier than the start date», посимвольно збігається з критерієм. Поля показують 08.01.2027 і 28.12.2026, кнопка «Add closure» видима. Збереження та наявність «Winter break» у календарі з кадру не перевірялися (це не з кадрів)."
+      },
+      "agentModel": "claude-haiku-5-5",
+      "agentVerdicts": {
+        "claude-haiku-5-5": "PASS",
+        "claude-sonnet-5-5": null
+      },
+      "escalated": false,
+      "quotesVerified": [
+        {
+          "quote": "The end date cannot be earlier than the start date",
+          "onPage": true
+        }
+      ],
+      "verdict": "PASS",
+      "factoryGate": "PASS",
+      "rule": "R6: перевірки, агент і цитати збігаються",
+      "playwrightMs": 12260,
+      "reviewCostUsd": 0.00183,
+      "reviewWallMs": 6670
+    },
+    {
+      "id": "AC-CAL-11",
+      "proof": "AC-CAL-11",
+      "title": "AC-CAL-11: \"Staff day\" on 2026-12-30 inside \"Winter break\" — not saved, «2026-12-30 is already closed: Winter break»",
+      "screenshot": "docs/qa/uat/2026-11-08/frames/AC-CAL-11-then-1.png",
+      "video": "test-results/artifacts/calendar-admin-example-tes-f825e-lready-closed-Winter-break»-chromium/video.webm",
+      "trace": "test-results/artifacts/calendar-admin-example-tes-f825e-lready-closed-Winter-break»-chromium/trace.zip",
+      "asserted": true,
+      "vision": {
+        "met": true,
+        "readable": true,
+        "notes": "На кадрі видно форму «Add closure» із назвою «Staff day», датами 30.12.2026 і червоним повідомленням про помилку, яке збігається з критерієм посимвольно. Адресного рядка на кадрі немає, тож шлях /calendar/manage не підтверджено кадром; це не впливає на оцінку видимої частини «Тоді». Факт, що закриття не збережено, з кадру не перевіряється."
+      },
+      "agentModel": "claude-haiku-5-5",
+      "agentVerdicts": {
+        "claude-haiku-5-5": "PASS",
+        "claude-sonnet-5-5": null
+      },
+      "escalated": false,
+      "quotesVerified": [
+        {
+          "quote": "2026-12-30 is already closed: Winter break",
+          "onPage": true
+        }
+      ],
+      "verdict": "PASS",
+      "factoryGate": "PASS",
+      "rule": "R6: перевірки, агент і цитати збігаються",
+      "playwrightMs": 12937,
+      "reviewCostUsd": 0.002,
+      "reviewWallMs": 8037
+    },
+    {
+      "id": "AC-CAL-12",
+      "proof": "AC-CAL-12",
+      "title": "AC-CAL-12: teacher1@example.test opens the page for changing the school calendar — «Only an administrator can change the school calendar»",
+      "screenshot": "docs/qa/uat/2026-11-08/frames/AC-CAL-12-then-1.png",
+      "video": "test-results/artifacts/calendar-teacher1-example--4d345-change-the-school-calendar»-chromium/video.webm",
+      "trace": "test-results/artifacts/calendar-teacher1-example--4d345-change-the-school-calendar»-chromium/trace.zip",
+      "asserted": true,
+      "vision": {
+        "met": true,
+        "readable": true,
+        "notes": "На кадрі сторінки «Change the school calendar» видно повідомлення «Only an administrator can change the school calendar» і пояснення «You can see the school calendar, but only an administrator adds or removes closures.». Форми додавання канікул на кадрі немає, єдина дія — посилання «Go to School calendar». Факт незмінності календаря не з кадрів, тому не оцінювався."
+      },
+      "agentModel": "claude-haiku-5-5",
+      "agentVerdicts": {
+        "claude-haiku-5-5": "PASS",
+        "claude-sonnet-5-5": null
+      },
+      "escalated": false,
+      "quotesVerified": [
+        {
+          "quote": "Only an administrator can change the school calendar",
+          "onPage": true
+        },
+        {
+          "quote": "Go to School calendar",
+          "onPage": true
+        }
+      ],
+      "verdict": "PASS",
+      "factoryGate": "PASS",
+      "rule": "R6: перевірки, агент і цитати збігаються",
+      "playwrightMs": 4813,
+      "reviewCostUsd": 0.00224,
+      "reviewWallMs": 9499
+    },
+    {
+      "id": "AC-CAL-13",
+      "proof": "AC-CAL-13",
+      "title": "AC-CAL-13: manager1@example.test tries to close 2026-11-27 directly — the calendar is unchanged and 2026-11-27 is still accepted",
+      "screenshot": "docs/qa/uat/2026-11-08/frames/AC-CAL-13-then-1.png",
+      "video": "test-results/artifacts/calendar-manager1-example--2051b-026-11-27-is-still-accepted-chromium/video.webm",
+      "trace": "test-results/artifacts/calendar-manager1-example--2051b-026-11-27-is-still-accepted-chromium/trace.zip",
+      "asserted": true,
+      "vision": {
+        "met": true,
+        "readable": true,
+        "notes": "На кадрі сторінка New request, листопад 2026: 27-ме виділене, під «Selected dates» є чіп «Fri 27 Nov». Дата не позначена як закрита школою."
+      },
+      "agentModel": "claude-sonnet-5-5",
+      "agentVerdicts": {
+        "claude-haiku-5-5": "NEEDS-HUMAN",
+        "claude-sonnet-5-5": "PASS"
+      },
+      "escalated": true,
+      "quotesVerified": [
+        {
+          "quote": "Selected dates",
+          "onPage": true
+        },
+        {
+          "quote": "Fri 27 Nov",
+          "onPage": true
+        }
+      ],
+      "verdict": "PASS",
+      "factoryGate": "PASS",
+      "rule": "R6: перевірки, агент і цитати збігаються",
+      "playwrightMs": 8212,
+      "reviewCostUsd": 0.03136,
+      "reviewWallMs": 17179
+    },
+    {
+      "id": "AC-CAL-14",
+      "proof": "AC-CAL-14",
+      "title": "AC-CAL-14: a visitor who is not signed in opens the school calendar by a direct link — the sign-in page, no closure names or dates",
+      "screenshot": "docs/qa/uat/2026-11-08/frames/AC-CAL-14-then-1.png",
+      "video": "test-results/artifacts/calendar-AC-CAL-14-a-visit-8a3ad-e-no-closure-names-or-dates-chromium/video.webm",
+      "trace": "test-results/artifacts/calendar-AC-CAL-14-a-visit-8a3ad-e-no-closure-names-or-dates-chromium/trace.zip",
+      "asserted": true,
+      "vision": {
+        "met": true,
+        "readable": true,
+        "notes": "На кадрі frame-then-1.png видно сторінку входу Leave Portal із заголовком «Sign in», полями «Email» і «Password» та кнопкою «Sign in». Календаря з назвами чи датами закриттів на кадрі немає, тож відсутність цих даних на кадрі не суперечить критерію. Перевірку відсутності «Winter break» і «2026-12-28» на сторінці я не оцінював, бо це поза кадрами."
+      },
+      "agentModel": "claude-haiku-5-5",
+      "agentVerdicts": {
+        "claude-haiku-5-5": "PASS",
+        "claude-sonnet-5-5": null
+      },
+      "escalated": false,
+      "quotesVerified": [
+        {
+          "quote": "Email",
+          "onPage": true
+        },
+        {
+          "quote": "Password",
+          "onPage": true
+        },
+        {
+          "quote": "Sign in",
+          "onPage": true
+        }
+      ],
+      "verdict": "PASS",
+      "factoryGate": "PASS",
+      "rule": "R6: перевірки, агент і цитати збігаються",
+      "playwrightMs": 6638,
+      "reviewCostUsd": 0.002,
+      "reviewWallMs": 7809
+    },
+    {
+      "id": "AC-CAL-15",
+      "proof": "AC-CAL-15",
+      "title": "AC-CAL-15: no closures in school year 2026–2027 — «No closed days in school year 2026–2027»",
+      "screenshot": "docs/qa/uat/2026-11-08/frames/AC-CAL-15-then-1.png",
+      "video": "test-results/artifacts/calendar-teacher1-example--18069-s-in-school-year-2026–2027»-chromium/video.webm",
+      "trace": "test-results/artifacts/calendar-teacher1-example--18069-s-in-school-year-2026–2027»-chromium/trace.zip",
+      "asserted": true,
+      "vision": {
+        "met": true,
+        "readable": true,
+        "notes": "На кадрі розділ School calendar з вибраним періодом 2026–27 і повідомлення по центру порожнього блоку: \"No closed days in school year 2026–2027\". Текст збігається з критерієм, включно з тире між роками. Рядків із закриттями на кадрі немає, що узгоджується з «Дано»; ця частина не з кадрів і не оцінювалась."
+      },
+      "agentModel": "claude-haiku-5-5",
+      "agentVerdicts": {
+        "claude-haiku-5-5": "PASS",
+        "claude-sonnet-5-5": null
+      },
+      "escalated": false,
+      "quotesVerified": [
+        {
+          "quote": "No closed days in school year 2026–2027",
+          "onPage": true
+        }
+      ],
+      "verdict": "PASS",
+      "factoryGate": "PASS",
+      "rule": "R6: перевірки, агент і цитати збігаються",
+      "playwrightMs": 4616,
+      "reviewCostUsd": 0.00187,
+      "reviewWallMs": 6930
+    },
+    {
+      "id": "AC-LEAVE-06",
+      "proof": "AC-LEAVE-06",
+      "title": "AC-LEAVE-06: Saturday 2026-11-07 is not accepted — «You have no working hours on this day»",
+      "screenshot": "docs/qa/uat/2026-11-08/frames/AC-LEAVE-06-then-1.png",
+      "video": "test-results/artifacts/new-request-teacher1-examp-a4f9c--working-hours-on-this-day»-chromium/video.webm",
+      "trace": "test-results/artifacts/new-request-teacher1-examp-a4f9c--working-hours-on-this-day»-chromium/trace.zip",
+      "asserted": true,
+      "vision": {
+        "met": true,
+        "readable": true,
+        "notes": "На кадрі сторінки /requests/new у календарі листопада 2026 субота 7 (Sat) сіра, без вибору, і під календарем червоним написано «You have no working hours on this day». У блоці «Selected dates» видно «No dates yet — pick them in the calendar.», тобто 7 листопада не в обраних датах. Обидві видимі частини «Тоді» підтверджено дослівно; частину «Не з кадрів» не оцінював."
+      },
+      "agentModel": "claude-haiku-5-5",
+      "agentVerdicts": {
+        "claude-haiku-5-5": "PASS",
+        "claude-sonnet-5-5": null
+      },
+      "escalated": false,
+      "quotesVerified": [
+        {
+          "quote": "You have no working hours on this day",
+          "onPage": true
+        },
+        {
+          "quote": "No dates yet — pick them in the calendar.",
+          "onPage": true
+        }
+      ],
+      "verdict": "PASS",
+      "factoryGate": "PASS",
+      "rule": "R6: перевірки, агент і цитати збігаються",
+      "playwrightMs": 5441,
+      "reviewCostUsd": 0.00211,
+      "reviewWallMs": 8710
+    },
+    {
+      "id": "AC-LEAVE-19",
+      "proof": "AC-LEAVE-19",
+      "title": "AC-LEAVE-19: hours 07:30–09:00 on Tue 2026-11-03 — no request, «Hours must be within your schedule: 08:30–12:00, 12:30–15:30»",
+      "screenshot": "docs/qa/uat/2026-11-08/frames/AC-LEAVE-19-then-1.png",
+      "video": "test-results/artifacts/new-request-teacher2-examp-3cf37-le-08-30–12-00-12-30–15-30»-chromium/video.webm",
+      "trace": "test-results/artifacts/new-request-teacher2-examp-3cf37-le-08-30–12-00-12-30–15-30»-chromium/trace.zip",
+      "asserted": true,
+      "vision": {
+        "met": true,
+        "readable": true,
+        "notes": "На кадрі сторінка «New request» на кроці позицій: під полем «to 09:00» червоним написано «Hours must be within your schedule: 08:30–12:00, 12:30–15:30», поля часу підсвічені помилкою. Заголовок картки «Positions and hours» є, кнопка внизу «Continue», а «Submit request» не видно; у вкладці кроку написано «Positions & hours», але це не частина критерію «Тоді»."
+      },
+      "agentModel": "claude-haiku-5-5",
+      "agentVerdicts": {
+        "claude-haiku-5-5": "PASS",
+        "claude-sonnet-5-5": null
+      },
+      "escalated": false,
+      "quotesVerified": [
+        {
+          "quote": "Hours must be within your schedule: 08:30–12:00, 12:30–15:30",
+          "onPage": true
+        },
+        {
+          "quote": "Positions and hours",
+          "onPage": true
+        },
+        {
+          "quote": "Continue",
+          "onPage": true
+        }
+      ],
+      "verdict": "PASS",
+      "factoryGate": "PASS",
+      "rule": "R6: перевірки, агент і цитати збігаються",
+      "playwrightMs": 11599,
+      "reviewCostUsd": 0.00228,
+      "reviewWallMs": 10130
+    }
+  ],
+  "negativeControls": [],
+  "cleanup": {
+    "at": "2026-11-08T21:46:51.509Z",
+    "scope": "school-calendar",
+    "deleted": [
+      "закриття «Winter break» 2026-12-28…2027-01-08 (зі сторінки)",
+      "заявка teacher1@example.test 2026-12-29 (зі сторінки)",
+      "заявка teacher1@example.test 2026-12-29 (зі сторінки)",
+      "закриття «Winter break» 2026-12-28…2027-01-08 (зі сторінки)",
+      "закриття «Winter break» 2026-12-28…2027-01-08 (зі сторінки)",
+      "закриття «Winter break» 2026-12-28…2027-01-08 (зі сторінки)",
+      "закриття «Winter break» 2026-12-28…2027-01-08 (зі сторінки)",
+      "заявка teacher1@example.test 2026-11-20 (зі сторінки)",
+      "закриття «Teachers' meeting» 2026-11-20…2026-11-20 (зі сторінки)",
+      "закриття «Teachers' meeting» 2026-11-20…2026-11-20 (зі сторінки)",
+      "заявка teacher1@example.test 2026-11-20 (зі сторінки)",
+      "закриття «Teachers' meeting» 2026-11-20…2026-11-20 (зі сторінки)",
+      "закриття «Winter break» 2026-12-28…2027-01-08 (зі сторінки)"
+    ],
+    "remaining": [],
+    "leftoverRequests": 0
+  }
+}

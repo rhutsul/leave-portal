@@ -5,7 +5,7 @@
 // Кроки: playwright test → pack.mjs → review.mjs (claude -p) → combine.mjs → report.mjs.
 // Звіт пишеться завжди, навіть якщо тести червоні: FAIL — теж результат для PM. Код виходу 1, якщо є FAIL.
 import { execFileSync, spawnSync } from "node:child_process";
-import { mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { pack } from "./pack.mjs";
 import { review } from "./review.mjs";
@@ -55,6 +55,20 @@ else delete env.UAT_BASE_URL;
 
 // Журнал прибирання — лише цього прогону: інакше «видалено» у звіті підсумовує адреси з попередніх прогонів.
 rmSync(path.join(ROOT, "test-results", "uat-cleanup.jsonl"), { force: true });
+// Журнал створеного шкільним календарем (tests/e2e/support/admin.ts) не порожній — попередній прогін перервався до
+// прибирання, і там id рядків, що лишились у базі. Не стираємо його: спершу прибрати ці рядки.
+const calendarRows = path.join(ROOT, "test-results", "uat-calendar-rows.jsonl");
+if (existsSync(calendarRows) && readFileSync(calendarRows, "utf8").trim()) {
+  console.error(
+    `UAT зупинено: ${path.relative(ROOT, calendarRows)} не порожній — попередній прогін не прибрав за собою. ` +
+      "Видаліть ці рядки з бази (id і таблиці — у файлі), потім сам файл, і запустіть знову.",
+  );
+  process.exit(1);
+}
+// Видалене й підсумок прибирання — лише цього прогону.
+for (const f of ["uat-calendar-rows.jsonl", "uat-calendar-deleted.jsonl", "uat-cleanup.json"]) {
+  rmSync(path.join(ROOT, "test-results", f), { force: true });
+}
 console.log(`UAT: ${url ?? "локальна збірка (npm run build && npm run start)"}${negativeControls ? " — негативні контролі" : ""}`);
 const cli = path.join(ROOT, "node_modules", "@playwright", "test", "cli.js");
 const pw = spawnSync(

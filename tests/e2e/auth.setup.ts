@@ -15,6 +15,8 @@ import { signIn } from "./support/uat";
 const ROLES = {
   teacher1: "teacher1@example.test",
   teacher2: "teacher2@example.test",
+  // Шкільний календар: manager1@ погоджує запис (AC-CAL-06) і пробує закрити день напряму (AC-CAL-13).
+  manager1: "manager1@example.test",
   admin: "admin@example.test",
 } as const;
 

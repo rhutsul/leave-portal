@@ -10,6 +10,9 @@ if (existsSync(".env.local")) process.loadEnvFile(".env.local");
 
 // Один ідентифікатор прогону на всі проєкти й воркери: синтетичні адреси uat-<run>…@example.test.
 process.env.UAT_RUN ??= new Date().toISOString().replace(/\D/g, "").slice(2, 14);
+// Початок прогону (той самий для всіх воркерів) з запасом 5 хв на розбіжність годинників машини й бази: teardown
+// cleanup шукає залишки лише серед рядків, створених після нього.
+process.env.UAT_RUN_STARTED ??= new Date(Date.now() - 5 * 60_000).toISOString();
 
 const deployed = process.env.UAT_BASE_URL?.replace(/\/+$/, "");
 const baseURL = deployed ?? "http://localhost:3000";
@@ -18,6 +21,19 @@ const withNegativeControls = process.env.UAT_NEGATIVE_CONTROLS === "1";
 // Тести з тегом @writes створюють записи: лише в CI на одноразовому Supabase (e2e.yml). На проді (UAT_BASE_URL) і
 // локально (.env.local вказує на спільну базу) їх не вибираємо (а не пропускаємо), тож skipped лишається 0.
 const withWrites = !deployed && !!process.env.CI;
+// @prod-writes — тести шкільного календаря, що пишуть, але самі створюють дані «Дано» й прибирають за собою
+// секретним ключем (tests/e2e/support/admin.ts, teardown cleanup). Їх беремо скрізь, де є ключ: на проді з
+// .env.local розробника і в CI на одноразовому Supabase. Без ключа — не вибираємо.
+const withAdminKey = Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SECRET_KEY);
+// Знімки сторінок для docs/img/ (calendar-screenshots.spec.ts) — лише на прохання: UAT_SCREENSHOTS=1.
+const withScreenshots = process.env.UAT_SCREENSHOTS === "1";
+const excluded = [
+  "@negative-control",
+  ...(withWrites ? [] : ["@writes"]),
+  ...(withAdminKey ? [] : ["@prod-writes"]),
+  ...(withScreenshots ? [] : ["@screenshots"]),
+];
+const grepInvert = new RegExp(excluded.join("|"));
 const noRecording = { video: "off", trace: "off", screenshot: "off" } as const;
 
 export default defineConfig({
@@ -53,14 +69,20 @@ export default defineConfig({
   },
   projects: [
     // Вхід ролей один раз → playwright/.auth/<role>.json (у .gitignore). Без запису: тут вводиться пароль.
-    // Проєкту cleanup з матеріалів курсу немає: на проді наші AC лише читають (@writes туди не потрапляє), тож прибирати
-    // нічого і секретний ключ UAT не потрібен; одноразовий Supabase у CI зникає разом із раннером.
-    { name: "setup", testMatch: /auth\.setup\.ts$/, use: noRecording },
+    // Прибирання після прогону (cleanup.teardown.ts) — лише з ключем: тести @prod-writes шкільного календаря
+    // створюють закриття й записи на проді й прибирають їх за id; teardown перевіряє, що нічого не лишилось.
+    {
+      name: "setup",
+      testMatch: /auth\.setup\.ts$/,
+      use: noRecording,
+      ...(withAdminKey ? { teardown: "cleanup" } : {}),
+    },
+    { name: "cleanup", testMatch: /cleanup\.teardown\.ts$/, use: noRecording },
     {
       name: "chromium",
       dependencies: ["setup"],
       testIgnore: /\.mobile\.spec\.ts$/,
-      grepInvert: withWrites ? /@negative-control/ : /@negative-control|@writes/,
+      grepInvert,
     },
     // Телефон (ADR 0008): ті самі акаунти, емуляція Pixel 7 (Chromium, дотик) — лише для *.mobile.spec.ts.
     {
@@ -68,7 +90,7 @@ export default defineConfig({
       dependencies: ["setup"],
       testMatch: /\.mobile\.spec\.ts$/,
       use: { ...devices["Pixel 7"] },
-      grepInvert: withWrites ? /@negative-control/ : /@negative-control|@writes/,
+      grepInvert,
     },
     ...(withNegativeControls
       ? [{ name: "negative-controls", dependencies: ["setup"], grep: /@negative-control/ }]

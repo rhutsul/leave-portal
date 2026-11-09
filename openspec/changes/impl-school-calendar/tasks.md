@@ -23,7 +23,7 @@
       не-адміна
 - [x] 1.5 SQL-мутанти в `scripts/mutants.mjs` (D6: AC-CAL-02, -07, -10, -11, -13, -14) → `npm run mutation:sql`
       `KILLED`
-- [ ] 1.6 Адаптив за ADR 0008: від 360 px, 44 px, `tests/e2e/calendar.mobile.spec.ts`; знімки 390 і 1280 px у
+- [x] 1.6 Адаптив за ADR 0008: від 360 px, 44 px, `tests/e2e/calendar.mobile.spec.ts`; знімки 390 і 1280 px у
       світлій і темній темах у `docs/img/`
 
 Done when: AC-CAL-01, AC-CAL-02, AC-CAL-06, AC-CAL-07, AC-CAL-08, AC-CAL-10, AC-CAL-11, AC-CAL-12, AC-CAL-13,
