@@ -44,20 +44,21 @@ AC-CAL-14, AC-CAL-15.
 - [x] 2.4 `/requests/new`: закриття тим самим вікном, що `recordDates` (навчальні роки `year-1 … year+1`); стан
       `closed` — кнопка з повідомленням AC-CAL-03 (`CalendarDay`, вітрина `/design`, `DESIGN.md` розділ 6), легенда з
       «Closed by the school»
-- [ ] 2.5 Stryker `--mutate src/lib/leave/calendar.ts` і SQL-мутант межі скороченого дня (`end_min > closes_at` →
+- [x] 2.5 Stryker `--mutate src/lib/leave/calendar.ts` і SQL-мутант межі скороченого дня (`end_min > closes_at` →
       `>=`) — вижилі мутанти розібрано
 
 Done when: AC-CAL-03, AC-CAL-04, AC-CAL-05, AC-CAL-09.
 
 ## 3. UAT на кожен AC (`task/uat-school-calendar`)
 
-- [ ] 3.1 Хелпер прибирання глобальних рядків у `tests/e2e/support/` (design, Risks): закриття й запис «Approved»
+- [x] 3.1 Хелпер прибирання глобальних рядків у `tests/e2e/support/` (design, Risks): закриття й запис «Approved»
       `teacher1@example.test` створюються через секретний ключ і видаляються за id в `afterAll` і окремим кроком у
       `scripts/uat/run.mjs`; рядок «закриття й записи, що лишились» у звіті; перевірка «чисто» перед прогоном
-- [ ] 3.2 `tests/e2e/calendar.spec.ts`: один `test` на кожен з 15 AC, анотація `ac`, тег `@uat`, `given` / `when` /
+- [x] 3.2 `tests/e2e/calendar.spec.ts`: один `test` на кожен з 15 AC, анотація `ac`, тег `@uat`, `given` / `when` /
       `thenStep`, твердження з дослівним текстом AC; AC, що пишуть дані, — `@writes`
-- [ ] 3.3 Прогін на проді — людина (`npm run uat -- --url https://leave-portal-olive.vercel.app`), негативний
-      контроль NC-1; звіт `docs/qa/uat/<дата>/` (`report.md`, `manifest.json`, `frames/`), відео — в описі PR;
+- [x] 3.3 Прогін на проді — людина (`npm run uat -- --url https://leave-portal-olive.vercel.app`), негативний
+      контроль NC-1; звіт `docs/qa/uat/<дата>/` (`report.md`, `manifest.json`, `frames/`), відео — в описі PR
+      (прогону 08.11, 15 AC-CAL одним файлом — в описі https://github.com/rhutsul/leave-portal/pull/66: https://github.com/user-attachments/assets/fa7df19a-139f-414e-b34e-a2429bdb8b0f);
       «UAT готовий» у чат команди
 
 Done when: AC-CAL-01, AC-CAL-02, AC-CAL-03, AC-CAL-04, AC-CAL-05, AC-CAL-06, AC-CAL-07, AC-CAL-08, AC-CAL-09,
@@ -65,10 +66,10 @@ AC-CAL-10, AC-CAL-11, AC-CAL-12, AC-CAL-13, AC-CAL-14, AC-CAL-15 — кожен 
 
 ## 4. Proof pack, ретро й закриття плану (`task/proof-pack-ws9`)
 
-- [ ] 4.1 `docs/qa/proof-pack.md` за шаблоном WS9 (WS8 — `docs/qa/proof-pack-ws8.md`): рядок на кожен AC і «Не
+- [x] 4.1 `docs/qa/proof-pack.md` за шаблоном WS9 (WS8 — `docs/qa/proof-pack-ws8.md`): рядок на кожен AC і «Не
       перевірено»; заповнює нова сесія лише з того, що є в репо
-- [ ] 4.2 Ретро «що взяти з фабрики» — `docs/qa/retro-ws9.md`, до 10 рядків по станціях
-- [ ] 4.3 `npx openspec archive impl-school-calendar -y` — останній PR зрізу
+- [x] 4.2 Ретро «що взяти з фабрики» — `docs/qa/retro-ws9.md`, до 10 рядків по станціях
+- [x] 4.3 `npx openspec archive impl-school-calendar -y` — останній PR зрізу
 
 Done when: AC-CAL-01, AC-CAL-02, AC-CAL-03, AC-CAL-04, AC-CAL-05, AC-CAL-06, AC-CAL-07, AC-CAL-08, AC-CAL-09,
 AC-CAL-10, AC-CAL-11, AC-CAL-12, AC-CAL-13, AC-CAL-14, AC-CAL-15 — кожен має рядок у proof pack або в «Не перевірено»
