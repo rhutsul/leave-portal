@@ -58,7 +58,7 @@ Done when: AC-CAL-03, AC-CAL-04, AC-CAL-05, AC-CAL-09.
       `thenStep`, твердження з дослівним текстом AC; AC, що пишуть дані, — `@writes`
 - [x] 3.3 Прогін на проді — людина (`npm run uat -- --url https://leave-portal-olive.vercel.app`), негативний
       контроль NC-1; звіт `docs/qa/uat/<дата>/` (`report.md`, `manifest.json`, `frames/`), відео — в описі PR
-      (прогону 08.11 — в описі PR proof pack);
+      (прогону 08.11, 15 AC-CAL одним файлом — в описі https://github.com/rhutsul/leave-portal/pull/66: https://github.com/user-attachments/assets/fa7df19a-139f-414e-b34e-a2429bdb8b0f);
       «UAT готовий» у чат команди
 
 Done when: AC-CAL-01, AC-CAL-02, AC-CAL-03, AC-CAL-04, AC-CAL-05, AC-CAL-06, AC-CAL-07, AC-CAL-08, AC-CAL-09,

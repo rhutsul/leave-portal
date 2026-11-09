@@ -4,7 +4,7 @@
 «уже є», «візьмемо: крок і файл» або «не потрібно, бо …».
 
 - **Допуск** — уже є. Задача не починається без злитої спеки й `tasks.md` з «Done when: AC-…»
-  (`openspec/changes/impl-school-calendar/`), а ворота `spec` і `conformance` у `.github/workflows/ci.yml` не пускають
+  (`openspec/changes/archive/2026-11-09-impl-school-calendar/`), а ворота `spec` і `conformance` у `.github/workflows/ci.yml` не пускають
   тест з AC ID, якого немає в спеці.
 - **Захищені тести** — візьмемо. Тести з тексту AC писали окремі сесії до коду (#63, #64), але реалізатор міг їх
   тихо змінити. Крок: скрипт `scripts/check-ac-tests-locked.mjs` і крок у `.github/workflows/architecture.yml`, що
