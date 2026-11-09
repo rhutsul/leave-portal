@@ -4,7 +4,8 @@ import type { DotMonthMark } from "@/components/ui/dot-month";
 import type { Stat } from "@/components/ui/stat-strip";
 import type { WeekTimelineRow } from "@/components/ui/week-timeline";
 import { formatDays } from "@/lib/leave/balance";
-import { isBlocking, monthMarks, timelineRows } from "@/lib/leave/overview";
+import type { Closure } from "@/lib/leave/calendar";
+import { closuresText, dayClosures, isBlocking, monthClosures, monthMarks, nextClosureLine, timelineDays, timelineRows } from "@/lib/leave/overview";
 import { LEAVE_TYPES, positionLabel, RECORD_STATUSES } from "@/lib/leave/request";
 import { formatDateShort, formatRange } from "@/lib/leave/time";
 import type { OverviewData } from "./load-overview";
@@ -86,4 +87,24 @@ export function awayThisWeek(data: OverviewData, days: readonly string[], userId
   const away = data.deciderData?.away ?? [];
   return new Set(away.filter((r) => r.status === "approved" && r.date <= days[4] && r.employee_id !== userId).map((r) => r.employee_id))
     .size;
+}
+
+/**
+ * Закриття школи для Overview: рядок під привітанням (місяць із точок — декор, тож факт має бути текстом), позначки
+ * місяця й дні діаграми з закриттями. `closures` null — їх не вдалося завантажити: сторінка лишається, а рядок це каже.
+ */
+export function buildClosureView(
+  closures: readonly Closure[] | null,
+  range: { month: string; days: readonly string[]; from: string; to: string },
+  today: string,
+) {
+  const list = closures ?? [];
+  const closed = dayClosures(list, range.days);
+  return {
+    line: closures ? nextClosureLine(closures, today, range.to) : "The school calendar could not be loaded.",
+    all: closuresText(list, range.from, range.to),
+    month: monthClosures(list, range.month),
+    timeline: timelineDays(range.days, today).map((d, i) => ({ ...d, closure: closed[i] })),
+    anyInTimeline: closed.some(Boolean),
+  };
 }
