@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { countUpText, highlightTarget } from "./motion";
+import { countUpText, highlightTarget, navSection } from "./motion";
 
 // Рух у застосунку (DESIGN.md, розділ 11) — вигляд, а не AC PM: тому без AC ID у назвах.
 
@@ -18,6 +18,26 @@ describe("highlightTarget", () => {
       "/balances",
     );
     expect(highlightTarget(null, "/requests", "/requests")).toBe("/requests");
+  });
+});
+
+describe("navSection", () => {
+  const hrefs = ["/", "/requests", "/decisions", "/balances", "/calendar"];
+
+  it("highlights the item itself on its own page", () => {
+    expect(navSection("/requests", hrefs)).toBe("/requests");
+    expect(navSection("/", hrefs)).toBe("/");
+  });
+
+  it("highlights the parent item on a page that has no item of its own", () => {
+    // «New request» більше не пункт меню: форма — частина розділу «My requests».
+    expect(navSection("/requests/new", hrefs)).toBe("/requests");
+    expect(navSection("/calendar/manage", hrefs)).toBe("/calendar");
+  });
+
+  it("does not treat Overview as the parent of every page or match a mere prefix", () => {
+    expect(navSection("/design", hrefs)).toBeNull();
+    expect(navSection("/requestsx", hrefs)).toBeNull();
   });
 });
 

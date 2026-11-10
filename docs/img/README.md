@@ -135,3 +135,17 @@ Playwright: телефон — Pixel 7 на 390×844 (дотик, легке п�
 | `v2r-welcome-desktop-light.jpg`, `v2r-welcome-desktop-dark.jpg` | 1280 px без змін: аркуш праворуч від тексту hero, посилання розділів у шапці |
 | `v2r-login-phone-light.jpg`, `v2r-login-phone-dark.jpg` | вхід на телефоні: аркуш місяця смугою вгорі, картка нижче; поля й кнопка 44+ px, шрифт полів 16 px |
 | `v2r-login-desktop-light.jpg`, `v2r-login-desktop-dark.jpg` | 1280 px без змін: картка ліворуч, аркуш праворуч |
+
+### Вибір дат кліками і меню без «New request»
+
+З локальної збірки гілки `task/closure-date-picker` (`next start`, база — прод, лише читання: форму не надіслано, записів
+і закриттів не створено), Playwright `tests/e2e/date-picker-screenshots.spec.ts` (`UAT_SCREENSHOTS=1`); вхід —
+`admin@example.test` і `teacher1@example.test` (синтетичні дані, `supabase/demo-users.json`). Телефон — 390×844 з
+дотиком, настільний — 1280×800; `-light` / `-dark` — тема.
+
+| Файл | Що видно |
+|---|---|
+| `ws9-closure-picker-range-{390,1280}-{light,dark}.png` | «Add closure», цілі дні: замість полів «Start date» / «End date» — календар; 22–26 березня 2027 вибрано двома кліками (краї `primary`, середина `accent`), під сіткою — підсумок «… 5 days», праворуч (на телефоні — нижче) перегляд «Your closure» з тими самими датами; на 390 px календар на всю ширину картки, день 44 px заввишки |
+| `ws9-closure-picker-pending-{390,1280}-{light,dark}.png` | той самий календар після третього кліку: новий початок 15 березня і попередній перегляд до дня під курсором (пунктирна межа), підсумок просить другий день |
+| `ws9-design-date-picker-{390,1280}-{light,dark}.png` | вітрина `/design`, розділ «Date picker»: три режими — діапазон, одна дата, кілька дат; закриті дні заштриховано, але їх можна вибрати |
+| `ws9-new-request-menu-{390,1280}-{light,dark}.png` | сторінка «New request»: у меню (на 390 px — відкрите меню з кнопки в шапці) пункту «New request» немає, підсвічено «My requests»; форму відкривають кнопки «New request» на Overview і в My requests |

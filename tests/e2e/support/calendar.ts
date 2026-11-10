@@ -1,5 +1,6 @@
 // Календар кроку «Dates» форми нової заявки: спільне для специфікацій AC і негативних контролів.
 import { expect, type Page } from "@playwright/test";
+import { formatDateLong } from "../../../src/lib/leave/time";
 
 /** Гортає календар форми на місяць year-month (month 1–12): форма відкривається на поточному місяці. */
 export async function showMonth(page: Page, year: number, month: number) {
@@ -16,4 +17,15 @@ export async function showMonth(page: Page, year: number, month: number) {
 /** Гортає календар на листопад 2026: форма відкривається на поточному місяці, а PM може перевіряти пізніше. */
 export async function showNovember2026(page: Page) {
   await showMonth(page, 2026, 11);
+}
+
+/**
+ * Клік по даті в DatePicker (форма «Add closure»): гортає календар на її місяць і натискає день. Назва дня починається
+ * з дати — «Mon, 28 Dec 2026», далі можуть іти позначки («already closed: …», «today»).
+ */
+export async function clickDate(page: Page, date: string) {
+  const [year, month] = date.split("-").map(Number);
+  await showMonth(page, year, month);
+  const name = new RegExp(`^${formatDateLong(date)}`);
+  await page.getByRole("grid").getByRole("button", { name }).click();
 }

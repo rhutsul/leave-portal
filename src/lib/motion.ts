@@ -12,6 +12,17 @@ export function highlightTarget(clicked: { href: string; from: string } | null, 
 }
 
 /**
+ * Пункт меню, якому належить шлях: сам пункт або найглибший, чий шлях — початок цього (/requests/new → /requests,
+ * /calendar/manage → /calendar). «/» — лише сама Overview, інакше він був би розділом кожної сторінки. Немає такого —
+ * null: підсвітки немає.
+ */
+export function navSection(path: string, hrefs: readonly string[]): string | null {
+  if (hrefs.includes(path)) return path;
+  const parents = hrefs.filter((href) => href !== "/" && path.startsWith(`${href}/`));
+  return parents.sort((a, b) => b.length - a.length)[0] ?? null;
+}
+
+/**
  * Кадр числа, що «докручується»: частка `t` від 0 до 1 з ease-out, до `decimals` знаків. toFixed(-0.001) дає "-0.00",
  * тож нуль — без знака. Останній кадр (`t` = 1) — саме `target`.
  */

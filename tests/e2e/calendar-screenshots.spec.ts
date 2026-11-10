@@ -4,7 +4,7 @@
 // Закриття для знімків створює й прибирає той самий помічник, що й UAT (@prod-writes).
 import { expect, test, type Page } from "@playwright/test";
 import { addClosure, assertCalendarClean, cleanupRemembered } from "./support/admin";
-import { showMonth } from "./support/calendar";
+import { clickDate, showMonth } from "./support/calendar";
 
 const SIZES = [
   { name: "390", width: 390, height: 844 },
@@ -55,8 +55,8 @@ test.describe("school calendar screenshots", { tag: ["@screenshots", "@prod-writ
         await shot("admin", "/calendar/manage", "Add closure", "calendar-manage-admin", async (page) => {
           // Перегляд «Your closure» з датами, що заходять на «Winter break»: видно і нові дні, і перетин.
           await page.getByLabel("Name").fill("Christmas week");
-          await page.getByLabel("Start date", { exact: true }).fill("2026-12-21");
-          await page.getByLabel("End date", { exact: true }).fill("2026-12-29");
+          await clickDate(page, "2026-12-21");
+          await clickDate(page, "2026-12-29");
           await expect(page.getByRole("complementary", { name: "Your closure" })).toContainText(
             "These dates are already closed: Winter break",
           );
