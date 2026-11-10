@@ -273,6 +273,8 @@ function usePicker(
 
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (event.key === "Escape") return cancel(event);
+    // Alt+← / Alt+→ (історія браузера), Ctrl+Home та інші комбінації лишаються браузеру.
+    if (event.altKey || event.ctrlKey || event.metaKey) return;
     const next = moveFocus(focus, event.key);
     if (next) move(event, next);
   };

@@ -85,6 +85,9 @@ test.describe("administrator picks closure dates by clicks", () => {
     await expect(picker(page)).toContainText("March 2027");
     await page.keyboard.press("PageUp");
     await expect(day(page, "Fri, 5 Feb 2027")).toBeFocused();
+    // Комбінації з Ctrl / Alt / Meta сітка не перехоплює (Alt+← — назад в історії браузера).
+    await page.keyboard.press("Control+ArrowRight");
+    await expect(day(page, "Fri, 5 Feb 2027")).toBeFocused();
   });
 
   test("without a date the form is not sent and asks for one", async ({ page }) => {

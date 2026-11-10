@@ -98,7 +98,8 @@ export function ClosureForm({ closures, today }: { closures: Closure[] | null; t
                 setMissing(false);
               }}
               pick={pick}
-              missing={missing}
+              // Помилка — з поточного вибору: після перемикання виду з уже вибраною датою вона зникає.
+              missing={missing && !pick}
               closures={closures ?? []}
               today={today}
             />
