@@ -116,6 +116,14 @@ https://github.com/rhutsul/leave-portal/actions/runs/42580707258.
   AC-тестів — ні. Злитий код тестів зелений у CI (run 42580707258).
 - Відео: запис браузера прогону на проді 08.11 — 15 AC-CAL одним файлом (2:36, номер AC у куті кадру), вкладено в опис
   https://github.com/rhutsul/leave-portal/pull/66: https://github.com/user-attachments/assets/fa7df19a-139f-414e-b34e-a2429bdb8b0f. Окремі відео кожного тесту й траси — локально (`test-results/`), не в git.
+- Де записи для перевірки (рев'ю WS8): поля `video` і `trace` у
+  [manifest.json](https://github.com/rhutsul/leave-portal/blob/53a2f977cecaece50b746526bec251c65af01d82/docs/qa/uat/2026-11-08/manifest.json)
+  ведуть у `test-results/artifacts/…` машини, де йшов прогін, і в git їх немає. Що є замість них:
+  - запис з проду — склеєне відео в описі #66, назва AC видно в куті кадру;
+  - відео й trace тих самих 15 тестів на одноразовому Supabase — у артефакті `e2e-<run_id>` кожного прогону job `e2e`,
+    наприклад https://github.com/rhutsul/leave-portal/actions/runs/42579739962;
+  - щоб відтворити `test-results/` перед перевіркою записів, треба запустити `npm run uat -- --url https://leave-portal-olive.vercel.app`
+    з `.env.local` розробника, бо 13 AC пишуть дані й прибирають за собою.
 - Рецензент: `claude-haiku-5-5`, суперечки — `claude-sonnet-5-5` (один раз, AC-CAL-13); $0.0668 за розбір 18 AC за
   цінами API.
 - Негативний контроль (`npm run uat:nc`): NC-1 (AC-LEAVE-06, навмисно інший текст у твердженні) → FAIL, NC-2
