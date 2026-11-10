@@ -67,7 +67,7 @@ test.describe("administrator picks closure dates by clicks", () => {
     await expect(page.getByRole("complementary", { name: "Your closure" })).toContainText("2027-03-11");
   });
 
-  test("the keyboard: Enter opens, arrows move, Esc cancels an unfinished range, then closes", async ({ page }) => {
+  test("the keyboard: Enter opens, arrows move, Esc cancels an unfinished range and closes", async ({ page }) => {
     await openForm(page);
     await clickDate(page, "2027-02-15");
     await clickDate(page, "2027-02-19");
@@ -82,12 +82,16 @@ test.describe("administrator picks closure dates by clicks", () => {
     await expect(day(page, "Mon, 22 Feb 2027")).toBeFocused();
     await page.keyboard.press("Enter");
     await expect(status(page)).toHaveText("Selected Mon, 22 Feb 2027. Click another day to make it a range.");
-    // Перший Esc повертає діапазон, що був до нового початку, і лишає календар відкритим.
+    // Esc посеред діапазону повертає вибір, що був до нового початку, і закриває календар; фокус — на полі.
     await page.keyboard.press("Escape");
-    await expect(status(page)).toHaveText("Selected Mon, 15 Feb 2027 – Fri, 19 Feb 2027, 5 days");
-    await expect(grid(page)).toBeVisible();
+    await expect(grid(page)).toBeHidden();
+    await expect(field(page)).toBeFocused();
+    await expect(field(page)).toHaveText("Mon, 15 Feb 2027 – Fri, 19 Feb 2027, 5 days");
 
-    // Фокус лишився на 22 лютого; стрілка за край місяця гортає календар, PageUp — місяць назад.
+    // Знову Enter: фокус на 15 лютого; стрілка за край місяця гортає календар, PageUp — місяць назад.
+    await page.keyboard.press("Enter");
+    await expect(day(page, "Mon, 15 Feb 2027")).toBeFocused();
+    await page.keyboard.press("ArrowDown");
     await page.keyboard.press("ArrowDown");
     await expect(day(page, "Mon, 1 Mar 2027")).toBeFocused();
     await page.keyboard.press("PageUp");
@@ -96,7 +100,7 @@ test.describe("administrator picks closure dates by clicks", () => {
     await page.keyboard.press("Control+ArrowRight");
     await expect(day(page, "Mon, 1 Feb 2027")).toBeFocused();
 
-    // Другий Esc закриває календар, фокус — знову на полі, вибір той самий.
+    // Esc без незавершеного діапазону — просто закриває календар; вибір той самий.
     await page.keyboard.press("Escape");
     await expect(grid(page)).toBeHidden();
     await expect(field(page)).toBeFocused();
