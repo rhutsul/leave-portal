@@ -35,6 +35,11 @@ describe("navSection", () => {
     expect(navSection("/calendar/manage", hrefs)).toBe("/calendar");
   });
 
+  it("picks the deepest parent when several items are parents", () => {
+    expect(navSection("/requests/new/step", ["/requests", "/requests/new"])).toBe("/requests/new");
+    expect(navSection("/requests/new/step", ["/requests/new", "/requests"])).toBe("/requests/new");
+  });
+
   it("does not treat Overview as the parent of every page or match a mere prefix", () => {
     expect(navSection("/design", hrefs)).toBeNull();
     expect(navSection("/requestsx", hrefs)).toBeNull();
