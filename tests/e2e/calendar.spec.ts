@@ -19,7 +19,7 @@ import {
   rememberClosuresNamed,
   rememberRequestsOn,
 } from "./support/admin";
-import { showMonth } from "./support/calendar";
+import { clickDate, closeDates, showMonth } from "./support/calendar";
 import { asRole } from "./support/direct";
 import { attachRuntimeErrors, given, thenStep, when } from "./support/uat";
 
@@ -82,8 +82,10 @@ async function fillWholeDays(page: Page, name: string, start: string, end: strin
   await expect(page.getByRole("heading", { level: 1, name: "Add closure" })).toBeVisible();
   await page.getByLabel("Name").fill(name);
   await page.locator("label").filter({ hasText: "Whole days" }).click();
-  await page.getByLabel("Start date", { exact: true }).fill(start);
-  await page.getByLabel("End date", { exact: true }).fill(end);
+  // Дати — кліками в календарі поля «Dates»: перший клік — початок, другий — кінець і закриває календар; одна
+  // дата — один клік і клік повз календар.
+  await clickDate(page, start);
+  await (end === start ? closeDates(page) : clickDate(page, end));
 }
 
 // ── Адміністратор додає й видаляє закриття ─────────────────────────────────────
@@ -207,14 +209,15 @@ test.describe("admin@example.test", () => {
           clause: 'the closure is not saved, and the administrator sees the message "The end date cannot be earlier than the start date".',
           visible: ["the message «The end date cannot be earlier than the start date»"],
           hidden: [
-            "the form keeps the start date 2027-01-08 and the end date 2026-12-28 (the date fields show them in the browser's format)",
+            "the form keeps the start date 2027-01-08 and the end date 2026-12-28 (in the order they were clicked)",
             "the closure is not saved: the calendar has no «Winter break» (checked after the frame)",
           ],
         },
         async () => {
           await expect(page.getByRole("main").getByRole("alert")).toHaveText("The end date cannot be earlier than the start date");
-          await expect(page.getByLabel("Start date", { exact: true })).toHaveValue("2027-01-08");
-          await expect(page.getByLabel("End date", { exact: true })).toHaveValue("2026-12-28");
+          await expect(page.locator('input[name="start"]')).toHaveValue("2027-01-08");
+          await expect(page.locator('input[name="end"]')).toHaveValue("2026-12-28");
+          await expect(page.getByTestId("date-field")).toHaveText("Fri, 8 Jan 2027 – Mon, 28 Dec 2026");
         },
       );
       await openCalendar(page);

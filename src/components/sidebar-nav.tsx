@@ -3,15 +3,16 @@
 import Link, { useLinkStatus } from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
-import { CalendarDays, ChartColumn, ClipboardCheck, House, List, Plus } from "lucide-react";
+import { CalendarDays, ChartColumn, ClipboardCheck, House, List } from "lucide-react";
 import { markHydrated, Tick } from "@/components/ui/motion";
-import { highlightTarget } from "@/lib/motion";
+import { highlightTarget, navSection } from "@/lib/motion";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
+// «New request» — не пункт меню, а окрема форма розділу «My requests»: її відкривають кнопки «New request» на Overview
+// і в My requests, а підсвітка на /requests/new стоїть на «My requests» (navSection).
 const LINKS: { href: string; label: string; icon: ReactNode; deciders?: true }[] = [
   { href: "/", label: "Overview", icon: <House /> },
-  { href: "/requests/new", label: "New request", icon: <Plus /> },
   { href: "/requests", label: "My requests", icon: <List /> },
   { href: "/decisions", label: "Decisions", icon: <ClipboardCheck />, deciders: true },
   { href: "/balances", label: "Balances", icon: <ChartColumn /> },
@@ -88,7 +89,10 @@ export function SidebarNav({
     setSeen(location);
     setClicked(null);
   }
-  const target = highlightTarget(clicked, location, pathname);
+  const hrefs = LINKS.map((l) => l.href);
+  const target = navSection(highlightTarget(clicked, location, pathname), hrefs);
+  // Розділ поточної сторінки: на /requests/new — «My requests» (aria-current="true", а "page" — лише сама сторінка пункту).
+  const section = navSection(pathname, hrefs);
 
   // Перший рендер застосунку позаду: далі CountUp «докручує» числа після переходів (motion.tsx).
   useEffect(() => markHydrated(), []);
@@ -122,7 +126,7 @@ export function SidebarNav({
                 <Link
                   href={href}
                   data-href={href}
-                  aria-current={pathname === href ? "page" : undefined}
+                  aria-current={pathname === href ? "page" : section === href ? "true" : undefined}
                   onClick={(event) => {
                     const plain = !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey && event.button === 0;
                     if (plain && !event.defaultPrevented) setClicked({ href, from: location });

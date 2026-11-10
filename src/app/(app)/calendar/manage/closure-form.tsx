@@ -6,6 +6,8 @@ import { CalendarRange, CircleAlert, Clock, TriangleAlert } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { DatePickerField } from "@/components/ui/date-picker";
+import { FieldError } from "@/components/ui/field-error";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -13,6 +15,7 @@ import { CalendarMonth, ClosureSwatch, SchoolCalendarLegend } from "@/components
 import { SubmitButton } from "@/components/ui/submit-button";
 import { formatSchoolYear, schoolYearOf } from "@/lib/leave/balance";
 import {
+  CALENDAR_MESSAGES,
   closuresInSchoolYear,
   emptyCalendarMessage,
   formatClosureDates,
@@ -20,7 +23,9 @@ import {
   type Closure,
 } from "@/lib/leave/calendar";
 import { buildMonth, overlappingClosures, previewMonths, type DateSelection } from "@/lib/leave/calendar-grid";
-import { formatTime, isCalendarDate, parseTime } from "@/lib/leave/time";
+import { joinIds } from "@/lib/date-picker";
+import { closureFields, closureNote, closurePick, type ClosurePick } from "@/lib/leave/closure-dates";
+import { formatTime, parseTime } from "@/lib/leave/time";
 import { cn } from "@/lib/utils";
 import { addClosure, type ClosureActionState } from "../actions";
 
@@ -29,23 +34,27 @@ const INITIAL: ClosureActionState = { message: "", done: false };
 type Kind = "days" | "early";
 
 const KINDS: { kind: Kind; label: string; hint: string; icon: React.ReactNode }[] = [
-  { kind: "days", label: "Whole days", hint: "From a start date to an end date, both included", icon: <CalendarRange /> },
+  { kind: "days", label: "Whole days", hint: "One date, or from a start date to an end date, both included", icon: <CalendarRange /> },
   { kind: "early", label: "Early dismissal", hint: "One date, closed from a time to the end of the day", icon: <Clock /> },
 ];
 
 /**
  * Форма «Add closure» (AC-CAL-01, -07, -10, -11): назва до 100 знаків і або цілі дні, або скорочений день із кроком
- * 5 хвилин. Помилку з бази показуємо дослівно над кнопкою; введене лишається (контрольовані поля).
+ * 5 хвилин. Дати — кліками в DatePicker: цілі дні — одна дата або діапазон (закриття — один проміжок, тому окремих
+ * дат тут немає), скорочений день — одна дата. Порядок кліків зберігаємо: кінець раніше за початок — повідомлення
+ * AC-CAL-10 поруч із календарем, а відхиляє база. Помилку з бази показуємо дослівно над кнопкою; введене лишається.
  */
 export function ClosureForm({ closures, today }: { closures: Closure[] | null; today: string }) {
   const ids = useId();
   const [state, action] = useActionState(addClosure, INITIAL);
   const [kind, setKind] = useState<Kind>("days");
-  const [fields, setFields] = useState({ name: "", start: "", end: "", date: "", time: "" });
-  const set = (key: keyof typeof fields) => (e: React.ChangeEvent<HTMLInputElement>) =>
-    setFields((f) => ({ ...f, [key]: e.target.value }));
-  const error = state.message;
-  const selection = selectionOf(kind, fields);
+  const [name, setName] = useState("");
+  const [time, setTime] = useState("");
+  // Дати кожного виду — окремо, як окремі поля раніше: перемикання виду не губить вибраного.
+  const [dates, setDates] = useState<Record<Kind, string[]>>({ days: [], early: [] });
+  const [missing, setMissing] = useState(false);
+  const pick = closurePick(dates[kind]);
+  const early = kind === "early";
 
   return (
     // Як «New request»: форма ліворуч, перегляд праворуч; вужче — перегляд під формою (ADR 0008).
@@ -55,7 +64,16 @@ export function ClosureForm({ closures, today }: { closures: Closure[] | null; t
           <CardTitle>New closure</CardTitle>
         </CardHeader>
         <CardContent>
-          <form action={action} className="flex flex-col gap-5">
+          <form
+            action={action}
+            onSubmit={(event) => {
+              // Сховані поля дат браузер не перевіряє (required): без дати форму не надсилаємо.
+              if (pick) return;
+              event.preventDefault();
+              setMissing(true);
+            }}
+            className="flex flex-col gap-5"
+          >
             <div className="flex flex-col gap-1.5">
               <Label htmlFor={`${ids}-name`}>Name</Label>
               <Input
@@ -64,86 +82,47 @@ export function ClosureForm({ closures, today }: { closures: Closure[] | null; t
                 required
                 maxLength={100}
                 placeholder="Winter break"
-                value={fields.name}
-                onChange={set("name")}
+                value={name}
+                onChange={(e) => setName(e.target.value)}
               />
             </div>
 
-            <div className="flex flex-col gap-1.5">
-              <span id={`${ids}-kind`} className="text-[13px] font-medium">
-                Closed
-              </span>
-              <input type="hidden" name="kind" value={kind} />
-              <RadioGroup
-                aria-labelledby={`${ids}-kind`}
-                value={kind}
-                onValueChange={(value) => setKind(value as Kind)}
-                className="grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-3"
-              >
-                {KINDS.map((k) => (
-                  <Label
-                    key={k.kind}
-                    htmlFor={`${ids}-kind-${k.kind}`}
-                    className={cn(
-                      "min-h-11 items-center gap-3.5 rounded-md border border-border bg-card p-3.5 font-normal transition-colors duration-(--duration-fast) hover:border-ring has-focus-visible:ring-2 has-focus-visible:ring-ring has-focus-visible:ring-offset-2 has-focus-visible:ring-offset-background",
-                      kind === k.kind && "border-ring bg-accent",
-                    )}
-                  >
-                    <RadioGroupItem id={`${ids}-kind-${k.kind}`} value={k.kind} className="sr-only absolute" />
-                    <span
-                      aria-hidden="true"
-                      className={cn(
-                        "grid size-9 shrink-0 place-items-center rounded-md bg-muted text-foreground [&_svg]:size-4.5",
-                        kind === k.kind && "bg-primary text-primary-foreground",
-                      )}
-                    >
-                      {k.icon}
-                    </span>
-                    <span className="flex flex-col gap-0.5">
-                      <span className="text-sm font-semibold">{k.label}</span>
-                      <span className="text-[13px] text-muted-foreground">{k.hint}</span>
-                    </span>
-                  </Label>
-                ))}
-              </RadioGroup>
-            </div>
+            <KindChoice id={`${ids}-kind`} kind={kind} onKind={setKind} />
 
-            {kind === "days" ? (
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="flex flex-col gap-1.5">
-                  <Label htmlFor={`${ids}-start`}>Start date</Label>
-                  <Input id={`${ids}-start`} name="start" type="date" required value={fields.start} onChange={set("start")} />
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <Label htmlFor={`${ids}-end`}>End date</Label>
-                  <Input id={`${ids}-end`} name="end" type="date" required value={fields.end} onChange={set("end")} />
-                </div>
-              </div>
-            ) : (
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="flex flex-col gap-1.5">
-                  <Label htmlFor={`${ids}-date`}>Date</Label>
-                  <Input id={`${ids}-date`} name="date" type="date" required value={fields.date} onChange={set("date")} />
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <Label htmlFor={`${ids}-time`}>Closed from</Label>
-                  <Input
-                    id={`${ids}-time`}
-                    name="time"
-                    type="time"
-                    step={300}
-                    required
-                    value={fields.time}
-                    onChange={set("time")}
-                  />
-                </div>
+            <ClosureDates
+              id={`${ids}-dates`}
+              kind={kind}
+              value={dates[kind]}
+              onChange={(value) => {
+                setDates((d) => ({ ...d, [kind]: value }));
+                setMissing(false);
+              }}
+              pick={pick}
+              // Помилка — з поточного вибору: після перемикання виду з уже вибраною датою вона зникає.
+              missing={missing && !pick}
+              closures={closures ?? []}
+              today={today}
+            />
+
+            {early && (
+              <div className="flex flex-col gap-1.5 sm:max-w-[calc(50%-0.375rem)]">
+                <Label htmlFor={`${ids}-time`}>Closed from</Label>
+                <Input
+                  id={`${ids}-time`}
+                  name="time"
+                  type="time"
+                  step={300}
+                  required
+                  value={time}
+                  onChange={(e) => setTime(e.target.value)}
+                />
               </div>
             )}
 
-            {error && (
+            {state.message && (
               <Alert variant="destructive" role="alert">
                 <CircleAlert />
-                <AlertDescription>{error}</AlertDescription>
+                <AlertDescription>{state.message}</AlertDescription>
               </Alert>
             )}
 
@@ -157,9 +136,9 @@ export function ClosureForm({ closures, today }: { closures: Closure[] | null; t
         </CardContent>
       </Card>
       <ClosurePreview
-        name={fields.name.trim()}
-        selection={selection}
-        closesAt={kind === "early" ? parseTime(fields.time) : null}
+        name={name.trim()}
+        selection={pick?.preview ?? null}
+        closesAt={early ? parseTime(time) : null}
         closures={closures}
         today={today}
       />
@@ -167,12 +146,123 @@ export function ClosureForm({ closures, today }: { closures: Closure[] | null; t
   );
 }
 
-/** Дати з полів форми для перегляду: цілі дні — start…end (end порожній — лише start), скорочений день — одна дата. */
-function selectionOf(kind: Kind, f: { start: string; end: string; date: string }): DateSelection | null {
-  const start = kind === "days" ? f.start : f.date;
-  if (!isCalendarDate(start)) return null;
-  const end = kind === "days" && isCalendarDate(f.end) && f.end >= start ? f.end : start;
-  return { start, end };
+/** Вибір виду закриття: дві картки-радіо (цілі дні чи скорочений день), не менші за 44 px (ADR 0008). */
+function KindChoice({ id, kind, onKind }: { id: string; kind: Kind; onKind: (kind: Kind) => void }) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <span id={id} className="text-[13px] font-medium">
+        Closed
+      </span>
+      <input type="hidden" name="kind" value={kind} />
+      <RadioGroup
+        aria-labelledby={id}
+        value={kind}
+        onValueChange={(value) => onKind(value as Kind)}
+        className="grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-3"
+      >
+        {KINDS.map((k) => (
+          <Label
+            key={k.kind}
+            htmlFor={`${id}-${k.kind}`}
+            className={cn(
+              "min-h-11 items-center gap-3.5 rounded-md border border-border bg-card p-3.5 font-normal transition-colors duration-(--duration-fast) hover:border-ring has-focus-visible:ring-2 has-focus-visible:ring-ring has-focus-visible:ring-offset-2 has-focus-visible:ring-offset-background",
+              kind === k.kind && "border-ring bg-accent",
+            )}
+          >
+            <RadioGroupItem id={`${id}-${k.kind}`} value={k.kind} className="sr-only absolute" />
+            <span
+              aria-hidden="true"
+              className={cn(
+                "grid size-9 shrink-0 place-items-center rounded-md bg-muted text-foreground [&_svg]:size-4.5",
+                kind === k.kind && "bg-primary text-primary-foreground",
+              )}
+            >
+              {k.icon}
+            </span>
+            <span className="flex flex-col gap-0.5">
+              <span className="text-sm font-semibold">{k.label}</span>
+              <span className="text-[13px] text-muted-foreground">{k.hint}</span>
+            </span>
+          </Label>
+        ))}
+      </RadioGroup>
+    </div>
+  );
+}
+
+const DATES: Record<Kind, { label: string; hint: string; placeholder: string; mode: "range" | "single" }> = {
+  days: {
+    label: "Dates",
+    hint: "One day, or the first and then the last day of the closure.",
+    placeholder: "Choose dates",
+    mode: "range",
+  },
+  early: { label: "Date", hint: "The day of the early dismissal.", placeholder: "Choose a date", mode: "single" },
+};
+
+/**
+ * Дати закриття: DatePicker і сховані поля, які читає parseClosureForm (цілі дні — start і end, скорочений день — date).
+ * Кінець раніше за початок — текст AC-CAL-10 одразу, але не alert: alert лишається помилці бази над кнопкою.
+ */
+function ClosureDates({
+  id,
+  kind,
+  value,
+  onChange,
+  pick,
+  missing,
+  closures,
+  today,
+}: {
+  id: string;
+  kind: Kind;
+  value: string[];
+  onChange: (value: string[]) => void;
+  pick: ClosurePick | null;
+  missing: boolean;
+  closures: Closure[];
+  today: string;
+}) {
+  const field = DATES[kind];
+  const reversed = Boolean(pick?.reversed);
+  return (
+    <div className="flex flex-col gap-1.5">
+      <span id={id} className="text-[13px] font-medium">
+        {field.label}
+      </span>
+      <p id={`${id}-hint`} className="text-xs text-muted-foreground">
+        {field.hint}
+      </p>
+      {Object.entries(closureFields(kind, pick)).map(([name, value]) => (
+        <input key={name} type="hidden" name={name} value={value} />
+      ))}
+      {/* key: свій календар для кожного виду — свій вибір і місяць. Календар — у спливній панелі під полем. */}
+      <DatePickerField
+        key={kind}
+        mode={field.mode}
+        value={value}
+        onChange={onChange}
+        today={today}
+        note={(date) => closureNote(closures, date)}
+        placeholder={field.placeholder}
+        labelledBy={id}
+        describedBy={joinIds(`${id}-hint`, (missing || reversed) && `${id}-error`)}
+        invalid={missing || reversed}
+      />
+      <DatesMessage id={`${id}-error`} reversed={reversed} missing={missing} />
+    </div>
+  );
+}
+
+/** Під календарем: кінець раніше за початок (текст AC-CAL-10, не alert) або «немає дати» після спроби надіслати. */
+function DatesMessage({ id, reversed, missing }: { id: string; reversed: boolean; missing: boolean }) {
+  if (!reversed) return <FieldError id={id} message={missing ? "Choose a date in the calendar" : null} />;
+  return (
+    <p id={id} className="flex items-start gap-1.5 text-xs text-destructive">
+      <CircleAlert className="mt-px size-3.5 shrink-0" aria-hidden="true" />
+      {CALENDAR_MESSAGES.endBeforeStart}
+    </p>
+  );
 }
 
 /**

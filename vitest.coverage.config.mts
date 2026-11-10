@@ -11,11 +11,13 @@ import base from "./vitest.config.mjs";
 // Загальний відсоток (≈34 %) не поріг: сторінки й server actions доводять тести бази (PGlite) та e2e, а не Vitest.
 const FLOORED: string[] = [
   "leave/balance",
+  "leave/closure-dates",
   "leave/decision",
   "leave/draft",
   "leave/overview",
   "leave/request",
   "leave/time",
+  "date-picker",
   "dot-month",
   "health",
   "motion",

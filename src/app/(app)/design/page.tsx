@@ -55,6 +55,7 @@ import { ThemeMenu } from "@/components/ui/theme-menu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { LEAVE_TYPES } from "@/lib/leave/request";
 import { parseTheme, THEME_COOKIE } from "@/lib/preferences";
+import { DatePickerDemo } from "./date-picker-demo";
 
 export const metadata: Metadata = { title: "Design system · Leave portal" };
 
@@ -488,6 +489,15 @@ export default async function DesignPage() {
             <CalendarLegend />
           </CardContent>
         </Card>
+      </Section>
+
+      <Section title="Date picker">
+        <p className="max-w-[60ch] text-sm text-muted-foreground">
+          Dates by clicks: one date, a range or several dates. Arrow keys move by a day and a week, Home and End to the
+          ends of the week, Page Up and Page Down by a month; Enter picks. Days already closed are hatched but can still
+          be picked: the form decides. The line under the grid tells a screen reader what is selected.
+        </p>
+        <DatePickerDemo />
       </Section>
 
       <Section title="School calendar">
