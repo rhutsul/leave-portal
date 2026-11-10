@@ -36,6 +36,11 @@ export async function closeDates(page: Page) {
   await expect(page.getByRole("grid")).toBeHidden();
 }
 
+/** Шаблон назви, що починається з `text`, де `text` — буквальний текст (метасимволи RegExp екрановано). */
+export function startsWithText(text: string): RegExp {
+  return new RegExp("^" + text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+}
+
 /**
  * Клік по даті в DatePickerField (форма «Add closure»): відкриває календар, гортає на місяць дати й натискає день.
  * Назва дня починається з дати — «Mon, 28 Dec 2026», далі можуть іти позначки («already closed: …», «today»).
@@ -44,6 +49,5 @@ export async function clickDate(page: Page, date: string) {
   await openDates(page);
   const [year, month] = date.split("-").map(Number);
   await showMonth(page, year, month);
-  const name = new RegExp(`^${formatDateLong(date)}`);
-  await page.getByRole("grid").getByRole("button", { name }).click();
+  await page.getByRole("grid").getByRole("button", { name: startsWithText(formatDateLong(date)) }).click();
 }

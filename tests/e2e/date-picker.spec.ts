@@ -2,7 +2,7 @@
 // розробником, не AC PM: тому без AC ID і без тегу @uat. Нічого не зберігає: форму не надсилаємо (правила дат —
 // AC-CAL-10, -11 у calendar.spec.ts).
 import { expect, test, type Page } from "@playwright/test";
-import { clickDate, closeDates, openDates } from "./support/calendar";
+import { clickDate, closeDates, openDates, startsWithText } from "./support/calendar";
 import { attachRuntimeErrors } from "./support/uat";
 
 test.afterEach(async ({ page }) => attachRuntimeErrors(page));
@@ -10,7 +10,8 @@ test.afterEach(async ({ page }) => attachRuntimeErrors(page));
 const field = (page: Page) => page.getByTestId("date-field");
 const grid = (page: Page) => page.getByRole("grid");
 const status = (page: Page) => page.getByTestId("date-picker").getByRole("status");
-const day = (page: Page, label: string) => grid(page).getByRole("button", { name: new RegExp(`^${label}`) });
+// Назва дня починається з дати — шукаємо її буквально (startsWithText екранує метасимволи).
+const day = (page: Page, label: string) => grid(page).getByRole("button", { name: startsWithText(label) });
 
 async function openForm(page: Page) {
   await page.goto("/calendar/manage");
@@ -37,6 +38,8 @@ test.describe("administrator picks closure dates by clicks", () => {
 
     await day(page, "Fri, 19 Feb 2027").click();
     await expect(grid(page)).toBeHidden();
+    // Панель закрилась разом із днем, на якому був фокус: фокус повертається на поле.
+    await expect(field(page)).toBeFocused();
     await expect(field(page)).toHaveText("Mon, 15 Feb 2027 – Fri, 19 Feb 2027, 5 days");
     await expect(page.locator('input[name="start"]')).toHaveValue("2027-02-15");
     await expect(page.locator('input[name="end"]')).toHaveValue("2027-02-19");
