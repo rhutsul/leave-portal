@@ -143,3 +143,22 @@ export function pickSummary(mode: PickMode, value: PickValue): string {
   if (end < start) return `Selected from ${formatDateLong(start)} to ${formatDateLong(end)}`;
   return `Selected ${formatDateLong(start)} – ${formatDateLong(end)}, ${daysInclusive(start, end)} days`;
 }
+
+/**
+ * Текст поля DatePickerField (кнопка, що відкриває календар): коротко, без «Selected». null — нічого не вибрано
+ * (поле показує свою підказку). Діапазон без кінця — одна дата: в «Add closure» один клік — закриття на один день.
+ */
+export function fieldText(mode: PickMode, value: PickValue): string | null {
+  if (value.length === 0) return null;
+  if (mode === "multiple") return value.length === 1 ? formatDateLong(value[0]) : `${value.length} dates`;
+  const [start, end = start] = mode === "range" ? value : [value[0]];
+  if (end === start) return formatDateLong(start);
+  const span = `${formatDateLong(start)} – ${formatDateLong(end)}`;
+  return end < start ? span : `${span}, ${daysInclusive(start, end)} days`;
+}
+
+/** Чи вибір завершено й панель можна закрити: одна дата — одразу, діапазон — після кінця, кілька дат — ніколи. */
+export function pickDone(mode: PickMode, value: PickValue): boolean {
+  if (mode === "single") return value.length === 1;
+  return mode === "range" && value.length === 2;
+}

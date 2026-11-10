@@ -1,17 +1,20 @@
 "use client";
 
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { CLOSED_HATCH } from "@/components/ui/calendar-day";
 import {
   dayLabel,
   dayMark,
+  fieldText,
   focusStart,
   isSelected,
   joinIds,
   moveFocus,
   pickDate,
+  pickDone,
   pickSummary,
   type DayMark,
   type DayNote,
@@ -71,6 +74,7 @@ export function DatePicker({
   note,
   labelledBy,
   describedBy,
+  autoFocus = false,
   className,
 }: {
   mode: PickMode;
@@ -86,6 +90,8 @@ export function DatePicker({
   labelledBy?: string;
   /** id тексту помилки чи підказки поля. */
   describedBy?: string;
+  /** Фокус на день у Tab одразу після появи (календар у спливній панелі DatePickerField). */
+  autoFocus?: boolean;
   className?: string;
 }) {
   const ids = useId();
@@ -95,6 +101,7 @@ export function DatePicker({
     onChange,
     today,
     defaultMonth,
+    autoFocus,
   );
   const monthId = `${ids}-month`;
   const summaryId = `${ids}-summary`;
@@ -226,13 +233,15 @@ function usePicker(
   onChange: (value: string[]) => void,
   today: string | null,
   defaultMonth: string | undefined,
+  autoFocus: boolean,
 ) {
   const [month, setMonth] = useState(() => (value[0] ?? defaultMonth ?? today ?? "2026-01").slice(0, 7));
   const [focus, setFocus] = useState(() => focusStart(month, value, today));
   const [hover, setHover] = useState<string | null>(null);
   const before = useRef<string[] | null>(null);
   const grid = useRef<HTMLDivElement>(null);
-  const moved = useRef(false);
+  // true — у наступному рендері перевести фокус на день у Tab (після клавіші або одразу після появи).
+  const moved = useRef(autoFocus);
 
   // Фокус у сітці переходить за клавішами (у тому числі в інший місяць) — лише після руху з клавіатури.
   useEffect(() => {
@@ -280,4 +289,83 @@ function usePicker(
   };
 
   return { month, focus, hover, grid, setFocus, setHover, showMonth, pick, onKeyDown };
+}
+
+/**
+ * Поле дати з календарем у спливній панелі (DESIGN.md, розділ 5): кнопка завширшки з поле вводу показує вибране
+ * («Mon, 22 Mar 2027 – Fri, 26 Mar 2027, 5 days») або підказку, натискання відкриває DatePicker під нею. Панель
+ * закривається, коли вибір завершено (одна дата чи кінець діапазону), Esc чи кліком повз; фокус повертається на кнопку.
+ * Назва кнопки для зчитувача — підпис поля і вибране; помилка поля — `describedBy` і `invalid` (межа `destructive`).
+ */
+export function DatePickerField({
+  id,
+  placeholder,
+  labelledBy,
+  describedBy,
+  invalid = false,
+  className,
+  ...picker
+}: Omit<Parameters<typeof DatePicker>[0], "autoFocus" | "className" | "describedBy" | "labelledBy"> & {
+  id?: string;
+  /** Текст кнопки, поки нічого не вибрано. */
+  placeholder: string;
+  /** id підпису поля (Label чи заголовок). */
+  labelledBy: string;
+  describedBy?: string;
+  invalid?: boolean;
+  className?: string;
+}) {
+  const ids = useId();
+  const [open, setOpen] = useState(false);
+  // Кожне відкриття — новий календар: місяць і день у Tab — від вибраного, а не від минулого перегляду.
+  const [opened, setOpened] = useState(0);
+  const panel = useRef<HTMLDivElement>(null);
+  const valueId = `${ids}-value`;
+  const text = fieldText(picker.mode, picker.value);
+  const onChange = (next: string[]) => {
+    picker.onChange(next);
+    if (pickDone(picker.mode, next)) setOpen(false);
+  };
+
+  return (
+    <Popover
+      open={open}
+      onOpenChange={(next) => {
+        if (next) setOpened((n) => n + 1);
+        setOpen(next);
+      }}
+    >
+      <PopoverTrigger
+        render={
+          <Button
+            id={id}
+            variant="outline"
+            aria-labelledby={joinIds(labelledBy, valueId)}
+            aria-describedby={describedBy}
+            aria-invalid={invalid || undefined}
+            data-testid="date-field"
+            className={cn(
+              "h-9 w-full justify-start gap-2 border-input bg-card px-3 font-normal pointer-coarse:h-11 sm:max-w-sm aria-invalid:border-destructive",
+              className,
+            )}
+          />
+        }
+      >
+        <CalendarDays className="text-muted-foreground" aria-hidden="true" />
+        <span id={valueId} className={cn("min-w-0 flex-1 truncate text-left tabular-nums", !text && "text-muted-foreground")}>
+          {text ?? placeholder}
+        </span>
+        <ChevronDown className="text-muted-foreground" aria-hidden="true" />
+      </PopoverTrigger>
+      <PopoverContent
+        ref={panel}
+        aria-labelledby={labelledBy}
+        // Фокус — на день у Tab (вибраний, сьогодні чи 1-ше), а не на саму панель.
+        initialFocus={() => panel.current?.querySelector<HTMLElement>('[data-date][tabindex="0"]') ?? true}
+        className="w-84 max-md:w-[calc(100vw-2rem)]"
+      >
+        <DatePicker key={opened} {...picker} onChange={onChange} labelledBy={labelledBy} autoFocus />
+      </PopoverContent>
+    </Popover>
+  );
 }

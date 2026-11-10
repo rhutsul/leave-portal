@@ -3,12 +3,14 @@ import {
   dayLabel,
   dayMark,
   daysInclusive,
+  fieldText,
   focusStart,
   isSelected,
   joinIds,
   moveFocus,
   pendingMark,
   pickDate,
+  pickDone,
   pickSummary,
   rangeMark,
   rangeOf,
@@ -211,5 +213,35 @@ describe("joinIds", () => {
   it("keeps only the given ids", () => {
     expect(joinIds("a", false, null, undefined, "b")).toBe("a b");
     expect(joinIds(false)).toBe("");
+  });
+});
+
+describe("fieldText", () => {
+  it("is empty before the first click", () => {
+    expect(fieldText("range", [])).toBeNull();
+    expect(fieldText("single", [])).toBeNull();
+  });
+
+  it("names one date, a range with its days, or a reversed range as clicked", () => {
+    expect(fieldText("single", ["2026-11-20"])).toBe("Fri, 20 Nov 2026");
+    expect(fieldText("range", ["2026-12-30"])).toBe("Wed, 30 Dec 2026");
+    expect(fieldText("range", ["2026-12-30", "2026-12-30"])).toBe("Wed, 30 Dec 2026");
+    expect(fieldText("range", ["2026-12-28", "2027-01-08"])).toBe("Mon, 28 Dec 2026 – Fri, 8 Jan 2027, 12 days");
+    expect(fieldText("range", ["2027-01-08", "2026-12-28"])).toBe("Fri, 8 Jan 2027 – Mon, 28 Dec 2026");
+  });
+
+  it("counts several dates", () => {
+    expect(fieldText("multiple", ["2026-11-12"])).toBe("Thu, 12 Nov 2026");
+    expect(fieldText("multiple", ["2026-11-12", "2026-11-13"])).toBe("2 dates");
+  });
+});
+
+describe("pickDone", () => {
+  it("closes after one date, after the end of a range, never for several dates", () => {
+    expect(pickDone("single", ["2026-11-20"])).toBe(true);
+    expect(pickDone("range", ["2026-12-28"])).toBe(false);
+    expect(pickDone("range", ["2026-12-28", "2027-01-08"])).toBe(true);
+    expect(pickDone("multiple", ["2026-11-12", "2026-11-13"])).toBe(false);
+    expect(pickDone("single", [])).toBe(false);
   });
 });

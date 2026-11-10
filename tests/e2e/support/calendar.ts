@@ -19,11 +19,29 @@ export async function showNovember2026(page: Page) {
   await showMonth(page, 2026, 11);
 }
 
+/** Календар поля дати (DatePickerField) відкрито: спливна панель на місці й не закривається. */
+const openPanel = (page: Page) => page.locator('[data-slot="popover-content"][data-open]');
+
+/** Відкриває календар поля дати форми «Add closure», якщо він закритий (дочекавшись, поки закриється попередній). */
+export async function openDates(page: Page) {
+  if ((await openPanel(page).count()) > 0) return;
+  await expect(page.getByRole("grid")).toBeHidden();
+  await page.getByTestId("date-field").click();
+  await expect(openPanel(page)).toBeVisible();
+}
+
+/** Закриває календар кліком повз (як користувач): незавершений діапазон лишається однією датою. */
+export async function closeDates(page: Page) {
+  await page.getByRole("heading", { level: 1 }).click();
+  await expect(page.getByRole("grid")).toBeHidden();
+}
+
 /**
- * Клік по даті в DatePicker (форма «Add closure»): гортає календар на її місяць і натискає день. Назва дня починається
- * з дати — «Mon, 28 Dec 2026», далі можуть іти позначки («already closed: …», «today»).
+ * Клік по даті в DatePickerField (форма «Add closure»): відкриває календар, гортає на місяць дати й натискає день.
+ * Назва дня починається з дати — «Mon, 28 Dec 2026», далі можуть іти позначки («already closed: …», «today»).
  */
 export async function clickDate(page: Page, date: string) {
+  await openDates(page);
   const [year, month] = date.split("-").map(Number);
   await showMonth(page, year, month);
   const name = new RegExp(`^${formatDateLong(date)}`);

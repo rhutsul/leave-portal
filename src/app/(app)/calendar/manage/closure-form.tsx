@@ -6,7 +6,7 @@ import { CalendarRange, CircleAlert, Clock, TriangleAlert } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { DatePicker } from "@/components/ui/date-picker";
+import { DatePickerField } from "@/components/ui/date-picker";
 import { FieldError } from "@/components/ui/field-error";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -190,9 +190,14 @@ function KindChoice({ id, kind, onKind }: { id: string; kind: Kind; onKind: (kin
   );
 }
 
-const DATES: Record<Kind, { label: string; hint: string; mode: "range" | "single" }> = {
-  days: { label: "Dates", hint: "Click one day, or click the first and then the last day of the closure.", mode: "range" },
-  early: { label: "Date", hint: "Click the day of the early dismissal.", mode: "single" },
+const DATES: Record<Kind, { label: string; hint: string; placeholder: string; mode: "range" | "single" }> = {
+  days: {
+    label: "Dates",
+    hint: "One day, or the first and then the last day of the closure.",
+    placeholder: "Choose dates",
+    mode: "range",
+  },
+  early: { label: "Date", hint: "The day of the early dismissal.", placeholder: "Choose a date", mode: "single" },
 };
 
 /**
@@ -231,18 +236,18 @@ function ClosureDates({
       {Object.entries(closureFields(kind, pick)).map(([name, value]) => (
         <input key={name} type="hidden" name={name} value={value} />
       ))}
-      {/* key: свій календар для кожного виду — свій вибір і місяць. Телефон (ADR 0008): без бічних полів картки, як
-          календар «New request», — клітинка ≥ 40 px завширшки на 360 px. */}
-      <DatePicker
+      {/* key: свій календар для кожного виду — свій вибір і місяць. Календар — у спливній панелі під полем. */}
+      <DatePickerField
         key={kind}
         mode={field.mode}
         value={value}
         onChange={onChange}
         today={today}
         note={(date) => closureNote(closures, date)}
+        placeholder={field.placeholder}
         labelledBy={id}
         describedBy={joinIds(`${id}-hint`, (missing || reversed) && `${id}-error`)}
-        className="max-md:-mx-3 max-md:w-[calc(100%+1.5rem)] md:w-84"
+        invalid={missing || reversed}
       />
       <DatesMessage id={`${id}-error`} reversed={reversed} missing={missing} />
     </div>

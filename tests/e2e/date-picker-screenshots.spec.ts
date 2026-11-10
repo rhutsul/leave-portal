@@ -39,18 +39,18 @@ test.describe("date picker screenshots", { tag: ["@screenshots"] }, () => {
         };
         const file = (name: string) => `docs/img/ws9-${name}-${size.name}-${theme}.png`;
 
-        // «Add closure»: готовий діапазон (уся сторінка), далі — незавершений діапазон із попереднім переглядом за
-        // курсором (лише календар).
+        // «Add closure»: готовий діапазон у полі (уся сторінка), далі — відкритий календар із незавершеним діапазоном.
         {
           const { page, close } = await open("admin", "/calendar/manage", "Add closure");
           await page.getByLabel("Name").fill("Spring break");
           await clickDate(page, "2027-03-22");
           await clickDate(page, "2027-03-26");
-          await expect(page.getByTestId("date-picker").getByRole("status")).toContainText("5 days");
+          await expect(page.getByTestId("date-field")).toContainText("5 days");
           await page.screenshot({ path: file("closure-picker-range"), fullPage: true });
+          // Знову відкрито: новий початок 15 березня і попередній перегляд до дня під курсором.
           await clickDate(page, "2027-03-15");
-          await page.getByTestId("date-picker").getByRole("button", { name: /^Thu, 18 Mar 2027/ }).hover();
-          await page.getByTestId("date-picker").screenshot({ path: file("closure-picker-pending") });
+          await page.getByRole("grid").getByRole("button", { name: /^Thu, 18 Mar 2027/ }).hover();
+          await page.screenshot({ path: file("closure-picker-pending") });
           await close();
         }
 

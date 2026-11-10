@@ -1,7 +1,7 @@
 // DatePicker на телефоні (ADR 0008, проєкт Playwright «mobile», Pixel 7) — розкладка за розробником, не AC PM: тому без
 // AC ID і без тегу @uat. Нічого не зберігає: форму «Add closure» не надсилаємо.
 import { expect, test, type Page } from "@playwright/test";
-import { clickDate } from "./support/calendar";
+import { clickDate, openDates } from "./support/calendar";
 import { attachRuntimeErrors } from "./support/uat";
 
 test.afterEach(async ({ page }) => attachRuntimeErrors(page));
@@ -14,9 +14,12 @@ async function noSideScroll(page: Page) {
 test.describe("administrator on a narrow phone", () => {
   test.use({ storageState: "playwright/.auth/admin.json", viewport: { width: 360, height: 780 } });
 
-  test("the closure calendar fits 360 px, its days are 44 px tall and a range is picked by taps", async ({ page }) => {
+  test("the closure calendar opens from a 44 px field, fits 360 px, its days are 44 px tall and a range is picked by taps", async ({ page }) => {
     await page.goto("/calendar/manage");
     await expect(page.getByRole("heading", { level: 1, name: "Add closure" })).toBeVisible();
+    const field = page.getByTestId("date-field");
+    expect((await field.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+    await openDates(page);
     const picker = page.getByTestId("date-picker");
     const days = picker.getByRole("grid").getByRole("button");
     const first = (await days.first().boundingBox())!;
@@ -32,7 +35,7 @@ test.describe("administrator on a narrow phone", () => {
 
     await clickDate(page, "2027-02-15");
     await clickDate(page, "2027-02-19");
-    await expect(picker.getByRole("status")).toHaveText("Selected Mon, 15 Feb 2027 – Fri, 19 Feb 2027, 5 days");
+    await expect(field).toHaveText("Mon, 15 Feb 2027 – Fri, 19 Feb 2027, 5 days");
     await expect(page.locator('input[name="start"]')).toHaveValue("2027-02-15");
     await expect(page.locator('input[name="end"]')).toHaveValue("2027-02-19");
     await noSideScroll(page);
@@ -43,7 +46,7 @@ test.describe("administrator on a narrow phone", () => {
     await page.locator("label").filter({ hasText: "Early dismissal" }).click();
     await clickDate(page, "2027-03-11");
     await expect(page.locator('input[name="date"]')).toHaveValue("2027-03-11");
-    await expect(page.getByTestId("date-picker").getByRole("status")).toHaveText("Selected Thu, 11 Mar 2027");
+    await expect(page.getByTestId("date-field")).toHaveText("Thu, 11 Mar 2027");
     await noSideScroll(page);
   });
 });

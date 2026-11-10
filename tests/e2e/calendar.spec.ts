@@ -19,7 +19,7 @@ import {
   rememberClosuresNamed,
   rememberRequestsOn,
 } from "./support/admin";
-import { clickDate, showMonth } from "./support/calendar";
+import { clickDate, closeDates, showMonth } from "./support/calendar";
 import { asRole } from "./support/direct";
 import { attachRuntimeErrors, given, thenStep, when } from "./support/uat";
 
@@ -82,9 +82,10 @@ async function fillWholeDays(page: Page, name: string, start: string, end: strin
   await expect(page.getByRole("heading", { level: 1, name: "Add closure" })).toBeVisible();
   await page.getByLabel("Name").fill(name);
   await page.locator("label").filter({ hasText: "Whole days" }).click();
-  // Дати — кліками в календарі форми: перший клік — початок, другий — кінець; одна дата — один клік.
+  // Дати — кліками в календарі поля «Dates»: перший клік — початок, другий — кінець і закриває календар; одна
+  // дата — один клік і клік повз календар.
   await clickDate(page, start);
-  if (end !== start) await clickDate(page, end);
+  await (end === start ? closeDates(page) : clickDate(page, end));
 }
 
 // ── Адміністратор додає й видаляє закриття ─────────────────────────────────────
@@ -216,9 +217,7 @@ test.describe("admin@example.test", () => {
           await expect(page.getByRole("main").getByRole("alert")).toHaveText("The end date cannot be earlier than the start date");
           await expect(page.locator('input[name="start"]')).toHaveValue("2027-01-08");
           await expect(page.locator('input[name="end"]')).toHaveValue("2026-12-28");
-          await expect(page.getByTestId("date-picker").getByRole("status")).toHaveText(
-            "Selected from Fri, 8 Jan 2027 to Mon, 28 Dec 2026",
-          );
+          await expect(page.getByTestId("date-field")).toHaveText("Fri, 8 Jan 2027 – Mon, 28 Dec 2026");
         },
       );
       await openCalendar(page);
