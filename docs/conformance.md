@@ -117,3 +117,8 @@
 | AC-CAL-13 | Менеджер закриває день напряму | `supabase/migrations/20261108143021_school_calendar.sql` (grants, add_school_closure, remove_school_closure), `src/app/(app)/calendar/actions.ts` | `tests/db/school-calendar.test.ts`, `tests/e2e/calendar.spec.ts` | реалізовано |
 | AC-CAL-14 | Гість за прямим посиланням | `supabase/migrations/20261108143021_school_calendar.sql` (revoke from anon), `src/lib/supabase/proxy.ts` (guestRedirect) | `tests/db/school-calendar.test.ts`, `tests/e2e/calendar.spec.ts` | реалізовано |
 | AC-CAL-15 | Порожній календар | `src/lib/leave/calendar.ts` (emptyCalendarMessage), `src/app/(app)/calendar/page.tsx` | `src/lib/leave/calendar.test.ts`, `tests/e2e/calendar.spec.ts` | реалізовано |
+| AC-CAL-16 | Скорочений день без робочого часу | — | — | відкладено (чекає реалізації) |
+| AC-CAL-17 | Кілька закриттів, що перетинаються | — | — | відкладено (чекає реалізації) |
+| AC-CAL-18 | Порожня назва | — | — | відкладено (чекає реалізації) |
+| AC-CAL-19 | Назва довша за 100 знаків | — | — | відкладено (чекає реалізації) |
+| AC-CAL-20 | Закриття після погодження | — | — | відкладено (чекає реалізації) |
