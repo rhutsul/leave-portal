@@ -1,0 +1,159 @@
+{
+  "kind": "uat",
+  "generatedAt": "2026-11-13T16:05:29.309Z",
+  "baseURL": "https://leave-portal-olive.vercel.app",
+  "deployedSha": "4f390f9a68a16a688e7f01f8c07b1e12805e5622",
+  "testsCommit": "4f390f9a68a16a688e7f01f8c07b1e12805e5622",
+  "reviewer": {
+    "model": "claude-haiku-5-5",
+    "disputes": "claude-sonnet-5-5"
+  },
+  "note": "Відео й траси не в git (test-results/ локально, артефакт CI). check-recordings конвеєра WS9 вимагає відео на диску — для нього цей manifest треба доповнити.",
+  "results": [
+    {
+      "id": "AC-CAL-17",
+      "proof": "AC-CAL-17",
+      "title": "AC-CAL-17: \"Extra break\" 2027-01-05 – 2027-01-15 over \"Winter break\" and \"Staff day\" — not saved, one message part per closure",
+      "screenshot": "docs/qa/uat/2026-11-13/frames/AC-CAL-17-then-1.png",
+      "video": "test-results/artifacts/calendar-admin-example-tes-d9e81-ne-message-part-per-closure-chromium/video.webm",
+      "trace": "test-results/artifacts/calendar-admin-example-tes-d9e81-ne-message-part-per-closure-chromium/trace.zip",
+      "asserted": true,
+      "vision": {
+        "met": true,
+        "readable": true,
+        "notes": "На кадрі сторінка «Add closure» (/calendar/manage) з полем Name «Extra break» і датами 2027-01-05 – 2027-01-15 та червоним блоком помилки з текстом, який збігається з критерієм посимвольно. Факт «не збережено» з кадру не видно, тому оцінено лише видиму частину «Тоді»."
+      },
+      "agentModel": "claude-haiku-5-5",
+      "agentVerdicts": {
+        "claude-haiku-5-5": "PASS",
+        "claude-sonnet-5-5": null
+      },
+      "escalated": false,
+      "quotesVerified": [
+        {
+          "quote": "2027-01-05 is already closed: Winter break, 2027-01-12 is already closed: Staff day",
+          "onPage": true
+        }
+      ],
+      "verdict": "PASS",
+      "factoryGate": "PASS",
+      "rule": "R6: перевірки, агент і цитати збігаються",
+      "playwrightMs": 24114,
+      "reviewCostUsd": 0.00185,
+      "reviewWallMs": 32729
+    },
+    {
+      "id": "AC-CAL-18",
+      "proof": "AC-CAL-18",
+      "title": "AC-CAL-18: the administrator leaves the name empty for 2027-01-20 — not saved, «Enter a name for the closure»",
+      "screenshot": "docs/qa/uat/2026-11-13/frames/AC-CAL-18-then-1.png",
+      "video": "test-results/artifacts/calendar-admin-example-tes-9fbb6-ter-a-name-for-the-closure»-chromium/video.webm",
+      "trace": "test-results/artifacts/calendar-admin-example-tes-9fbb6-ter-a-name-for-the-closure»-chromium/trace.zip",
+      "asserted": true,
+      "vision": {
+        "met": true,
+        "readable": true,
+        "notes": "На кадрі під полем «Name» червоним текстом написано «Enter a name for the closure», що посимвольно збігається з критерієм. Форма «Add closure» залишається відкритою, поле порожнє з червоною рамкою, дата 2027-01-20 видна в панелі «Your closure» — це узгоджується з тим, що закриття не збережено, але це не оцінювалося."
+      },
+      "agentModel": "claude-haiku-5-5",
+      "agentVerdicts": {
+        "claude-haiku-5-5": "PASS",
+        "claude-sonnet-5-5": null
+      },
+      "escalated": false,
+      "quotesVerified": [
+        {
+          "quote": "Enter a name for the closure",
+          "onPage": true
+        }
+      ],
+      "verdict": "PASS",
+      "factoryGate": "PASS",
+      "rule": "R6: перевірки, агент і цитати збігаються",
+      "playwrightMs": 20872,
+      "reviewCostUsd": 0.00221,
+      "reviewWallMs": 31950
+    },
+    {
+      "id": "AC-CAL-19",
+      "proof": "AC-CAL-19",
+      "title": "AC-CAL-19: a name of 101 characters for 2027-01-20 — not saved, «The name can be at most 100 characters»",
+      "screenshot": "docs/qa/uat/2026-11-13/frames/AC-CAL-19-then-1.png",
+      "video": "test-results/artifacts/calendar-admin-example-tes-0c6a6--be-at-most-100-characters»-chromium/video.webm",
+      "trace": "test-results/artifacts/calendar-admin-example-tes-0c6a6--be-at-most-100-characters»-chromium/trace.zip",
+      "asserted": true,
+      "vision": {
+        "met": true,
+        "readable": true,
+        "notes": "На кадрі форма «Add closure» з червоним виділенням поля Name і під ним повідомленням «The name can be at most 100 characters», текст збігається з критерієм посимвольно. Дата 2027-01-20 вибрана."
+      },
+      "agentModel": "claude-sonnet-5-5",
+      "agentVerdicts": {
+        "claude-haiku-5-5": null,
+        "claude-sonnet-5-5": "PASS"
+      },
+      "escalated": true,
+      "quotesVerified": [
+        {
+          "quote": "The name can be at most 100 characters",
+          "onPage": true
+        }
+      ],
+      "verdict": "PASS",
+      "factoryGate": "PASS",
+      "rule": "R6: перевірки, агент і цитати збігаються",
+      "playwrightMs": 22441,
+      "reviewCostUsd": 0.03623,
+      "reviewWallMs": 36255
+    },
+    {
+      "id": "AC-CAL-20",
+      "proof": "AC-CAL-20",
+      "title": "AC-CAL-20: an approved \"Sick leave\" 2026-11-20 08:30–11:00 (0.36) — after the early dismissal from 12:00 balances still show used 0.36",
+      "screenshot": "docs/qa/uat/2026-11-13/frames/AC-CAL-20-then-1.png",
+      "video": "test-results/artifacts/calendar-admin-example-tes-26dae-lances-still-show-used-0-36-chromium/video.webm",
+      "trace": "test-results/artifacts/calendar-admin-example-tes-26dae-lances-still-show-used-0-36-chromium/trace.zip",
+      "asserted": true,
+      "vision": {
+        "met": true,
+        "readable": true,
+        "notes": "На кадрі сторінка Balances, навчальний рік 2026–2027, є картка «Sick leave left» (15.00 days) із рядком «3.00 of 18.00 used». Це загальне використання за рік, тому значення 0.36 з кадру не перевірити. Ця перевірка належить до розділу «Не з кадрів», і я її не оцінював."
+      },
+      "agentModel": "claude-sonnet-5-5",
+      "agentVerdicts": {
+        "claude-haiku-5-5": "NEEDS-HUMAN",
+        "claude-sonnet-5-5": "PASS"
+      },
+      "escalated": true,
+      "quotesVerified": [
+        {
+          "quote": "Sick leave left",
+          "onPage": true
+        },
+        {
+          "quote": "3.00 of 18.00 used",
+          "onPage": true
+        }
+      ],
+      "verdict": "PASS",
+      "factoryGate": "PASS",
+      "rule": "R6: перевірки, агент і цитати збігаються",
+      "playwrightMs": 27409,
+      "reviewCostUsd": 0.0351,
+      "reviewWallMs": 29036
+    }
+  ],
+  "negativeControls": [],
+  "cleanup": {
+    "at": "2026-11-13T16:04:25.907Z",
+    "scope": "school-calendar",
+    "deleted": [
+      "закриття «Staff day» 2027-01-12…2027-01-12",
+      "закриття «Winter break» 2026-12-28…2027-01-08",
+      "закриття «Teachers' meeting» 2026-11-20…2026-11-20 (зі сторінки)",
+      "заявка teacher1@example.test 2026-11-20"
+    ],
+    "remaining": [],
+    "leftoverRequests": 0
+  }
+}

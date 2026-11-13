@@ -10,11 +10,13 @@ Proof pack WS8 — docs/qa/proof-pack-ws8.md. Рядок на кожен AC зр
 - Прод-URL: https://leave-portal-olive.vercel.app
 - Зріз 3: The administrator closes days and hours in the school calendar (holidays, early dismissals), and they cannot
   be taken as leave (рядок roadmap PM, [product.md#L95](https://github.com/rhutsul/leave-portal/blob/53a2f977cecaece50b746526bec251c65af01d82/requirements/product.md?plain=1#L95); у roadmap PM це зріз «WS7», реалізований у WS9)
-- Вимоги: https://github.com/mkozlovskyi-ops/course-staff-management-spec · джерело: docs · знімок 2026-11-04
+- Вимоги: https://github.com/mkozlovskyi-ops/course-staff-management-spec · джерело: docs · знімок 2026-11-04 (AC-CAL-01…15);
+  після відповідей PM — знімок 2026-11-13, коміт PM `2f07791` (AC-CAL-16…20)
   ([conformance.md#L33](https://github.com/rhutsul/leave-portal/blob/53a2f977cecaece50b746526bec251c65af01d82/docs/conformance.md?plain=1#L33));
   вимога — `requirements/04-school-calendar.md`, коміт PM `818bad5` (2026-11-03)
 - Спека: https://github.com/rhutsul/leave-portal/blob/53a2f977cecaece50b746526bec251c65af01d82/openspec/specs/school-calendar/spec.md
-  (AC-CAL-01 … AC-CAL-15, 15 сценаріїв)
+  (AC-CAL-01 … AC-CAL-15, 15 сценаріїв); на `4f390f9` —
+  [AC-CAL-01 … AC-CAL-20, 20 сценаріїв](https://github.com/rhutsul/leave-portal/blob/4f390f9a68a16a688e7f01f8c07b1e12805e5622/openspec/specs/school-calendar/spec.md)
 - `/api/health` на момент UAT: sha `c77502a` (зі звіту UAT і `manifest.json`, `deployedSha`; стан `db` у звіті не
   записано), 08.11.2026 23:42 (Київ)
 
@@ -42,6 +44,15 @@ Proof pack WS8 — docs/qa/proof-pack-ws8.md. Рядок на кожен AC зр
 | AC-CAL-13 | відмова: заборонена роль (менеджер) напряму, оминаючи сторінки | база: [school-calendar.test.ts#L204](https://github.com/rhutsul/leave-portal/blob/53a2f977cecaece50b746526bec251c65af01d82/tests/db/school-calendar.test.ts#L204), [#L211](https://github.com/rhutsul/leave-portal/blob/53a2f977cecaece50b746526bec251c65af01d82/tests/db/school-calendar.test.ts#L211), [#L221](https://github.com/rhutsul/leave-portal/blob/53a2f977cecaece50b746526bec251c65af01d82/tests/db/school-calendar.test.ts#L221), [#L239](https://github.com/rhutsul/leave-portal/blob/53a2f977cecaece50b746526bec251c65af01d82/tests/db/school-calendar.test.ts#L239), [#L254](https://github.com/rhutsul/leave-portal/blob/53a2f977cecaece50b746526bec251c65af01d82/tests/db/school-calendar.test.ts#L254) | SQL-мутант S17 (перевірка ролі → лише «увійшов») KILLED, https://github.com/rhutsul/leave-portal/pull/63 | [calendar.spec.ts#L567](https://github.com/rhutsul/leave-portal/blob/53a2f977cecaece50b746526bec251c65af01d82/tests/e2e/calendar.spec.ts#L567) (Data API із сесією менеджера: RPC і пряма вставка → 42501) | Haiku: NEEDS-HUMAN, Sonnet: PASS → **PASS (R6)**, [рядок звіту](https://github.com/rhutsul/leave-portal/blob/53a2f977cecaece50b746526bec251c65af01d82/docs/qa/uat/2026-11-08/report.md?plain=1#L25), [AC-CAL-13-then-1.png](https://github.com/rhutsul/leave-portal/blob/53a2f977cecaece50b746526bec251c65af01d82/docs/qa/uat/2026-11-08/frames/AC-CAL-13-then-1.png) | https://github.com/rhutsul/leave-portal/pull/63, `9d92d56`; UAT — #65, `53a2f97` |
 | AC-CAL-14 | відмова: не увійшов | база: [school-calendar.test.ts#L195](https://github.com/rhutsul/leave-portal/blob/53a2f977cecaece50b746526bec251c65af01d82/tests/db/school-calendar.test.ts#L195), [table-visibility.test.ts#L139](https://github.com/rhutsul/leave-portal/blob/53a2f977cecaece50b746526bec251c65af01d82/tests/db/table-visibility.test.ts#L139) | SQL-мутант S18 (`grant select … to anon`) KILLED, https://github.com/rhutsul/leave-portal/pull/63 | [calendar.spec.ts#L625](https://github.com/rhutsul/leave-portal/blob/53a2f977cecaece50b746526bec251c65af01d82/tests/e2e/calendar.spec.ts#L625) | Haiku: PASS → **PASS (R6)**, [рядок звіту](https://github.com/rhutsul/leave-portal/blob/53a2f977cecaece50b746526bec251c65af01d82/docs/qa/uat/2026-11-08/report.md?plain=1#L26), [AC-CAL-14-then-1.png](https://github.com/rhutsul/leave-portal/blob/53a2f977cecaece50b746526bec251c65af01d82/docs/qa/uat/2026-11-08/frames/AC-CAL-14-then-1.png) | https://github.com/rhutsul/leave-portal/pull/63, `9d92d56`; UAT — #65, `53a2f97` |
 | AC-CAL-15 | стан інтерфейсу: порожній стан | unit: [calendar.test.ts#L69](https://github.com/rhutsul/leave-portal/blob/53a2f977cecaece50b746526bec251c65af01d82/src/lib/leave/calendar.test.ts#L69), [#L74](https://github.com/rhutsul/leave-portal/blob/53a2f977cecaece50b746526bec251c65af01d82/src/lib/leave/calendar.test.ts#L74) | немає (не відмова; `calendar.ts` у Stryker, але окремого результату для `emptyCalendarMessage` в описах PR немає) | [calendar.spec.ts#L484](https://github.com/rhutsul/leave-portal/blob/53a2f977cecaece50b746526bec251c65af01d82/tests/e2e/calendar.spec.ts#L484) | Haiku: PASS → **PASS (R6)**, [рядок звіту](https://github.com/rhutsul/leave-portal/blob/53a2f977cecaece50b746526bec251c65af01d82/docs/qa/uat/2026-11-08/report.md?plain=1#L27), [AC-CAL-15-then-1.png](https://github.com/rhutsul/leave-portal/blob/53a2f977cecaece50b746526bec251c65af01d82/docs/qa/uat/2026-11-08/frames/AC-CAL-15-then-1.png) | https://github.com/rhutsul/leave-portal/pull/63, `9d92d56`; UAT — #65, `53a2f97` |
+| AC-CAL-16 | стан інтерфейсу: дату скороченого дня без робочого часу не прийнято, «The school is closed on this day: …» | unit: [calendar-request.test.ts#L388](https://github.com/rhutsul/leave-portal/blob/4f390f9a68a16a688e7f01f8c07b1e12805e5622/src/lib/leave/calendar-request.test.ts#L388), [#L396](https://github.com/rhutsul/leave-portal/blob/4f390f9a68a16a688e7f01f8c07b1e12805e5622/src/lib/leave/calendar-request.test.ts#L396), [#L411](https://github.com/rhutsul/leave-portal/blob/4f390f9a68a16a688e7f01f8c07b1e12805e5622/src/lib/leave/calendar-request.test.ts#L411), [#L419](https://github.com/rhutsul/leave-portal/blob/4f390f9a68a16a688e7f01f8c07b1e12805e5622/src/lib/leave/calendar-request.test.ts#L419); база: [school-calendar-request.test.ts#L245](https://github.com/rhutsul/leave-portal/blob/4f390f9a68a16a688e7f01f8c07b1e12805e5622/tests/db/school-calendar-request.test.ts#L245), [#L255](https://github.com/rhutsul/leave-portal/blob/4f390f9a68a16a688e7f01f8c07b1e12805e5622/tests/db/school-calendar-request.test.ts#L255), [#L263](https://github.com/rhutsul/leave-portal/blob/4f390f9a68a16a688e7f01f8c07b1e12805e5622/tests/db/school-calendar-request.test.ts#L263) | SQL-мутант S23 (скорочений день без часу не закритий) KILLED, 13.11 | немає (див. «Не перевірено») | — | https://github.com/rhutsul/leave-portal/pull/75, `4f390f9` |
+| AC-CAL-17 | стан інтерфейсу: частина повідомлення на кожне закриття, що перетинається | база: [school-calendar.test.ts#L113](https://github.com/rhutsul/leave-portal/blob/4f390f9a68a16a688e7f01f8c07b1e12805e5622/tests/db/school-calendar.test.ts#L113), [#L122](https://github.com/rhutsul/leave-portal/blob/4f390f9a68a16a688e7f01f8c07b1e12805e5622/tests/db/school-calendar.test.ts#L122) | SQL-мутанти S24 (друге закриття зникає з повідомлення), S16 KILLED, 13.11 | [calendar.spec.ts#L260](https://github.com/rhutsul/leave-portal/blob/4f390f9a68a16a688e7f01f8c07b1e12805e5622/tests/e2e/calendar.spec.ts#L260) | Haiku: PASS → **PASS (R6)**, [рядок звіту](uat/2026-11-13/report.md?plain=1#L12), [AC-CAL-17-then-1.png](uat/2026-11-13/frames/AC-CAL-17-then-1.png) | https://github.com/rhutsul/leave-portal/pull/75, `4f390f9` |
+| AC-CAL-18 | стан інтерфейсу: помилка поля «Enter a name for the closure», не збережено | unit: [calendar-form.test.ts#L49](https://github.com/rhutsul/leave-portal/blob/4f390f9a68a16a688e7f01f8c07b1e12805e5622/src/lib/leave/calendar-form.test.ts#L49); база: [school-calendar.test.ts#L130](https://github.com/rhutsul/leave-portal/blob/4f390f9a68a16a688e7f01f8c07b1e12805e5622/tests/db/school-calendar.test.ts#L130) | SQL-мутант S25 (порожня назва не перевіряється) KILLED, 13.11 | [calendar.spec.ts#L294](https://github.com/rhutsul/leave-portal/blob/4f390f9a68a16a688e7f01f8c07b1e12805e5622/tests/e2e/calendar.spec.ts#L294) | Haiku: PASS → **PASS (R6)**, [рядок звіту](uat/2026-11-13/report.md?plain=1#L13), [AC-CAL-18-then-1.png](uat/2026-11-13/frames/AC-CAL-18-then-1.png) | https://github.com/rhutsul/leave-portal/pull/75, `4f390f9` |
+| AC-CAL-19 | стан інтерфейсу: межа 100 знаків, «The name can be at most 100 characters» | unit: [calendar-form.test.ts#L59](https://github.com/rhutsul/leave-portal/blob/4f390f9a68a16a688e7f01f8c07b1e12805e5622/src/lib/leave/calendar-form.test.ts#L59); база: [school-calendar.test.ts#L139](https://github.com/rhutsul/leave-portal/blob/4f390f9a68a16a688e7f01f8c07b1e12805e5622/tests/db/school-calendar.test.ts#L139) | SQL-мутант S26 (межа 100 → 101) KILLED, 13.11 | [calendar.spec.ts#L322](https://github.com/rhutsul/leave-portal/blob/4f390f9a68a16a688e7f01f8c07b1e12805e5622/tests/e2e/calendar.spec.ts#L322) | Haiku без вердикту → Sonnet: PASS → **PASS (R6)**, [рядок звіту](uat/2026-11-13/report.md?plain=1#L14), [AC-CAL-19-then-1.png](uat/2026-11-13/frames/AC-CAL-19-then-1.png) | https://github.com/rhutsul/leave-portal/pull/75, `4f390f9` |
+| AC-CAL-20 | розрахунок: частка дня погодженого запису не змінюється від пізнішого закриття | unit: [balance.test.ts#L162](https://github.com/rhutsul/leave-portal/blob/4f390f9a68a16a688e7f01f8c07b1e12805e5622/src/lib/leave/balance.test.ts#L162); база: [school-calendar.test.ts#L376](https://github.com/rhutsul/leave-portal/blob/4f390f9a68a16a688e7f01f8c07b1e12805e5622/tests/db/school-calendar.test.ts#L376), [#L383](https://github.com/rhutsul/leave-portal/blob/4f390f9a68a16a688e7f01f8c07b1e12805e5622/tests/db/school-calendar.test.ts#L383), [#L394](https://github.com/rhutsul/leave-portal/blob/4f390f9a68a16a688e7f01f8c07b1e12805e5622/tests/db/school-calendar.test.ts#L394) | SQL-мутант S27 (частку не фіксуємо при погодженні) KILLED, 13.11 | [calendar.spec.ts#L352](https://github.com/rhutsul/leave-portal/blob/4f390f9a68a16a688e7f01f8c07b1e12805e5622/tests/e2e/calendar.spec.ts#L352) | Haiku: NEEDS-HUMAN, Sonnet: PASS → **PASS (R6)**, [рядок звіту](uat/2026-11-13/report.md?plain=1#L15), [AC-CAL-20-then-1.png](uat/2026-11-13/frames/AC-CAL-20-then-1.png); «Дано used 0.36» на проді — приріст, див. «Не перевірено» | https://github.com/rhutsul/leave-portal/pull/75, `4f390f9` |
+
+AC-CAL-16 … AC-CAL-20 — хвіст після відповідей PM (13.11): посилання на код — на `4f390f9` (злиття #75), вердикт UAT —
+зі [звіту 13.11](uat/2026-11-13/report.md); SQL-мутанти прогнано 13.11 локально (13 з 13 KILLED, розділ B). E2e
+AC-CAL-17…20 зелені й у CI: на голові #75 `9b38fc6` — https://github.com/rhutsul/leave-portal/actions/runs/43455487527.
 
 Ті самі 15 e2e-тестів зелені й у CI на одноразовому Supabase (job `e2e`): на голові #65 `a882c58` —
 https://github.com/rhutsul/leave-portal/actions/runs/42579739962 (43 passed, 0 skipped), на `main` `53a2f97` —
@@ -55,6 +66,10 @@ https://github.com/rhutsul/leave-portal/actions/runs/42580707258.
 | AC-CAL-01, AC-CAL-09, AC-CAL-15 — «здатен упасти» | не відмови, і власного мутанта чи червоного прогону для них немає. Опис #64 для AC-CAL-09 посилається на S20, але S20 змінює лише текст AC-CAL-03 («повідомлення до видалення»), а не повернення дати після видалення | тести бази й unit з AC ID, UAT і CI e2e — зелені | низький |
 | Негативний контроль на AC зрізу 3 | NC-1 і NC-2 ([negative-controls.spec.ts](https://github.com/rhutsul/leave-portal/blob/53a2f977cecaece50b746526bec251c65af01d82/tests/e2e/negative-controls.spec.ts)) навмисно ламають AC-LEAVE-06 і AC-LEAVE-19, а не AC-CAL; результат прогону NC 08.11 записано лише в описі #65, окремого звіту в репо немає | NC показує, що конвеєр UAT уміє дати FAIL і NEEDS-HUMAN; той самий конвеєр оцінював AC-CAL | низький |
 | Результати SQL-мутацій і Stryker | у репо немає таблиці `npm run mutation:sql -- --markdown` чи звіту Stryker; є лише підсумки в описах #63 (19 з 19 KILLED) і #64 (22 з 22 KILLED; Stryker `calendar.ts` 98,92 %). Мутації — локально, не в CI; на `53a2f97` повторно не ганялись | визначення мутантів S11–S22 з AC — у [mutants.mjs#L104-L182](https://github.com/rhutsul/leave-portal/blob/53a2f977cecaece50b746526bec251c65af01d82/scripts/mutants.mjs#L104-L182) | низький: #65 не змінював ні міграцій, ні `calendar.ts` |
+| AC-CAL-16 — UAT на проді | у демо-користувачів немає працівника, єдиний блок якого в п'ятницю — після обіду, а створювати нового користувача на проді заради одного AC не стали | unit і PGlite з дослівними даними AC (розклад п'ятниці 13:00–17:00 на час тесту) і SQL-мутант S23 KILLED; те саме правило в TS і SQL (`closedDayName`, `private.closed_day_name`) | низький: правило в SQL доведено мутантом |
+| AC-CAL-20 «Дано: used 0.36» на проді | у teacher1@example.test на проді вже було 2.64 дня Sick leave | UAT перевірив приріст рівно 0.36 (2.64 → 3.00) і що після закриття лишилось 3.00, а не 3.35 — примітка розробника у [звіті](uat/2026-11-13/report.md); дослівно — той самий тест у CI і [school-calendar.test.ts#L376](https://github.com/rhutsul/leave-portal/blob/4f390f9a68a16a688e7f01f8c07b1e12805e5622/tests/db/school-calendar.test.ts#L376) | низький |
+| AC-CAL-20 для «Sick leave» — «здатен упасти» | мутант S27 вбивають тести «Unpaid leave» і тестових даних; тест «Sick leave» з AC його не вбиває, бо в «Sick leave» частку й раніше фіксував розподіл `paid_days` при погодженні (AC-BALANCE-10) | тест AC дослівно зелений на всіх рівнях; власне припущення «частка фіксується для всіх типів» доведене S27 | низький |
+| Код тестів UAT 13.11 | у звіті «+ незакомічені зміни»: незакомічений був лише `scripts/mutants.mjs` (мутанти S23–S27, той самий PR), тести — як на `4f390f9` | — | немає |
 
 ## A. Вимоги й спека
 
@@ -64,8 +79,11 @@ https://github.com/rhutsul/leave-portal/actions/runs/42580707258.
 - Спека `add-school-calendar` — PR «Специфікація»: https://github.com/rhutsul/leave-portal/pull/61 (`080fce4`; 12
   вимог, 15 сценаріїв з ID PM; заархівовано як `2026-11-08-add-school-calendar`); план `impl-school-calendar`:
   https://github.com/rhutsul/leave-portal/pull/62 (`b13690d`)
-- Зміна `clarify-<зріз3>` після уточнень: немає — PM ще не відповів, AC не змінював.
-- Питання PM (06.11, без відповіді на 09.11): https://github.com/mkozlovskyi-ops/course-staff-management-spec/issues/22
+- Зміна `clarify-<зріз3>` після уточнень: PM відповів 13.11 на #22–#24 (наші) і #25, #26 (колеги) — нові AC-CAL-16…20.
+  `/requirements-sync` — https://github.com/rhutsul/leave-portal/pull/73 (`a0d7a5d`, знімок 2026-11-13, коміт PM
+  `2f07791`); спека `clarify-school-calendar` — https://github.com/rhutsul/leave-portal/pull/74 (`10f9bf3`, MODIFIED 5 і
+  ADDED 1 вимога, заархівовано як `2026-11-13-clarify-school-calendar`). Журнал — `docs/spec-reading.md` (Q9–Q11).
+- Питання PM (06.11; відповіді 13.11 — див. вище): https://github.com/mkozlovskyi-ops/course-staff-management-spec/issues/22
   (Q9 — повідомлення, коли скорочений день закриває весь розклад),
   https://github.com/mkozlovskyi-ops/course-staff-management-spec/issues/23 (Q10 — кілька зайнятих дат у AC-CAL-11),
   https://github.com/mkozlovskyi-ops/course-staff-management-spec/issues/24 (Q11 — порожня чи задовга назва). Жодне не
@@ -77,6 +95,7 @@ https://github.com/rhutsul/leave-portal/actions/runs/42580707258.
 |---|---|---|---|---|
 | https://github.com/rhutsul/leave-portal/pull/63 (`9d92d56`) | 1. Закриття: додати, переглянути, видалити | AC-CAL-01, -02, -06, -07, -08, -10, -11, -12, -13, -14, -15 | 2 треди, обидва закрито | https://github.com/rhutsul/leave-portal/actions/runs/42499258860/job/128788731186 (міграція `20261108143021_school_calendar.sql`) |
 | https://github.com/rhutsul/leave-portal/pull/64 (`c77502a`) | 2. Заявка в закритий і скорочений день | AC-CAL-03, -04, -05, -09 | тредів у рядках немає; зауваження поза diff — виправлено в `b0994de` або аргумент: https://github.com/rhutsul/leave-portal/pull/64#issuecomment-6724809910 | https://github.com/rhutsul/leave-portal/actions/runs/42507186501/job/128812732567 (міграція `20261108165906_school_calendar_requests.sql`) |
+| https://github.com/rhutsul/leave-portal/pull/75 (`4f390f9`) | хвіст після відповідей PM (без задачі в `tasks.md`: план `impl-school-calendar` уже заархівовано) | AC-CAL-16 … AC-CAL-20 | CodeRabbit — ліміт рев'ю, коментарів немає; CI зелений на `9b38fc6` | https://github.com/rhutsul/leave-portal/actions/runs/43457648764 (міграція `20261113145925_school_calendar_clarifications.sql`) |
 | https://github.com/rhutsul/leave-portal/pull/65 (`53a2f97`) | 3. UAT на кожен AC | AC-CAL-01 … AC-CAL-15 (e2e) | 10 тредів, усі закрито; відповіді на підсумок: https://github.com/rhutsul/leave-portal/pull/65#issuecomment-6734410902, https://github.com/rhutsul/leave-portal/pull/65#issuecomment-6734679891 | https://github.com/rhutsul/leave-portal/actions/runs/42580707351/job/129039206224 (міграцій немає) |
 
 - PR «Специфікація»: #61 — 4 треди, 3 закрито, четвертий (Out of scope вимоги 02) — аргумент у треді
@@ -88,6 +107,9 @@ https://github.com/rhutsul/leave-portal/actions/runs/42580707258.
 - Мутації (з описів PR, локально):
   - SQL (`npm run mutation:sql`, PGlite): #63 — 19 з 19 KILLED (S11–S19 нові; S7–S10 для AC-LEAVE-19/22 переведено на
     нову `check_record_hours`); #64 — 22 з 22 KILLED (S20–S22 нові).
+  - SQL, 13.11 (PR цього розділу): нова міграція хвоста перекрила `add_school_closure` і `submit_leave_request`, тож
+    S12–S17, S20, S22 переведено на неї (інакше мутували б стару копію й «виживали» без тесту); нові S23–S27 для
+    AC-CAL-16…20 — 13 з 13 KILLED (`node scripts/mutation-check.mjs --kind sql --only S12,…,S27`).
   - Stryker `--mutate src/lib/leave/calendar.ts` (#64): 98,92 % — 92 вбито, 1 вижив (еквівалентний:
     `if (closesAt == null) return []`, бо `b.start < null` теж дає `[]`); `calendar.ts` додано в `stryker.config.json`.
   - Stryker `--mutate "src/app/(app)/calendar/manage/access.ts"` (AC-CAL-12, після #65): 100 % — 9 мутантів, 9 вбито;
@@ -114,6 +136,9 @@ https://github.com/rhutsul/leave-portal/actions/runs/42580707258.
   прод `c77502a`, код тестів `aac4469` + незакомічені зміни. За відповіддю в #65 незакоміченим був лише звіт
   попереднього прогону; після прогону змінились підпис кроку AC-CAL-06, `run.mjs`, teardown і тест знімків, твердження
   AC-тестів — ні. Злитий код тестів зелений у CI (run 42580707258).
+- Звіт хвоста: [uat/2026-11-13/report.md](uat/2026-11-13/report.md) (прогін 13.11.2026 18:02 Київ, Playwright 132,3 с;
+  AC-CAL-17…20 — PASS 4, FAIL 0, NEEDS-HUMAN 0; прод `4f390f9`, $0.0754 за розбір). Прибирання: видалено 4 рядки,
+  закриттів AC і записів teacher1@ у датах AC лишилось 0. Вікна дат UAT розширено на 2027-01-09…2027-01-20.
 - Відео: запис браузера прогону на проді 08.11 — 15 AC-CAL одним файлом (2:36, номер AC у куті кадру), вкладено в опис
   https://github.com/rhutsul/leave-portal/pull/66: https://github.com/user-attachments/assets/fa7df19a-139f-414e-b34e-a2429bdb8b0f. Окремі відео кожного тесту й траси — локально (`test-results/`), не в git.
 - Де записи для перевірки (рев'ю WS8): поля `video` і `trace` у
@@ -144,16 +169,18 @@ https://github.com/rhutsul/leave-portal/actions/runs/42580707258.
 | AC | Рішення PM | Посилання |
 |---|---|---|
 | AC-CAL-01 … AC-CAL-15 | чекає на PM | — |
+| AC-CAL-16 … AC-CAL-20 | чекає на PM (звіт UAT 13.11) | — |
 
 ## D. Прод і ретро
 
 - `/api/health` після злиття всіх задач: `{"ok":true,"sha":"53a2f977cecaece50b746526bec251c65af01d82","env":"production","db":"ok"}`
-  (09.11.2026)
+  (09.11.2026); після хвоста (#75): `{"ok":true,"sha":"4f390f9a68a16a688e7f01f8c07b1e12805e5622","env":"production","db":"ok"}`
+  (13.11.2026, перед UAT)
 - Нові ролі й акаунти: нових немає. Зріз використовує наявні admin@example.test (адміністратор), manager1@example.test
   (менеджер), teacher1@example.test (працівник); архів —
   https://github.com/rhutsul/leave-portal/blob/53a2f977cecaece50b746526bec251c65af01d82/accounts.zip (без змін з #23).
 - `docs/conformance.md`: https://github.com/rhutsul/leave-portal/blob/53a2f977cecaece50b746526bec251c65af01d82/docs/conformance.md?plain=1#L105-L119
-  (AC-CAL-01…15 — «реалізовано»)
+  (AC-CAL-01…15 — «реалізовано»); на `4f390f9` — [AC-CAL-01…20](https://github.com/rhutsul/leave-portal/blob/4f390f9a68a16a688e7f01f8c07b1e12805e5622/docs/conformance.md?plain=1#L105-L124)
 
 ### Ретро: що б ми взяли з фабрики у свій звичайний процес
 
