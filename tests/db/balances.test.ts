@@ -199,19 +199,22 @@ describe("get_balance_inputs data", () => {
       { position_id: teacher1Main, date: "2026-11-04", start_min: 510, end_min: 930 },
     ]);
     await setStatus(rejected, "rejected");
-    const [row] = await t.asUser<{ inputs: { days: unknown[] } }>(
+    const [row] = await t.asUser<{ inputs: { days: unknown[]; shares: unknown[] } }>(
       manager2,
       "select public.get_balance_inputs($1, 2026) as inputs",
       [teacher1],
     );
     expect(row.inputs.days).toEqual([]);
+    expect(row.inputs.shares).toEqual([]);
     await setStatus(awaiting, "approved");
-    const [after] = await t.asUser<{ inputs: { days: { date: string; status: string }[] } }>(
+    // Погоджений запис — з часткою дня, зафіксованою при погодженні (AC-CAL-20): у shares, а не в days.
+    const [after] = await t.asUser<{ inputs: { days: unknown[]; shares: { date: string; days: number }[] } }>(
       manager2,
       "select public.get_balance_inputs($1, 2026) as inputs",
       [teacher1],
     );
-    expect(after.inputs.days.map((d) => [d.date, d.status])).toEqual([["2026-11-03", "approved"]]);
+    expect(after.inputs.days).toEqual([]);
+    expect(after.inputs.shares.map((d) => [d.date, Number(d.days)])).toEqual([["2026-11-03", 1]]);
   });
 });
 

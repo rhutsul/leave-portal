@@ -23,7 +23,7 @@ async function admin() {
   return { supabase, access: manageAccess(profile?.role ?? null) };
 }
 
-/** Помилка rpc: P0001 — тексти PM з функції бази (AC-CAL-07, -10, -11); 42501 — не адміністратор; решту не показуємо. */
+/** Помилка rpc: P0001 — тексти PM з функції бази (AC-CAL-07, -10, -11, -17, -18, -19); 42501 — не адміністратор; решту не показуємо. */
 function rpcMessage(error: { code: string; message: string }): string {
   if (error.code === "P0001") return error.message;
   if (error.code === "42501") return CALENDAR_MESSAGES.adminOnly;
@@ -31,15 +31,17 @@ function rpcMessage(error: { code: string; message: string }): string {
 }
 
 /**
- * «Add closure» (AC-CAL-01, -07, -08, -10, -11): цілі дні — дата початку й кінця; скорочений день — дата й час. Правила
- * перевіряє private.add_school_closure; тут — лише роль і читабельні поля (форма вже не дає надіслати порожні).
+ * «Add closure» (AC-CAL-01, -07, -08, -10, -11, -17, -18, -19): цілі дні — дата початку й кінця; скорочений день — дата
+ * й час. Правила перевіряє private.add_school_closure; тут — роль і обов'язкові поля з текстами PM.
  */
 export async function addClosure(_prev: ClosureActionState, form: FormData): Promise<ClosureActionState> {
   const { supabase, access } = await admin();
   if (!access.allowed) return { message: access.message, done: false };
 
-  const input = parseClosureForm((name) => String(form.get(name) ?? ""));
-  if (!input) return { message: FAILED, done: false };
+  // AC-CAL-18, AC-CAL-19: форма перевіряє поля сама, а тут — те саме для відправки без JavaScript.
+  const parsed = parseClosureForm((name) => String(form.get(name) ?? ""));
+  if (!parsed.ok) return { message: parsed.message, done: false };
+  const input = parsed.input;
 
   const { data: id, error } = await supabase.rpc("add_school_closure", {
     p_name: input.name,

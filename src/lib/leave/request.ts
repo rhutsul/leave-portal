@@ -96,18 +96,38 @@ export function isRelationship(value: string): value is Relationship {
   return (RELATIONSHIPS as readonly string[]).includes(value);
 }
 
+/**
+ * Назва закриття, через яке дата для працівника закрита, або null (те саме правило — private.closed_day_name у базі):
+ * закриття цілими днями (AC-CAL-03) або скорочений день, до часу закриття якого з розкладу всіх посад працівника нічого
+ * не лишається (AC-CAL-16, Assumptions 04-school-calendar). Якщо розкладу на цей день тижня не було й без закриття, —
+ * це день без робочих годин (AC-LEAVE-06), а не закритий день.
+ */
+export function closedDayName(
+  positions: readonly PositionSchedule[],
+  date: string,
+  closures: readonly Closure[],
+): string | null {
+  const closure = closureOn(closures, date);
+  if (!closure) return null;
+  if (closure.closesAt == null) return closure.name;
+  const weekday = isoWeekday(date);
+  const blocks = positions.flatMap((p) => p.blocks.filter((b) => b.weekday === weekday));
+  return blocks.length > 0 && clipBlocks(blocks, closure).length === 0 ? closure.name : null;
+}
+
 export type DateCheck = { ok: true; positions: PositionDay[] } | { ok: false; message: string };
 
 /**
  * Посади, що мають розклад у день тижня дати, з їхніми блоками; основна — першою. Немає жодної — AC-LEAVE-06.
  * Неіснуюча дата (2026-02-30) — та сама відповідь, що й день без розкладу: у такий день робочих годин немає.
- * Шкільний календар: дата в закритті цілими днями — повідомлення AC-CAL-03; скорочений день — лише блоки до часу
- * закриття (clipBlocks, AC-CAL-04, AC-CAL-05).
+ * Шкільний календар: дата в закритті цілими днями чи скорочений день, що не лишає працівнику розкладу, — повідомлення
+ * AC-CAL-03 / AC-CAL-16 (closedDayName); скорочений день — лише блоки до часу закриття (clipBlocks, AC-CAL-04, AC-CAL-05).
  */
 export function positionsOnDate(positions: PositionSchedule[], date: string, closures: readonly Closure[] = []): DateCheck {
   if (!isCalendarDate(date)) return { ok: false, message: TIME_MESSAGES.noWorkingHours };
+  const closed = closedDayName(positions, date, closures);
+  if (closed != null) return { ok: false, message: CALENDAR_MESSAGES.closedDay(closed) };
   const closure = closureOn(closures, date);
-  if (closure && closure.closesAt == null) return { ok: false, message: CALENDAR_MESSAGES.closedDay(closure.name) };
   const weekday = isoWeekday(date);
   const onDate = positions
     .map((p) => ({

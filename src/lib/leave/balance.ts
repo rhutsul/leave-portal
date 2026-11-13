@@ -68,6 +68,16 @@ export interface SplitDays {
   unpaidDays: number;
 }
 
+/**
+ * Погоджений запис без розподілу з часткою дня, зафіксованою в момент погодження (AC-CAL-20): закриття, додане чи
+ * видалене пізніше, її не змінює.
+ */
+export interface ShareDays {
+  date: string;
+  leaveType: string;
+  days: number;
+}
+
 export interface Carryover {
   schoolYear: number;
   leaveType: string;
@@ -77,6 +87,8 @@ export interface Carryover {
 export interface BalanceInputs {
   days: DayMinutes[];
   splits: SplitDays[];
+  /** Необов'язкове: старі відповіді й тестові дані без нього — усі погоджені записи в days. */
+  shares?: ShareDays[];
   carryovers: Carryover[];
 }
 
@@ -102,9 +114,14 @@ export function usedDays(inputs: BalanceInputs, schoolYear: number): UsedDays {
     });
   }
   for (const { type, minutes, working } of perDate.values()) used[type] += dayShare(minutes, working);
-  for (const s of inputs.splits) {
+  // Частки, зафіксовані при погодженні: з розподілом (AC-BALANCE-10) і без нього (AC-CAL-20).
+  const fixed = [
+    ...inputs.splits.map((s) => ({ ...s, days: s.paidDays })),
+    ...(inputs.shares ?? []).map((s) => ({ ...s, unpaidDays: 0 })),
+  ];
+  for (const s of fixed) {
     if (schoolYearOf(s.date) !== schoolYear || !(s.leaveType in used)) continue;
-    used[s.leaveType as LeaveType] += toHundredths(s.paidDays);
+    used[s.leaveType as LeaveType] += toHundredths(s.days);
     used.unpaid += toHundredths(s.unpaidDays);
   }
   return used;
@@ -157,6 +174,7 @@ export function parseBalanceInputs(raw: unknown): BalanceInputs {
   const value = (raw ?? {}) as {
     days?: { date: string; working_minutes: number; leave_type: string; status: string; minutes: number }[];
     splits?: { date: string; leave_type: string; paid_days: number; unpaid_days: number }[];
+    shares?: { date: string; leave_type: string; days: number }[];
     carryovers?: { school_year: number; leave_type: string; days: number }[];
   };
   return {
@@ -173,6 +191,7 @@ export function parseBalanceInputs(raw: unknown): BalanceInputs {
       paidDays: Number(s.paid_days),
       unpaidDays: Number(s.unpaid_days),
     })),
+    shares: (value.shares ?? []).map((s) => ({ date: s.date, leaveType: s.leave_type, days: Number(s.days) })),
     carryovers: (value.carryovers ?? []).map((c) => ({
       schoolYear: Number(c.school_year),
       leaveType: c.leave_type,

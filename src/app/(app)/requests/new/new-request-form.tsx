@@ -29,6 +29,7 @@ import {
   commentLength,
   COMMENT_MAX,
   isRelationship,
+  closedDayName,
   LEAVE_TYPES,
   positionsOnDate,
   recordForChoice,
@@ -58,7 +59,7 @@ import {
 } from "@/lib/leave/time";
 import { cn } from "@/lib/utils";
 import { submitLeaveRequest, type SubmitState } from "./actions";
-import { closureOn, type Closure } from "@/lib/leave/calendar";
+import type { Closure } from "@/lib/leave/calendar";
 import { calendarDay } from "./calendar-view";
 
 // Кроки без номерів у заголовках (DESIGN.md): лише назви; пройдений крок — з галочкою.
@@ -229,10 +230,7 @@ export function NewRequestForm({
                     selected={dates}
                     recordDates={recordDates}
                     works={(date) => daysOf(date).length > 0}
-                    closedOn={(date) => {
-                      const c = closureOn(closures ?? [], date);
-                      return c && c.closesAt == null ? c.name : null;
-                    }}
+                    closedOn={(date) => closedDayName(positions, date, closures ?? [])}
                     onMonth={(delta) => setMonth((m) => addMonths(m, delta))}
                     onPick={pickDate}
                   />
@@ -541,7 +539,7 @@ function DateCalendar({
   selected: string[];
   recordDates: string[] | null;
   works: (date: string) => boolean;
-  /** Назва закриття цілими днями на дату або null (AC-CAL-03). */
+  /** Назва закриття, через яке дата закрита для працівника, або null (AC-CAL-03, AC-CAL-16). */
   closedOn: (date: string) => string | null;
   onMonth: (delta: number) => void;
   onPick: (date: string) => void;

@@ -114,7 +114,7 @@ test.describe("administrator picks closure dates by clicks", () => {
     await openForm(page);
     await page.getByLabel("Name").fill("Staff day");
     await page.getByRole("button", { name: "Add closure" }).click();
-    await expect(page.getByRole("main").getByRole("alert")).toHaveText("Choose a date in the calendar");
+    await expect(page.getByRole("main").getByRole("alert")).toHaveText("Enter the start and end dates");
     await expect(field(page)).toHaveAttribute("aria-invalid", "true");
     await expect(page).toHaveURL(/\/calendar\/manage$/);
   });

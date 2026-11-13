@@ -213,3 +213,57 @@ describe("remove_school_closure makes the date a working day again", () => {
     ).toEqual([{ date: BREAK_DAY, ...WHOLE }]);
   });
 });
+
+describe("submit_leave_request on an early dismissal that leaves no working time", () => {
+  /**
+   * «Дано» AC-CAL-16: єдиний блок teacher1@ у п'ятницю — 13:00–17:00 (замість 08:30–15:30); після тесту розклад
+   * п'ятниці повертаємо.
+   */
+  async function withAfternoonFriday(run: () => Promise<void>) {
+    const before = await asOwner<{ start_min: number; end_min: number }>(
+      "select start_min, end_min from public.schedule_blocks where position_id = $1 and weekday = 5",
+      [teacher1Main],
+    );
+    await asOwner("delete from public.schedule_blocks where position_id = $1 and weekday = 5", [teacher1Main]);
+    await asOwner(
+      "insert into public.schedule_blocks (position_id, weekday, start_min, end_min) values ($1, 5, 780, 1020)",
+      [teacher1Main],
+    );
+    try {
+      await run();
+    } finally {
+      await asOwner("delete from public.schedule_blocks where position_id = $1 and weekday = 5", [teacher1Main]);
+      for (const b of before) {
+        await asOwner(
+          "insert into public.schedule_blocks (position_id, weekday, start_min, end_min) values ($1, 5, $2, $3)",
+          [teacher1Main, b.start_min, b.end_min],
+        );
+      }
+    }
+  }
+
+  it("AC-CAL-16: only 13:00–17:00 on Friday and \"Teachers' meeting\" from 12:00 — 2026-11-20 is not accepted, The school is closed on this day: Teachers' meeting", async () => {
+    await addClosure("Teachers' meeting", EARLY_DAY, EARLY_DAY, NOON);
+    await withAfternoonFriday(async () => {
+      await expect(submit("personal", [main(EARLY_DAY, 780, 1020)])).rejects.toThrow(
+        "The school is closed on this day: Teachers' meeting",
+      );
+      expect(await records()).toEqual([]);
+    });
+  });
+
+  it("AC-CAL-16: in a multi-date request 2026-11-20 is dropped and the next Friday 2026-11-27 is created", async () => {
+    await addClosure("Teachers' meeting", EARLY_DAY, EARLY_DAY, NOON);
+    await withAfternoonFriday(async () => {
+      await submit("personal", [main(EARLY_DAY, 780, 1020), main("2026-11-27", 780, 1020)]);
+      expect((await records()).map((r) => [r.date, r.start_min, r.end_min])).toEqual([["2026-11-27", 780, 1020]]);
+    });
+  });
+
+  it("AC-CAL-16: without the early dismissal the same Friday is accepted 13:00–17:00", async () => {
+    await withAfternoonFriday(async () => {
+      await submit("personal", [main(EARLY_DAY, 780, 1020)]);
+      expect((await records()).map((r) => [r.date, r.start_min, r.end_min])).toEqual([[EARLY_DAY, 780, 1020]]);
+    });
+  });
+});

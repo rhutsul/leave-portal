@@ -1,4 +1,4 @@
-// UAT шкільного календаря (openspec/specs/school-calendar/spec.md, AC-CAL-01 … AC-CAL-15): один AC — один test,
+// UAT шкільного календаря (openspec/specs/school-calendar/spec.md, AC-CAL-01 … AC-CAL-20): один AC — один test,
 // «Тоді» — дослівно з AC PM (requirements/04-school-calendar.md), невидиме — твердженнями й у hidden.
 //
 // Дані. AC називають teacher1@example.test, manager1@example.test і закриття «Winter break» 2026-12-28 – 2027-01-08 /
@@ -44,7 +44,7 @@ test.beforeEach(async ({}, info) => {
 test.afterEach(async ({ page }, info) => {
   await attachRuntimeErrors(page);
   if (!info.tags.includes("@prod-writes") || !hasAdminKey() || !windowsClean) return;
-  for (const name of ["Winter break", "Teachers' meeting", "Staff day"]) await rememberClosuresNamed(name);
+  for (const name of ["Winter break", "Teachers' meeting", "Staff day", "Extra break"]) await rememberClosuresNamed(name);
   for (const date of ["2026-11-20", "2026-11-27", "2026-12-29"]) await rememberRequestsOn(TEACHER1, date);
   await cleanupRemembered();
 });
@@ -256,6 +256,152 @@ test.describe("admin@example.test", () => {
       await expect(closureRow(page, "Staff day")).toHaveCount(0);
     },
   );
+
+  test(
+    'AC-CAL-17: "Extra break" 2027-01-05 – 2027-01-15 over "Winter break" and "Staff day" — not saved, one message part per closure',
+    { ...WRITES, ...ac("AC-CAL-17") },
+    async ({ page }) => {
+      await given('"Winter break" 2026-12-28 – 2027-01-08 and "Staff day" 2027-01-12', async () => {
+        await addClosure("Winter break", "2026-12-28", "2027-01-08");
+        await addClosure("Staff day", "2027-01-12", "2027-01-12");
+      });
+
+      await when('the administrator tries to add "Extra break" from 2027-01-05 to 2027-01-15', async () => {
+        await fillWholeDays(page, "Extra break", "2027-01-05", "2027-01-15");
+        await page.getByRole("button", { name: "Add closure" }).click();
+      });
+
+      await thenStep(
+        page,
+        {
+          clause:
+            'the closure is not saved, and the administrator sees the message "2027-01-05 is already closed: Winter break, 2027-01-12 is already closed: Staff day".',
+          visible: ["the message «2027-01-05 is already closed: Winter break, 2027-01-12 is already closed: Staff day»"],
+          hidden: ["the closure is not saved: the calendar has no «Extra break» (checked after the frame)"],
+        },
+        async () => {
+          await expect(page.getByRole("main").getByRole("alert")).toHaveText(
+            "2027-01-05 is already closed: Winter break, 2027-01-12 is already closed: Staff day",
+          );
+          await expect(page).toHaveURL(/\/calendar\/manage/);
+        },
+      );
+      await openCalendar(page);
+      await expect(closureRow(page, "Extra break")).toHaveCount(0);
+    },
+  );
+
+  test(
+    "AC-CAL-18: the administrator leaves the name empty for 2027-01-20 — not saved, «Enter a name for the closure»",
+    { ...WRITES, ...ac("AC-CAL-18") },
+    async ({ page }) => {
+      await given("the administrator adds a closure for 2027-01-20", async () => {
+        await fillWholeDays(page, "", "2027-01-20", "2027-01-20");
+      });
+
+      await when("the administrator leaves the name empty and tries to save", async () => {
+        await page.getByRole("button", { name: "Add closure" }).click();
+      });
+
+      await thenStep(
+        page,
+        {
+          clause: 'the closure is not saved, and the administrator sees the message "Enter a name for the closure".',
+          visible: ["the message «Enter a name for the closure» under the name field"],
+          hidden: ["the name field is marked invalid", "the page did not leave the form — nothing was saved"],
+        },
+        async () => {
+          await expect(page.getByRole("main").getByRole("alert")).toHaveText("Enter a name for the closure");
+          await expect(page.getByLabel("Name")).toHaveAttribute("aria-invalid", "true");
+          await expect(page).toHaveURL(/\/calendar\/manage$/);
+        },
+      );
+    },
+  );
+
+  test(
+    "AC-CAL-19: a name of 101 characters for 2027-01-20 — not saved, «The name can be at most 100 characters»",
+    { ...WRITES, ...ac("AC-CAL-19") },
+    async ({ page }) => {
+      await given("the administrator adds a closure for 2027-01-20", async () => {
+        await fillWholeDays(page, "", "2027-01-20", "2027-01-20");
+      });
+
+      await when("the administrator enters a name of 101 characters and tries to save", async () => {
+        await page.getByLabel("Name").fill("Staff day ".repeat(10) + "X");
+        await expect(page.getByLabel("Name")).toHaveValue(/^.{101}$/);
+        await page.getByRole("button", { name: "Add closure" }).click();
+      });
+
+      await thenStep(
+        page,
+        {
+          clause: 'the closure is not saved, and the administrator sees the message "The name can be at most 100 characters".',
+          visible: ["the message «The name can be at most 100 characters» under the name field"],
+          hidden: ["the field kept all 101 characters", "the page did not leave the form — nothing was saved"],
+        },
+        async () => {
+          await expect(page.getByRole("main").getByRole("alert")).toHaveText("The name can be at most 100 characters");
+          await expect(page.getByLabel("Name")).toHaveAttribute("aria-invalid", "true");
+          await expect(page).toHaveURL(/\/calendar\/manage$/);
+        },
+      );
+    },
+  );
+
+  test(
+    'AC-CAL-20: an approved "Sick leave" 2026-11-20 08:30–11:00 (0.36) — after the early dismissal from 12:00 balances still show used 0.36',
+    { ...WRITES, ...ac("AC-CAL-20") },
+    async ({ page, browser }) => {
+      const employee = await browser.newContext({ storageState: "playwright/.auth/teacher1.json" });
+      const balances = await employee.newPage();
+      const sick = balances.getByRole("group", { name: "Sick leave left" });
+      // AC: запис уже враховано як 0.36. На проді в teacher1 можуть бути інші погоджені лікарняні — тож тест бере
+      // «used» з цим записом і перевіряє, що після закриття воно те саме.
+      let usedWithRecord = 0;
+
+      await given('an employee with a single position (schedule Fri 08:30–15:30) and an approved "Sick leave" record 2026-11-20 08:30–11:00 counted as used 0.36 (150 of 420 minutes)', async () => {
+        await balances.goto("/balances?year=2026");
+        await expect(sick).toContainText(/ of [\d.]+ used/);
+        const usedBefore = usedDays((await sick.textContent()) ?? "");
+        await addRecord(TEACHER1, { date: "2026-11-20", start: WHOLE_DAY.start, end: 11 * 60, leaveType: "sick", status: "approved" });
+        await balances.goto("/balances?year=2026");
+        await expect(sick).toContainText(usedPattern(usedBefore + 0.36));
+        usedWithRecord = usedBefore + 0.36;
+      });
+
+      await when('the administrator adds the early dismissal "Teachers\' meeting" on 2026-11-20 from 12:00', async () => {
+        await page.goto("/calendar/manage");
+        await expect(page.getByRole("heading", { level: 1, name: "Add closure" })).toBeVisible();
+        await page.getByLabel("Name").fill("Teachers' meeting");
+        await page.locator("label").filter({ hasText: "Early dismissal" }).click();
+        await clickDate(page, "2026-11-20");
+        await page.getByLabel("Closed from").fill("12:00");
+        await page.getByRole("button", { name: "Add closure" }).click();
+        await expect(page).toHaveURL(/\/calendar\?year=2026/);
+        await expect(closureRow(page, "Teachers' meeting")).toHaveCount(1);
+      });
+
+      await thenStep(
+        balances,
+        {
+          clause: 'the employee\'s balances still show "Sick leave" used 0.36.',
+          visible: ["the card «Sick leave left» with «… of … used»"],
+          hidden: [
+            "used is the same as before the closure: the record's share 0.36 was fixed at approval, not recounted as 150 of 210 = 0.71",
+            "AC starts from used 0.36; on prod the test takes the value with the record and checks it did not change",
+          ],
+        },
+        async () => {
+          await balances.goto("/balances?year=2026");
+          await expect(sick).toContainText(usedPattern(usedWithRecord));
+          await expect(sick).not.toContainText(usedPattern(usedWithRecord - 0.36 + 0.71));
+        },
+      );
+      await employee.close();
+    },
+  );
+
 });
 
 // ── Працівник бачить календар і закриття в заявці ──────────────────────────────

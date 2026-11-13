@@ -16,6 +16,7 @@ import { SubmitButton } from "@/components/ui/submit-button";
 import { formatSchoolYear, schoolYearOf } from "@/lib/leave/balance";
 import {
   CALENDAR_MESSAGES,
+  closureFieldErrors,
   closuresInSchoolYear,
   emptyCalendarMessage,
   formatClosureDates,
@@ -30,6 +31,7 @@ import { cn } from "@/lib/utils";
 import { addClosure, type ClosureActionState } from "../actions";
 
 const INITIAL: ClosureActionState = { message: "", done: false };
+const NO_ERRORS = { name: null, dates: null, time: null };
 
 type Kind = "days" | "early";
 
@@ -39,7 +41,7 @@ const KINDS: { kind: Kind; label: string; hint: string; icon: React.ReactNode }[
 ];
 
 /**
- * Форма «Add closure» (AC-CAL-01, -07, -10, -11): назва до 100 знаків і або цілі дні, або скорочений день із кроком
+ * Форма «Add closure» (AC-CAL-01, -07, -10, -11, -17, -18, -19): назва обов'язкова й до 100 знаків і або цілі дні, або скорочений день із кроком
  * 5 хвилин. Дати — кліками в DatePicker: цілі дні — одна дата або діапазон (закриття — один проміжок, тому окремих
  * дат тут немає), скорочений день — одна дата. Порядок кліків зберігаємо: кінець раніше за початок — повідомлення
  * AC-CAL-10 поруч із календарем, а відхиляє база. Помилку з бази показуємо дослівно над кнопкою; введене лишається.
@@ -52,9 +54,12 @@ export function ClosureForm({ closures, today }: { closures: Closure[] | null; t
   const [time, setTime] = useState("");
   // Дати кожного виду — окремо, як окремі поля раніше: перемикання виду не губить вибраного.
   const [dates, setDates] = useState<Record<Kind, string[]>>({ days: [], early: [] });
-  const [missing, setMissing] = useState(false);
+  // Помилки полів показуємо після спроби зберегти й ховаємо, щойно поле виправлено (AC-CAL-18, AC-CAL-19).
+  const [tried, setTried] = useState(false);
   const pick = closurePick(dates[kind]);
   const early = kind === "early";
+  const errors = closureFieldErrors({ name, hasDates: pick != null, early, time });
+  const shown = tried ? errors : NO_ERRORS;
 
   return (
     // Як «New request»: форма ліворуч, перегляд праворуч; вужче — перегляд під формою (ADR 0008).
@@ -66,26 +71,26 @@ export function ClosureForm({ closures, today }: { closures: Closure[] | null; t
         <CardContent>
           <form
             action={action}
+            noValidate
             onSubmit={(event) => {
-              // Сховані поля дат браузер не перевіряє (required): без дати форму не надсилаємо.
-              if (pick) return;
+              // Обов'язкові поля перевіряємо самі, з текстами PM (AC-CAL-18, AC-CAL-19, Assumptions): браузерні
+              // підказки required / maxLength їх не показують, а сховані поля дат браузер не перевіряє зовсім.
+              // Server action перевіряє те саме ще раз.
+              if (Object.values(errors).every((e) => e == null)) return;
               event.preventDefault();
-              setMissing(true);
+              setTried(true);
             }}
             className="flex flex-col gap-5"
           >
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor={`${ids}-name`}>Name</Label>
-              <Input
-                id={`${ids}-name`}
-                name="name"
-                required
-                maxLength={100}
-                placeholder="Winter break"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-              />
-            </div>
+            <RequiredField
+              id={`${ids}-name`}
+              label="Name"
+              error={shown.name}
+              name="name"
+              placeholder="Winter break"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
 
             <KindChoice id={`${ids}-kind`} kind={kind} onKind={setKind} />
 
@@ -93,30 +98,26 @@ export function ClosureForm({ closures, today }: { closures: Closure[] | null; t
               id={`${ids}-dates`}
               kind={kind}
               value={dates[kind]}
-              onChange={(value) => {
-                setDates((d) => ({ ...d, [kind]: value }));
-                setMissing(false);
-              }}
+              onChange={(value) => setDates((d) => ({ ...d, [kind]: value }))}
               pick={pick}
-              // Помилка — з поточного вибору: після перемикання виду з уже вибраною датою вона зникає.
-              missing={missing && !pick}
+              // Помилка — з поточного вибору: щойно дату вибрано (чи вид з уже вибраною датою), вона зникає.
+              missing={shown.dates != null}
               closures={closures ?? []}
               today={today}
             />
 
             {early && (
-              <div className="flex flex-col gap-1.5 sm:max-w-[calc(50%-0.375rem)]">
-                <Label htmlFor={`${ids}-time`}>Closed from</Label>
-                <Input
-                  id={`${ids}-time`}
-                  name="time"
-                  type="time"
-                  step={300}
-                  required
-                  value={time}
-                  onChange={(e) => setTime(e.target.value)}
-                />
-              </div>
+              <RequiredField
+                id={`${ids}-time`}
+                label="Closed from"
+                error={shown.time}
+                className="sm:max-w-[calc(50%-0.375rem)]"
+                name="time"
+                type="time"
+                step={300}
+                value={time}
+                onChange={(e) => setTime(e.target.value)}
+              />
             )}
 
             {state.message && (
@@ -142,6 +143,32 @@ export function ClosureForm({ closures, today }: { closures: Closure[] | null; t
         closures={closures}
         today={today}
       />
+    </div>
+  );
+}
+
+/**
+ * Обов'язкове поле форми з підписом і помилкою під ним (DESIGN.md, розділ 6): текст PM, aria-invalid і
+ * aria-describedby, лише після спроби зберегти (AC-CAL-18, AC-CAL-19, Assumptions 04-school-calendar).
+ */
+function RequiredField({
+  id,
+  label,
+  error,
+  className,
+  ...input
+}: { id: string; label: string; error: string | null; className?: string } & React.ComponentProps<typeof Input>) {
+  return (
+    <div className={cn("flex flex-col gap-1.5", className)}>
+      <Label htmlFor={id}>{label}</Label>
+      <Input
+        {...input}
+        id={id}
+        aria-required="true"
+        aria-invalid={error ? true : undefined}
+        aria-describedby={error ? `${id}-error` : undefined}
+      />
+      <FieldError id={`${id}-error`} message={error} />
     </div>
   );
 }
@@ -256,7 +283,7 @@ function ClosureDates({
 
 /** Під календарем: кінець раніше за початок (текст AC-CAL-10, не alert) або «немає дати» після спроби надіслати. */
 function DatesMessage({ id, reversed, missing }: { id: string; reversed: boolean; missing: boolean }) {
-  if (!reversed) return <FieldError id={id} message={missing ? "Choose a date in the calendar" : null} />;
+  if (!reversed) return <FieldError id={id} message={missing ? CALENDAR_MESSAGES.datesRequired : null} />;
   return (
     <p id={id} className="flex items-start gap-1.5 text-xs text-destructive">
       <CircleAlert className="mt-px size-3.5 shrink-0" aria-hidden="true" />

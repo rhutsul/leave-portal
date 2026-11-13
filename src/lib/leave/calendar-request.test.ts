@@ -15,6 +15,7 @@ import {
 import { clipBlocks, closureOn, type Closure } from "./calendar";
 import {
   buildRequestRecords,
+  closedDayName,
   positionsOnDate,
   type DateChoice,
   type PositionSchedule,
@@ -372,5 +373,55 @@ describe("the employee's balance warning on an early dismissal day", () => {
     expect(employeeWarning("personal", shares.get(2026) ?? 0, 50)).toBe(
       "Your Personal leave balance is 0.50 day. Another 0.50 day will be counted as Unpaid leave",
     );
+  });
+});
+
+describe("AC-CAL-16: an early dismissal that leaves no working time is a closed day", () => {
+  // Працівник, єдиний блок якого в п'ятницю — 13:00–17:00; "Teachers' meeting" 2026-11-20 з 12:00.
+  const AFTERNOON: PositionSchedule = {
+    id: 3,
+    label: "After-school club / Tutor",
+    kind: "main",
+    blocks: [{ weekday: 5, start: 780, end: 1020 }],
+  };
+
+  it("AC-CAL-16: 2026-11-20 is not accepted, and the message names the closure", () => {
+    expect(positionsOnDate([AFTERNOON], EARLY_DAY, [TEACHERS_MEETING])).toEqual({
+      ok: false,
+      message: "The school is closed on this day: Teachers' meeting",
+    });
+    expect(closedDayName([AFTERNOON], EARLY_DAY, [TEACHERS_MEETING])).toBe("Teachers' meeting");
+  });
+
+  it("AC-CAL-16: in a multi-date request the closed date is dropped with its message, other dates stay", () => {
+    // 2026-11-27 — наступна п'ятниця без закриття.
+    const result = buildRequestRecords(
+      [AFTERNOON],
+      [EARLY_DAY, "2026-11-27"],
+      [EARLY_DAY, "2026-11-27"].map((date) => wholeDayOn(date, AFTERNOON.id)),
+      [TEACHERS_MEETING],
+    );
+    expect(result).toMatchObject({ ok: true, skipped: [EARLY_DAY], records: [{ date: "2026-11-27" }] });
+    // Лише закрита дата — заявки немає, повідомлення називає закриття.
+    expect(
+      buildRequestRecords([AFTERNOON], [EARLY_DAY], [wholeDayOn(EARLY_DAY, AFTERNOON.id)], [TEACHERS_MEETING]),
+    ).toEqual({ ok: false, message: "The school is closed on this day: Teachers' meeting", date: EARLY_DAY });
+  });
+
+  it("AC-CAL-16: a position with schedule left before the closing time keeps the date open (AC-CAL-04)", () => {
+    expect(closedDayName([MAIN, AFTERNOON], EARLY_DAY, [TEACHERS_MEETING])).toBeNull();
+    expect(positionsOnDate([MAIN, AFTERNOON], EARLY_DAY, [TEACHERS_MEETING])).toMatchObject({
+      ok: true,
+      positions: [{ id: MAIN.id, blocks: [{ start: 510, end: 720 }] }],
+    });
+  });
+
+  it("AC-CAL-16: with no schedule on that weekday at all the date has no working hours, not a closure", () => {
+    const mondayOnly: PositionSchedule = { ...AFTERNOON, blocks: [{ weekday: 1, start: 780, end: 1020 }] };
+    expect(closedDayName([mondayOnly], EARLY_DAY, [TEACHERS_MEETING])).toBeNull();
+    expect(positionsOnDate([mondayOnly], EARLY_DAY, [TEACHERS_MEETING])).toEqual({
+      ok: false,
+      message: "You have no working hours on this day",
+    });
   });
 });
