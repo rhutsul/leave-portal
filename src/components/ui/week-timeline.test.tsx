@@ -106,6 +106,12 @@ describe("WeekTimeline", () => {
     expect(html).not.toContain('title="Mon, 2 Nov 2026"');
   });
 
+  it("where a label does not fit, a bar shows the icon of its status instead of staying an empty box", () => {
+    // Без шкали посади (08:00–18:00) смуга 08:30–15:30 — 70 % клітинки: години не вміщаються, значок — так.
+    expect(html).toMatch(/@min-\[12px\]:flex @min-\[64px\]:hidden"><svg[^>]*lucide-check/);
+    expect(scaled).toMatch(/@min-\[12px\]:flex @min-\[50px\]:hidden"><svg[^>]*lucide-check/);
+  });
+
   it("the legend names the three statuses and the hatching of closed days", () => {
     for (const word of ["Approved", "Awaiting decision", "Returned for revision", "hatched — closed by the school"]) expect(html).toContain(word);
   });

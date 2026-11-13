@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRef, useState, type CSSProperties, type FocusEvent, type ReactNode } from "react";
-import { XIcon } from "lucide-react";
+import { Check, Clock, Undo2, XIcon, type LucideIcon } from "lucide-react";
 import { barBox, cellLayout, closureShare, type BlockingStatus, type DayClosure, type DayScale } from "@/lib/leave/overview";
 import { isLeaveType, LEAVE_TYPES, RECORD_STATUSES } from "@/lib/leave/request";
 import { cn } from "@/lib/utils";
@@ -52,6 +52,19 @@ const BAR: Record<BlockingStatus, string> = {
   returned: "border-status-returned-foreground/70 bg-status-returned-foreground/20",
   awaiting: "border-dashed border-status-awaiting-foreground/70 bg-status-awaiting-foreground/15",
 };
+
+// Значок статусу — у смузі, де підпис не вміщається, і в легенді: смуга не лишається порожнім квадратом, а статус
+// видно не лише кольором (DESIGN.md, розділ 7). Колір — `status-*-foreground`.
+const STATUS_ICON: Record<BlockingStatus, { icon: LucideIcon; tone: string }> = {
+  approved: { icon: Check, tone: "text-status-approved-foreground" },
+  awaiting: { icon: Clock, tone: "text-status-awaiting-foreground" },
+  returned: { icon: Undo2, tone: "text-status-returned-foreground" },
+};
+
+function StatusIcon({ status, className }: { status: BlockingStatus; className?: string }) {
+  const { icon: Icon, tone } = STATUS_ICON[status];
+  return <Icon aria-hidden="true" strokeWidth={2.4} className={cn("size-3.5 shrink-0", tone, className)} />;
+}
 
 // Тло лічильника «3 records» — рівні частки кольорами статусів записів за часом.
 const TONE: Record<BlockingStatus, string> = {
@@ -227,6 +240,16 @@ function RecordBar({
         <span aria-hidden="true" className={cn("hidden", box.whole ? "@min-[50px]:inline" : "@min-[64px]:inline")}>
           {box.whole ? "Whole day" : record.hours}
         </span>
+        {/* Підпис не вміщається — значок статусу посередині смуги (від 12 px вмісту). */}
+        <span
+          aria-hidden="true"
+          className={cn(
+            "absolute inset-0 hidden items-center justify-center @min-[12px]:flex",
+            box.whole ? "@min-[50px]:hidden" : "@min-[64px]:hidden",
+          )}
+        >
+          <StatusIcon status={record.status} />
+        </span>
       </PopoverTrigger>
       <CardShell label="Record" head={<StatusBadge status={record.status} />}>
         <RecordCard record={record} day={day} who={who} scale={scale} />
@@ -339,7 +362,10 @@ function Legend({ closures }: { closures: boolean }) {
   return (
     <div className="flex flex-wrap items-center gap-x-4.5 gap-y-1.5 border-t border-border px-3.5 py-2.5 text-xs text-muted-foreground">
       {LEGEND.map((s) => (
-        <StatusBadge key={s} status={s} className="text-muted-foreground" />
+        <span key={s} className="inline-flex items-center gap-1.5">
+          <StatusIcon status={s} />
+          {RECORD_STATUSES[s]}
+        </span>
       ))}
       <span className="md:ml-auto">
         A bar spans the hours of the record within the working day of the position · select a bar to see the record
