@@ -109,7 +109,7 @@ https://github.com/rhutsul/leave-portal/actions/runs/42580707258.
     нову `check_record_hours`); #64 — 22 з 22 KILLED (S20–S22 нові).
   - SQL, 13.11 (PR цього розділу): нова міграція хвоста перекрила `add_school_closure` і `submit_leave_request`, тож
     S12–S17, S20, S22 переведено на неї (інакше мутували б стару копію й «виживали» без тесту); нові S23–S27 для
-    AC-CAL-16…20 — 13 з 13 KILLED (`node scripts/mutation-check.mjs --kind sql --only S12,…,S27`).
+    AC-CAL-16…20 — 13 з 13 KILLED (`node scripts/mutation-check.mjs --kind sql --only S12,S13,S14,S15,S16,S17,S20,S22,S23,S24,S25,S26,S27`).
   - Stryker `--mutate src/lib/leave/calendar.ts` (#64): 98,92 % — 92 вбито, 1 вижив (еквівалентний:
     `if (closesAt == null) return []`, бо `b.start < null` теж дає `[]`); `calendar.ts` додано в `stryker.config.json`.
   - Stryker `--mutate "src/app/(app)/calendar/manage/access.ts"` (AC-CAL-12, після #65): 100 % — 9 мутантів, 9 вбито;
