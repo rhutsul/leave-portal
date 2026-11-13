@@ -130,20 +130,60 @@ export function timelineRows<T extends TimedRecord>(
 /** Від скількох записів клітинка показує лічильник («3 records») замість окремих смуг. */
 export const COLLAPSE_FROM = 3;
 
+/** Шкала клітинки діаграми: робочий день посади на цю дату, хвилини від півночі. */
+export interface DayScale {
+  start: number;
+  end: number;
+}
+
+/** Робочий день посади на дату: від початку першого блоку розкладу до кінця останнього; без блоків — null. */
+export function positionScale(blocks: readonly { weekday: number; start: number; end: number }[], date: string): DayScale | null {
+  const today = blocks.filter((b) => b.weekday === isoWeekday(date));
+  if (today.length === 0) return null;
+  return { start: Math.min(...today.map((b) => b.start)), end: Math.max(...today.map((b) => b.end)) };
+}
+
+const share = (minutes: number, scale: DayScale) => Math.min(1, Math.max(0, (minutes - scale.start) / Math.max(1, scale.end - scale.start)));
+
+/**
+ * Де в клітинці стоїть смуга запису (частки 0–1) на шкалі робочого дня посади; без розкладу — на загальній шкалі
+ * 08:00–18:00. Запис на весь день посади заповнює клітинку (`whole`). Скорочений день (`closesAt`, хвилини) — смуга
+ * лише до години закриття. Дуже короткий запис — не вужчий за `MIN_SEGMENT`, щоб його було видно.
+ */
+export function barBox(
+  record: { start_min: number; end_min: number },
+  scale: DayScale | null,
+  closesAt: number | null = null,
+): { left: number; width: number; whole: boolean } {
+  const s = scale ?? { start: SCALE_START, end: SCALE_END };
+  const from = share(record.start_min, s);
+  const to = closesAt === null ? share(record.end_min, s) : Math.min(share(record.end_min, s), share(closesAt, s));
+  const left = Math.min(from, 1 - MIN_SEGMENT);
+  const whole = scale !== null && record.start_min <= scale.start && record.end_min >= scale.end;
+  return { left, width: Math.max(MIN_SEGMENT, to - left), whole };
+}
+
+/** Частка клітинки, з якої школа закрита, на шкалі дня посади: цілий день — 0; без `closesAt` — частка з 08:00–18:00. */
+export function closureShare(closure: DayClosure, scale: DayScale | null): number {
+  if (closure.closesAt == null || scale === null) return closure.from;
+  return share(closure.closesAt, scale);
+}
+
 export type CellLayout<T> =
-  | { collapsed: false; bars: { record: T; left: number; width: number }[] }
+  | { collapsed: false; bars: ({ record: T } & ReturnType<typeof barBox>)[] }
   | { collapsed: true; count: number; statuses: BlockingStatus[] };
 
 /**
- * Що намалювати в клітинці дня: один чи два записи — кожен своєю смугою на своїх годинах (`segmentBox`); три й
- * більше — лічильник, тло якого поділене кольорами статусів записів за часом.
+ * Що намалювати в клітинці дня: один чи два записи — кожен своєю смугою на своїх годинах шкали дня посади
+ * (`barBox`); три й більше — лічильник, тло якого поділене кольорами статусів записів за часом.
  */
 export function cellLayout<T extends { start_min: number; end_min: number; status: BlockingStatus }>(
   records: readonly T[],
-  closedFrom: number | null = null,
+  scale: DayScale | null = null,
+  closesAt: number | null = null,
 ): CellLayout<T> {
   if (records.length >= COLLAPSE_FROM) return { collapsed: true, count: records.length, statuses: records.map((r) => r.status) };
-  return { collapsed: false, bars: records.map((record) => ({ record, ...segmentBox(record, closedFrom) })) };
+  return { collapsed: false, bars: records.map((record) => ({ record, ...barBox(record, scale, closesAt) })) };
 }
 
 /** Рядок над діаграмою: "6 records of your positions · 3 awaiting decision"; працівнику — "2 records · 1 awaiting decision". */
@@ -252,6 +292,8 @@ export function closureLabel(closure: Pick<Closure, "name" | "closesAt">): strin
 export interface DayClosure {
   /** Частка дня, з якої закрито (closedShare): 0 — цілий день. */
   from: number;
+  /** З якої хвилини закрито (скорочений день); null чи немає — цілий день. Для шкали дня посади на діаграмі. */
+  closesAt?: number | null;
   /** "Winter break", "Teachers' meeting from 12:00". */
   label: string;
   /** Скорочений день — "from 12:00"; цілий день — null. */
@@ -260,7 +302,7 @@ export interface DayClosure {
 
 function dayClosure(closures: readonly Closure[], date: string): DayClosure | null {
   const c = closureOn(closures, date);
-  return c ? { from: closedShare(c), label: closureLabel(c), time: formatClosureTime(c) } : null;
+  return c ? { from: closedShare(c), closesAt: c.closesAt, label: closureLabel(c), time: formatClosureTime(c) } : null;
 }
 
 /** Закриті й скорочені дні місяця "YYYY-MM": день місяця → позначка. */

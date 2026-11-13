@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRef, useState, type CSSProperties, type FocusEvent, type ReactNode } from "react";
 import { XIcon } from "lucide-react";
-import { cellLayout, segmentBox, type BlockingStatus, type DayClosure } from "@/lib/leave/overview";
+import { barBox, cellLayout, closureShare, type BlockingStatus, type DayClosure, type DayScale } from "@/lib/leave/overview";
 import { isLeaveType, LEAVE_TYPES, RECORD_STATUSES } from "@/lib/leave/request";
 import { cn } from "@/lib/utils";
 import { Button, buttonVariants } from "./button";
@@ -41,6 +41,8 @@ export interface WeekTimelineRow {
   key: string;
   name: string;
   sub: string;
+  /** Шкала кожної колонки — робочий день посади рядка на цю дату; null чи немає — 08:00–18:00. */
+  scales?: readonly (DayScale | null)[];
   cells: readonly { col: number; records: readonly WeekTimelineRecord[] }[];
 }
 
@@ -69,9 +71,13 @@ const MARK =
 const HATCH =
   "bg-[repeating-linear-gradient(135deg,transparent_0_5px,color-mix(in_oklab,var(--muted-foreground)_75%,transparent)_5px_6px)]";
 
-/** Тло колонки дня в рядку: сьогодні — `highlight`, понеділок другого тижня — межа, закрита частина дня — штриховка. */
-function DayBackdrop({ day, col }: { day: WeekTimelineDay; col: number }) {
-  const closure = day.closure && day.closure.from < 1 ? day.closure : null;
+/**
+ * Тло колонки дня в рядку: сьогодні — `highlight`, понеділок другого тижня — межа, закрита частина дня — штриховка
+ * (скорочений день — від години закриття на шкалі дня посади рядка).
+ */
+function DayBackdrop({ day, col, scale }: { day: WeekTimelineDay; col: number; scale: DayScale | null }) {
+  const from = day.closure ? closureShare(day.closure, scale) : 1;
+  const closure = day.closure && from < 1 ? { from } : null;
   if (!day.today && col !== 5 && !closure) return null;
   return (
     <span
@@ -122,9 +128,9 @@ function CardShell({ label, head, children }: { label: string; head: ReactNode; 
   );
 }
 
-/** Смуга дня 08:00–18:00 із записом на своїх годинах — та сама шкала, що в клітинці діаграми. */
-function MiniDay({ record }: { record: Pick<WeekTimelineRecord, "start_min" | "end_min"> }) {
-  const box = segmentBox(record);
+/** Смуга робочого дня посади із записом на своїх годинах — та сама шкала, що в клітинці діаграми. */
+function MiniDay({ record, scale }: { record: Pick<WeekTimelineRecord, "start_min" | "end_min">; scale: DayScale | null }) {
+  const box = barBox(record, scale);
   return (
     <span aria-hidden="true" className="relative h-1.5 rounded-full bg-muted">
       <span className="absolute inset-y-0 rounded-full bg-primary" style={{ left: `${box.left * 100}%`, width: `${box.width * 100}%` }} />
@@ -133,14 +139,24 @@ function MiniDay({ record }: { record: Pick<WeekTimelineRecord, "start_min" | "e
 }
 
 /** Вміст картки запису: статус словом, дата й години, смуга дня, хто й посада, тип і тривалість, «Open record». */
-export function RecordCard({ record, day, who }: { record: WeekTimelineRecord; day: WeekTimelineDay; who: string }) {
+export function RecordCard({
+  record,
+  day,
+  who,
+  scale = null,
+}: {
+  record: WeekTimelineRecord;
+  day: WeekTimelineDay;
+  who: string;
+  scale?: DayScale | null;
+}) {
   return (
     <>
       <span className="flex flex-wrap items-baseline gap-x-2 text-[15px] font-semibold tabular-nums">
         <span>{day.long}</span>
         <span className="text-primary">{record.hours}</span>
       </span>
-      <MiniDay record={record} />
+      <MiniDay record={record} scale={scale} />
       <span className="text-xs text-muted-foreground">{who}</span>
       <span className="mt-0.5 flex items-center justify-between gap-2">
         <span className="flex min-w-0 items-center gap-1.5 text-xs">
@@ -186,11 +202,13 @@ function RecordBar({
   box,
   day,
   who,
+  scale,
 }: {
   record: WeekTimelineRecord;
-  box: { left: number; width: number };
+  box: { left: number; width: number; whole: boolean };
   day: WeekTimelineDay;
   who: string;
+  scale: DayScale | null;
 }) {
   const card = useCard();
   return (
@@ -204,13 +222,13 @@ function RecordBar({
         style={{ left: `calc(${box.left * 100}% + 3px)`, width: `calc(${box.width * 100}% - 6px)` }}
         {...card.trigger}
       >
-        {/* Години — лише у смузі, де вони вміщаються; повністю — у назві кнопки й у картці. */}
-        <span aria-hidden="true" className="hidden @min-[74px]:inline">
-          {record.hours}
+        {/* Підпис — лише де вміщається: «Whole day» чи години; повністю — у назві кнопки й у картці. */}
+        <span aria-hidden="true" className={cn("hidden", box.whole ? "@min-[62px]:inline" : "@min-[76px]:inline")}>
+          {box.whole ? "Whole day" : record.hours}
         </span>
       </PopoverTrigger>
       <CardShell label="Record" head={<StatusBadge status={record.status} />}>
-        <RecordCard record={record} day={day} who={who} />
+        <RecordCard record={record} day={day} who={who} scale={scale} />
       </CardShell>
     </Popover>
   );
@@ -245,15 +263,27 @@ function CountButton({ records, statuses, day, who }: { records: readonly WeekTi
   );
 }
 
-function Cell({ records, day, col, who }: { records: readonly WeekTimelineRecord[]; day: WeekTimelineDay; col: number; who: string }) {
+function Cell({
+  records,
+  day,
+  col,
+  who,
+  scale,
+}: {
+  records: readonly WeekTimelineRecord[];
+  day: WeekTimelineDay;
+  col: number;
+  who: string;
+  scale: DayScale | null;
+}) {
   // Скорочений день — смуги лише до години закриття; закритий цілий день записів не обрізає.
-  const layout = cellLayout(records, day.closure?.time ? day.closure.from : null);
+  const layout = cellLayout(records, scale, day.closure?.closesAt ?? null);
   return (
     <span role="cell" className="relative row-start-1 min-w-0" style={{ gridColumn: col + 2 }}>
       {layout.collapsed ? (
         <CountButton records={records} statuses={layout.statuses} day={day} who={who} />
       ) : (
-        layout.bars.map((b) => <RecordBar key={b.record.id} record={b.record} box={b} day={day} who={who} />)
+        layout.bars.map((b) => <RecordBar key={b.record.id} record={b.record} box={b} day={day} who={who} scale={scale} />)
       )}
     </span>
   );
@@ -311,7 +341,7 @@ function Legend({ closures }: { closures: boolean }) {
         <StatusBadge key={s} status={s} className="text-muted-foreground" />
       ))}
       <span className="md:ml-auto">
-        A bar spans the hours of the record within the working day · select a bar to see the record
+        A bar spans the hours of the record within the working day of the position · select a bar to see the record
         {closures && " · hatched — closed by the school"}
       </span>
     </div>
@@ -360,10 +390,10 @@ export function WeekTimeline({
                     <span className="truncate text-xs text-muted-foreground">{row.sub}</span>
                   </span>
                   {days.map((d, i) => (
-                    <DayBackdrop key={d.date} day={d} col={i} />
+                    <DayBackdrop key={d.date} day={d} col={i} scale={row.scales?.[i] ?? null} />
                   ))}
                   {row.cells.map((c) => (
-                    <Cell key={c.col} records={c.records} day={days[c.col]} col={c.col} who={who} />
+                    <Cell key={c.col} records={c.records} day={days[c.col]} col={c.col} who={who} scale={row.scales?.[c.col] ?? null} />
                   ))}
                 </div>
               );

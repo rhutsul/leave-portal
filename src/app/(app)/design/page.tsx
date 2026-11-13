@@ -421,6 +421,8 @@ export default async function DesignPage() {
               key: "1",
               name: "Teacher One",
               sub: "Elementary school / Teacher",
+              // Шкала клітинок — робочий день посади (08:30–15:30): запис на весь день заповнює клітинку.
+              scales: DEMO_DAYS.map(() => ({ start: 510, end: 930 })),
               cells: [
                 { col: 0, records: [demoRecord(1, 510, 930, "approved", "sick")] },
                 { col: 3, records: [demoRecord(2, 510, 600, "approved", "sick"), demoRecord(3, 780, 900, "awaiting", "personal")] },
@@ -431,12 +433,14 @@ export default async function DesignPage() {
               key: "2",
               name: "Teacher One",
               sub: "High school / Math teacher",
+              scales: DEMO_DAYS.map(() => ({ start: 945, end: 1020 })),
               cells: [{ col: 0, records: [demoRecord(5, 945, 1020, "awaiting", "personal")] }],
             },
             {
               key: "3",
               name: "Assistant Two",
               sub: "Elementary school / Assistant",
+              scales: DEMO_DAYS.map(() => ({ start: 510, end: 930 })),
               cells: [
                 { col: 2, records: [demoRecord(6, 750, 930, "approved", "family")] },
                 { col: 6, records: [demoRecord(7, 540, 660, "returned", "personal")] },

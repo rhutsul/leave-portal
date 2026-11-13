@@ -8,7 +8,7 @@ import { DayCard, RecordCard, WeekTimeline, type WeekTimelineRecord, type WeekTi
 const weeks = twoWeeks("2026-11-05"); // Mon 2 … Fri 13 Nov.
 const days = timelineDays(weeks, "2026-11-05").map((d) => {
   if (d.date === "2026-11-06") return { ...d, closure: { from: 0, label: "Autumn break", time: null } };
-  if (d.date === "2026-11-11") return { ...d, closure: { from: 0.4, label: "Teachers' meeting from 12:00", time: "from 12:00" } };
+  if (d.date === "2026-11-11") return { ...d, closure: { from: 0.4, closesAt: 12 * 60, label: "Teachers' meeting from 12:00", time: "from 12:00" } };
   return { ...d, closure: null };
 });
 
@@ -45,6 +45,16 @@ const rows: WeekTimelineRow[] = [
   },
 ];
 const html = renderToStaticMarkup(<WeekTimeline days={days} rows={rows} label="Your leave this week and next" empty="No leave in these two weeks." />);
+
+// Той самий рядок зі шкалою дня посади 08:30–15:30 у кожній колонці.
+const scaled = renderToStaticMarkup(
+  <WeekTimeline
+    days={days}
+    rows={[{ ...rows[0], scales: days.map(() => ({ start: 510, end: 930 })) }]}
+    label="Your leave this week and next"
+    empty="No leave in these two weeks."
+  />,
+);
 const buttons = html.match(/<button[^>]*>/g) ?? [];
 
 describe("WeekTimeline", () => {
@@ -71,6 +81,13 @@ describe("WeekTimeline", () => {
     expect(html).toMatch(/linear-gradient\(90deg, color-mix\(in oklch, var\(--status-approved-foreground\) 30%, transparent\) 0% 33\.3/);
     // Один запис, два записи поруч і лічильник — чотири кнопки на рядок.
     expect(buttons).toHaveLength(4);
+  });
+
+  it("on the working day of the position a whole-day record fills its cell and says Whole day", () => {
+    expect(scaled).toContain("left:calc(0% + 3px);width:calc(100% - 6px)");
+    expect(scaled).toContain("Whole day</span>");
+    // Скорочений день з 12:00 на дні 08:30–15:30 — штриховка з половини клітинки.
+    expect(scaled).toMatch(/left:50%/);
   });
 
   it("a closed day's header says closed and names the closure; an early closing shows its time", () => {

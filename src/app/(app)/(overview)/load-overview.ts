@@ -142,6 +142,38 @@ async function loadActivity(supabase: Supabase, decider: boolean): Promise<Activ
     });
 }
 
+/** Блок тижневого розкладу посади: weekday 1 = понеділок, хвилини від півночі. */
+export interface PositionBlock {
+  weekday: number;
+  start: number;
+  end: number;
+}
+
+/**
+ * Розклад посад записів діаграми — шкала її клітинок (робочий день посади). Посаду запису менеджера дає leave_records
+ * (decision_records її id не віддає); розклад — schedule_blocks. Обидва за наявним RLS: власні, керовані посади,
+ * адміністратору — усі. Діаграма без розкладу лишається (шкала 08:00–18:00), тож збій — null, а не помилка сторінки.
+ */
+async function loadTimelineSchedules(
+  supabase: Supabase,
+  recordIds: readonly number[],
+  known: ReadonlyMap<number, number> | null,
+): Promise<{ positionOf: Map<number, number>; blocks: Map<number, PositionBlock[]> } | null> {
+  if (recordIds.length === 0) return { positionOf: new Map(), blocks: new Map() };
+  let positionOf = known ? new Map(known) : null;
+  if (!positionOf) {
+    const { data, error } = await supabase.from("leave_records").select("id, position_id").in("id", [...recordIds]);
+    if (error) return null;
+    positionOf = new Map((data ?? []).map((r) => [r.id, r.position_id]));
+  }
+  const positions = [...new Set(positionOf.values())];
+  const { data, error } = await supabase.from("schedule_blocks").select("position_id, weekday, start_min, end_min").in("position_id", positions);
+  if (error) return null;
+  const blocks = new Map<number, PositionBlock[]>();
+  for (const b of data ?? []) blocks.set(b.position_id, [...(blocks.get(b.position_id) ?? []), { weekday: b.weekday, start: b.start_min, end: b.end_min }]);
+  return { positionOf, blocks };
+}
+
 export async function loadOverview(supabase: Supabase, userId: string, today: string, page = 0) {
   const own = await loadOwn(supabase, userId, today, page);
   // Пункт «Decisions» і його блоки — лише manager і admin (матриця прав requirements/product.md).
@@ -151,7 +183,15 @@ export async function loadOverview(supabase: Supabase, userId: string, today: st
     decider ? loadDecider(supabase, days, page === 0 ? null : twoWeeks(today)) : null,
     loadActivity(supabase, decider),
   ]);
-  return { ...own, decider, deciderData, activity };
+  const schedules = await (deciderData
+    ? loadTimelineSchedules(supabase, deciderData.away.map((r) => r.id), null)
+    : loadTimelineSchedules(
+        supabase,
+        own.mine.map((r) => r.id!),
+        new Map(own.mine.map((r) => [r.id!, r.position_id!])),
+      )
+  ).catch(() => null);
+  return { ...own, decider, deciderData, activity, schedules };
 }
 
 export type OverviewData = Awaited<ReturnType<typeof loadOverview>>;

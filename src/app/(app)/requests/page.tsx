@@ -52,8 +52,7 @@ export default async function MyRequestsPage({ searchParams }: PageProps<"/reque
   if (!data?.claims) redirect("/login");
 
   const { submitted, status, skipped, over, balance, record } = await searchParams;
-  // «Open record» на діаграмі Overview: /requests?record=<id> одразу відкриває деталі цього запису.
-  const openId = typeof record === "string" && /^\d+$/.test(record) ? Number(record) : null;
+  const openId = openRecordId(record);
   const tab = TABS.find((t) => t.id === status) ?? TABS[0];
   // Дати заявки без робочих годин, які не прийнято (AC-LEAVE-21) — з redirect після подання.
   const skippedDates = typeof skipped === "string" ? skipped.split(",").filter(isCalendarDate) : [];
@@ -235,7 +234,6 @@ export default async function MyRequestsPage({ searchParams }: PageProps<"/reque
                         <TableRow
                           key={r.id}
                           data-testid="leave-record"
-                          data-state={r.id === openId ? "selected" : undefined}
                           className={cn(r.request_id === newest && "animate-row-flash")}
                         >
                           <TableCell className="whitespace-nowrap tabular-nums">{dayLabel(r.date!)}</TableCell>
@@ -297,6 +295,11 @@ export default async function MyRequestsPage({ searchParams }: PageProps<"/reque
       )}
     </>
   );
+}
+
+/** «Open record» на діаграмі Overview: /requests?record=<id> одразу відкриває деталі цього запису; інше — нічого. */
+function openRecordId(param: string | string[] | undefined): number | null {
+  return typeof param === "string" && /^\d+$/.test(param) ? Number(param) : null;
 }
 
 /** Розподіл погодженого запису (AC-BALANCE-18, AC-BALANCE-19) — завжди текстом. */

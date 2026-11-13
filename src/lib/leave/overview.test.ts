@@ -3,7 +3,9 @@ import type { Closure } from "./calendar";
 import type { CellLayout } from "./overview";
 import {
   addDays,
+  barBox,
   cellLayout,
+  closureShare,
   closedShare,
   closureLabel,
   closuresText,
@@ -17,6 +19,7 @@ import {
   headline,
   isBlocking,
   overviewRange,
+  positionScale,
   rangeLabel,
   leadStatus,
   monthMarks,
@@ -172,8 +175,38 @@ describe("cellLayout", () => {
   });
 
   it("an early closing cuts the bars at its hour", () => {
-    const layout = cellLayout([rec(10 * 60, 15 * 60, "approved")], 0.4);
+    const layout = cellLayout([rec(10 * 60, 15 * 60, "approved")], null, 12 * 60);
     expect(barsOf(layout)[0].left + barsOf(layout)[0].width).toBeCloseTo(0.4);
+  });
+
+  it("on the working day of the position a whole-day record fills the cell, and a part sits on its hours", () => {
+    const day = { start: 8 * 60 + 30, end: 15 * 60 + 30 };
+    expect(cellLayout([rec(510, 930, "approved")], day)).toEqual({
+      collapsed: false,
+      bars: [{ record: rec(510, 930, "approved"), left: 0, width: 1, whole: true }],
+    });
+    const part = barBox(rec(12 * 60, 15 * 60 + 30, "awaiting"), day);
+    expect(part.left).toBeCloseTo(0.5);
+    expect(part.width).toBeCloseTo(0.5);
+    expect(part.whole).toBe(false);
+    // Без розкладу — загальна шкала 08:00–18:00, і запис не «Whole day».
+    expect(barBox(rec(510, 930, "approved"), null)).toMatchObject({ whole: false });
+    // Скорочений день з 12:00 на дні 08:30–15:30: смуга до половини клітинки.
+    expect(barBox(rec(510, 930, "approved"), day, 12 * 60).width).toBeCloseTo(0.5);
+  });
+
+  it("the working day of a position is its blocks of that weekday, and the early closing is placed on it", () => {
+    const blocks = [
+      { weekday: 1, start: 510, end: 720 },
+      { weekday: 1, start: 750, end: 930 },
+      { weekday: 3, start: 945, end: 1020 },
+    ];
+    expect(positionScale(blocks, "2026-11-09")).toEqual({ start: 510, end: 930 });
+    expect(positionScale(blocks, "2026-11-10")).toBeNull();
+    const meeting = { from: 0.4, closesAt: 12 * 60, label: "Teachers' meeting from 12:00", time: "from 12:00" };
+    expect(closureShare(meeting, { start: 510, end: 930 })).toBeCloseTo(0.5);
+    expect(closureShare(meeting, null)).toBeCloseTo(0.4);
+    expect(closureShare({ from: 0, closesAt: null, label: "Autumn break", time: null }, { start: 510, end: 930 })).toBe(0);
   });
 
   it("three or more records collapse into a counter with their statuses in time order", () => {
@@ -312,10 +345,10 @@ describe("school closures on Overview", () => {
   it("monthClosures marks every closed day of the month and only them", () => {
     const dec = monthClosures(closures, "2026-12");
     expect(Object.keys(dec).map(Number)).toEqual([28, 29, 30, 31]);
-    expect(dec[28]).toEqual({ from: 0, label: "Winter break", time: null });
+    expect(dec[28]).toEqual({ from: 0, closesAt: null, label: "Winter break", time: null });
     const nov = monthClosures(closures, "2026-11");
     expect(Object.keys(nov).map(Number)).toEqual([20, 27]);
-    expect(nov[20]).toEqual({ from: expect.closeTo(0.4), label: "Teachers' meeting from 12:00", time: "from 12:00" });
+    expect(nov[20]).toEqual({ from: expect.closeTo(0.4), closesAt: 720, label: "Teachers' meeting from 12:00", time: "from 12:00" });
     expect(monthClosures(closures, "2027-01")[9]).toBeUndefined();
   });
 

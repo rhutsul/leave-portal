@@ -14,8 +14,10 @@ import {
   nextClosureLine,
   timelineDays,
   timelineRows,
+  positionScale,
   timelineSummary,
   type BlockingStatus,
+  type DayScale,
   type TimelineRow,
 } from "@/lib/leave/overview";
 import { LEAVE_TYPES, positionLabel, RECORD_STATUSES } from "@/lib/leave/request";
@@ -104,22 +106,45 @@ export function buildTimeline(data: OverviewData, days: readonly string[], userI
   if (data.deciderData) {
     const away = data.deciderData.away.flatMap((r) => (isBlocking(r.status) ? [{ ...r, status: r.status }] : []));
     const rows = timelineRows(away, days, (r) => ({
-      // decision_records не віддає id посади: посаду в межах людини визначають підрозділ і назва.
-      key: `${r.employee_id}|${r.division_name}|${r.position_title}`,
+      // Посада — з leave_records (schedules), а якщо її не завантажено — підрозділ і назва в межах людини.
+      key: `${r.employee_id}|${data.schedules?.positionOf.get(r.id) ?? `${r.division_name}|${r.position_title}`}`,
       name: r.employee_id === userId ? "You" : r.employee_name,
       sub: positionLabel(r.division_name, r.position_title),
     }));
-    return { rows: withRecords(rows, (r) => timelineRecord(r, `/decisions?record=${r.id}`)), summary: summaryOf(rows, true) };
+    return {
+      rows: withRecords(rows, (r) => timelineRecord(r, `/decisions?record=${r.id}`), scalesOf(data, days)),
+      summary: summaryOf(rows, true),
+    };
   }
   const mine = data.mine.flatMap((r) =>
     isBlocking(r.status) ? [{ ...r, id: r.id!, date: r.date!, start_min: r.start_min!, end_min: r.end_min!, status: r.status }] : [],
   );
   const rows = timelineRows(mine, days, (r) => ({ key: String(r.position_id), name: r.division_name ?? "", sub: r.position_title ?? "" }));
-  return { rows: withRecords(rows, (r) => timelineRecord(r, `/requests?record=${r.id}`)), summary: summaryOf(rows, false) };
+  return {
+    rows: withRecords(rows, (r) => timelineRecord(r, `/requests?record=${r.id}`), scalesOf(data, days)),
+    summary: summaryOf(rows, false),
+  };
 }
 
-function withRecords<T>(rows: readonly TimelineRow<T>[], toRecord: (record: T) => WeekTimelineRecord): WeekTimelineRow[] {
-  return rows.map((row) => ({ ...row, cells: row.cells.map((c) => ({ col: c.col, records: c.records.map(toRecord) })) }));
+/** Шкала клітинок рядка — робочий день його посади на кожну з показаних дат (за першим записом рядка). */
+function scalesOf(data: OverviewData, days: readonly string[]) {
+  return (recordId: number): (DayScale | null)[] => {
+    const position = data.schedules?.positionOf.get(recordId);
+    const blocks = position === undefined ? [] : (data.schedules?.blocks.get(position) ?? []);
+    return days.map((d) => positionScale(blocks, d));
+  };
+}
+
+function withRecords<T extends { id: number }>(
+  rows: readonly TimelineRow<T>[],
+  toRecord: (record: T) => WeekTimelineRecord,
+  scales: (recordId: number) => (DayScale | null)[],
+): WeekTimelineRow[] {
+  return rows.map((row) => ({
+    ...row,
+    scales: scales(row.cells[0].records[0].id),
+    cells: row.cells.map((c) => ({ col: c.col, records: c.records.map(toRecord) })),
+  }));
 }
 
 function summaryOf(rows: readonly TimelineRow<{ status: BlockingStatus }>[], decider: boolean): string | null {
