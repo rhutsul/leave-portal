@@ -376,7 +376,7 @@ test.describe("admin@example.test", () => {
         await page.getByLabel("Name").fill("Teachers' meeting");
         await page.locator("label").filter({ hasText: "Early dismissal" }).click();
         await clickDate(page, "2026-11-20");
-        await page.getByLabel("Closed from").fill("12:00");
+        await page.getByLabel("Closed from", { exact: true }).fill("12:00");
         await page.getByRole("button", { name: "Add closure" }).click();
         await expect(page).toHaveURL(/\/calendar\?year=2026/);
         await expect(closureRow(page, "Teachers' meeting")).toHaveCount(1);
