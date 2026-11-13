@@ -59,6 +59,7 @@ export function RecordActions({
   schedule,
   details,
   history,
+  initialDetails = false,
 }: {
   recordId: number;
   /** "2026-11-03 08:30–15:30" — у доступних назвах, щоб розрізняти записи однієї дати. */
@@ -70,10 +71,12 @@ export function RecordActions({
   schedule: { failed: true } | { failed: false; text: string | null };
   details: RecordDetails;
   history: readonly HistoryRow[] | null;
+  /** Запис відкрито посиланням `/requests?record=<id>` («Open record» на Overview): деталі показано одразу. */
+  initialDetails?: boolean;
 }) {
   const ids = useId();
   const statusRef = useRef<HTMLParagraphElement>(null);
-  const [open, setOpen] = useState<Panel | null>(null);
+  const [open, setOpen] = useState<Panel | null>(initialDetails ? "details" : null);
   // Контрольовані поля: React скидає неконтрольовану форму після дії, а після помилки введене має лишитися.
   const [hours, setHours] = useState({ start: formatTime(start), end: formatTime(end) });
   const [hoursState, hoursAction] = useActionState(changeRecordHours, INITIAL);
@@ -114,6 +117,12 @@ export function RecordActions({
   const close = () => {
     setLast(null);
     setOpen(null);
+    // Деталі відкрило посилання: прибираємо `?record=` з адреси, щоб оновлення сторінки не відкрило їх знову.
+    if (initialDetails && new URLSearchParams(window.location.search).has("record")) {
+      const params = new URLSearchParams(window.location.search);
+      params.delete("record");
+      window.history.replaceState(null, "", `${window.location.pathname}${params.size ? `?${params}` : ""}`);
+    }
   };
 
   function resubmit() {

@@ -51,7 +51,8 @@ export default async function MyRequestsPage({ searchParams }: PageProps<"/reque
   const { data } = await supabase.auth.getClaims();
   if (!data?.claims) redirect("/login");
 
-  const { submitted, status, skipped, over, balance } = await searchParams;
+  const { submitted, status, skipped, over, balance, record } = await searchParams;
+  const openId = openRecordId(record);
   const tab = TABS.find((t) => t.id === status) ?? TABS[0];
   // Дати заявки без робочих годин, які не прийнято (AC-LEAVE-21) — з redirect після подання.
   const skippedDates = typeof skipped === "string" ? skipped.split(",").filter(isCalendarDate) : [];
@@ -279,6 +280,7 @@ export default async function MyRequestsPage({ searchParams }: PageProps<"/reque
                                 split,
                               }}
                               history={histories ? (histories.get(r.id!) ?? []) : null}
+                              initialDetails={r.id === openId}
                             />
                           </TableCell>
                         </TableRow>
@@ -293,6 +295,11 @@ export default async function MyRequestsPage({ searchParams }: PageProps<"/reque
       )}
     </>
   );
+}
+
+/** «Open record» на діаграмі Overview: /requests?record=<id> одразу відкриває деталі цього запису; інше — нічого. */
+function openRecordId(param: string | string[] | undefined): number | null {
+  return typeof param === "string" && /^\d+$/.test(param) ? Number(param) : null;
 }
 
 /** Розподіл погодженого запису (AC-BALANCE-18, AC-BALANCE-19) — завжди текстом. */

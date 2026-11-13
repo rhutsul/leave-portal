@@ -2,6 +2,7 @@
 
 import { DECISION_MESSAGES } from "@/lib/leave/decision";
 import type { RecordStatus } from "@/lib/leave/request";
+import { formatDuration, formatRange } from "@/lib/leave/time";
 
 export type DecisionsTab = "awaiting" | "history";
 
@@ -63,4 +64,43 @@ export function afterDecision(queue: readonly number[], decidedId: number, statu
   const rest = queue.filter((id) => id !== decidedId);
   const next = index < 0 ? rest[0] : (rest[index] ?? rest[index - 1]);
   return next === undefined ? `/decisions?decided=${status}` : `/decisions?record=${next}&decided=${status}`;
+}
+
+/** Робочий день посади на дату запису: від початку першого блоку до кінця останнього, хвилини — лише в блоках. */
+export interface PositionDay {
+  start: number;
+  end: number;
+  minutes: number;
+}
+
+/**
+ * Години запису на тлі робочого дня посади (панель рішення v2): де на смузі дня стоїть запис (частки 0–1), підпис
+ * «08:30–15:30 · Whole day» і скільки це з робочого дня — «7 h of 7 h». Без розкладу (`day` null: не завантажився чи
+ * змінився) — смуга на всю ширину й лише тривалість запису.
+ */
+export function dayBar(
+  record: { start_min: number; end_min: number; minutes: number },
+  day: PositionDay | null,
+): { left: number; width: number; label: string; total: string } {
+  const range = formatRange(record.start_min, record.end_min);
+  const duration = formatDuration(record.minutes);
+  if (!day || day.end <= day.start) return { left: 0, width: 1, label: range, total: duration };
+  const span = day.end - day.start;
+  const clamp = (v: number) => Math.min(1, Math.max(0, v));
+  const left = clamp((record.start_min - day.start) / span);
+  const width = Math.max(0, clamp((record.end_min - day.start) / span) - left);
+  const whole = record.start_min <= day.start && record.end_min >= day.end;
+  return { left, width, label: whole ? `${range} · Whole day` : range, total: `${duration} of ${formatDuration(day.minutes)}` };
+}
+
+/**
+ * Залишок до й після погодження запису, у сотих дня (панель рішення v2): «15.36 → 14.36 days after approval». Понад
+ * залишок оплачується лише залишок (розподіл AC-BALANCE-10), тож після — 0.00. `total` — нараховане й перенесене за
+ * рік; з ним — частки для двоколірної смуги й «2.64 of 18.00 used», без нього (не завантажилось) — лише числа.
+ */
+export function balanceShift(remaining: number, share: number, total: number | null) {
+  const before = Math.max(remaining, 0);
+  const after = Math.max(before - share, 0);
+  const bar = total && total > 0 ? { before: Math.min(1, before / total), after: Math.min(1, after / total) } : null;
+  return { before, after, bar, used: total === null ? null : Math.max(total - before, 0) };
 }

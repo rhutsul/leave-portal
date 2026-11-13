@@ -1,4 +1,6 @@
+import { isRecordStatus, STATUS_DOT } from "@/components/ui/status-badge";
 import { historyLine } from "@/lib/leave/decision";
+import { cn } from "@/lib/utils";
 
 export interface HistoryRow {
   created_at: string;
@@ -7,10 +9,6 @@ export interface HistoryRow {
   comment: string | null;
 }
 
-/**
- * Історія запису з public.record_histories: дата й час до хвилини за Києвом, хто, що, коментар (AC-DECIDE-15).
- * null — історію не вдалося завантажити: показуємо це, а не порожній список.
- */
 /** Рядки public.record_histories (кількох записів одним запитом) → історія кожного запису за його id. */
 export function groupHistories(rows: readonly (HistoryRow & { record_id: number })[]): Map<number, HistoryRow[]> {
   const byRecord = new Map<number, HistoryRow[]>();
@@ -18,7 +16,12 @@ export function groupHistories(rows: readonly (HistoryRow & { record_id: number 
   return byRecord;
 }
 
-/** `collapsed` — у рядку списку історія ховається під «History»; у деталях запису — відкритий список. */
+/**
+ * Історія запису з public.record_histories: дата й час до хвилини за Києвом, хто, що, коментар (AC-DECIDE-15) —
+ * вертикальною лінією з крапками: подія звичайною вагою, час під нею дрібним приглушеним; крапка рішення — кольором
+ * його статусу. null — історію не вдалося завантажити: показуємо це, а не порожній список.
+ * `collapsed` — у рядку списку історія ховається під «History»; у деталях запису — відкритий список.
+ */
 export function RecordHistory({ history, collapsed = true }: { history: readonly HistoryRow[] | null; collapsed?: boolean }) {
   if (history === null) {
     return (
@@ -28,22 +31,32 @@ export function RecordHistory({ history, collapsed = true }: { history: readonly
     );
   }
   const list = (
-      <ol className={collapsed ? "mt-2 flex flex-col gap-1 text-foreground" : "flex flex-col gap-1.5 text-foreground"}>
-        {history.map((h, i) => {
-          const line = historyLine({ createdAt: h.created_at, action: h.action, actorName: h.actor_name, comment: h.comment });
-          return (
-            <li key={i}>
-              <span className="tabular-nums">{line.at}</span> · {line.who} · <span className="font-medium">{line.what}</span>
+    <ol className={cn("flex flex-col text-foreground", collapsed && "mt-2")}>
+      {history.map((h, i) => {
+        const line = historyLine({ createdAt: h.created_at, action: h.action, actorName: h.actor_name, comment: h.comment });
+        const last = i === history.length - 1;
+        return (
+          <li key={i} className="grid grid-cols-[14px_1fr] gap-2.5">
+            <span aria-hidden="true" className="flex flex-col items-center">
+              <span className={cn("mt-1.5 size-2 shrink-0 rounded-full", isRecordStatus(h.action) ? STATUS_DOT[h.action] : "bg-muted-foreground")} />
+              {!last && <span className="mt-1 w-px flex-1 bg-border" />}
+            </span>
+            <span className={cn("flex min-w-0 flex-col", !last && "pb-3.5")}>
+              <span>
+                {line.what} <span className="text-muted-foreground">· {line.who}</span>
+              </span>
+              <span className="text-xs text-muted-foreground tabular-nums">{line.at}</span>
               {/* У «Hours changed» коментар — попередні й нові години від бази, а не слова людини: без лапок. */}
               {h.comment && (
-                <span className="block break-words whitespace-pre-line text-muted-foreground">
+                <span className="mt-0.5 break-words whitespace-pre-line text-muted-foreground">
                   {h.action === "hours_changed" ? h.comment : `“${h.comment}”`}
                 </span>
               )}
-            </li>
-          );
-        })}
-      </ol>
+            </span>
+          </li>
+        );
+      })}
+    </ol>
   );
   if (!collapsed) return <div className="text-[13px]">{list}</div>;
   return (

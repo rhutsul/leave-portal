@@ -2,12 +2,26 @@
 // діаграми. Без запитів до бази.
 import type { DotMonthMark } from "@/components/ui/dot-month";
 import type { Stat } from "@/components/ui/stat-strip";
-import type { WeekTimelineRow } from "@/components/ui/week-timeline";
+import type { WeekTimelineRecord, WeekTimelineRow } from "@/components/ui/week-timeline";
 import { formatDays } from "@/lib/leave/balance";
 import type { Closure } from "@/lib/leave/calendar";
-import { closuresText, dayClosures, isBlocking, monthClosures, monthMarks, nextClosureLine, timelineDays, timelineRows } from "@/lib/leave/overview";
+import {
+  closuresText,
+  dayClosures,
+  isBlocking,
+  monthClosures,
+  monthMarks,
+  nextClosureLine,
+  timelineDays,
+  timelineRows,
+  positionScale,
+  timelineSummary,
+  type BlockingStatus,
+  type DayScale,
+  type TimelineRow,
+} from "@/lib/leave/overview";
 import { LEAVE_TYPES, positionLabel, RECORD_STATUSES } from "@/lib/leave/request";
-import { formatDateShort, formatRange } from "@/lib/leave/time";
+import { formatDateShort, formatDuration, formatRange } from "@/lib/leave/time";
 import type { OverviewData } from "./load-overview";
 
 const records = (n: number) => (n === 1 ? "record" : "records");
@@ -66,27 +80,82 @@ export function buildMarks(data: OverviewData, month: string, today: string): Re
   return marks;
 }
 
-/** Рядки діаграми: менеджеру — люди його посад («You» — він сам), працівнику — його посади. */
-export function buildRows(data: OverviewData, days: readonly string[], userId: string): WeekTimelineRow[] {
+/** Запис у клітинці діаграми: години й тривалість текстом і посилання «Open record». */
+function timelineRecord(
+  r: { id: number; start_min: number; end_min: number; minutes: number | null; leave_type: string | null; status: BlockingStatus },
+  href: string,
+): WeekTimelineRecord {
+  return {
+    id: r.id,
+    start_min: r.start_min,
+    end_min: r.end_min,
+    status: r.status,
+    hours: formatRange(r.start_min, r.end_min),
+    type: r.leave_type ?? "",
+    duration: formatDuration(r.minutes ?? r.end_min - r.start_min),
+    href,
+  };
+}
+
+/**
+ * Рядки діаграми: менеджеру — людина й посада («You» — він сам), працівнику — його посади; записи різних посад не
+ * зливаються. «Open record» веде менеджера в «Decisions», працівника — до деталей запису в «My requests». Поруч — підсумок
+ * над діаграмою («6 records of your positions · 3 awaiting decision»).
+ */
+export function buildTimeline(data: OverviewData, days: readonly string[], userId: string): { rows: WeekTimelineRow[]; summary: string | null } {
   if (data.deciderData) {
     const away = data.deciderData.away.flatMap((r) => (isBlocking(r.status) ? [{ ...r, status: r.status }] : []));
-    return timelineRows(away, days, (r) => ({
-      key: r.employee_id,
+    const rows = timelineRows(away, days, (r) => ({
+      // Посада — з leave_records (schedules), а якщо її не завантажено — підрозділ і назва в межах людини.
+      key: `${r.employee_id}|${data.schedules?.positionOf.get(r.id) ?? `${r.division_name}|${r.position_title}`}`,
       name: r.employee_id === userId ? "You" : r.employee_name,
       sub: positionLabel(r.division_name, r.position_title),
     }));
+    return {
+      rows: withRecords(rows, (r) => timelineRecord(r, `/decisions?record=${r.id}`), scalesOf(data, days)),
+      summary: summaryOf(rows, true),
+    };
   }
   const mine = data.mine.flatMap((r) =>
-    isBlocking(r.status) ? [{ ...r, date: r.date!, start_min: r.start_min!, end_min: r.end_min!, status: r.status }] : [],
+    isBlocking(r.status) ? [{ ...r, id: r.id!, date: r.date!, start_min: r.start_min!, end_min: r.end_min!, status: r.status }] : [],
   );
-  return timelineRows(mine, days, (r) => ({ key: String(r.position_id), name: r.division_name ?? "", sub: r.position_title ?? "" }));
+  const rows = timelineRows(mine, days, (r) => ({ key: String(r.position_id), name: r.division_name ?? "", sub: r.position_title ?? "" }));
+  return {
+    rows: withRecords(rows, (r) => timelineRecord(r, `/requests?record=${r.id}`), scalesOf(data, days)),
+    summary: summaryOf(rows, false),
+  };
 }
 
-/** Скільки інших людей посад менеджера мають схвалений запис цього тижня (перші п'ять днів діаграми). */
-export function awayThisWeek(data: OverviewData, days: readonly string[], userId: string): number {
-  const away = data.deciderData?.away ?? [];
-  return new Set(away.filter((r) => r.status === "approved" && r.date <= days[4] && r.employee_id !== userId).map((r) => r.employee_id))
-    .size;
+/** Шкала клітинок рядка — робочий день його посади на кожну з показаних дат (за першим записом рядка). */
+function scalesOf(data: OverviewData, days: readonly string[]) {
+  return (recordId: number): (DayScale | null)[] => {
+    const position = data.schedules?.positionOf.get(recordId);
+    const blocks = position === undefined ? [] : (data.schedules?.blocks.get(position) ?? []);
+    return days.map((d) => positionScale(blocks, d));
+  };
+}
+
+function withRecords<T extends { id: number }>(
+  rows: readonly TimelineRow<T>[],
+  toRecord: (record: T) => WeekTimelineRecord,
+  scales: (recordId: number) => (DayScale | null)[],
+): WeekTimelineRow[] {
+  return rows.map((row) => ({
+    ...row,
+    scales: scales(row.cells[0].records[0].id),
+    cells: row.cells.map((c) => ({ col: c.col, records: c.records.map(toRecord) })),
+  }));
+}
+
+function summaryOf(rows: readonly TimelineRow<{ status: BlockingStatus }>[], decider: boolean): string | null {
+  return timelineSummary(rows.flatMap((row) => row.cells.flatMap((c) => c.records.map((r) => r.status))), decider);
+}
+
+/** Скільки інших людей посад менеджера мають схвалений запис цього тижня (`thisWeek` — його робочі дні). */
+export function awayThisWeek(data: OverviewData, thisWeek: readonly string[], userId: string): number {
+  const away = data.deciderData?.awayNow ?? [];
+  const inWeek = (date: string) => date >= thisWeek[0] && date <= thisWeek[4];
+  return new Set(away.filter((r) => r.status === "approved" && inWeek(r.date) && r.employee_id !== userId).map((r) => r.employee_id)).size;
 }
 
 /**
@@ -105,6 +174,5 @@ export function buildClosureView(
     all: closuresText(list, range.from, range.to),
     month: monthClosures(list, range.month),
     timeline: timelineDays(range.days, today).map((d, i) => ({ ...d, closure: closed[i] })),
-    anyInTimeline: closed.some(Boolean),
   };
 }

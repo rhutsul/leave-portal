@@ -69,7 +69,8 @@ test("on a phone records are cards, and a record opens full screen with Back to 
   const bar = approve.locator("..");
   const height = phone.viewportSize()!.height;
   const pinnedBottom = async () => {
-    expect(await bar.evaluate((el) => getComputedStyle(el).position)).toBe("fixed");
+    // Смуга дій — sticky внизу тіла панелі (v2: так само й на широкому екрані).
+    expect(await bar.evaluate((el) => getComputedStyle(el).position)).toBe("sticky");
     const box = (await bar.boundingBox())!;
     expect(Math.round(box.y + box.height)).toBe(height);
   };

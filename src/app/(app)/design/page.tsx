@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { Ban, CalendarDays, CircleAlert, Clock, Eye, Info, RotateCcw, SearchX, ShieldX, TriangleAlert, X } from "lucide-react";
+import { Ban, CalendarDays, CircleAlert, Clock, Eye, Info, Plus, RotateCcw, SearchX, ShieldX, TriangleAlert, X } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { BalanceCard } from "@/components/ui/balance-card";
 import { Button } from "@/components/ui/button";
@@ -30,7 +30,10 @@ import { LeaveTypeTag } from "@/components/ui/leave-type-tag";
 import { Logo } from "@/components/ui/logo";
 import { PageHeader } from "@/components/ui/page-header";
 import { PasswordInput } from "@/components/ui/password-input";
-import { RecordSummary } from "@/components/ui/record-summary";
+import { RecordDay, RecordSummary } from "@/components/ui/record-summary";
+import { BalanceShift } from "@/components/ui/balance-shift";
+import { RecordHistory } from "@/components/record-history";
+import { formatDuration, formatRange } from "@/lib/leave/time";
 import { RowMenu } from "@/components/ui/row-menu";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
@@ -47,8 +50,8 @@ import { DotMonth } from "@/components/ui/dot-month";
 import { ShowcaseCount } from "@/components/ui/motion";
 import { StatStrip } from "@/components/ui/stat-strip";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { WeekTimeline } from "@/components/ui/week-timeline";
-import { dayClosures, monthClosures, timelineDays, twoWeeks } from "@/lib/leave/overview";
+import { WeekTimeline, type WeekTimelineRecord } from "@/components/ui/week-timeline";
+import { dayClosures, monthClosures, timelineDays, twoWeeks, type BlockingStatus } from "@/lib/leave/overview";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { ThemeMenu } from "@/components/ui/theme-menu";
@@ -116,6 +119,11 @@ const DEMO_CLOSURES: Closure[] = [
 ];
 const DEMO_WEEKS = twoWeeks("2026-11-05");
 const DEMO_DAYS = timelineDays(DEMO_WEEKS, "2026-11-05").map((d, i) => ({ ...d, closure: dayClosures(DEMO_CLOSURES, DEMO_WEEKS)[i] }));
+
+// Синтетичний запис для прикладу WeekTimeline: хвилини від півночі, посилання — на цю ж вітрину.
+function demoRecord(id: number, start: number, end: number, status: BlockingStatus, type: string): WeekTimelineRecord {
+  return { id, start_min: start, end_min: end, status, hours: formatRange(start, end), type, duration: formatDuration(end - start), href: "/design" };
+}
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -402,41 +410,54 @@ export default async function DesignPage() {
             { label: "To decide", value: "6", unit: "records", sub: "Open Decisions", href: "/decisions", tone: "primary" },
           ]}
         />
+        {/* WeekTimeline v2: кожен запис — своя смуга на своїх годинах; два записи дня — поруч; три й більше — лічильник
+            із карткою дня; 6 Nov — закрито школою, 11 Nov — скорочений день (смуги до 12:00). Смуга відкриває картку. */}
         <WeekTimeline
           label="Example: leave of your positions this week and next"
           empty="Nobody is away these two weeks."
           days={DEMO_DAYS}
           rows={[
-            { key: "1", name: "Teacher One", sub: "Elementary school / Teacher", bars: [{ col: 0, status: "approved", hours: "08:30–15:30" }, { col: 5, status: "awaiting", hours: "08:30–12:00" }] },
-            { key: "2", name: "Assistant Two", sub: "Elementary school / Assistant", bars: [{ col: 2, status: "approved", hours: "12:30–15:30" }, { col: 6, status: "returned", hours: "09:00–11:00" }] },
-            // Кілька записів в один день — кожен своїм сегментом; 11 Nov — скорочений день, сегменти до 12:00.
+            {
+              key: "1",
+              name: "Teacher One",
+              sub: "Elementary school / Teacher",
+              // Шкала клітинок — робочий день посади (08:30–15:30): запис на весь день заповнює клітинку.
+              scales: DEMO_DAYS.map(() => ({ start: 510, end: 930 })),
+              cells: [
+                { col: 0, records: [demoRecord(1, 510, 930, "approved", "sick")] },
+                { col: 3, records: [demoRecord(2, 510, 600, "approved", "sick"), demoRecord(3, 780, 900, "awaiting", "personal")] },
+                { col: 5, records: [demoRecord(4, 510, 720, "awaiting", "personal")] },
+              ],
+            },
+            {
+              key: "2",
+              name: "Teacher One",
+              sub: "High school / Math teacher",
+              scales: DEMO_DAYS.map(() => ({ start: 945, end: 1020 })),
+              cells: [{ col: 0, records: [demoRecord(5, 945, 1020, "awaiting", "personal")] }],
+            },
             {
               key: "3",
-              name: "Teacher Three",
-              sub: "Middle school / Teacher",
-              bars: [
+              name: "Assistant Two",
+              sub: "Elementary school / Assistant",
+              scales: DEMO_DAYS.map(() => ({ start: 510, end: 930 })),
+              cells: [
+                { col: 2, records: [demoRecord(6, 750, 930, "approved", "family")] },
+                { col: 6, records: [demoRecord(7, 540, 660, "returned", "personal")] },
+                { col: 7, records: [demoRecord(8, 510, 570, "approved", "personal"), demoRecord(9, 600, 720, "returned", "sick")] },
                 {
-                  col: 3,
-                  status: "awaiting",
-                  hours: "08:30–10:00, 13:00–15:30",
-                  segments: [
-                    { start_min: 510, end_min: 600, status: "approved", hours: "08:30–10:00" },
-                    { start_min: 780, end_min: 930, status: "awaiting", hours: "13:00–15:30" },
-                  ],
-                },
-                {
-                  col: 7,
-                  status: "returned",
-                  hours: "08:30–09:30, 10:00–12:00",
-                  segments: [
-                    { start_min: 510, end_min: 570, status: "approved", hours: "08:30–09:30" },
-                    { start_min: 600, end_min: 720, status: "returned", hours: "10:00–12:00" },
+                  col: 8,
+                  records: [
+                    demoRecord(10, 510, 570, "approved", "personal"),
+                    demoRecord(11, 600, 660, "awaiting", "personal"),
+                    demoRecord(12, 780, 840, "returned", "sick"),
                   ],
                 },
               ],
             },
           ]}
         />
+        <WeekTimeline label="Example: no leave in these two weeks" empty="No leave in these two weeks." days={DEMO_DAYS} rows={[]} />
         <DotMonth
           month="2026-11"
           today="2026-11-05"
@@ -541,19 +562,59 @@ export default async function DesignPage() {
       </Section>
 
       <Section title="Sheet">
-        {/* Робоча панель справа (Decisions): шапка, тіло, що прокручується; Esc чи клік повз закривають. */}
+        {/* Робоча панель справа (Decisions v2): шапка без лінії, розділи через відступ — запис зі смугою дня, залишок
+            до й після погодження, коментар за кнопкою, історія лінією з крапками; дії — у смузі внизу панелі. */}
         <Sheet>
           <SheetTrigger render={<Button variant="outline" className="self-start" />}>Open a sheet</SheetTrigger>
           <SheetContent>
-            <SheetHeader>
-              <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
-                <SheetTitle>Employee name</SheetTitle>
-                <StatusBadge status="awaiting" />
-              </div>
-              <SheetDescription>teacher1@example.test</SheetDescription>
+            <SheetHeader className="border-b-0">
+              <StatusBadge status="awaiting" />
+              <SheetTitle className="text-lg leading-6">Teacher One</SheetTitle>
+              <SheetDescription>teacher1@example.test · Elementary school / Teacher</SheetDescription>
             </SheetHeader>
-            <SheetBody>
-              <RecordSummary date="Tue, 3 Nov 2026" hours="08:30–12:00" meta="Elementary school / Teacher · Sick leave · 3 h 30 min" />
+            <SheetBody className="flex flex-col gap-6.5 pt-1.5 pb-0">
+              <RecordDay
+                date="Tue, 24 Nov 2026"
+                type={<LeaveTypeTag type="sick" variant="inline" />}
+                hours="08:30–15:30 · Whole day"
+                total="7 h of 7 h"
+                left={0}
+                width={1}
+              />
+              <BalanceShift
+                label="Sick leave balance"
+                before="15.36"
+                after="14.36"
+                bar={{ before: 0.853, after: 0.798 }}
+                note="this record 1.00 day · 2.64 of 18.00 used"
+              />
+              <section aria-label="Comments" className="flex flex-col gap-2.5">
+                <p className="text-[13px]">
+                  <span className="text-muted-foreground">Employee’s comment: </span>No comment
+                </p>
+                <Button variant="ghost" size="sm" className="-ml-3 self-start text-primary hover:text-primary">
+                  <Plus />
+                  Add a comment for the employee
+                </Button>
+              </section>
+              <section aria-label="History" className="flex flex-col gap-2.5">
+                <h3 className="font-mono text-[11px] font-normal tracking-wide text-muted-foreground uppercase">History</h3>
+                <RecordHistory
+                  collapsed={false}
+                  history={[
+                    { created_at: "2026-11-10T15:09:00Z", action: "submitted", actor_name: "Teacher One", comment: null },
+                    { created_at: "2026-11-11T08:20:00Z", action: "returned", actor_name: "Manager One", comment: "Please add the hours of the second lesson" },
+                    { created_at: "2026-11-11T09:02:00Z", action: "resubmitted", actor_name: "Teacher One", comment: null },
+                  ]}
+                />
+              </section>
+              <div className="sticky bottom-0 -mx-5 mt-auto flex items-center gap-1 border-t border-border bg-popover/95 px-5 py-3.5 backdrop-blur-md">
+                <Button variant="ghost" className="-ml-3.5 text-destructive hover:bg-destructive/10 hover:text-destructive">
+                  Reject
+                </Button>
+                <Button variant="ghost">Return for revision</Button>
+                <Button className="ml-auto h-10 min-w-33">Approve</Button>
+              </div>
             </SheetBody>
           </SheetContent>
         </Sheet>

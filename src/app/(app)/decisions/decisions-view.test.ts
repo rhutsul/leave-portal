@@ -1,6 +1,16 @@
 import { describe, expect, it } from "vitest";
 import { DECISION_MESSAGES } from "@/lib/leave/decision";
-import { afterDecision, decidedNotice, decisionErrorPlacement, decisionsTab, neighbours, pickRecord, recordHref } from "./decisions-view";
+import {
+  afterDecision,
+  balanceShift,
+  dayBar,
+  decidedNotice,
+  decisionErrorPlacement,
+  decisionsTab,
+  neighbours,
+  pickRecord,
+  recordHref,
+} from "./decisions-view";
 
 const awaiting = [{ id: 11 }, { id: 12 }];
 const all = [...awaiting, { id: 20 }];
@@ -68,5 +78,43 @@ describe("afterDecision (ADR 0007)", () => {
 
   it("a record outside the queue goes to its first record", () => {
     expect(afterDecision([4, 9], 7, "approved")).toBe("/decisions?record=4&decided=approved");
+  });
+});
+
+// Вигляд панелі рішення v2 (смуга дня, залишок до й після) — не AC PM: тому без AC ID у назвах.
+describe("Decisions: the record panel", () => {
+  const day = { start: 510, end: 930, minutes: 420 };
+
+  it("a whole-day record fills the day bar and says so", () => {
+    expect(dayBar({ start_min: 510, end_min: 930, minutes: 420 }, day)).toEqual({
+      left: 0,
+      width: 1,
+      label: "08:30–15:30 · Whole day",
+      total: "7 h of 7 h",
+    });
+  });
+
+  it("a part of the day sits on its hours of the working day of the position", () => {
+    const bar = dayBar({ start_min: 720, end_min: 930, minutes: 210 }, day);
+    expect(bar.left).toBeCloseTo(0.5);
+    expect(bar.width).toBeCloseTo(0.5);
+    expect(bar.label).toBe("12:00–15:30");
+    expect(bar.total).toBe("3 h 30 min of 7 h");
+  });
+
+  it("without the schedule the bar is full and only the duration of the record is told", () => {
+    expect(dayBar({ start_min: 720, end_min: 930, minutes: 210 }, null)).toEqual({ left: 0, width: 1, label: "12:00–15:30", total: "3 h 30 min" });
+  });
+
+  it("the balance after approval is the remaining days less the record, as shares of the year for the bar", () => {
+    const shift = balanceShift(1536, 100, 1800);
+    expect(shift).toMatchObject({ before: 1536, after: 1436, used: 264 });
+    expect(shift.bar?.before).toBeCloseTo(0.853, 3);
+    expect(shift.bar?.after).toBeCloseTo(0.798, 3);
+  });
+
+  it("over the balance only the remaining days are paid, so nothing is left; without the total of the year there is no bar", () => {
+    expect(balanceShift(50, 100, 1800)).toMatchObject({ before: 50, after: 0 });
+    expect(balanceShift(-25, 100, null)).toEqual({ before: 0, after: 0, bar: null, used: null });
   });
 });
