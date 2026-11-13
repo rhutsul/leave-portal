@@ -91,7 +91,9 @@ function DecisionActions({
   onReturn: (event: MouseEvent<HTMLButtonElement>) => void;
 }) {
   return (
-    <div className="sticky bottom-0 z-10 -mx-5 mt-auto -mb-5 flex items-center gap-1 border-t border-border bg-popover/95 px-5 py-3.5 backdrop-blur-md max-md:grid max-md:grid-cols-2 max-md:gap-2 max-md:pb-[calc(0.875rem+env(safe-area-inset-bottom))] max-md:*:h-11">
+    <div
+      data-slot="decision-actions"
+      className="sticky bottom-0 z-10 -mx-5 mt-auto flex items-center gap-1 border-t border-border bg-popover/95 px-5 py-3.5 backdrop-blur-md max-md:grid max-md:grid-cols-2 max-md:gap-2 max-md:pb-[calc(0.875rem+env(safe-area-inset-bottom))] max-md:*:h-11">
       <Button
         type="button"
         variant="ghost"

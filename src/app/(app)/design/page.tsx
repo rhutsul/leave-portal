@@ -572,7 +572,7 @@ export default async function DesignPage() {
               <SheetTitle className="text-lg leading-6">Teacher One</SheetTitle>
               <SheetDescription>teacher1@example.test · Elementary school / Teacher</SheetDescription>
             </SheetHeader>
-            <SheetBody className="flex flex-col gap-6.5 pt-1.5">
+            <SheetBody className="flex flex-col gap-6.5 pt-1.5 pb-0">
               <RecordDay
                 date="Tue, 24 Nov 2026"
                 type={<LeaveTypeTag type="sick" variant="inline" />}
@@ -608,7 +608,7 @@ export default async function DesignPage() {
                   ]}
                 />
               </section>
-              <div className="sticky bottom-0 -mx-5 mt-auto -mb-5 flex items-center gap-1 border-t border-border bg-popover/95 px-5 py-3.5 backdrop-blur-md">
+              <div className="sticky bottom-0 -mx-5 mt-auto flex items-center gap-1 border-t border-border bg-popover/95 px-5 py-3.5 backdrop-blur-md">
                 <Button variant="ghost" className="-ml-3.5 text-destructive hover:bg-destructive/10 hover:text-destructive">
                   Reject
                 </Button>

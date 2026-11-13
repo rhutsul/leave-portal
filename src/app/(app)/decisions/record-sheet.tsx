@@ -127,8 +127,9 @@ function StampedBody({ stamp, children }: { stamp: StampStatus | null; children:
     <>
       <SheetBody
         inert={stamp !== null}
-        // Смуга дій рішення прикріплена внизу тіла (sticky) за будь-якої ширини: форма тягнеться на всю висоту.
-        className={cn("flex flex-col pt-1.5 transition-opacity duration-(--duration-base) ease-out", stamp && "opacity-20 blur-xs")}
+        // Смуга дій рішення прикріплена внизу тіла (sticky) за будь-якої ширини: форма тягнеться на всю висоту. Sticky
+        // прилипає до краю вмісту, а не до краю панелі, тож з цією смугою тіло — без нижнього відступу.
+        className={cn("flex flex-col pt-1.5 has-data-[slot=decision-actions]:pb-0 transition-opacity duration-(--duration-base) ease-out", stamp && "opacity-20 blur-xs")}
       >
         {children}
       </SheetBody>
