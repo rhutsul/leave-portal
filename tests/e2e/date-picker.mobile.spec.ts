@@ -21,6 +21,13 @@ test.describe("administrator on a narrow phone", () => {
     expect((await field.boundingBox())!.height).toBeGreaterThanOrEqual(44);
     await openDates(page);
     const picker = page.getByTestId("date-picker");
+    // Панель з'являється з масштабом 0.98 → 1 (--duration-base, DESIGN.md розділ 11): міряємо після анімації, інакше
+    // клітинка на мить 43.96 px замість 44.
+    await picker.evaluate((el) =>
+      Promise.all(
+        (el.closest('[data-slot="popover-content"]') ?? el).getAnimations({ subtree: true }).map((a) => a.finished),
+      ),
+    );
     const days = picker.getByRole("grid").getByRole("button");
     const first = (await days.first().boundingBox())!;
     expect(first.height).toBeGreaterThanOrEqual(44);
