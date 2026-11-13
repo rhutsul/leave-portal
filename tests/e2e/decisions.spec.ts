@@ -5,8 +5,15 @@
 import { expect, test } from "@playwright/test";
 import { addDays } from "../../src/lib/leave/overview";
 import { isoWeekday, kyivDate } from "../../src/lib/leave/time";
+import { cleanupRemembered, hasAdminKey, rememberRequestsOn } from "./support/admin";
 import { showNovember2026 } from "./support/calendar";
 import { attachRuntimeErrors } from "./support/uat";
+
+// Заявки, записані в журнал (тест діаграми), прибираємо за id (журнал support/admin.ts): інакше повторний прогін на тій самій базі додав би
+// третій запис дня, і клітинка згорнулась би в лічильник.
+test.afterEach(async () => {
+  if (hasAdminKey()) await cleanupRemembered();
+});
 
 test("after Approve the record panel shows the stamp, then the record leaves the queue", { tag: ["@writes"] }, async ({ browser }) => {
   // Працівник подає заявку на весь день — для кожної своєї посади на цю дату виходить запис «Awaiting decision».
@@ -71,6 +78,7 @@ test("a bar of the Overview diagram opens the record card, and the comment of a 
   await form.getByRole("button", { name: "Submit request" }).click();
   await expect(form.getByRole("main").getByText("Request submitted")).toBeVisible();
   await employee.close();
+  await rememberRequestsOn("teacher1@example.test", "2026-11-10");
 
   const admin = await browser.newContext({ storageState: "playwright/.auth/admin.json" });
   const page = await admin.newPage();

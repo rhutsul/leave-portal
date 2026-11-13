@@ -222,8 +222,9 @@ function RecordBar({
         style={{ left: `calc(${box.left * 100}% + 3px)`, width: `calc(${box.width * 100}% - 6px)` }}
         {...card.trigger}
       >
-        {/* Підпис — лише де вміщається: «Whole day» чи години; повністю — у назві кнопки й у картці. */}
-        <span aria-hidden="true" className={cn("hidden", box.whole ? "@min-[62px]:inline" : "@min-[76px]:inline")}>
+        {/* Підпис — лише де вміщається (ширина вмісту смуги, без відступів): «Whole day» чи години; повністю — у назві
+            кнопки й у картці. */}
+        <span aria-hidden="true" className={cn("hidden", box.whole ? "@min-[50px]:inline" : "@min-[64px]:inline")}>
           {box.whole ? "Whole day" : record.hours}
         </span>
       </PopoverTrigger>
