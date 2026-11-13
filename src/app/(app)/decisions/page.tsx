@@ -7,8 +7,8 @@ import { buttonVariants } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LeaveTypeTag } from "@/components/ui/leave-type-tag";
 import { PageHeader } from "@/components/ui/page-header";
-import { RecordSummary } from "@/components/ui/record-summary";
-import { Separator } from "@/components/ui/separator";
+import { BalanceShift } from "@/components/ui/balance-shift";
+import { RecordDay } from "@/components/ui/record-summary";
 import { isRecordStatus, StatusBadge } from "@/components/ui/status-badge";
 import { Tick } from "@/components/ui/motion";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -18,6 +18,7 @@ import {
   formatSplit,
   isLimitedType,
   managerWarning,
+  schoolYearOf,
 } from "@/lib/leave/balance";
 import { DECISION_MESSAGES, reviewedHours } from "@/lib/leave/decision";
 import {
@@ -33,8 +34,20 @@ import { formatDateLong, formatDuration, formatKyivDateTime, formatRange } from 
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/server";
 import type { Database } from "@/lib/supabase/database.types";
+import { loadBalances } from "../balances/load-balances";
 import { DecisionForm } from "./decision-form";
-import { decidedNotice, decisionsTab, neighbours, pickRecord, recordHref, type DecisionsTab } from "./decisions-view";
+import {
+  balanceShift,
+  dayBar,
+  decidedNotice,
+  decisionsTab,
+  neighbours,
+  pickRecord,
+  recordHref,
+  type DecisionsTab,
+  type PositionDay,
+} from "./decisions-view";
+import { loadRecordDay } from "./load-record-day";
 import { RecordSheet } from "./record-sheet";
 
 type DecisionRow = Database["public"]["Functions"]["decision_records"]["Returns"][number];
@@ -49,15 +62,38 @@ const DECIDED: RecordStatus[] = ["approved", "rejected", "returned"];
 
 const first = (value: string | string[] | undefined) => (Array.isArray(value) ? value[0] : value);
 
-/** Залишок і попередження для запису, який користувач може вирішити; "error" — не вдалося порахувати. */
-type Balance = { remaining: number; warning: string | null } | "error" | null;
+/**
+ * Залишок і попередження для запису, який користувач може вирішити (усе в сотих дня); "error" — не вдалося порахувати.
+ * `total` — нараховане й перенесене за рік, лише для смуги й «X of Y used»: null — не завантажилось, решта лишається.
+ */
+type Balance = { remaining: number; share: number; total: number | null; warning: string | null } | "error" | null;
 
 /** Відповідь public.decision_balance → залишок і текст попередження PM (AC-BALANCE-09, AC-BALANCE-14). */
-function balanceFrom(raw: unknown): Balance {
+function balanceFrom(raw: unknown, total: number | null): Balance {
   const value = raw as { leave_type?: string; share?: number | string; remaining?: number | string } | null;
   if (!value || !value.leave_type || !isLimitedType(value.leave_type)) return null;
   const remaining = daysToHundredths(value.remaining ?? 0);
-  return { remaining, warning: managerWarning(value.leave_type, daysToHundredths(value.share ?? 0), remaining) };
+  const share = daysToHundredths(value.share ?? 0);
+  return { remaining, share, total, warning: managerWarning(value.leave_type, share, remaining) };
+}
+
+type Supabase = Awaited<ReturnType<typeof createClient>>;
+
+/**
+ * Залишок запису, який можна вирішити: числа рішення — public.decision_balance (ті самі, за якими
+ * decide_leave_record порахує розподіл, AC-BALANCE-14); нараховане за рік — із залишків працівника (get_balance_inputs
+ * показує їх менеджеру його посад і адміністратору), лише для смуги.
+ */
+async function loadDecisionBalance(supabase: Supabase, r: DecisionRow): Promise<Balance> {
+  const type = r.leave_type;
+  if (!isLimitedType(type)) return null;
+  const [{ data: raw, error }, balances] = await Promise.all([
+    supabase.rpc("decision_balance", { p_record_id: r.id }),
+    loadBalances(supabase, r.employee_id, schoolYearOf(r.date)),
+  ]);
+  if (error) return "error";
+  const limited = balances.ok ? balances.balances.limited[type] : null;
+  return balanceFrom(raw, limited ? limited.granted + limited.carriedOver : null);
 }
 
 // «Decisions» менеджера (requirements/02-leave-decision.md): вкладки «Awaiting decision» і «History», ліворуч — список
@@ -108,17 +144,17 @@ export default async function DecisionsPage({ searchParams }: PageProps<"/decisi
   const listHref = TABS.find((t) => t.id === tab)!.href;
   const around = selected ? neighbours(shown, selected.id) : null;
 
-  // Історія вибраного запису з іменами (public.record_histories) і, якщо його можна вирішити, залишок на цей момент
-  // (public.decision_balance) — той самий, за яким decide_leave_record порахує розподіл (AC-BALANCE-14).
-  const [historyResult, balance] = await Promise.all([
+  // Історія вибраного запису з іменами (public.record_histories), робочий день посади на його дату (смуга годин) і,
+  // якщо запис можна вирішити, залишок на цей момент (public.decision_balance) — той самий, за яким
+  // decide_leave_record порахує розподіл (AC-BALANCE-14).
+  const [historyResult, balance, day] = await Promise.all([
     selected
       ? supabase.rpc("record_histories", { p_record_ids: [selected.id] })
       : Promise.resolve({ data: [], error: null }),
-    selected && selected.status === "awaiting" && selected.can_decide && isLimitedType(selected.leave_type)
-      ? supabase
-          .rpc("decision_balance", { p_record_id: selected.id })
-          .then(({ data: raw, error: balanceError }): Balance => (balanceError ? "error" : balanceFrom(raw)))
+    selected && selected.status === "awaiting" && selected.can_decide
+      ? loadDecisionBalance(supabase, selected)
       : Promise.resolve<Balance>(null),
+    selected ? loadRecordDay(supabase, selected.id, selected.date) : Promise.resolve(null),
   ]);
   const selectedHistory = historyResult.error ? null : (groupHistories(historyResult.data ?? []).get(selected?.id ?? -1) ?? []);
 
@@ -198,7 +234,7 @@ export default async function DecisionsPage({ searchParams }: PageProps<"/decisi
           {selected && (
             <RecordSheet
               title={selected.employee_name || selected.employee_email}
-              description={selected.employee_email}
+              description={[selected.employee_email, positionLabel(selected.division_name, selected.position_title)].filter(Boolean).join(" · ")}
               badge={<StatusBadge status={selected.status as RecordStatus} />}
               position={around && around.index >= 0 ? `${around.index + 1} of ${shown.length}` : null}
               closeHref={listHref}
@@ -210,6 +246,7 @@ export default async function DecisionsPage({ searchParams }: PageProps<"/decisi
                 record={selected}
                 history={selectedHistory}
                 balance={balance}
+                day={day}
                 notice={first(params.notice) === "decided" ? decidedNotice(selected.status as RecordStatus) : null}
               />
             </RecordSheet>
@@ -325,120 +362,178 @@ function RecordTable({
   );
 }
 
+/** Рядок деталей запису без рамок: приглушений підпис і значення. */
+function Detail({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <p className="text-[13px] break-words whitespace-pre-line">
+      <span className="text-muted-foreground">{label}: </span>
+      {children}
+    </p>
+  );
+}
+
+/** Розділ «Record»: дата, тип і години смугою дня; нижче — деталі без рамок. */
+function RecordSection({ record: r, day }: { record: DecisionRow; day: PositionDay | null }) {
+  const status = r.status as RecordStatus;
+  const relationship = r.relationship && isRelationship(r.relationship) ? RELATIONSHIP_LABELS[r.relationship] : null;
+  const bar = dayBar(r, day);
+  const split = approvedSplit(r);
+  return (
+    <section aria-label="Record" className="flex flex-col gap-2.5">
+      <RecordDay
+        date={formatDateLong(r.date)}
+        type={<LeaveTypeTag type={r.leave_type} variant="inline" />}
+        hours={bar.label}
+        total={bar.total}
+        left={bar.left}
+        width={bar.width}
+      />
+      {relationship && <Detail label="Relationship">{relationship}</Detail>}
+      {split && (
+        <Detail label="Split">
+          <span className="tabular-nums">{split}</span>
+        </Detail>
+      )}
+      {/* Повторно поданий запис знову чекає рішення: попереднє повернення — лише в історії. */}
+      {r.decided_at && status !== "awaiting" && (
+        <Detail label="Decided">
+          <span className="tabular-nums">
+            {formatKyivDateTime(r.decided_at)} · {r.decided_by_name || "Unknown user"}
+          </span>
+        </Detail>
+      )}
+    </section>
+  );
+}
+
+/** Розподіл погодженого запису понад залишок: "0.50 days Sick leave + 0.50 days Unpaid leave"; інакше — null. */
+function approvedSplit(r: DecisionRow): string | null {
+  const unpaid = r.unpaid_days == null ? 0 : daysToHundredths(r.unpaid_days);
+  if (r.status !== "approved" || unpaid <= 0 || !isLimitedType(r.leave_type)) return null;
+  return formatSplit(r.leave_type, daysToHundredths(r.paid_days ?? 0), unpaid);
+}
+
+/** "this record 1.00 day · 2.64 of 18.00 used"; без нарахованого за рік — лише перша частина. */
+function balanceNote(share: number, used: number | null, total: number | null): string {
+  const record = `this record ${formatDays(share)} ${share === 100 ? "day" : "days"}`;
+  return used === null || total === null ? record : `${record} · ${formatDays(used)} of ${formatDays(total)} used`;
+}
+
+/** Розділ «Balance» запису, який можна вирішити: залишок до й після погодження, збій перевірки, попередження PM. */
+function BalanceSection({ type, balance }: { type: string; balance: Balance }) {
+  if (!balance) return null;
+  if (balance === "error") {
+    return (
+      <Alert variant="destructive" role="alert">
+        <CircleAlert />
+        <AlertDescription>The balance could not be checked. Please reload the page before approving.</AlertDescription>
+      </Alert>
+    );
+  }
+  const shift = balanceShift(balance.remaining, balance.share, balance.total);
+  return (
+    <section aria-label="Balance" className="flex flex-col gap-3">
+      {isLimitedType(type) && (
+        <BalanceShift
+          label={`${LEAVE_TYPES[type]} balance`}
+          before={formatDays(shift.before)}
+          after={formatDays(shift.after)}
+          bar={shift.bar}
+          note={balanceNote(balance.share, shift.used, balance.total)}
+        />
+      )}
+      {balance.warning && (
+        // Попередження не зупиняє рішення — виглядає як попередження, а не помилка (#16 у репо PM); текст — з AC.
+        <Alert variant="warning" role="note">
+          <TriangleAlert />
+          <AlertDescription>{balance.warning}</AlertDescription>
+        </Alert>
+      )}
+    </section>
+  );
+}
+
+/** Коментар працівника й коментар попереднього рішення (повернення) — його видно й у повторно поданого запису. */
+function CommentLines({ record: r }: { record: DecisionRow }) {
+  return (
+    <>
+      <Detail label="Employee’s comment">{r.employee_comment ? `“${r.employee_comment}”` : "No comment"}</Detail>
+      {r.manager_comment && <Detail label="Manager’s comment">“{r.manager_comment}”</Detail>}
+    </>
+  );
+}
+
+function HistorySection({ history }: { history: HistoryRow[] | null }) {
+  return (
+    <section aria-label="History" className="flex flex-col gap-2.5">
+      <h3 className="font-mono text-[11px] font-normal tracking-wide text-muted-foreground uppercase">History</h3>
+      <RecordHistory history={history} collapsed={false} />
+    </section>
+  );
+}
+
 function RecordPanel({
   record: r,
   history,
   balance,
+  day,
   notice,
 }: {
   record: DecisionRow;
   history: HistoryRow[] | null;
   balance: Balance;
+  /** Робочий день посади на дату запису — для смуги годин; null — без розкладу. */
+  day: PositionDay | null;
   /** Рішення не збережено, бо запис уже вирішив інший менеджер чи скасував працівник (AC-DECIDE-07). */
   notice: string | null;
 }) {
-  const status = r.status as RecordStatus;
-  const range = formatRange(r.start_min, r.end_min);
-  const relationship = r.relationship && isRelationship(r.relationship) ? RELATIONSHIP_LABELS[r.relationship] : null;
-  const unpaid = r.unpaid_days == null ? 0 : daysToHundredths(r.unpaid_days);
-  const split =
-    status === "approved" && unpaid > 0 && isLimitedType(r.leave_type)
-      ? formatSplit(r.leave_type, daysToHundredths(r.paid_days ?? 0), unpaid)
-      : null;
-  const warning = balance && balance !== "error" ? balance.warning : null;
-  const summary = { date: formatDateLong(r.date), hours: range, meta: recordMeta(r) };
+  const awaiting = r.status === "awaiting";
+  // Ім'я, email, посада й статус — у шапці панелі (RecordSheet); тут — сам запис, залишок, коментарі й історія.
+  // Розділи тримає відступ, без меж і ліній (v2).
+  const before = (
+    <>
+      {notice && (
+        <Alert variant="destructive" role="alert">
+          <CircleAlert />
+          <AlertTitle>Your decision was not saved</AlertTitle>
+          <AlertDescription>{notice}</AlertDescription>
+        </Alert>
+      )}
+      <RecordSection record={r} day={day} />
+      <BalanceSection type={r.leave_type} balance={balance} />
+    </>
+  );
 
-  // Ім'я, email і статус — у шапці панелі (RecordSheet); тут — сам запис, рішення й історія.
+  if (awaiting && r.can_decide) {
+    return (
+      // key: інший запис — нова форма з порожнім коментарем і без відповіді попереднього.
+      <DecisionForm
+        key={r.id}
+        recordId={r.id}
+        hours={reviewedHours(r.start_min, r.end_min)}
+        split={Boolean(balance && balance !== "error" && balance.warning)}
+        summary={{ date: formatDateLong(r.date), hours: formatRange(r.start_min, r.end_min), meta: recordMeta(r) }}
+        before={before}
+        employeeComment={<CommentLines record={r} />}
+      >
+        <HistorySection history={history} />
+      </DecisionForm>
+    );
+  }
+
   return (
-    <div className="flex flex-col gap-4">
-        {notice && (
-          <Alert variant="destructive" role="alert">
-            <CircleAlert />
-            <AlertTitle>Your decision was not saved</AlertTitle>
-            <AlertDescription>{notice}</AlertDescription>
+    <div className="flex flex-col gap-6.5">
+      {before}
+      <section aria-label="Comments" className="flex flex-col gap-2.5">
+        <CommentLines record={r} />
+        {awaiting && (
+          <Alert variant="info" role="note">
+            <Info />
+            <AlertDescription>{DECISION_MESSAGES.ownRecord}</AlertDescription>
           </Alert>
         )}
-        <RecordSummary {...summary} />
-
-        <dl className="grid grid-cols-[auto_1fr] items-start gap-x-4 gap-y-2">
-          {relationship && (
-            <>
-              <dt className="text-muted-foreground">Relationship</dt>
-              <dd>{relationship}</dd>
-            </>
-          )}
-          <dt className="text-muted-foreground">Employee&apos;s comment</dt>
-          <dd className="break-words whitespace-pre-line">
-            {r.employee_comment ? `“${r.employee_comment}”` : <span className="text-muted-foreground">No comment</span>}
-          </dd>
-          {split && (
-            <>
-              <dt className="text-muted-foreground">Split</dt>
-              <dd className="tabular-nums">{split}</dd>
-            </>
-          )}
-          {r.manager_comment && (
-            <>
-              <dt className="text-muted-foreground">Manager&apos;s comment</dt>
-              <dd className="break-words whitespace-pre-line">“{r.manager_comment}”</dd>
-            </>
-          )}
-          {/* Повторно поданий запис знову чекає рішення: попереднє повернення — лише в історії. */}
-          {r.decided_at && status !== "awaiting" && (
-            <>
-              <dt className="text-muted-foreground">Decided</dt>
-              <dd className="tabular-nums">
-                {formatKyivDateTime(r.decided_at)} · {r.decided_by_name || "Unknown user"}
-              </dd>
-            </>
-          )}
-        </dl>
-
-        {balance && balance !== "error" && isLimitedType(r.leave_type) && (
-          <div className="flex items-baseline justify-between gap-3">
-            <span className="text-muted-foreground">{LEAVE_TYPES[r.leave_type]} remaining</span>
-            <span className="text-xl font-semibold tabular-nums">
-              {formatDays(Math.max(balance.remaining, 0))}
-              <span className="ml-1 text-sm font-normal text-muted-foreground">days</span>
-            </span>
-          </div>
-        )}
-        {balance === "error" && (
-          <Alert variant="destructive" role="alert">
-            <CircleAlert />
-            <AlertDescription>The balance could not be checked. Please reload the page before approving.</AlertDescription>
-          </Alert>
-        )}
-        {warning && (
-          // Попередження не зупиняє рішення — виглядає як попередження, а не помилка (#16 у репо PM); текст — з AC.
-          <Alert variant="warning" role="note">
-            <TriangleAlert />
-            <AlertDescription>{warning}</AlertDescription>
-          </Alert>
-        )}
-
-        {status === "awaiting" &&
-          (r.can_decide ? (
-            // key: інший запис — нова форма з порожнім коментарем і без відповіді попереднього.
-            <DecisionForm
-              key={r.id}
-              recordId={r.id}
-              hours={reviewedHours(r.start_min, r.end_min)}
-              split={warning !== null}
-              summary={summary}
-            />
-          ) : (
-            <Alert variant="info" role="note">
-              <Info />
-              <AlertDescription>{DECISION_MESSAGES.ownRecord}</AlertDescription>
-            </Alert>
-          ))}
-
-        <Separator />
-        <section aria-label="History" className="flex flex-col gap-2">
-          <h3 className="text-[13px] font-medium text-muted-foreground">History</h3>
-          <RecordHistory history={history} collapsed={false} />
-        </section>
+      </section>
+      <HistorySection history={history} />
     </div>
   );
 }

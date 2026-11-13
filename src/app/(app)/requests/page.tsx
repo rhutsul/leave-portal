@@ -233,7 +233,9 @@ export default async function MyRequestsPage({ searchParams }: PageProps<"/reque
                         <TableRow
                           key={r.id}
                           data-testid="leave-record"
-                          className={cn(r.request_id === newest && "animate-row-flash")}
+                          // Якір для «Open record» з діаграми Overview: /requests#record-<id>.
+                          id={`record-${r.id}`}
+                          className={cn("scroll-mt-20 target:bg-accent/60", r.request_id === newest && "animate-row-flash")}
                         >
                           <TableCell className="whitespace-nowrap tabular-nums">{dayLabel(r.date!)}</TableCell>
                           <TableCell className="whitespace-nowrap">{position}</TableCell>

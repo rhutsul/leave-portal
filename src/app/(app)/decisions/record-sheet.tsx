@@ -127,8 +127,8 @@ function StampedBody({ stamp, children }: { stamp: StampStatus | null; children:
     <>
       <SheetBody
         inert={stamp !== null}
-        // max-md:pb-44 — на телефоні дії рішення прикріплені внизу панелі (ADR 0008): тіло прокручується з-під них.
-        className={cn("transition-opacity duration-(--duration-base) ease-out max-md:pb-44", stamp && "opacity-20 blur-xs")}
+        // Смуга дій рішення прикріплена внизу тіла (sticky) за будь-якої ширини: форма тягнеться на всю висоту.
+        className={cn("flex flex-col pt-1.5 transition-opacity duration-(--duration-base) ease-out", stamp && "opacity-20 blur-xs")}
       >
         {children}
       </SheetBody>
@@ -244,13 +244,13 @@ export function RecordSheet({
           <ChevronLeft className="size-5" />
         </Button>
       }
+      // v2: розділи панелі тримає відступ — без лінії під шапкою.
+      className="border-b-0"
       closeClassName="max-md:hidden"
       actions={position && <RecordNav position={position} prevHref={prevHref} nextHref={nextHref} go={step} />}
     >
-      <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
-        <SheetTitle>{title}</SheetTitle>
-        {badge}
-      </div>
+      {badge}
+      <SheetTitle className="text-lg leading-6">{title}</SheetTitle>
       {description && <SheetDescription>{description}</SheetDescription>}
     </SheetHeader>
   );

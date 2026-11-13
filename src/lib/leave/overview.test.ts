@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type { Closure } from "./calendar";
+import type { CellLayout } from "./overview";
 import {
   addDays,
+  cellLayout,
   closedShare,
   closureLabel,
   closuresText,
@@ -15,10 +17,14 @@ import {
   headline,
   isBlocking,
   overviewRange,
+  rangeLabel,
   leadStatus,
   monthMarks,
   timelineDays,
+  timelineHref,
+  timelinePage,
   timelineRows,
+  timelineSummary,
   twoWeeks,
 } from "./overview";
 
@@ -36,6 +42,37 @@ describe("dates", () => {
     expect(twoWeeks("2026-11-05")).toEqual(expected);
     expect(twoWeeks("2026-11-02")).toEqual(expected);
     expect(twoWeeks("2026-11-08")).toEqual(expected);
+  });
+
+  it("pages two weeks at a time, forward and back", () => {
+    expect(twoWeeks("2026-11-05", 1)).toEqual(["2026-11-16", "2026-11-17", "2026-11-18", "2026-11-19", "2026-11-20", "2026-11-23", "2026-11-24", "2026-11-25", "2026-11-26", "2026-11-27"]);
+    expect(twoWeeks("2026-11-05", -1)[0]).toBe("2026-10-19");
+    expect(twoWeeks("2026-12-24", 1)).toContain("2027-01-04");
+  });
+
+  it("reads the page from ?weeks=, falling back to this week and next for anything else", () => {
+    expect(timelinePage(undefined)).toBe(0);
+    expect(timelinePage("2")).toBe(2);
+    expect(timelinePage("-3")).toBe(-3);
+    expect(timelinePage(["1", "5"])).toBe(1);
+    expect(["", "abc", "1.5", "1e3", "--1", "9999"].map(timelinePage)).toEqual([0, 0, 0, 0, 0, 0]);
+    // Не далі року в кожен бік; "-0" — це 0, а не -0.
+    expect(timelinePage("120")).toBe(26);
+    expect(timelinePage("-120")).toBe(-26);
+    expect(Object.is(timelinePage("-0"), 0)).toBe(true);
+  });
+
+  it("links to a page of the diagram, with no parameter for this week and no link past the limit", () => {
+    expect(timelineHref(0)).toBe("/");
+    expect(timelineHref(2)).toBe("/?weeks=2");
+    expect(timelineHref(-1)).toBe("/?weeks=-1");
+    expect(timelineHref(27)).toBeNull();
+    expect(timelineHref(-27)).toBeNull();
+  });
+
+  it("labels the shown range, naming both years across New Year", () => {
+    expect(rangeLabel(twoWeeks("2026-11-10"))).toBe("9 Nov – 20 Nov 2026");
+    expect(rangeLabel(twoWeeks("2026-12-30"))).toBe("28 Dec 2026 – 8 Jan 2027");
   });
 });
 
@@ -57,7 +94,7 @@ describe("timelineRows", () => {
   const rec = (who: string, date: string, start: number, end: number, status: string) => ({ who, date, start_min: start, end_min: end, status });
   const rowOf = (r: { who: string }) => ({ key: r.who, name: r.who, sub: "" });
 
-  it("one bar per person and day with a segment per record in time order, non-blocking and out-of-range records dropped", () => {
+  it("one cell per row and day with its records in time order, non-blocking and out-of-range records dropped", () => {
     const rows = timelineRows(
       [
         rec("Teacher", "2026-11-09", 750, 840, "awaiting"),
@@ -73,14 +110,12 @@ describe("timelineRows", () => {
         key: "Teacher",
         name: "Teacher",
         sub: "",
-        bars: [
+        cells: [
           {
             col: 5,
-            status: "awaiting",
-            hours: "08:30–12:00, 12:30–14:00",
-            segments: [
-              { start_min: 510, end_min: 720, status: "approved", hours: "08:30–12:00" },
-              { start_min: 750, end_min: 840, status: "awaiting", hours: "12:30–14:00" },
+            records: [
+              { who: "Teacher", date: "2026-11-09", start_min: 510, end_min: 720, status: "approved" },
+              { who: "Teacher", date: "2026-11-09", start_min: 750, end_min: 840, status: "awaiting" },
             ],
           },
         ],
@@ -97,6 +132,62 @@ describe("timelineRows", () => {
       rowOf,
     );
     expect(rows.map((r) => r.name)).toEqual(["C", "A", "B"]);
+  });
+
+  it("keeps the positions of one person in separate rows", () => {
+    const records = [
+      { ...rec("Teacher", "2026-11-09", 510, 720, "approved"), pos: "Elementary school / Teacher" },
+      { ...rec("Teacher", "2026-11-09", 945, 1020, "awaiting"), pos: "High school / Math teacher" },
+    ].map((r) => ({ ...r, status: r.status as never }));
+    const rows = timelineRows(records, days, (r) => ({ key: `${r.who}|${r.pos}`, name: r.who, sub: r.pos }));
+    expect(rows.map((r) => [r.sub, r.cells.map((c) => c.records.length)])).toEqual([
+      ["Elementary school / Teacher", [1]],
+      ["High school / Math teacher", [1]],
+    ]);
+  });
+});
+
+// Смуги клітинки; у лічильника їх немає.
+const barsOf = <T,>(layout: CellLayout<T>) => (layout.collapsed ? [] : layout.bars);
+
+describe("cellLayout", () => {
+  const rec = (start: number, end: number, status: "approved" | "awaiting" | "returned") => ({ start_min: start, end_min: end, status });
+
+  it("one record is one bar placed and sized by its minutes on the 08:00–18:00 day", () => {
+    const layout = cellLayout([rec(8 * 60 + 30, 15 * 60 + 30, "approved")]);
+    expect(barsOf(layout)).toHaveLength(1);
+    expect(barsOf(layout)[0].left).toBeCloseTo(0.05);
+    expect(barsOf(layout)[0].width).toBeCloseTo(0.7);
+  });
+
+  it("two records are two separate bars on their own hours", () => {
+    const layout = cellLayout([rec(8 * 60 + 30, 10 * 60, "approved"), rec(13 * 60, 15 * 60, "awaiting")]);
+    expect(barsOf(layout).map((b) => b.record.status)).toEqual(["approved", "awaiting"]);
+    expect(barsOf(layout)[0].left).toBeCloseTo(0.05);
+    expect(barsOf(layout)[0].width).toBeCloseTo(0.15);
+    expect(barsOf(layout)[1].left).toBeCloseTo(0.5);
+    expect(barsOf(layout)[1].width).toBeCloseTo(0.2);
+    // Смуги не перетинаються: перша закінчується до початку другої.
+    expect(barsOf(layout)[0].left + barsOf(layout)[0].width).toBeLessThan(barsOf(layout)[1].left);
+  });
+
+  it("an early closing cuts the bars at its hour", () => {
+    const layout = cellLayout([rec(10 * 60, 15 * 60, "approved")], 0.4);
+    expect(barsOf(layout)[0].left + barsOf(layout)[0].width).toBeCloseTo(0.4);
+  });
+
+  it("three or more records collapse into a counter with their statuses in time order", () => {
+    const three = [rec(510, 570, "approved"), rec(600, 660, "awaiting"), rec(780, 840, "returned")];
+    expect(cellLayout(three)).toEqual({ collapsed: true, count: 3, statuses: ["approved", "awaiting", "returned"] });
+    expect(cellLayout([...three, rec(870, 900, "approved")])).toMatchObject({ collapsed: true, count: 4 });
+  });
+
+  it("summarises the shown records for a manager and for an employee, and says nothing when there are none", () => {
+    expect(timelineSummary(["approved", "awaiting", "awaiting", "returned", "approved", "awaiting"], true)).toBe(
+      "6 records of your positions · 3 awaiting decision",
+    );
+    expect(timelineSummary(["approved"], false)).toBe("1 record · 0 awaiting decision");
+    expect(timelineSummary([], true)).toBeNull();
   });
 });
 
@@ -172,6 +263,14 @@ describe("overviewRange", () => {
     // Тижні виходять за межі місяця — діапазон розширюється до них.
     expect(overviewRange("2026-11-30")).toMatchObject({ from: "2026-11-01", to: "2026-12-11" });
     expect(overviewRange("2026-12-01")).toMatchObject({ from: "2026-11-30", to: "2026-12-31" });
+  });
+
+  it("a paged diagram widens only what is loaded, not the month and the current weeks", () => {
+    const paged = overviewRange("2026-11-06", 2);
+    expect(paged).toMatchObject({ month: "2026-11", from: "2026-11-01", to: "2026-11-30", loadFrom: "2026-11-01", loadTo: "2026-12-11" });
+    expect(paged.days[0]).toBe("2026-11-30");
+    expect(overviewRange("2026-11-06", -1)).toMatchObject({ from: "2026-11-01", loadFrom: "2026-10-19", loadTo: "2026-11-30" });
+    expect(overviewRange("2026-11-06")).toMatchObject({ loadFrom: "2026-11-01", loadTo: "2026-11-30" });
   });
 });
 

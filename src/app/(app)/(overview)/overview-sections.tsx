@@ -1,8 +1,9 @@
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { LeaveTypeTag } from "@/components/ui/leave-type-tag";
 import { isRecordStatus, StatusBadge } from "@/components/ui/status-badge";
+import { timelineHref } from "@/lib/leave/overview";
 import { positionLabel, type RecordStatus } from "@/lib/leave/request";
 import { formatDateShort, formatRange } from "@/lib/leave/time";
 import { cn } from "@/lib/utils";
@@ -51,6 +52,42 @@ function NextLeaveCard({ group }: { group: readonly Upcoming[] }) {
         <LeaveTypeTag type={first.leave_type ?? ""} variant="inline" />
       </span>
     </div>
+  );
+}
+
+/** Посилання-кнопка гортання діаграми; за межею гортання (чи «Today» на поточних тижнях) — вимкнена. */
+function PagerLink({ href, label, icon, children }: { href: string | null; label?: string; icon?: boolean; children: React.ReactNode }) {
+  const className = buttonVariants({
+    variant: icon ? "ghost" : "outline",
+    size: icon ? "icon-sm" : "sm",
+    className: cn("pointer-coarse:h-11", icon && "pointer-coarse:w-11", !href && "pointer-events-none opacity-50"),
+  });
+  if (!href) {
+    return (
+      <span role="link" aria-disabled="true" aria-label={label} className={className}>
+        {children}
+      </span>
+    );
+  }
+  return (
+    <Link href={href} scroll={false} aria-label={label} className={className}>
+      {children}
+    </Link>
+  );
+}
+
+/** Гортання діаграми по два тижні (`?weeks=`): «Today» повертає до цього й наступного тижня. */
+export function TimelinePager({ page }: { page: number }) {
+  return (
+    <nav aria-label="Weeks shown" className="flex items-center gap-1.5">
+      <PagerLink href={page === 0 ? null : timelineHref(0)}>Today</PagerLink>
+      <PagerLink href={timelineHref(page - 1)} label="Previous two weeks" icon>
+        <ChevronLeft />
+      </PagerLink>
+      <PagerLink href={timelineHref(page + 1)} label="Next two weeks" icon>
+        <ChevronRight />
+      </PagerLink>
+    </nav>
   );
 }
 
