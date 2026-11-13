@@ -51,7 +51,9 @@ export default async function MyRequestsPage({ searchParams }: PageProps<"/reque
   const { data } = await supabase.auth.getClaims();
   if (!data?.claims) redirect("/login");
 
-  const { submitted, status, skipped, over, balance } = await searchParams;
+  const { submitted, status, skipped, over, balance, record } = await searchParams;
+  // «Open record» на діаграмі Overview: /requests?record=<id> одразу відкриває деталі цього запису.
+  const openId = typeof record === "string" && /^\d+$/.test(record) ? Number(record) : null;
   const tab = TABS.find((t) => t.id === status) ?? TABS[0];
   // Дати заявки без робочих годин, які не прийнято (AC-LEAVE-21) — з redirect після подання.
   const skippedDates = typeof skipped === "string" ? skipped.split(",").filter(isCalendarDate) : [];
@@ -233,9 +235,8 @@ export default async function MyRequestsPage({ searchParams }: PageProps<"/reque
                         <TableRow
                           key={r.id}
                           data-testid="leave-record"
-                          // Якір для «Open record» з діаграми Overview: /requests#record-<id>.
-                          id={`record-${r.id}`}
-                          className={cn("scroll-mt-20 target:bg-accent/60", r.request_id === newest && "animate-row-flash")}
+                          data-state={r.id === openId ? "selected" : undefined}
+                          className={cn(r.request_id === newest && "animate-row-flash")}
                         >
                           <TableCell className="whitespace-nowrap tabular-nums">{dayLabel(r.date!)}</TableCell>
                           <TableCell className="whitespace-nowrap">{position}</TableCell>
@@ -281,6 +282,7 @@ export default async function MyRequestsPage({ searchParams }: PageProps<"/reque
                                 split,
                               }}
                               history={histories ? (histories.get(r.id!) ?? []) : null}
+                              initialDetails={r.id === openId}
                             />
                           </TableCell>
                         </TableRow>

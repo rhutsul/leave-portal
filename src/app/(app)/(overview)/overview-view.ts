@@ -97,7 +97,7 @@ function timelineRecord(
 
 /**
  * Рядки діаграми: менеджеру — людина й посада («You» — він сам), працівнику — його посади; записи різних посад не
- * зливаються. «Open record» веде менеджера в «Decisions», працівника — до запису в «My requests». Поруч — підсумок
+ * зливаються. «Open record» веде менеджера в «Decisions», працівника — до деталей запису в «My requests». Поруч — підсумок
  * над діаграмою («6 records of your positions · 3 awaiting decision»).
  */
 export function buildTimeline(data: OverviewData, days: readonly string[], userId: string): { rows: WeekTimelineRow[]; summary: string | null } {
@@ -115,7 +115,7 @@ export function buildTimeline(data: OverviewData, days: readonly string[], userI
     isBlocking(r.status) ? [{ ...r, id: r.id!, date: r.date!, start_min: r.start_min!, end_min: r.end_min!, status: r.status }] : [],
   );
   const rows = timelineRows(mine, days, (r) => ({ key: String(r.position_id), name: r.division_name ?? "", sub: r.position_title ?? "" }));
-  return { rows: withRecords(rows, (r) => timelineRecord(r, `/requests#record-${r.id}`)), summary: summaryOf(rows, false) };
+  return { rows: withRecords(rows, (r) => timelineRecord(r, `/requests?record=${r.id}`)), summary: summaryOf(rows, false) };
 }
 
 function withRecords<T>(rows: readonly TimelineRow<T>[], toRecord: (record: T) => WeekTimelineRecord): WeekTimelineRow[] {
