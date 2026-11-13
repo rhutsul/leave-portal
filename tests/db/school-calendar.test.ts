@@ -109,6 +109,50 @@ describe("add_school_closure: an administrator adds a closure", () => {
   });
 });
 
+describe("add_school_closure: overlaps and required fields", () => {
+  it('AC-CAL-17: "Extra break" 2027-01-05 – 2027-01-15 over "Winter break" and "Staff day" — not saved, one part per closure', async () => {
+    await addClosure(admin, "Winter break", "2026-12-28", "2027-01-08");
+    await addClosure(admin, "Staff day", "2027-01-12", "2027-01-12");
+    await expect(addClosure(admin, "Extra break", "2027-01-05", "2027-01-15")).rejects.toThrow(
+      /^2027-01-05 is already closed: Winter break, 2027-01-12 is already closed: Staff day$/,
+    );
+    expect((await calendar()).map((c) => c.name)).toEqual(["Winter break", "Staff day"]);
+  });
+
+  it("AC-CAL-17: parts follow the dates of the overlap, not the order the closures were added", async () => {
+    await addClosure(admin, "Staff day", "2027-01-12", "2027-01-12");
+    await addClosure(admin, "Winter break", "2026-12-28", "2027-01-08");
+    await expect(addClosure(admin, "Extra break", "2027-01-05", "2027-01-15")).rejects.toThrow(
+      /^2027-01-05 is already closed: Winter break, 2027-01-12 is already closed: Staff day$/,
+    );
+  });
+
+  it("AC-CAL-18: an empty name for 2027-01-20 is not saved — Enter a name for the closure", async () => {
+    for (const name of ["", "   ", null]) {
+      await expect(addClosure(admin, name as string, "2027-01-20", "2027-01-20")).rejects.toThrow(
+        /^Enter a name for the closure$/,
+      );
+    }
+    expect(await calendar()).toEqual([]);
+  });
+
+  it("AC-CAL-19: a name of 101 characters is not saved — The name can be at most 100 characters; 100 are saved", async () => {
+    await expect(addClosure(admin, "a".repeat(101), "2027-01-20", "2027-01-20")).rejects.toThrow(
+      /^The name can be at most 100 characters$/,
+    );
+    expect(await calendar()).toEqual([]);
+    await addClosure(admin, "a".repeat(100), "2027-01-20", "2027-01-20");
+    expect((await calendar()).map((c) => c.name.length)).toEqual([100]);
+  });
+
+  it("a closure without dates is not saved — Enter the start and end dates (Assumptions)", async () => {
+    await expect(addClosure(admin, "Staff day", null as unknown as string, "2027-01-20")).rejects.toThrow(
+      /^Enter the start and end dates$/,
+    );
+    expect(await calendar()).toEqual([]);
+  });
+});
+
 describe("add_school_closure: leave records that block a closure", () => {
   it('AC-CAL-07: teacher1@\'s Approved record on 2026-12-29 blocks "Winter break" — not saved, the records are listed', async () => {
     const requestId = await submit(teacher1, "personal", [{ position_id: teacher1Main, date: "2026-12-29", ...WHOLE }]);
@@ -306,5 +350,61 @@ describe("day share without closed minutes", () => {
       [teacher1],
     );
     expect(Number(minutes)).toBe(210);
+  });
+});
+
+describe("day share fixed at approval", () => {
+  const usedOf = async (type: "sick" | "unpaid") => {
+    const [row] = await t.asUser<{ inputs: unknown }>(teacher1, "select public.get_balance_inputs($1, $2) as inputs", [
+      teacher1,
+      2026,
+    ]);
+    const balances = computeBalances(parseBalanceInputs(row.inputs), 2026);
+    return formatDays(type === "sick" ? balances.limited.sick.used : balances.unlimited.unpaid);
+  };
+
+  /** Запис teacher1@ на основній посаді, погоджений менеджером на /decisions. */
+  async function approved(type: string, date: string, start: number, end: number) {
+    const requestId = await submit(teacher1, type, [{ position_id: teacher1Main, date, start_min: start, end_min: end }]);
+    const [{ id }] = await asOwner<{ id: number }>("select id from public.leave_records where request_id = $1", [
+      requestId,
+    ]);
+    await t.asUser(manager1, "select public.decide_leave_record($1, 'approve', $2, $3) as result", [id, start, end]);
+    return id;
+  }
+
+  it("AC-CAL-20: approved Sick leave 08:30–11:00 on 2026-11-20 is used 0.36 and stays 0.36 after \"Teachers' meeting\" from 12:00", async () => {
+    await approved("sick", "2026-11-20", 510, 660);
+    expect(await usedOf("sick")).toBe("0.36");
+    await addClosure(admin, "Teachers' meeting", "2026-11-20", "2026-11-20", NOON);
+    expect(await usedOf("sick")).toBe("0.36");
+  });
+
+  it("AC-CAL-20: the same holds for Unpaid leave, and removing or changing a closure later does not change the share", async () => {
+    // Закриття вже є під час погодження: 150 з 210 хвилин = 0.71; після видалення й нового закриття — так само 0.71.
+    const closureId = await addClosure(admin, "Teachers' meeting", "2026-11-20", "2026-11-20", NOON);
+    await approved("unpaid", "2026-11-20", 510, 660);
+    expect(await usedOf("unpaid")).toBe("0.71");
+    await t.asUser(admin, "select public.remove_school_closure($1)", [closureId]);
+    expect(await usedOf("unpaid")).toBe("0.71");
+    await addClosure(admin, "Teachers' meeting", "2026-11-20", "2026-11-20", 11 * 60 + 30);
+    expect(await usedOf("unpaid")).toBe("0.71");
+  });
+
+  it("AC-CAL-20: a record approved directly (test data) gets its share from the calendar of that moment; not approved — none", async () => {
+    const requestId = await submit(teacher1, "unpaid", [
+      { position_id: teacher1Main, date: "2026-11-20", start_min: 510, end_min: 660 },
+    ]);
+    await setStatus(requestId, "approved");
+    const shareOf = async () =>
+      (
+        await asOwner<{ day_share: string | null }>(
+          "select day_share::text as day_share from public.leave_records where request_id = $1",
+          [requestId],
+        )
+      )[0].day_share;
+    expect(await shareOf()).toBe("0.36");
+    await setStatus(requestId, "rejected");
+    expect(await shareOf()).toBeNull();
   });
 });

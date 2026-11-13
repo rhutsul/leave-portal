@@ -13,7 +13,14 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { daysToHundredths, formatSplit, isLimitedType, overBalanceWarnings } from "@/lib/leave/balance";
 import { CALENDAR_MESSAGES, clipBlocks, closureOn, toClosure } from "@/lib/leave/calendar";
 import { employeeActions } from "@/lib/leave/decision";
-import { isLeaveType, LEAVE_TYPES, positionLabel, type PositionSchedule, type RecordStatus } from "@/lib/leave/request";
+import {
+  closedDayName,
+  isLeaveType,
+  LEAVE_TYPES,
+  positionLabel,
+  type PositionSchedule,
+  type RecordStatus,
+} from "@/lib/leave/request";
 import {
   formatBlocks,
   formatDateLong,
@@ -83,10 +90,11 @@ export default async function MyRequestsPage({ searchParams }: PageProps<"/reque
       positions?.find((p) => p.id === positionId)?.blocks.filter((b) => b.weekday === isoWeekday(date)) ?? [],
       closureOn(closures, date),
     );
-  // Чому дату не прийнято: закрита школою (AC-CAL-03) чи без робочих годин (AC-LEAVE-21).
+  // Чому дату не прийнято: закрита школою (AC-CAL-03, AC-CAL-16) чи без робочих годин (AC-LEAVE-21). Без
+  // розкладу (не завантажився) closedDayName пояснює лише закриття цілими днями.
   const skippedReason = (date: string) => {
-    const closure = closureOn(closures, date);
-    return closure && closure.closesAt == null ? CALENDAR_MESSAGES.closedDay(closure.name) : TIME_MESSAGES.noWorkingHours;
+    const closed = closedDayName(positions ?? [], date, closures);
+    return closed ? CALENDAR_MESSAGES.closedDay(closed) : TIME_MESSAGES.noWorkingHours;
   };
   const scheduleOf = (positionId: number, date: string) => {
     if (!positions) return { failed: true as const };

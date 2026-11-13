@@ -91,14 +91,14 @@ isOneToOne: false
                   ]
                 },"leave_records": {
                   Row: {
-                    "created_at": string,"date": string,"employee_comment": string | null,"employee_id": string,"end_min": number,"id": number,"leave_type": string,"manager_comment": string | null,"minutes": number,"paid_days": number | null,"position_id": number,"relationship": string | null,"request_id": number,"start_min": number,"status": string,"unpaid_days": number | null,"updated_at": string
+                    "created_at": string,"date": string,"day_share": number | null,"employee_comment": string | null,"employee_id": string,"end_min": number,"id": number,"leave_type": string,"manager_comment": string | null,"minutes": number,"paid_days": number | null,"position_id": number,"relationship": string | null,"request_id": number,"start_min": number,"status": string,"unpaid_days": number | null,"updated_at": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "created_at"?: string,"date": string,"employee_comment"?: string | null,"employee_id": string,"end_min": number,"id"?: never,"leave_type": string,"manager_comment"?: string | null,"minutes": number,"paid_days"?: number | null,"position_id": number,"relationship"?: string | null,"request_id": number,"start_min": number,"status"?: string,"unpaid_days"?: number | null,"updated_at"?: string
+                    "created_at"?: string,"date": string,"day_share"?: number | null,"employee_comment"?: string | null,"employee_id": string,"end_min": number,"id"?: never,"leave_type": string,"manager_comment"?: string | null,"minutes": number,"paid_days"?: number | null,"position_id": number,"relationship"?: string | null,"request_id": number,"start_min": number,"status"?: string,"unpaid_days"?: number | null,"updated_at"?: string
                   }
                   Update: {
-                    "created_at"?: string,"date"?: string,"employee_comment"?: string | null,"employee_id"?: string,"end_min"?: number,"id"?: never,"leave_type"?: string,"manager_comment"?: string | null,"minutes"?: number,"paid_days"?: number | null,"position_id"?: number,"relationship"?: string | null,"request_id"?: number,"start_min"?: number,"status"?: string,"unpaid_days"?: number | null,"updated_at"?: string
+                    "created_at"?: string,"date"?: string,"day_share"?: number | null,"employee_comment"?: string | null,"employee_id"?: string,"end_min"?: number,"id"?: never,"leave_type"?: string,"manager_comment"?: string | null,"minutes"?: number,"paid_days"?: number | null,"position_id"?: number,"relationship"?: string | null,"request_id"?: number,"start_min"?: number,"status"?: string,"unpaid_days"?: number | null,"updated_at"?: string
                   }
                   Relationships: [
                     {

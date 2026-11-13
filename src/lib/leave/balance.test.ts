@@ -159,6 +159,23 @@ describe("balance helpers", () => {
     expect([after.personal.used, after.personal.remaining, after.unpaid]).toEqual(["18.00", "0.00", "0.50"]);
   });
 
+  it("AC-CAL-20: a day share fixed at approval counts as it is — Sick leave used 0.36, other years and types apart", () => {
+    const b = computeBalances(
+      {
+        ...NONE,
+        shares: [
+          { date: "2026-11-20", leaveType: "sick", days: 0.36 },
+          { date: "2026-11-20", leaveType: "unpaid", days: 0.71 },
+          { date: "2027-09-03", leaveType: "sick", days: 1 },
+        ],
+      },
+      YEAR,
+    );
+    expect(formatDays(b.limited.sick.used)).toBe("0.36");
+    expect(formatDays(b.limited.sick.remaining)).toBe("17.64");
+    expect(formatDays(b.unlimited.unpaid)).toBe("0.71");
+  });
+
   it("formats school years and parses the database answer", () => {
     expect(formatSchoolYear(2026)).toBe("2026–2027");
     expect(formatDays(1764)).toBe("17.64");
@@ -166,11 +183,13 @@ describe("balance helpers", () => {
       parseBalanceInputs({
         days: [{ date: "2026-11-03", working_minutes: 420, leave_type: "sick", status: "approved", minutes: 150 }],
         splits: [],
+        shares: [{ date: "2026-11-20", leave_type: "unpaid", days: "0.36" }],
         carryovers: [{ school_year: 2026, leave_type: "sick", days: "5.00" }],
       }),
     ).toEqual({
       days: [{ date: "2026-11-03", workingMinutes: 420, leaveType: "sick", status: "approved", minutes: 150 }],
       splits: [],
+      shares: [{ date: "2026-11-20", leaveType: "unpaid", days: 0.36 }],
       carryovers: [{ schoolYear: 2026, leaveType: "sick", days: 5 }],
     });
   });

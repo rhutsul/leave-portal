@@ -33,7 +33,8 @@ export function adminClient(): SupabaseClient {
 export const AC_WINDOWS = [
   { from: "2026-11-20", to: "2026-11-20" }, // «Teachers' meeting», скорочений день (AC-CAL-04 … -06)
   { from: "2026-11-27", to: "2026-11-27" }, // спроба менеджера (AC-CAL-13)
-  { from: "2026-12-28", to: "2027-01-08" }, // «Winter break» (AC-CAL-01 … -03, -07 … -11)
+  { from: "2026-12-28", to: "2027-01-08" }, // «Winter break» (AC-CAL-01 … -03, -07 … -11, -17)
+  { from: "2027-01-09", to: "2027-01-20" }, // «Staff day», «Extra break» (AC-CAL-17), закриття 2027-01-20 (AC-CAL-18, -19)
 ] as const;
 
 // Ті самі статуси, що в leave_records_no_overlap і правилах AC-CAL-07 (спільна константа, AGENTS.md «База даних»).
@@ -248,7 +249,7 @@ export async function cleanupCalendar(): Promise<{ deleted: string[]; remaining:
     const { data: closures, error } = await supabase
       .from("school_closures")
       .select("name, start_date")
-      .in("name", ["Winter break", "Teachers' meeting", "Staff day"])
+      .in("name", ["Winter break", "Teachers' meeting", "Staff day", "Extra break"])
       .gte("created_at", since)
       .lte("start_date", w.to)
       .gte("end_date", w.from);

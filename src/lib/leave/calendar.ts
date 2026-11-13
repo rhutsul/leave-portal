@@ -16,7 +16,16 @@ export const CALENDAR_MESSAGES = {
   adminOnly: "Only an administrator can change the school calendar",
   endBeforeStart: "The end date cannot be earlier than the start date",
   closedDay: (name: string) => `The school is closed on this day: ${name}`,
+  // Обов'язкові поля закриття (AC-CAL-18, AC-CAL-19, Assumptions 04-school-calendar) — ті самі тексти в
+  // private.add_school_closure.
+  nameRequired: "Enter a name for the closure",
+  nameTooLong: "The name can be at most 100 characters",
+  datesRequired: "Enter the start and end dates",
+  timeRequired: "Enter the closing time",
 } as const;
+
+/** Найдовша назва закриття (Assumptions 04-school-calendar, AC-CAL-19). */
+export const CLOSURE_NAME_MAX = 100;
 
 /**
  * Закриття навчального року (1 вересня schoolYear — 31 серпня schoolYear + 1) за датою початку (AC-CAL-02). Закриття
@@ -65,18 +74,56 @@ export interface ClosureInput {
   closesAt: number | null;
 }
 
+export type ClosureCheck =
+  | { ok: true; input: ClosureInput }
+  | { ok: false; field: "name" | "dates" | "time"; message: string };
+
+/** Довжина назви в знаках (як char_length у Postgres), без пробілів на краях. */
+export function closureNameLength(name: string): number {
+  return [...name.trim()].length;
+}
+
+/** Помилка назви закриття текстом PM або null: порожня (AC-CAL-18) чи довша за 100 знаків (AC-CAL-19). */
+export function closureNameError(name: string): string | null {
+  const length = closureNameLength(name);
+  if (length === 0) return CALENDAR_MESSAGES.nameRequired;
+  return length > CLOSURE_NAME_MAX ? CALENDAR_MESSAGES.nameTooLong : null;
+}
+
 /**
- * Поля форми «Add closure» → дані для add_school_closure; нечитабельні — null. Межі й тексти помилок (AC-CAL-07, -10,
- * -11) перевіряє база; тут — лише те, без чого виклик не має сенсу: назва, дати й час скороченого дня.
+ * Помилки обов'язкових полів форми «Add closure» текстами PM (null — поле гаразд): назва (AC-CAL-18, AC-CAL-19), дати
+ * й час скороченого дня (Assumptions 04-school-calendar). Форма показує їх під полями до надсилання.
  */
-export function parseClosureForm(field: (name: string) => string): ClosureInput | null {
+export function closureFieldErrors(form: { name: string; hasDates: boolean; early: boolean; time: string }): {
+  name: string | null;
+  dates: string | null;
+  time: string | null;
+} {
+  return {
+    name: closureNameError(form.name),
+    dates: form.hasDates ? null : CALENDAR_MESSAGES.datesRequired,
+    time: form.early && parseTime(form.time) == null ? CALENDAR_MESSAGES.timeRequired : null,
+  };
+}
+
+/**
+ * Поля форми «Add closure» → дані для add_school_closure або перша помилка поля текстом PM: назва порожня чи довша за
+ * 100 знаків (AC-CAL-18, AC-CAL-19), немає дат, скорочений день без часу (Assumptions 04-school-calendar). Решту
+ * правил (AC-CAL-07, -10, -11, -17) перевіряє база; вона ж повторює й ці перевірки для виклику напряму.
+ */
+export function parseClosureForm(field: (name: string) => string): ClosureCheck {
   const name = field("name").trim();
   const early = field("kind") === "early";
   const start = field(early ? "date" : "start");
   const end = early ? start : field("end");
   const closesAt = early ? parseTime(field("time")) : null;
-  if (!name || !isCalendarDate(start) || !isCalendarDate(end) || (early && closesAt == null)) return null;
-  return { name, start, end, closesAt };
+  const nameError = closureNameError(name);
+  if (nameError) return { ok: false, field: "name", message: nameError };
+  if (!isCalendarDate(start) || !isCalendarDate(end)) {
+    return { ok: false, field: "dates", message: CALENDAR_MESSAGES.datesRequired };
+  }
+  if (early && closesAt == null) return { ok: false, field: "time", message: CALENDAR_MESSAGES.timeRequired };
+  return { ok: true, input: { name, start, end, closesAt } };
 }
 
 /** Закриття, що охоплює дату, або null (два закриття не мають спільної дати — AC-CAL-11). */
