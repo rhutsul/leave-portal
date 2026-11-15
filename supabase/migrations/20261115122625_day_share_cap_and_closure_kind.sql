@@ -123,7 +123,8 @@ security definer
 set search_path = ''
 as $$
 declare
-  v_name text := btrim(p_name);
+  -- Усі крайові пробільні символи (табуляції, переноси рядків), як trim() у parseClosureForm: rpc доступна й напряму.
+  v_name text := regexp_replace(coalesce(p_name, ''), '^\s+|\s+$', '', 'g');
   v_early boolean;
   v_end date := p_end;
   v_overlaps text;

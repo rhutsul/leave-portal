@@ -241,4 +241,10 @@ export const mutants = [
     find: "    v_paid := least(v_share, greatest(v_remaining, 0));",
     replace: "    v_paid := null;",
   },
+  {
+    id: "S32", kind: "sql", ac: "AC-CAL-18", file: REVIEW_FIXES, tests: [CALENDAR_DB],
+    what: "add_school_closure: назва обрізається лише від пробілів (btrim) — назва з табуляції зберігається порожньою на вигляд",
+    find: "  v_name text := regexp_replace(coalesce(p_name, ''),",
+    replace: "  v_name text := btrim(p_name); -- ",
+  },
 ];

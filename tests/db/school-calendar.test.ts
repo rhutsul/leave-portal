@@ -176,6 +176,13 @@ describe("add_school_closure: overlaps and required fields", () => {
     ]);
   });
 
+  it("AC-CAL-18: a name of only a tab or a line break is empty too — Enter a name for the closure", async () => {
+    for (const name of ["\t", "\n \t"]) {
+      await expect(addClosure(admin, name, "2027-01-20", "2027-01-20")).rejects.toThrow("Enter a name for the closure");
+    }
+    expect(await calendar()).toEqual([]);
+  });
+
   it("a closure without dates is not saved — Enter the start and end dates (Assumptions)", async () => {
     await expect(addClosure(admin, "Staff day", null as unknown as string, "2027-01-20")).rejects.toThrow(
       /^Enter the start and end dates$/,
@@ -459,6 +466,17 @@ describe("day share fixed at approval", () => {
     await addClosure(admin, "Teachers' meeting", "2026-11-20", "2026-11-20", NOON);
     await approved("unpaid", "2026-11-20", 660, NOON);
     expect(await usedOf("unpaid")).toBe("0.65");
+  });
+
+  // Без paid_days (запис погоджено напряму, як у «Дано» e2e): частку для «Sick leave» тримає лише day_share.
+  it("AC-CAL-20: Sick leave 08:30–11:00 approved directly (no paid_days) is used 0.36 and stays 0.36 after \"Teachers' meeting\" from 12:00", async () => {
+    const requestId = await submit(teacher1, "sick", [
+      { position_id: teacher1Main, date: "2026-11-20", start_min: 510, end_min: 660 },
+    ]);
+    await setStatus(requestId, "approved");
+    expect(await usedOf("sick")).toBe("0.36");
+    await addClosure(admin, "Teachers' meeting", "2026-11-20", "2026-11-20", NOON);
+    expect(await usedOf("sick")).toBe("0.36");
   });
 
   it("AC-CAL-20: a record approved directly (test data) gets its share from the calendar of that moment; not approved — none", async () => {
