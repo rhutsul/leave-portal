@@ -38,9 +38,9 @@ Done when: AC-CAL-06, AC-CAL-16, AC-CAL-20.
 
 ## 4. UAT AC-CAL-01…20 на проді й proof pack
 
-- [ ] 4.1 Прогін `npm run uat -- --url https://leave-portal-olive.vercel.app` з main, чисте дерево, з відео; один
+- [x] 4.1 Прогін `npm run uat -- --url https://leave-portal-olive.vercel.app` з main, чисте дерево, з відео; один
       `docs/qa/uat/<дата>/report.md` і `manifest.json` з `negativeControls`
-- [ ] 4.2 Оновити `docs/qa/proof-pack.md`; archive цієї зміни
+- [x] 4.2 Оновити `docs/qa/proof-pack.md`; archive цієї зміни
 
 Done when: AC-CAL-01, AC-CAL-02, AC-CAL-03, AC-CAL-04, AC-CAL-05, AC-CAL-06, AC-CAL-07, AC-CAL-08, AC-CAL-09,
 AC-CAL-10, AC-CAL-11, AC-CAL-12, AC-CAL-13, AC-CAL-14, AC-CAL-15, AC-CAL-16, AC-CAL-17, AC-CAL-18, AC-CAL-19,
