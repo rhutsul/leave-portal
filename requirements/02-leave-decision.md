@@ -1,4 +1,4 @@
-> Джерело: https://github.com/mkozlovskyi-ops/course-staff-management-spec/blob/2f07791214ca016f887094ce04a08286ce783c1d/docs/requirements/02-leave-decision.md · коміт 2f07791 · 2026-11-13
+> Джерело: https://github.com/mkozlovskyi-ops/course-staff-management-spec/blob/a0de666958e035ec67807b13e0264e1dea3ccec4/docs/requirements/02-leave-decision.md · коміт a0de666 · 2026-11-13
 
 # Requirement: a manager decides on leave records of their positions
 
