@@ -50,8 +50,8 @@ const addClosure = async (
   (
     await t.asUser<{ id: number }>(
       admin,
-      "select public.add_school_closure($1, $2::date, $3::date, $4) as id",
-      [name, start, end, closesAt],
+      "select public.add_school_closure($1, $2, $3::date, $4::date, $5) as id",
+      [closesAt == null ? "whole_days" : "early_dismissal", name, start, end, closesAt],
     )
   )[0].id;
 

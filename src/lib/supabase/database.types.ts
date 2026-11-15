@@ -280,7 +280,7 @@ isOneToOne: false
           }
           Functions: {
             "add_school_closure":
-{ Args: { "p_closes_at"?: number,"p_end": string,"p_name": string,"p_start": string }; Returns: number
+{ Args: { "p_closes_at"?: number,"p_end"?: string,"p_kind": string,"p_name": string,"p_start": string }; Returns: number
                            },
 "balance_employees":
 { Args: Record<PropertyKey, never>; Returns: {

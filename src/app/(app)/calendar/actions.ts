@@ -43,7 +43,9 @@ export async function addClosure(_prev: ClosureActionState, form: FormData): Pro
   if (!parsed.ok) return { message: parsed.message, done: false };
   const input = parsed.input;
 
+  // Вид закриття — у базі теж: скорочений день без часу вона не збереже («Enter the closing time»).
   const { data: id, error } = await supabase.rpc("add_school_closure", {
+    p_kind: input.kind,
     p_name: input.name,
     p_start: input.start,
     p_end: input.end,

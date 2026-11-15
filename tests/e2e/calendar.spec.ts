@@ -731,7 +731,7 @@ test.describe("manager1@example.test", () => {
         attempts.push(
           await asRole("manager1", "rpc/add_school_closure", {
             method: "POST",
-            body: { p_name: "Staff day", p_start: "2026-11-27", p_end: "2026-11-27" },
+            body: { p_kind: "whole_days", p_name: "Staff day", p_start: "2026-11-27", p_end: "2026-11-27" },
           }),
           await asRole("manager1", "school_closures", {
             method: "POST",

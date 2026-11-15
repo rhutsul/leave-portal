@@ -27,6 +27,10 @@ const CALENDAR_REQUEST_DB = "tests/db/school-calendar-request.test.ts";
 // Уточнення календаря (AC-CAL-16…20): нові версії add_school_closure і submit_leave_request перекривають старі копії
 // у CALENDAR і 20261108165906_school_calendar_requests.sql — мутанти цих функцій мутують чинну версію тут, інакше «вижили» б без жодного тесту.
 const CLARIFY = "supabase/migrations/20261113145925_school_calendar_clarifications.sql";
+// Виправлення за рев'ю WS9: нові версії add_school_closure (вид закриття), fix_day_share і record_share (частка дати не
+// більша за 1.00) перекривають копії в CLARIFY і 20261021133002_leave_decisions.sql — їхні мутанти мутують цей файл.
+const REVIEW_FIXES = "supabase/migrations/20261115122625_day_share_cap_and_closure_kind.sql";
+const RECORD_EDIT = "supabase/migrations/20261021171135_leave_record_edit.sql";
 const RECORD_EDIT_DB = "tests/db/leave-record-edit.test.ts";
 const START_INSIDE = "p_start >= b.start_min and p_start < b.end_min\n  ) or not exists";
 
@@ -111,44 +115,44 @@ export const mutants = [
     replace: "  using (false);",
   },
   {
-    id: "S12", kind: "sql", ac: "AC-CAL-07", file: CLARIFY, tests: [CALENDAR_DB],
+    id: "S12", kind: "sql", ac: "AC-CAL-07", file: REVIEW_FIXES, tests: [CALENDAR_DB],
     what: "add_school_closure: запис «Approved» більше не блокує закриття",
     find: "     and r.status in ('awaiting', 'returned', 'approved')\n     and (p_closes_at",
     replace: "     and r.status in ('awaiting', 'returned')\n     and (p_closes_at",
   },
   {
-    id: "S13", kind: "sql", ac: "AC-CAL-08", file: CLARIFY, tests: [CALENDAR_DB],
+    id: "S13", kind: "sql", ac: "AC-CAL-08", file: REVIEW_FIXES, tests: [CALENDAR_DB],
     what: "add_school_closure: запис «Rejected» теж блокує закриття",
     find: "     and r.status in ('awaiting', 'returned', 'approved')\n     and (p_closes_at",
     replace: "     and r.status in ('awaiting', 'returned', 'approved', 'rejected')\n     and (p_closes_at",
   },
   {
-    id: "S14", kind: "sql", ac: "AC-CAL-07", file: CLARIFY, tests: [CALENDAR_DB],
+    id: "S14", kind: "sql", ac: "AC-CAL-07", file: REVIEW_FIXES, tests: [CALENDAR_DB],
     what: "скорочений день: запис, що закінчується рівно о часі закриття, теж блокує (> → >=)",
     find: "r.end_min > p_closes_at",
     replace: "r.end_min >= p_closes_at",
   },
   {
-    id: "S15", kind: "sql", ac: "AC-CAL-10", file: CLARIFY, tests: [CALENDAR_DB],
+    id: "S15", kind: "sql", ac: "AC-CAL-10", file: REVIEW_FIXES, tests: [CALENDAR_DB],
     what: "add_school_closure: дата кінця раніше за початок більше не перевіряється (лишається лише обмеження таблиці)",
-    find: "  if p_end < p_start then\n    raise exception 'The end date cannot be earlier than the start date';",
+    find: "  if v_end < p_start then\n    raise exception 'The end date cannot be earlier than the start date';",
     replace: "  if false then\n    raise exception 'The end date cannot be earlier than the start date';",
   },
   {
-    id: "S16", kind: "sql", ac: "AC-CAL-11", file: CLARIFY, tests: [CALENDAR_DB],
+    id: "S16", kind: "sql", ac: "AC-CAL-11", file: REVIEW_FIXES, tests: [CALENDAR_DB],
     what: "add_school_closure: спільна дата більше не шукається (лишається лише обмеження таблиці, без тексту PM)",
-    find: "   where daterange(c.start_date, c.end_date, '[]') && daterange(p_start, p_end, '[]')",
+    find: "   where daterange(c.start_date, c.end_date, '[]') && daterange(p_start, v_end, '[]')",
     replace: "   where false",
   },
   {
-    id: "S17", kind: "sql", ac: "AC-CAL-13", file: CLARIFY, tests: [CALENDAR_DB],
+    id: "S17", kind: "sql", ac: "AC-CAL-13", file: REVIEW_FIXES, tests: [CALENDAR_DB],
     what: "add_school_closure: перевірка ролі → лише «увійшов» (менеджер додає закриття)",
     find:
       "  if (select auth.uid()) is null or private.current_app_role() is distinct from 'admin' then\n" +
-      "    raise exception 'Only an administrator can change the school calendar' using errcode = '42501';\n  end if;\n\n  -- AC-CAL-18",
+      "    raise exception 'Only an administrator can change the school calendar' using errcode = '42501';\n  end if;\n\n  if p_kind",
     replace:
       "  if (select auth.uid()) is null then\n" +
-      "    raise exception 'Only an administrator can change the school calendar' using errcode = '42501';\n  end if;\n\n  -- AC-CAL-18",
+      "    raise exception 'Only an administrator can change the school calendar' using errcode = '42501';\n  end if;\n\n  if p_kind",
   },
   {
     id: "S18", kind: "sql", ac: "AC-CAL-14", file: CALENDAR, tests: [CALENDAR_DB],
@@ -189,27 +193,52 @@ export const mutants = [
     replace: "      c.closes_at is null\n      or false and (",
   },
   {
-    id: "S24", kind: "sql", ac: "AC-CAL-17", file: CLARIFY, tests: [CALENDAR_DB],
+    id: "S24", kind: "sql", ac: "AC-CAL-17", file: REVIEW_FIXES, tests: [CALENDAR_DB],
     what: "add_school_closure: у повідомленні лише закриття, що почалось до нового (друге перетнуте зникає)",
     find: "           ', ' order by greatest(c.start_date, p_start), c.id\n         )",
     replace: "           ', ' order by greatest(c.start_date, p_start), c.id\n         ) filter (where c.start_date <= p_start)",
   },
   {
-    id: "S25", kind: "sql", ac: "AC-CAL-18", file: CLARIFY, tests: [CALENDAR_DB],
+    id: "S25", kind: "sql", ac: "AC-CAL-18", file: REVIEW_FIXES, tests: [CALENDAR_DB],
     what: "add_school_closure: порожня назва більше не перевіряється (лишається лише обмеження таблиці, без тексту PM)",
     find: "  if v_name is null or v_name = '' then",
     replace: "  if false then",
   },
   {
-    id: "S26", kind: "sql", ac: "AC-CAL-19", file: CLARIFY, tests: [CALENDAR_DB],
+    id: "S26", kind: "sql", ac: "AC-CAL-19", file: REVIEW_FIXES, tests: [CALENDAR_DB],
     what: "add_school_closure: межа назви 100 → 101 знак (101 проходить до обмеження таблиці, без тексту PM)",
     find: "  if char_length(v_name) > 100 then",
     replace: "  if char_length(v_name) > 101 then",
   },
   {
-    id: "S27", kind: "sql", ac: "AC-CAL-20", file: CLARIFY, tests: [CALENDAR_DB],
+    id: "S27", kind: "sql", ac: "AC-CAL-20", file: REVIEW_FIXES, tests: [CALENDAR_DB],
     what: "fix_day_share: частку при погодженні не фіксуємо — залишки знову рахують її від поточного календаря",
     find: "  v_working := private.working_minutes(new.employee_id, new.date);",
     replace: "  return new;\n  v_working := private.working_minutes(new.employee_id, new.date);",
+  },
+  // Виправлення за рев'ю WS9 (14.11).
+  {
+    id: "S28", kind: "sql", ac: "AC-BALANCE-05", file: REVIEW_FIXES, tests: [CALENDAR_DB],
+    what: "fix_day_share: частку не обмежено залишком дати (календар змінився між погодженнями — дата коштує 1.35)",
+    find: "  v_share := least(v_share, private.date_room(new.employee_id, new.date, new.id));",
+    replace: "",
+  },
+  {
+    id: "S29", kind: "sql", ac: "AC-BALANCE-05", file: REVIEW_FIXES, tests: [CALENDAR_DB],
+    what: "record_share: частку «Sick leave» / «Personal leave» при рішенні не обмежено залишком дати (paid_days 0.64)",
+    find: "           private.date_room(r.employee_id, r.date, r.id)\n         )",
+    replace: "           100\n         )",
+  },
+  {
+    id: "S30", kind: "sql", ac: "(Assumptions 04-school-calendar, без AC)", file: REVIEW_FIXES, tests: [CALENDAR_DB],
+    what: "add_school_closure: скорочений день без часу більше не відмовляє — закривається цілий день",
+    find: "  if v_early and p_closes_at is null then",
+    replace: "  if false then",
+  },
+  {
+    id: "S31", kind: "sql", ac: "AC-CAL-20", file: RECORD_EDIT, tests: [CALENDAR_DB],
+    what: "decide_leave_record: «Sick leave» / «Personal leave» більше не фіксують частку в paid_days при погодженні",
+    find: "    v_paid := least(v_share, greatest(v_remaining, 0));",
+    replace: "    v_paid := null;",
   },
 ];
