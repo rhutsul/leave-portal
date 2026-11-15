@@ -66,8 +66,12 @@ export function toClosure(row: {
   return { id: row.id, name: row.name, startDate: row.start_date, endDate: row.end_date, closesAt: row.closes_at };
 }
 
+/** Вид закриття, як його знає private.add_school_closure (p_kind): цілі дні або скорочений день. */
+export type ClosureKind = "whole_days" | "early_dismissal";
+
 /** Що адміністратор ввів у формі «Add closure»: назва й або цілі дні, або скорочений день. */
 export interface ClosureInput {
+  kind: ClosureKind;
   name: string;
   start: string;
   end: string;
@@ -123,7 +127,7 @@ export function parseClosureForm(field: (name: string) => string): ClosureCheck 
     return { ok: false, field: "dates", message: CALENDAR_MESSAGES.datesRequired };
   }
   if (early && closesAt == null) return { ok: false, field: "time", message: CALENDAR_MESSAGES.timeRequired };
-  return { ok: true, input: { name, start, end, closesAt } };
+  return { ok: true, input: { kind: early ? "early_dismissal" : "whole_days", name, start, end, closesAt } };
 }
 
 /** Закриття, що охоплює дату, або null (два закриття не мають спільної дати — AC-CAL-11). */

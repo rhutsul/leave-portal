@@ -124,7 +124,8 @@ describe("RLS: role × table → visible rows", () => {
 // public.add_school_closure (design.md D2), і поки її немає, червоніє лише цей блок, а не таблиці вище.
 describe("RLS: role × school_closures → visible rows", () => {
   beforeAll(async () => {
-    await t.asUser(t.users["admin@example.test"], "select public.add_school_closure($1, $2::date, $3::date)", [
+    await t.asUser(t.users["admin@example.test"], "select public.add_school_closure($1, $2, $3::date, $4::date)", [
+      "whole_days",
       "Winter break",
       "2026-12-28",
       "2027-01-08",

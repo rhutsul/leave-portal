@@ -9,19 +9,19 @@ describe("parseClosureForm", () => {
   it("whole days take the start and end dates and no time", () => {
     expect(
       parseClosureForm(form({ name: " Winter break ", kind: "days", start: "2026-12-28", end: "2027-01-08" })),
-    ).toEqual({ ok: true, input: { name: "Winter break", start: "2026-12-28", end: "2027-01-08", closesAt: null } });
+    ).toEqual({ ok: true, input: { kind: "whole_days", name: "Winter break", start: "2026-12-28", end: "2027-01-08", closesAt: null } });
   });
 
   it("an early dismissal is one date with the closing time in minutes", () => {
     expect(
       parseClosureForm(form({ name: "Teachers' meeting", kind: "early", date: "2026-11-20", time: "12:00" })),
-    ).toEqual({ ok: true, input: { name: "Teachers' meeting", start: "2026-11-20", end: "2026-11-20", closesAt: 720 } });
+    ).toEqual({ ok: true, input: { kind: "early_dismissal", name: "Teachers' meeting", start: "2026-11-20", end: "2026-11-20", closesAt: 720 } });
   });
 
   it("an end date before the start date is passed on, so the database answers with the PM text", () => {
     expect(parseClosureForm(form({ name: "Break", kind: "days", start: "2027-01-08", end: "2026-12-28" }))).toEqual({
       ok: true,
-      input: { name: "Break", start: "2027-01-08", end: "2026-12-28", closesAt: null },
+      input: { kind: "whole_days", name: "Break", start: "2027-01-08", end: "2026-12-28", closesAt: null },
     });
   });
 

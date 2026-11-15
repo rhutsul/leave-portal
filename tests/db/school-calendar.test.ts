@@ -54,8 +54,8 @@ const addClosure = async (userId: string, name: string, start: string, end: stri
   (
     await t.asUser<{ id: number }>(
       userId,
-      "select public.add_school_closure($1, $2::date, $3::date, $4) as id",
-      [name, start, end, closesAt],
+      "select public.add_school_closure($1, $2, $3::date, $4::date, $5) as id",
+      [closesAt == null ? "whole_days" : "early_dismissal", name, start, end, closesAt],
     )
   )[0].id;
 
@@ -143,6 +143,51 @@ describe("add_school_closure: overlaps and required fields", () => {
     expect(await calendar()).toEqual([]);
     await addClosure(admin, "a".repeat(100), "2027-01-20", "2027-01-20");
     expect((await calendar()).map((c) => c.name.length)).toEqual([100]);
+  });
+
+  it("an early dismissal without a closing time is not saved — Enter the closing time (Assumptions)", async () => {
+    // Вид закриття знає база, тож виклик напряму (як зробив би помічник календаря) не закриє цілий день.
+    await expect(
+      t.asUser(admin, "select public.add_school_closure('early_dismissal', 'Teachers'' meeting', '2026-11-20'::date)"),
+    ).rejects.toThrow("Enter the closing time");
+    await expect(
+      t.asUser(
+        admin,
+        "select public.add_school_closure(p_kind => 'early_dismissal', p_name => 'Teachers'' meeting', p_start => '2026-11-20'::date, p_end => '2026-11-20'::date)",
+      ),
+    ).rejects.toThrow("Enter the closing time");
+    expect(await calendar()).toEqual([]);
+  });
+
+  it("the closure kind is required: unknown kind or a closing time on whole days is refused", async () => {
+    await expect(
+      t.asUser(admin, "select public.add_school_closure(null, 'Winter break', '2026-12-28'::date, '2027-01-08'::date)"),
+    ).rejects.toMatchObject({ code: "22023" });
+    await expect(
+      t.asUser(admin, "select public.add_school_closure('whole_days', 'Winter break', '2026-12-28'::date, '2026-12-28'::date, 720)"),
+    ).rejects.toMatchObject({ code: "22023" });
+    expect(await calendar()).toEqual([]);
+  });
+
+  it("an early dismissal is one date: with a different end date it is refused with a dates message", async () => {
+    await expect(
+      t.asUser(admin, "select public.add_school_closure('early_dismissal', 'Teachers'' meeting', '2026-11-20'::date, '2026-11-23'::date, 720)"),
+    ).rejects.toMatchObject({ code: "22023", message: expect.stringContaining("An early dismissal closes one date") });
+    expect(await calendar()).toEqual([]);
+  });
+
+  it("an early dismissal is one date: without an end date it closes the start date from the given time", async () => {
+    await t.asUser(admin, "select public.add_school_closure('early_dismissal', 'Teachers'' meeting', '2026-11-20'::date, null, 720)");
+    expect(await calendar()).toEqual([
+      { name: "Teachers' meeting", start_date: "2026-11-20", end_date: "2026-11-20", closes_at: NOON },
+    ]);
+  });
+
+  it("AC-CAL-18: a name of only a tab or a line break is empty too — Enter a name for the closure", async () => {
+    for (const name of ["\t", "\n \t", " ", "﻿ "]) {
+      await expect(addClosure(admin, name, "2027-01-20", "2027-01-20")).rejects.toThrow("Enter a name for the closure");
+    }
+    expect(await calendar()).toEqual([]);
   });
 
   it("a closure without dates is not saved — Enter the start and end dates (Assumptions)", async () => {
@@ -300,7 +345,7 @@ describe("only an administrator changes the calendar", () => {
       "Only an administrator can change the school calendar",
     );
     await expect(
-      t.asAnon("select public.add_school_closure('Staff day', '2026-11-27'::date, '2026-11-27'::date)"),
+      t.asAnon("select public.add_school_closure('whole_days', 'Staff day', '2026-11-27'::date, '2026-11-27'::date)"),
     ).rejects.toMatchObject({ code: "42501" });
     expect(await calendar()).toEqual([]);
   });
@@ -354,12 +399,15 @@ describe("day share without closed minutes", () => {
 });
 
 describe("day share fixed at approval", () => {
-  const usedOf = async (type: "sick" | "unpaid") => {
+  const inputsOf = async () => {
     const [row] = await t.asUser<{ inputs: unknown }>(teacher1, "select public.get_balance_inputs($1, $2) as inputs", [
       teacher1,
       2026,
     ]);
-    const balances = computeBalances(parseBalanceInputs(row.inputs), 2026);
+    return parseBalanceInputs(row.inputs);
+  };
+  const usedOf = async (type: "sick" | "unpaid") => {
+    const balances = computeBalances(await inputsOf(), 2026);
     return formatDays(type === "sick" ? balances.limited.sick.used : balances.unlimited.unpaid);
   };
 
@@ -378,6 +426,8 @@ describe("day share fixed at approval", () => {
     expect(await usedOf("sick")).toBe("0.36");
     await addClosure(admin, "Teachers' meeting", "2026-11-20", "2026-11-20", NOON);
     expect(await usedOf("sick")).toBe("0.36");
+    // «Sick leave» фіксує частку ще й у розподілі рішення (paid_days, AC-BALANCE-10): 0.36 сплачених днів.
+    expect((await inputsOf()).splits.find((s) => s.date === "2026-11-20")).toMatchObject({ leaveType: "sick", paidDays: 0.36 });
   });
 
   it("AC-CAL-20: the same holds for Unpaid leave, and removing or changing a closure later does not change the share", async () => {
@@ -389,6 +439,51 @@ describe("day share fixed at approval", () => {
     expect(await usedOf("unpaid")).toBe("0.71");
     await addClosure(admin, "Teachers' meeting", "2026-11-20", "2026-11-20", 11 * 60 + 30);
     expect(await usedOf("unpaid")).toBe("0.71");
+  });
+
+  // «One date never counts as more than 1.00 day» (03-leave-balance, Assumptions) і AC-BALANCE-05, коли календар
+  // змінюється між двома погодженнями однієї дати: частка другого запису — не більша за те, що лишилося від дати.
+  it.each(["unpaid", "sick"] as const)(
+    "AC-BALANCE-05: %s 08:30–11:00 approved under the early dismissal, closure removed, 11:00–15:30 approved — the date is used 1.00, not 1.35",
+    async (type) => {
+      const closureId = await addClosure(admin, "Teachers' meeting", "2026-11-20", "2026-11-20", NOON);
+      await approved(type, "2026-11-20", 510, 660);
+      expect(await usedOf(type)).toBe("0.71");
+      await t.asUser(admin, "select public.remove_school_closure($1)", [closureId]);
+      await approved(type, "2026-11-20", 660, 930);
+      expect(await usedOf(type)).toBe("1.00");
+    },
+  );
+
+  it("AC-BALANCE-05: records of different types on one date never count more than 1.00 together", async () => {
+    const closureId = await addClosure(admin, "Teachers' meeting", "2026-11-20", "2026-11-20", NOON);
+    await approved("unpaid", "2026-11-20", 510, 660);
+    await t.asUser(admin, "select public.remove_school_closure($1)", [closureId]);
+    await approved("sick", "2026-11-20", 660, 930);
+    expect(await usedOf("unpaid")).toBe("0.71");
+    expect(await usedOf("sick")).toBe("0.29");
+  });
+
+  // Дзеркальний випадок — відкрите питання до PM (Open question у design.md зміни impl-school-calendar-fixes): перший
+  // запис погоджено до появи скороченого дня (150 з 420 = 0.36), другий — після (60 з 210 від решти = 0.29). AC-CAL-20
+  // фіксує частку кожного запису на момент погодження, тож разом 0.65, а не 1.00. Тест закріплює поточну поведінку:
+  // відповідь PM покаже, що саме змінити.
+  it("AC-CAL-20: 08:30–11:00 approved before \"Teachers' meeting\" from 12:00 and 11:00–12:00 after it — used 0.65 (open question to PM)", async () => {
+    await approved("unpaid", "2026-11-20", 510, 660);
+    await addClosure(admin, "Teachers' meeting", "2026-11-20", "2026-11-20", NOON);
+    await approved("unpaid", "2026-11-20", 660, NOON);
+    expect(await usedOf("unpaid")).toBe("0.65");
+  });
+
+  // Без paid_days (запис погоджено напряму, як у «Дано» e2e): частку для «Sick leave» тримає лише day_share.
+  it("AC-CAL-20: Sick leave 08:30–11:00 approved directly (no paid_days) is used 0.36 and stays 0.36 after \"Teachers' meeting\" from 12:00", async () => {
+    const requestId = await submit(teacher1, "sick", [
+      { position_id: teacher1Main, date: "2026-11-20", start_min: 510, end_min: 660 },
+    ]);
+    await setStatus(requestId, "approved");
+    expect(await usedOf("sick")).toBe("0.36");
+    await addClosure(admin, "Teachers' meeting", "2026-11-20", "2026-11-20", NOON);
+    expect(await usedOf("sick")).toBe("0.36");
   });
 
   it("AC-CAL-20: a record approved directly (test data) gets its share from the calendar of that moment; not approved — none", async () => {
