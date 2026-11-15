@@ -17,7 +17,7 @@ https://github.com/koldovsky/2026-quitcode-10-ai-features-hw/tree/main/materials
 - [x] 1.2 Схема `CalendarSuggestions` (D2), `checkSuggestions` у `src/lib/ai/suggestions.ts` (неіснуюча дата й скорочений день без часу → `needs_info`), `assistantTextLength`, промпт (D3) з
       `DRAFT_PROMPT_VERSION`, «сьогодні» параметром; тексти станів — константи з AC дослівно
 - [x] 1.3 Server Actions `requestSuggestions` / `saveSuggestions` (D4), `timeout` 30 с, `maxRetries` 0; збої → AC-ASSIST-09; `closureRpcMessage` у `src/lib/leave/calendar.ts`; тег `@live-model` і `grepInvert` у `playwright.config.ts` (D9)
-- [x] 1.4 Сторінка `/calendar/assistant` і кнопка «Add from text» для адміністратора (D1): форма, стани `Alert`,
+- [x] 1.4 Панель помічника на `/calendar` (`?assistant=1`, було — сторінка `/calendar/assistant`) і кнопка «Add from text» для адміністратора (D1): форма, стани `Alert`, пропозиції на сітці року,
       картки пропозицій з полями «Add closure», «Remove suggestion», «Save closures»; адаптив (ADR 0008);
       `npm run check:design`, `npm run check:ui`
 - [ ] 1.5 Перевірка руками без ключа (`OPENROUTER_API_KEY=" "`): сторінка показує AC-ASSIST-09, ручна форма працює

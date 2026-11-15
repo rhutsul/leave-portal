@@ -56,6 +56,22 @@ function SheetContent({
   );
 }
 
+/**
+ * Обробник `onOpenChange` робочої панелі, що відкрита за посиланням: закрити — `onClose` (перехід без параметра).
+ * Esc і клік повз НЕ закривають, поки `hasDraft(панель)` — щоб не загубити набране; хрестик закриває завжди.
+ */
+function closeUnlessDraft(onClose: () => void, hasDraft: (popup: Element | null) => boolean) {
+  return (open: boolean, details: DialogPrimitive.Root.ChangeEventDetails) => {
+    if (open) return;
+    const popup = document.querySelector('[data-slot="sheet-content"]');
+    if ((details.reason === "escape-key" || details.reason === "outside-press") && hasDraft(popup)) {
+      details.cancel();
+      return;
+    }
+    onClose();
+  };
+}
+
 /** Шапка: заголовок і опис ліворуч, дії (навігація, закрити) праворуч; під нею — межа на всю ширину. */
 function SheetHeader({
   className,
@@ -108,4 +124,4 @@ function SheetBody({ className, ...props }: React.ComponentProps<"div">) {
   return <div data-slot="sheet-body" className={cn("flex-1 overflow-y-auto px-5 py-5", className)} {...props} />;
 }
 
-export { Sheet, SheetBody, SheetClose, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger };
+export { closeUnlessDraft, Sheet, SheetBody, SheetClose, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger };

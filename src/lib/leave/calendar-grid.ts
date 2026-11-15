@@ -38,10 +38,15 @@ export function schoolYearMonths(schoolYear: number): string[] {
   return Array.from({ length: 12 }, (_, i) => addMonths(`${schoolYear}-09`, i));
 }
 
-function inSelection(date: string, selection: DateSelection | null): boolean {
+/** Одна вибрана дата чи діапазон (форма «Add closure») або кілька (пропозиції помічника календаря). */
+export type GridSelection = DateSelection | readonly DateSelection[] | null;
+
+function inSelection(date: string, selection: GridSelection): boolean {
   if (!selection) return false;
-  const end = selection.end < selection.start ? selection.start : selection.end;
-  return selection.start <= date && date <= end;
+  if (Array.isArray(selection)) return selection.some((one) => inSelection(date, one));
+  const one = selection as DateSelection;
+  const end = one.end < one.start ? one.start : one.end;
+  return one.start <= date && date <= end;
 }
 
 /** Один місяць сітки. */
@@ -49,7 +54,7 @@ export function buildMonth(
   month: string,
   closures: readonly Closure[],
   today: string,
-  selection: DateSelection | null = null,
+  selection: GridSelection = null,
 ): GridMonth {
   return {
     month,
@@ -69,9 +74,14 @@ export function buildMonth(
   };
 }
 
-/** 12 місяців навчального року для сторінки «School calendar». */
-export function buildSchoolYear(schoolYear: number, closures: readonly Closure[], today: string): GridMonth[] {
-  return schoolYearMonths(schoolYear).map((m) => buildMonth(m, closures, today));
+/** 12 місяців навчального року для сторінки «School calendar»; `selection` — пропозиції помічника, ще не збережені. */
+export function buildSchoolYear(
+  schoolYear: number,
+  closures: readonly Closure[],
+  today: string,
+  selection: GridSelection = null,
+): GridMonth[] {
+  return schoolYearMonths(schoolYear).map((m) => buildMonth(m, closures, today, selection));
 }
 
 /**

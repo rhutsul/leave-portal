@@ -1,11 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState, useId, useState } from "react";
+import { useActionState, useEffect, useId, useState } from "react";
 import { CircleAlert, Info, Sparkles, TriangleAlert, X } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { DatePickerField } from "@/components/ui/date-picker";
 import { FieldError } from "@/components/ui/field-error";
 import { Input } from "@/components/ui/input";
@@ -18,6 +18,7 @@ import { closureFields, closurePick } from "@/lib/leave/closure-dates";
 import { formatTime } from "@/lib/leave/time";
 import { cn } from "@/lib/utils";
 import { requestSuggestions, saveSuggestions, type AssistantState, type SaveState } from "./actions";
+import { useSetAssistantPreview } from "../year-grid";
 import { applySaveResult, submittedKeys } from "./save-result";
 
 type Kind = "days" | "early";
@@ -60,9 +61,19 @@ export function AssistantForm({ today }: { today: string }) {
     return next;
   }, { step: "idle" } as AssistantState);
 
+  // Пропозиції — на сітці року під панеллю, поки їх не збережено чи не прибрано (design.md D1).
+  const setPreview = useSetAssistantPreview();
+  useEffect(() => {
+    setPreview(items.flatMap((item) => {
+      const pick = closurePick(item.dates);
+      return pick ? [pick.preview] : [];
+    }));
+  }, [items, setPreview]);
+  useEffect(() => () => setPreview([]), [setPreview]);
+
   return (
     <div className="flex flex-col gap-6">
-      <RequestForm action={requestAction} preparing={preparing} />
+      <RequestForm action={requestAction} preparing={preparing} secondary={items.length > 0} />
       {!preparing && request.step === "message" && <StateAlert tone={request.tone} message={request.message} />}
       {items.length > 0 && <SuggestionsForm items={items} setItems={setItems} today={today} />}
     </div>
@@ -70,16 +81,16 @@ export function AssistantForm({ today }: { today: string }) {
 }
 
 /** Текст календаря й «Suggest closures»: лічильник знаків (AC-ASSIST-10) і стан очікування (AC-ASSIST-08). */
-function RequestForm({ action, preparing }: { action: (form: FormData) => void; preparing: boolean }) {
+/** `secondary` — пропозиції вже є: основна дія панелі тепер «Save closures» (одна основна дія, DESIGN.md). */
+function RequestForm({ action, preparing, secondary }: { action: (form: FormData) => void; preparing: boolean; secondary: boolean }) {
   const id = useId();
   const [text, setText] = useState("");
   const length = assistantTextLength(text);
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>School calendar text</CardTitle>
-      </CardHeader>
-      <CardContent>
+    <section aria-labelledby={`${id}-title`} className="flex flex-col gap-3">
+      <h2 id={`${id}-title`} className="text-base font-semibold">
+        School calendar text
+      </h2>
         <form action={action} className="flex flex-col gap-3">
           <div className="flex flex-col gap-1.5">
             <div className="flex items-baseline justify-between gap-3">
@@ -105,14 +116,13 @@ function RequestForm({ action, preparing }: { action: (form: FormData) => void; 
             <p role="status" className="text-sm text-muted-foreground empty:hidden">
               {preparing ? ASSISTANT_MESSAGES.preparing : ""}
             </p>
-            <Button type="submit" disabled={preparing || !text.trim()} aria-busy={preparing || undefined}>
+            <Button type="submit" variant={secondary ? "secondary" : "default"} disabled={preparing || !text.trim()} aria-busy={preparing || undefined}>
               {preparing ? SPINNER : <Sparkles aria-hidden="true" />}
               Suggest closures
             </Button>
           </div>
         </form>
-      </CardContent>
-    </Card>
+    </section>
   );
 }
 
@@ -201,10 +211,8 @@ function SuggestionsForm({
           </AlertDescription>
         </Alert>
       )}
-      <div className="flex flex-wrap justify-end gap-2 max-md:sticky max-md:bottom-0 max-md:bg-background max-md:py-3">
-        <Link href="/calendar" className={buttonVariants({ variant: "ghost" })}>
-          Back
-        </Link>
+      {/* Смуга дії внизу панелі за будь-якої ширини, як у панелі «Decisions» (DESIGN.md, Sheet). */}
+      <div className="sticky bottom-0 -mx-5 flex justify-end gap-2 border-t border-border bg-popover px-5 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
         <Button type="submit" disabled={saving} aria-busy={saving || undefined}>
           {saving && SPINNER}
           {saving ? "Saving…" : "Save closures"}
@@ -228,8 +236,8 @@ function SuggestionCard({ onRemove, ...props }: CardProps & { onRemove: () => vo
   const { id, index, item } = props;
   const prefix = `s${index}.`;
   return (
-    <li>
-      <Card className="gap-4 px-5 py-4" aria-labelledby={`${id}-title`}>
+    <li data-suggestion>
+      <Card className="gap-4 px-4 py-4" aria-labelledby={`${id}-title`}>
         <div className="flex items-start justify-between gap-3">
           <h3 id={`${id}-title`} className="text-sm font-semibold">
             Suggestion {index + 1}
@@ -240,7 +248,7 @@ function SuggestionCard({ onRemove, ...props }: CardProps & { onRemove: () => vo
           </Button>
         </div>
         <HiddenFields prefix={prefix} item={item} />
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-4">
           <NameField {...props} prefix={prefix} />
           <KindField {...props} />
           <DatesField {...props} />
