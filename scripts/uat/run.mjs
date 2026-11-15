@@ -89,7 +89,8 @@ const calendarRows = path.join(ROOT, "test-results", "uat-calendar-rows.jsonl");
 if (existsSync(calendarRows) && readFileSync(calendarRows, "utf8").trim()) {
   console.error(
     `UAT зупинено: ${path.relative(ROOT, calendarRows)} не порожній — попередній прогін не прибрав за собою. ` +
-      "Видаліть ці рядки з бази (id і таблиці — у файлі), потім сам файл, і запустіть знову.",
+      "Видаліть ці рядки з бази (id і таблиці — у файлі; uat_users — це користувачі Supabase Auth: видаляйте їх за id в " +
+      "Authentication → Users, каскад прибере профіль, посаду й записи), потім сам файл, і запустіть знову.",
   );
   process.exit(1);
 }

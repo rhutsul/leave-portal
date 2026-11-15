@@ -96,7 +96,10 @@ export type UatEmployee = { id: string; email: string; password: string; fullNam
 /**
  * Синтетичний працівник для «Дано» AC, які не називають конкретного акаунта: uat-<run>-<n>@example.test з роллю
  * employee, однією основною посадою (менеджер — manager1@example.test, як у teacher1@) і розкладом `schedule`.
- * Пароль — випадковий, лише в пам'яті тесту (не друкуємо, не пишемо у файли). Повертає id для прибирання: журнал
+ * Пароль — випадковий, у пам'яті тесту: не друкуємо й не пишемо в журнали. Вхід на /login (signIn) іде в трасу
+ * Playwright (trace.zip, test-results/), а вимкнути трасу для одного тесту не можна (опція воркера) — тож пароль живий,
+ * лише доки живий працівник: прибирання видаляє його за id, а teardown називає й падає на будь-якому uat-…@example.test,
+ * що лишився. Повертає id для прибирання: журнал
  * створеного (uat_users) — afterEach видаляє користувача за id, а каскад — профіль, посаду, розклад і записи.
  */
 export async function createUatEmployee(schedule: UatSchedule): Promise<UatEmployee> {
@@ -257,12 +260,15 @@ export async function assertCalendarClean() {
     for (const c of closures ?? []) problems.push(`закриття «${c.name}» ${c.start_date}…${c.end_date}`);
     const { data: records, error: recordsError } = await supabase
       .from("leave_records")
-      .select("date, status, employee_id")
+      .select("date, status, profiles(email)")
       .gte("date", w.from)
       .lte("date", w.to)
       .in("status", BLOCKING);
     if (recordsError) throw recordsError;
-    for (const r of records ?? []) problems.push(`запис ${r.date} (${r.status})`);
+    for (const r of records ?? []) {
+      const owner = (r.profiles as unknown as { email: string } | null)?.email ?? "?";
+      problems.push(`запис ${owner} ${r.date} (${r.status})`);
+    }
     const { data: own, error: ownError } = await supabase
       .from("leave_records")
       .select("date, status")
@@ -349,11 +355,12 @@ export async function cleanupCalendar(): Promise<{ deleted: string[]; remaining:
     if (countError) throw countError;
     leftoverRequests += count ?? 0;
   }
-  // Синтетичні працівники цього прогону (uat-<run>-…@example.test), яких прибирання не видалило.
+  // Синтетичні працівники (uat-…@example.test), яких прибирання не видалило, — і цього прогону, і попередніх: інакше
+  // залишок перерваного прогону ніхто б не назвав.
   const { data: uatProfiles, error: uatError } = await supabase
     .from("profiles")
     .select("email")
-    .like("email", `uat-${runLabel()}-%@example.test`);
+    .like("email", "uat-%@example.test");
   if (uatError) throw uatError;
   for (const p of uatProfiles ?? []) remaining.push(`працівник ${p.email}`);
   return { deleted, remaining, leftoverRequests };

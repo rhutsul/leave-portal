@@ -26,13 +26,27 @@ const sec = (ms) => `${(ms / 1000).toFixed(1)} с`;
 const usd = (x) => `$${x.toFixed(4)}`;
 const md = (s = "") => String(s).replace(/\|/g, "\\|").replace(/\r?\n/g, " ");
 
-/** NC з окремого прогону npm run uat:nc — лише того самого коду тестів (testsCommit) і проду (deployedSha). */
-function ncFromSeparateRun(run) {
-  const file = path.join(ROOT, "test-results", "uat-report-nc", "manifest.json");
+/**
+ * NC з окремого прогону npm run uat:nc — лише того самого застосунку (baseURL), коду тестів (testsCommit) і розгортання
+ * (deployedSha; для адреси без відомого коміту — ні). Кадри NC копіюємо до кадрів звіту, щоб посилання вели в git.
+ */
+function ncFromSeparateRun(run, outDir) {
+  const dir = path.join(ROOT, "test-results", "uat-report-nc");
+  const file = path.join(dir, "manifest.json");
   if (!existsSync(file)) return [];
   const nc = readJson(file);
-  if (nc.testsCommit !== (run.gitSha ?? null) || nc.deployedSha !== (run.deployedSha ?? null) || nc.gitDirty) return [];
-  return (nc.negativeControls ?? []).map((e) => ({ ...e, separateRun: nc.generatedAt }));
+  const sameApp = nc.baseURL === (run.baseURL ?? null) && nc.testsCommit === (run.gitSha ?? null);
+  const sameDeploy = nc.deployedSha === (run.deployedSha ?? null) && (nc.deployedSha != null || !run.baseURL?.startsWith("https://"));
+  if (!sameApp || !sameDeploy || nc.gitDirty) return [];
+  return (nc.negativeControls ?? []).map((e) => {
+    let screenshot = null;
+    if (e.screenshot && existsSync(path.join(ROOT, e.screenshot))) {
+      const name = path.basename(e.screenshot);
+      copyFileSync(path.join(ROOT, e.screenshot), path.join(outDir, "frames", name));
+      screenshot = rel(path.join(outDir, "frames", name));
+    }
+    return { ...e, screenshot, separateRun: nc.generatedAt };
+  });
 }
 
 export function report(rows = combine(), { out } = {}) {
@@ -90,7 +104,7 @@ export function report(rows = combine(), { out } = {}) {
     reviewer: { model: HAIKU, disputes: SONNET },
     note: "Відео й траси не в git (test-results/ локально, артефакт CI). check-recordings конвеєра WS9 вимагає відео на диску — для нього цей manifest треба доповнити.",
     results: real.map(entry),
-    negativeControls: nc.length ? nc.map(entry) : ncFromSeparateRun(run),
+    negativeControls: nc.length ? nc.map(entry) : ncFromSeparateRun(run, outDir),
     cleanup,
   };
   writeFileSync(path.join(outDir, "manifest.json"), JSON.stringify(manifest, null, 2) + "\n");
