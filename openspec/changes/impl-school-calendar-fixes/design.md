@@ -24,9 +24,11 @@ AC-CAL-01…20 на проді з чистого дерева й синтети�
 
 ### D1. Частка дати не більша за 1.00 (AC-BALANCE-05, AC-CAL-20)
 
-Нова міграція `day_share_cap_and_closure_kind`: `private.date_room(employee, date, exclude_id)` = 100 − Σ зафіксованих
-часток (`day_share`, запасний шлях — `paid_days + unpaid_days`) інших погоджених записів працівника на дату, усіх
-типів, не менше 0. `fix_day_share` і `record_share` беруть `least(приріст, date_room)`; `decide_leave_record` бере частку
+Нова міграція `day_share_cap_and_closure_kind`. Усе — у сотих дня, як `used_hundredths` і `private.day_share`:
+`private.date_room(employee, date, exclude_id)` = 100 − Σ `round(day_share × 100)` (запасний шлях —
+`round((paid_days + unpaid_days) × 100)`) інших погоджених записів працівника на дату, усіх типів, не менше 0.
+`fix_day_share` і `record_share` беруть `least(приріст у сотих, date_room)`, а `day_share` пишуть як соті ÷ 100: після
+0.71 лишається 29 сотих, тож другий запис — 0.29, а не 0.64. `decide_leave_record` бере частку
 з `record_share`, тож `paid_days` «Sick leave» і «Personal leave», попередження й панель рішення бачать ту саму частку.
 Зафіксовані частки вже погоджених записів не змінюємо (AC-CAL-20). Тест PGlite — на послідовність дій, не на один запис:
 `approve(08:30–11:00)` під закриттям з 12:00 → `remove_school_closure` → `approve(11:00–15:30)` → used 1.00 для «Unpaid
@@ -71,5 +73,6 @@ leave» і «Sick leave», і для двох різних типів (0.71 + 0.
   420 = 0.36), другий — після (11:00–12:00, решта 60 з 210 = 0.29): весь скорочений день коштує 0.65 замість 1.00. Це
   буквально випливає з AC-CAL-20 (частка фіксується при погодженні), але суперечить Assumptions 03 «records that
   together cover all those minutes count as 1.00». Питання для вебформи «Питання до вимог» підготовано
-  (`docs/spec-reading.md`, 2026-11-15); публікує розробник. Поки відповіді немає — поточна поведінка (0.65), закріплена
-  тестом `tests/db/school-calendar.test.ts` («used 0.65 (open question to PM)»).
+  (`docs/spec-reading.md`, 2026-11-15); публікує розробник. Поки відповіді немає — поточна поведінка (0.65), яку закріплює
+  тест «used 0.65 (open question to PM)» у `tests/db/school-calendar.test.ts` — його додає задача 2.2 (PR «Реалізація»
+  `task/ws9-day-share-closure-kind`).
