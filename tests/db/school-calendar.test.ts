@@ -169,6 +169,13 @@ describe("add_school_closure: overlaps and required fields", () => {
     expect(await calendar()).toEqual([]);
   });
 
+  it("an early dismissal is one date: with a different end date it is refused with a dates message", async () => {
+    await expect(
+      t.asUser(admin, "select public.add_school_closure('early_dismissal', 'Teachers'' meeting', '2026-11-20'::date, '2026-11-23'::date, 720)"),
+    ).rejects.toMatchObject({ code: "22023", message: expect.stringContaining("An early dismissal closes one date") });
+    expect(await calendar()).toEqual([]);
+  });
+
   it("an early dismissal is one date: without an end date it closes the start date from the given time", async () => {
     await t.asUser(admin, "select public.add_school_closure('early_dismissal', 'Teachers'' meeting', '2026-11-20'::date, null, 720)");
     expect(await calendar()).toEqual([
@@ -177,7 +184,7 @@ describe("add_school_closure: overlaps and required fields", () => {
   });
 
   it("AC-CAL-18: a name of only a tab or a line break is empty too — Enter a name for the closure", async () => {
-    for (const name of ["\t", "\n \t"]) {
+    for (const name of ["\t", "\n \t", " ", "﻿ "]) {
       await expect(addClosure(admin, name, "2027-01-20", "2027-01-20")).rejects.toThrow("Enter a name for the closure");
     }
     expect(await calendar()).toEqual([]);

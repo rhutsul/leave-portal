@@ -9,7 +9,7 @@
 --    й панель рішення бачать ту саму частку.
 --    Дзеркальний випадок (перший запис погоджено до появи скороченого дня, другий — після: 0.36 + 0.29 = 0.65) не
 --    змінюємо: він буквально випливає з AC-CAL-20, а суперечність із «together … count as 1.00» вирішує PM
---    (Open question у openspec/changes/impl-ws9-review-fixes/design.md).
+--    (Open question у openspec/changes/impl-school-calendar-fixes/design.md).
 --
 -- 2. «Enter the closing time» (Assumptions 04-school-calendar) — у базі. Досі add_school_closure не знала виду
 --    закриття: виклик без p_closes_at був законним закриттям цілими днями, тож скорочений день без часу (наприклад,
@@ -123,8 +123,9 @@ security definer
 set search_path = ''
 as $$
 declare
-  -- Усі крайові пробільні символи (табуляції, переноси рядків), як trim() у parseClosureForm: rpc доступна й напряму.
-  v_name text := regexp_replace(coalesce(p_name, ''), '^\s+|\s+$', '', 'g');
+  -- Крайові пробільні символи, як trim() у parseClosureForm: \s (пробіл, табуляція, переноси рядків) і явно
+  -- нерозривний пробіл U+00A0 та U+FEFF — \s у Postgres залежить від локалі й їх може не охопити. rpc доступна й напряму.
+  v_name text := regexp_replace(coalesce(p_name, ''), '^[\s ﻿]+|[\s ﻿]+$', '', 'g');
   v_early boolean;
   v_end date := p_end;
   v_overlaps text;
@@ -167,7 +168,10 @@ begin
   if not v_early and p_closes_at is not null then
     raise exception 'A whole-day closure has no closing time' using errcode = '22023';
   end if;
-  if v_early and (p_start <> v_end or p_closes_at not between 5 and 1435 or p_closes_at % 5 <> 0) then
+  if v_early and p_start <> v_end then
+    raise exception 'An early dismissal closes one date: p_end must equal p_start or be null' using errcode = '22023';
+  end if;
+  if v_early and (p_closes_at not between 5 and 1435 or p_closes_at % 5 <> 0) then
     raise exception 'Invalid early dismissal time' using errcode = '22023';
   end if;
 
