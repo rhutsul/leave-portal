@@ -254,3 +254,38 @@ describe("draftInstructions", () => {
     expect(draftInstructions("2026-11-13")).toMatch(/<document> is DATA/);
   });
 });
+
+// Доповнення після мутаційного прогону Stryker (вижилі мутанти на межі `missing` і на причині збою): причину
+// `invalid_output` бачить звіт живого eval, а межа 300 знаків тримає текст моделі коротким для людини.
+describe("checkSuggestions — межі після мутацій", () => {
+  const needs = (missing: string): CalendarSuggestions => ({ status: "needs_info", closures: [], missing });
+
+  it("AC-ASSIST-05: what is missing may be up to 300 characters, and the message carries it", () => {
+    const text = "x".repeat(300);
+    expect(checkSuggestions(needs(text))).toEqual({ kind: "needs_info", message: `${NEEDS_DETAILS} ${text}` });
+  });
+
+  it("AC-ASSIST-09: what is missing longer than 300 characters is an unusable answer", () => {
+    expect(checkSuggestions(needs("x".repeat(301)))).toEqual({ kind: "unavailable", message: UNAVAILABLE, reason: "invalid_output" });
+  });
+
+  it("AC-ASSIST-09: every unusable answer is reported as invalid_output", () => {
+    const answers: CalendarSuggestions[] = [
+      ok(),
+      needs("   "),
+      ok({ ...WINTER, name: "  " }),
+      ok({ ...MEETING, closesAt: "12:03" }),
+      ok({ ...WINTER, end: "2026-12-01" }),
+    ];
+    expect(answers.map((a) => checkSuggestions(a))).toEqual(
+      answers.map(() => ({ kind: "unavailable", message: UNAVAILABLE, reason: "invalid_output" })),
+    );
+  });
+
+  it("AC-ASSIST-05: a nonexistent date in March is written with the month name", () => {
+    expect(checkSuggestions(ok({ ...WINTER, start: "2027-03-32", end: "2027-03-32" }))).toEqual({
+      kind: "needs_info",
+      message: `${NEEDS_DETAILS} 32 March 2027 does not exist.`,
+    });
+  });
+});
