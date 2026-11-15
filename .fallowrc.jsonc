@@ -18,10 +18,18 @@
     // Tailwind 4 підключено рядком у next.config.ts (turbopack.rules.loaders) — fallow цього не бачить.
     "@tailwindcss/turbopack",
     // Vitest вантажить провайдер покриття за назвою з конфігу (provider: "v8"), а не через import.
-    "@vitest/coverage-v8"
+    "@vitest/coverage-v8",
+    // Наше (leave-portal), набір AI, підключаємо в PR функції calendar assistant: vitest.eval.config.mts (з набору
+    // курсу materials/ai-feature) бере loadEnv із "vite" — це залежність самого Vitest, окремо її не ставимо.
+    "vite"
   ],
   // Якщо у вас є shadcn/ui: компоненти дизайн-системи навмисно експортують усі частини. Немає теки — рядок нічого не робить.
-  "ignoreExports": [{ "file": "src/components/ui/**", "exports": ["*"] }],
+  "ignoreExports": [
+    { "file": "src/components/ui/**", "exports": ["*"] },
+    // Наше (leave-portal), набір AI, підключаємо в PR функції calendar assistant: isFileType і USER_MESSAGES
+    // використовує Server Action набору (src/app/ai-draft/actions.ts), який ляже на сторінку функції.
+    { "file": "src/lib/ai/draft.ts", "exports": ["isFileType", "USER_MESSAGES"] }
+  ],
   "ignoreExportsUsedInFile": true,
   // Наше (leave-portal). Переглянуті дублі; ключ змінюється разом із вмістом чи кількістю копій — тоді знахідка
   // повертається.
@@ -79,7 +87,11 @@
       "scripts/check-spec.mjs",
       "scripts/create-demo-users.mjs",
       "scripts/check-design-tokens.mjs",
-      "scripts/check-server-boundary.mjs"
+      "scripts/check-server-boundary.mjs",
+      // Наше (leave-portal), набір AI, підключаємо в PR функції calendar assistant: живий eval і npm run ai:models
+      // з набору курсу materials/ai-feature, перенесені без змін (складність — чужого коду, як рядки вище).
+      "evals/golden.live.eval.ts",
+      "scripts/free-models.mjs"
     ],
     "thresholdOverrides": [
       { "files": ["tests/**"], "maxUnitSize": 500, "reason": "describe()-блоки довгі за задумом" }
