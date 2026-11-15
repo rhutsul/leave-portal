@@ -20,6 +20,9 @@ export const PRODUCT_MODELS = [
 // Суддя для живого eval — інша родина, ніж основна модель продукту (не оцінює відповіді своєї родини).
 // Якщо відповідь дала резервна Gemma 31B, суддя тієї ж родини: колонка modelId у звіті це показує.
 export const JUDGE_MODEL = "google/gemma-4-31b-it:free";
+// Запасні судді: 15.11 постачальник Gemma 31B відповів 429 при вільному ліміті акаунта (4 з 50) — без запасних
+// такий 429 зупиняв увесь прогін. Спершу та сама родина Gemma, Nemotron (родина основної моделі) — останнім.
+const JUDGE_FALLBACKS = ["google/gemma-4-26b-a4b-it:free", "nvidia/nemotron-3.5-super-vl:free"] as const;
 
 // Фабрики приймають ключ параметром і НЕ читають process.env: так їх можна імпортувати в eval-скрипті.
 // У коді застосунку модель бере лише src/lib/ai/openrouter.ts (server-only).
@@ -39,5 +42,5 @@ export function makeProductModel(apiKey: string | undefined) {
 
 export function makeJudgeModel(apiKey: string | undefined) {
   const openrouter = createOpenRouter({ apiKey, appName: "QuitCode slice 4 eval" });
-  return openrouter.chat(JUDGE_MODEL);
+  return openrouter.chat(JUDGE_MODEL, { models: [JUDGE_MODEL, ...JUDGE_FALLBACKS] });
 }

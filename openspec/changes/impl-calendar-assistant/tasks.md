@@ -21,7 +21,7 @@ https://github.com/koldovsky/2026-quitcode-10-ai-features-hw/tree/main/materials
       картки пропозицій з полями «Add closure», «Remove suggestion», «Save closures»; адаптив (ADR 0008);
       `npm run check:design`, `npm run check:ui`
 - [ ] 1.5 Перевірка руками без ключа (`OPENROUTER_API_KEY=" "`): сторінка показує AC-ASSIST-09, ручна форма працює
-- [ ] 1.6 Мутація Stryker на `src/lib/ai/suggestions.ts`; рядки `docs/conformance.md`; `npm run ac:coverage`,
+- [x] 1.6 Мутація Stryker на `src/lib/ai/suggestions.ts`; рядки `docs/conformance.md`; `npm run ac:coverage`,
       `npm run gates`, `npm run build`
 
 AC-ASSIST-01, -05, -06, -07 у цьому PR лишаються «відкладено (чекає живого eval)»: golden на заглушках набору —
@@ -31,12 +31,12 @@ Done when: AC-ASSIST-02, AC-ASSIST-03, AC-ASSIST-04, AC-ASSIST-08, AC-ASSIST-09,
 
 ## 2. Живий eval і записи (`task/assistant-eval`)
 
-- [ ] 2.1 `npm run ai:models` — ланцюжок існує; `npm run ai:quota` — вистачає ліміту (людина)
-- [ ] 2.2 `RECORD=1 npm run eval` у звичайному терміналі (людина), не в добу приймання PM
-- [ ] 2.3 Звіт `evals/reports/<дата й час>.md` і `recorded.json` без заглушок; кожен FAIL — одним рядком (модель,
+- [x] 2.1 `npm run ai:models` — ланцюжок існує; `npm run ai:quota` — вистачає ліміту (людина)
+- [x] 2.2 `RECORD=1 npm run eval` у звичайному терміналі (людина), не в добу приймання PM
+- [x] 2.3 Звіт `evals/reports/<дата й час>.md` і `recorded.json` без заглушок; кожен FAIL — одним рядком (модель,
       промпт, кейс), що виправлено або чому лишили; зміна промпту — `DRAFT_PROMPT_VERSION` + 1 і новий прогін
       наступної доби
-- [ ] 2.4 Поріг PM: ≥ 8 з 10, GC-08, GC-09, GC-10 — PASS; інакше — виправлення промпту чи `checkSuggestions` і
+- [x] 2.4 Поріг PM: ≥ 8 з 10, GC-08, GC-09, GC-10 — PASS; інакше — виправлення промпту чи `checkSuggestions` і
       повторний прогін
 
 Done when: AC-ASSIST-01, AC-ASSIST-05, AC-ASSIST-06, AC-ASSIST-07 (golden офлайн через увесь ланцюжок на справжніх записах).

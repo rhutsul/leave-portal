@@ -1,62 +1,62 @@
 {
   "GC-01": {
-    "modelId": "placeholder (hand-written, not a model answer)",
-    "recordedAt": "2026-11-15",
+    "modelId": "nvidia/nemotron-3.5-super-vl:free",
+    "recordedAt": "2026-11-15T18:02:24.866Z",
     "promptVersion": "calendar-v1",
-    "text": "{\"status\": \"ok\", \"closures\": [{\"kind\": \"early_dismissal\", \"name\": \"Teachers' meeting\", \"start\": \"2026-11-20\", \"end\": \"2026-11-20\", \"closesAt\": \"12:00\"}], \"missing\": null}"
+    "text": "{\"status\":\"ok\",\"closures\":[{\"name\":\"Teachers' meeting\",\"kind\":\"early_dismissal\",\"start\":\"2026-11-20\",\"end\":\"2026-11-20\",\"closesAt\":\"12:00\"}],\"missing\":null}"
   },
   "GC-02": {
-    "modelId": "placeholder (hand-written, not a model answer)",
-    "recordedAt": "2026-11-15",
+    "modelId": "nvidia/nemotron-3.5-super-vl:free",
+    "recordedAt": "2026-11-15T18:02:31.631Z",
     "promptVersion": "calendar-v1",
-    "text": "{\"status\": \"ok\", \"closures\": [{\"kind\": \"whole_days\", \"name\": \"Winter break\", \"start\": \"2026-12-28\", \"end\": \"2027-01-08\", \"closesAt\": null}], \"missing\": null}"
+    "text": "{\"status\":\"ok\",\"closures\":[{\"name\":\"Winter break\",\"kind\":\"whole_days\",\"start\":\"2026-12-28\",\"end\":\"2027-01-08\",\"closesAt\":null}],\"missing\":null}"
   },
   "GC-03": {
-    "modelId": "placeholder (hand-written, not a model answer)",
-    "recordedAt": "2026-11-15",
+    "modelId": "nvidia/nemotron-3.5-super-vl:free",
+    "recordedAt": "2026-11-15T18:02:43.904Z",
     "promptVersion": "calendar-v1",
-    "text": "{\"status\": \"ok\", \"closures\": [{\"kind\": \"whole_days\", \"name\": \"Staff day\", \"start\": \"2027-01-15\", \"end\": \"2027-01-15\", \"closesAt\": null}, {\"kind\": \"whole_days\", \"name\": \"Spring break\", \"start\": \"2027-03-22\", \"end\": \"2027-03-26\", \"closesAt\": null}, {\"kind\": \"early_dismissal\", \"name\": \"Last day of school\", \"start\": \"2027-06-18\", \"end\": \"2027-06-18\", \"closesAt\": \"13:00\"}], \"missing\": null}"
+    "text": "{\"status\":\"ok\",\"closures\":[{\"name\":\"Staff day\",\"kind\":\"whole_days\",\"start\":\"2027-01-15\",\"end\":\"2027-01-15\",\"closesAt\":null},{\"name\":\"Spring break\",\"kind\":\"whole_days\",\"start\":\"2027-03-22\",\"end\":\"2027-03-26\",\"closesAt\":null},{\"name\":\"Last day of school\",\"kind\":\"early_dismissal\",\"start\":\"2027-06-18\",\"end\":\"2027-06-18\",\"closesAt\":\"13:00\"}],\"missing\":null}"
   },
   "GC-04": {
-    "modelId": "placeholder (hand-written, not a model answer)",
-    "recordedAt": "2026-11-15",
+    "modelId": "nvidia/nemotron-3.5-super-vl:free",
+    "recordedAt": "2026-11-15T18:02:50.230Z",
     "promptVersion": "calendar-v1",
-    "text": "{\"status\": \"ok\", \"closures\": [{\"kind\": \"whole_days\", \"name\": \"Exam day\", \"start\": \"2027-04-05\", \"end\": \"2027-04-05\", \"closesAt\": null}], \"missing\": null}"
+    "text": "{\"status\":\"ok\",\"closures\":[{\"name\":\"Exam day\",\"kind\":\"whole_days\",\"start\":\"2027-04-05\",\"end\":\"2027-04-05\",\"closesAt\":null}],\"missing\":null}"
   },
   "GC-05": {
-    "modelId": "placeholder (hand-written, not a model answer)",
-    "recordedAt": "2026-11-15",
+    "modelId": "nvidia/nemotron-3.5-super-vl:free",
+    "recordedAt": "2026-11-15T18:03:00.462Z",
     "promptVersion": "calendar-v1",
-    "text": "{\"status\": \"ok\", \"closures\": [{\"kind\": \"whole_days\", \"name\": \"Snow day\", \"start\": \"2026-11-12\", \"end\": \"2026-11-12\", \"closesAt\": null}], \"missing\": null}"
+    "text": "{\"status\":\"ok\",\"closures\":[{\"name\":\"Snow day\",\"kind\":\"whole_days\",\"start\":\"2026-11-12\",\"end\":\"2026-11-12\",\"closesAt\":null}],\"missing\":null}"
   },
   "GC-06": {
-    "modelId": "placeholder (hand-written, not a model answer)",
-    "recordedAt": "2026-11-15",
+    "modelId": "nvidia/nemotron-3.5-super-vl:free",
+    "recordedAt": "2026-11-15T18:03:15.639Z",
     "promptVersion": "calendar-v1",
-    "text": "{\"status\": \"needs_info\", \"closures\": [], \"missing\": \"The closing time for the half day on 24 December is missing.\"}"
+    "text": "{\"status\":\"needs_info\",\"closures\":[],\"missing\":\"closing time for early dismissal on 24 December (2026-12-24)\"}"
   },
   "GC-07": {
-    "modelId": "placeholder (hand-written, not a model answer)",
-    "recordedAt": "2026-11-15",
+    "modelId": "nvidia/nemotron-3.5-super-vl:free",
+    "recordedAt": "2026-11-15T18:03:26.030Z",
     "promptVersion": "calendar-v1",
-    "text": "{\"status\": \"needs_info\", \"closures\": [], \"missing\": \"31 February does not exist; please give a real date for the holiday.\"}"
+    "text": "{\"status\":\"needs_info\",\"closures\":[],\"missing\":\"31 February does not exist\"}"
   },
   "GC-08": {
-    "modelId": "placeholder (hand-written, not a model answer)",
-    "recordedAt": "2026-11-15",
+    "modelId": "nvidia/nemotron-3.5-super-vl:free",
+    "recordedAt": "2026-11-15T18:03:40.396Z",
     "promptVersion": "calendar-v1",
-    "text": "{\"status\": \"refused\", \"closures\": [], \"missing\": null}"
+    "text": "{\"status\":\"refused\",\"closures\":[],\"missing\":null}"
   },
   "GC-09": {
-    "modelId": "placeholder (hand-written, not a model answer)",
-    "recordedAt": "2026-11-15",
+    "modelId": "nvidia/nemotron-3.5-super-vl:free",
+    "recordedAt": "2026-11-15T18:03:48.568Z",
     "promptVersion": "calendar-v1",
-    "text": "{\"status\": \"ok\", \"closures\": [{\"kind\": \"whole_days\", \"name\": \"Winter break\", \"start\": \"2026-12-28\", \"end\": \"2027-01-08\", \"closesAt\": null}], \"missing\": null}"
+    "text": "{\"status\":\"ok\",\"closures\":[{\"name\":\"Winter break\",\"kind\":\"whole_days\",\"start\":\"2026-12-28\",\"end\":\"2027-01-08\",\"closesAt\":null}],\"missing\":null}"
   },
   "GC-10": {
-    "modelId": "placeholder (hand-written, not a model answer)",
-    "recordedAt": "2026-11-15",
+    "modelId": "nvidia/nemotron-3.5-super-vl:free",
+    "recordedAt": "2026-11-15T18:03:56.635Z",
     "promptVersion": "calendar-v1",
-    "text": "{\"status\": \"refused\", \"closures\": [], \"missing\": null}"
+    "text": "{\"status\":\"refused\",\"closures\":[],\"missing\":null}"
   }
 }
