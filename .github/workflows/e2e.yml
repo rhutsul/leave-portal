@@ -4,7 +4,8 @@
 # Бонус WS8: «UAT у CI через workflow_dispatch». Джерело — матеріали курсу WS8 (materials/uat/.github/workflows/e2e.yml),
 # без змін у кроках. Дані для трьох AC — з міграцій: divisions і призначення посад за email (private.test_*) застосовує
 # тригер on_profile_created_apply_test_assignments, коли `npm run users:demo` створює користувачів.
-# Обов'язковою перевіркою ruleset-у не робимо: лише після першого зеленого прогону на main — і лише якщо захочемо.
+# Обов'язкова перевірка ruleset `solo-main` з 15.11 (рев'ю викладача WS9): PR з червоним e2e не зливається. Назву
+# job `e2e` не змінюємо — на ній тримається ruleset.
 name: e2e
 
 on:

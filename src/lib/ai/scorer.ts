@@ -1,25 +1,60 @@
 // Взято з https://github.com/koldovsky/2026-quitcode-10-ai-features-hw/blob/main/materials/ai-feature/src/lib/ai/scorer.ts
+// і перероблено під помічника календаря: порівнюємо СТАН, який бачить людина (після checkSuggestions), а не сиру
+// відповідь моделі (design.md D7 impl-calendar-assistant).
 import { Output, generateText, type LanguageModel } from "ai";
 import { z } from "zod";
+import type { ClosureKind } from "@/lib/leave/calendar";
+import { parseTime } from "@/lib/leave/time";
 import { JUDGE_INSTRUCTIONS, judgePrompt } from "./prompts/judge";
-import type { Draft } from "./schema";
+import type { AssistantOutcome, Suggestion } from "./suggestions";
 
-// Один golden case від PM: вхід → очікуване. Формат файлу — tests/fixtures/golden/cases.json.
+/** Закриття з таблиці PM: час — "HH:MM", як у вимозі (у пропозиції — хвилини). */
+type ExpectedClosure = { kind: ClosureKind; name: string; start: string; end: string; closesAt: string | null };
+
+// Один golden case від PM (`requirements/05-calendar-assistant.md`, розділ «Golden cases»): вхід → очікуване.
 export type GoldenCase = {
   id: string; // "GC-01"
-  input: string;
-  // Лише ті поля, які PM фіксує однозначно (переліки, дати). Порівнюються точно.
-  expected: Partial<Pick<Draft, "status" | "category" | "priority" | "dueDate">>;
-  // Слова PM: що вільний текст (summary) має містити / чого не має містити. Оцінює LLM-суддя лише в живому eval.
+  input: string; // дослівно з таблиці PM
+  today: string; // «сьогодні» з вимоги — 2026-11-13
+  // Лише те, що PM фіксує точно: стан і закриття (вид, назва, дати, час), у порядку дат. Порівнюється точно.
+  expected: { status: "ok" | "needs_info" | "refused"; closures: ExpectedClosure[] };
+  // Слова PM: що повідомлення для людини має / не має містити. Оцінює LLM-суддя лише в живому eval.
   rubric?: string;
 };
 
-// (1) Детермінована частина: точний збіг полів, зафіксованих PM у golden case.
-export function scoreFields(expected: GoldenCase["expected"], actual: Draft) {
-  const mismatches = (Object.keys(expected) as (keyof GoldenCase["expected"])[])
-    .filter((k) => expected[k] !== actual[k])
-    .map((k) => ({ field: k, expected: expected[k], actual: actual[k] }));
+const STATUS: Record<AssistantOutcome["kind"], string> = {
+  suggestions: "ok",
+  needs_info: "needs_info",
+  refused: "refused",
+  unavailable: "unavailable",
+};
+
+const toSuggestion = (c: ExpectedClosure): Suggestion => ({
+  kind: c.kind,
+  name: c.name,
+  start: c.start,
+  end: c.end,
+  closesAt: c.closesAt == null ? null : parseTime(c.closesAt),
+});
+
+// (1) Детермінована частина: стан і закриття — точний збіг з таблицею PM.
+export function scoreOutcome(expected: GoldenCase["expected"], outcome: AssistantOutcome) {
+  const mismatches: { field: string; expected: unknown; actual: unknown }[] = [];
+  if (STATUS[outcome.kind] !== expected.status) {
+    mismatches.push({ field: "status", expected: expected.status, actual: STATUS[outcome.kind] });
+  }
+  const actual = outcome.kind === "suggestions" ? outcome.closures : [];
+  const wanted = expected.closures.map(toSuggestion);
+  if (JSON.stringify(actual) !== JSON.stringify(wanted)) {
+    mismatches.push({ field: "closures", expected: wanted, actual });
+  }
   return { pass: mismatches.length === 0, mismatches };
+}
+
+/** Текст, який бачить людина і який оцінює суддя за `rubric`: повідомлення стану або перелік пропозицій. */
+export function shownText(outcome: AssistantOutcome): string {
+  if (outcome.kind === "suggestions") return JSON.stringify(outcome.closures);
+  return outcome.message;
 }
 
 // (2) Нечітка частина: LLM-суддя лише для вільного тексту, двійковий вердикт із причиною.

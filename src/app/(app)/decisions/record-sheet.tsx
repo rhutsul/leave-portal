@@ -5,7 +5,7 @@ import { createContext, useContext, useEffect, useMemo, useRef, useState, type K
 import { ChevronDown, ChevronLeft, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DecisionStamp, type StampStatus } from "@/components/ui/decision-stamp";
-import { Sheet, SheetBody, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { closeUnlessDraft, Sheet, SheetBody, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { RECORD_STATUSES } from "@/lib/leave/request";
 import { cn } from "@/lib/utils";
 
@@ -257,18 +257,7 @@ export function RecordSheet({
   );
 
   return (
-    <Sheet
-      open
-      onOpenChange={(open, details) => {
-        if (open) return;
-        const popup = document.querySelector('[data-slot="sheet-content"]');
-        if ((details.reason === "escape-key" || details.reason === "outside-press") && hasDraft(popup)) {
-          details.cancel();
-          return;
-        }
-        go(closeHref);
-      }}
-    >
+    <Sheet open onOpenChange={closeUnlessDraft(() => go(closeHref), hasDraft)}>
       <SheetContent className="overflow-hidden max-md:max-w-none max-md:border-0">
         <RecordMotion recordKey={recordKey} direction={direction} header={header}>
           {children}

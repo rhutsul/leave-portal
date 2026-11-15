@@ -41,10 +41,12 @@
 
 ## Decisions
 
-### D1. Сторінка й доступ (AC-ASSIST-08, -10, -11)
+### D1. Панель і доступ (AC-ASSIST-08, -10, -11)
 
-- **Нова сторінка `/calendar/assistant`.** У адміністратора на `/calendar` поруч з «Add closure» з'являється кнопка «Add from text» (`secondary`).
-- **Доступ — той самий `manageAccess`.** Іншому користувачу сторінка показує `EmptyState` з «Only an administrator can change the school calendar», без форми й даних (AC-ASSIST-11). Гість іде на `/login`.
+- **Панель справа на `/calendar` (`Sheet`), а не окрема сторінка.** У адміністратора на `/calendar` поруч з «Add closure» є кнопка «Add from text» (`secondary`); вона відкриває панель за `?assistant=1` (пряме посилання працює), а сітку року видно під панеллю. Стара адреса `/calendar/assistant` переадресовує туди. Змінено 15.11 за рішенням розробника після першого перегляду: на окремій сторінці не видно календаря, куди лягають пропозиції.
+- **Пропозиції — на сітці року до збереження:** дати кожної картки підсвічені як «New closure», перетин із наявним закриттям — «Already closed» (ті самі позначки, що в перегляді «Add closure»); прибрана картка зникає з сітки, закрита панель — теж.
+- **Закриття панелі:** хрестик (на телефоні — «Back to calendar») закриває завжди; Esc і клік повз — лише коли немає набраного тексту й пропозицій, щоб їх не загубити. Усе збережено — дія веде на `/calendar?year=…`, панель закривається.
+- **Доступ — той самий `manageAccess`.** Іншому користувачу панель показує `EmptyState` з «Only an administrator can change the school calendar», без форми й даних (AC-ASSIST-11). Гість іде на `/login`.
 - **Форма.**
   - `Textarea` з `Label` «School calendar text» і лічильником «N / 2000».
   - Кнопка `default` «Suggest closures». Поки дія виконується (`useActionState` pending), кнопка `disabled` з `aria-busy`, а поруч `role="status"` з «Preparing suggestions…» (AC-ASSIST-08).
@@ -58,8 +60,8 @@
   - `warning` — «The calendar assistant needs more details: …» (AC-ASSIST-05);
   - `info` — відмова AC-ASSIST-06;
   - `destructive` — «The calendar assistant is unavailable right now. Try again later or add closures manually.» із посиланням «Add closure» на ручну форму (AC-ASSIST-09).
-- **Список пропозицій** — картки з тими самими полями, що «Add closure»: назва (`Input`), вид (цілі дні чи скорочений день), `DatePickerField` (`range` чи `single`), час закриття. У кожної картки «Remove suggestion» (`ghost`), під списком — «Save closures» (`default`). Над списком напис «Not saved yet — review and save.»
-- **Адаптив за ADR 0008:** картки на всю ширину, кнопка «Save closures» внизу екрана на телефоні.
+- **Список пропозицій** — картки з тими самими полями, що «Add closure»: назва (`Input`), вид (цілі дні чи скорочений день), `DatePickerField` (`range` чи `single`), час закриття. У кожної картки «Remove suggestion» (`ghost`); «Save closures» (`default`) — у смузі внизу панелі за будь-якої ширини, як дії панелі «Decisions». Над списком напис «Not saved yet — review and save.»
+- **Адаптив за ADR 0008:** від `md` панель до 480 px справа, вужче — на весь екран; поля карток — одна колонка.
 
 ### D2. Схема відповіді й стани (AC-ASSIST-01, -05, -06, -07)
 

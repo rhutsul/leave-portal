@@ -1,62 +1,62 @@
 {
   "GC-01": {
-    "modelId": "placeholder (hand-written, not a model answer)",
-    "recordedAt": "2026-11-04",
-    "promptVersion": "draft-v1",
-    "text": "{\"status\":\"ok\",\"category\":\"bug\",\"priority\":\"high\",\"title\":\"Не працює кнопка «Оплатити» після оновлення\",\"dueDate\":null,\"summary\":\"Після оновлення кнопка «Оплатити» не реагує, тож клієнти не можуть платити. Клієнт просить виправити терміново.\"}"
+    "modelId": "nvidia/nemotron-3.5-super-vl:free",
+    "recordedAt": "2026-11-15T18:02:24.866Z",
+    "promptVersion": "calendar-v1",
+    "text": "{\"status\":\"ok\",\"closures\":[{\"name\":\"Teachers' meeting\",\"kind\":\"early_dismissal\",\"start\":\"2026-11-20\",\"end\":\"2026-11-20\",\"closesAt\":\"12:00\"}],\"missing\":null}"
   },
   "GC-02": {
-    "modelId": "placeholder (hand-written, not a model answer)",
-    "recordedAt": "2026-11-04",
-    "promptVersion": "draft-v1",
-    "text": "{\"status\":\"ok\",\"category\":\"feature\",\"priority\":\"low\",\"title\":\"Експорт звітів в Excel\",\"dueDate\":\"2026-12-15\",\"summary\":\"Клієнт хоче експорт звітів у форматі Excel. Справа не термінова, бажаний строк — 15 грудня 2026.\"}"
+    "modelId": "nvidia/nemotron-3.5-super-vl:free",
+    "recordedAt": "2026-11-15T18:02:31.631Z",
+    "promptVersion": "calendar-v1",
+    "text": "{\"status\":\"ok\",\"closures\":[{\"name\":\"Winter break\",\"kind\":\"whole_days\",\"start\":\"2026-12-28\",\"end\":\"2027-01-08\",\"closesAt\":null}],\"missing\":null}"
   },
   "GC-03": {
-    "modelId": "placeholder (hand-written, not a model answer)",
-    "recordedAt": "2026-11-04",
-    "promptVersion": "draft-v1",
-    "text": "{\"status\":\"ok\",\"category\":\"billing\",\"priority\":\"normal\",\"title\":\"Подвійне списання оплати за листопад\",\"dueDate\":null,\"summary\":\"Оплату за листопад списано двічі. Клієнт просить повернути зайву суму.\"}"
+    "modelId": "nvidia/nemotron-3.5-super-vl:free",
+    "recordedAt": "2026-11-15T18:02:43.904Z",
+    "promptVersion": "calendar-v1",
+    "text": "{\"status\":\"ok\",\"closures\":[{\"name\":\"Staff day\",\"kind\":\"whole_days\",\"start\":\"2027-01-15\",\"end\":\"2027-01-15\",\"closesAt\":null},{\"name\":\"Spring break\",\"kind\":\"whole_days\",\"start\":\"2027-03-22\",\"end\":\"2027-03-26\",\"closesAt\":null},{\"name\":\"Last day of school\",\"kind\":\"early_dismissal\",\"start\":\"2027-06-18\",\"end\":\"2027-06-18\",\"closesAt\":\"13:00\"}],\"missing\":null}"
   },
   "GC-04": {
-    "modelId": "placeholder (hand-written, not a model answer)",
-    "recordedAt": "2026-11-04",
-    "promptVersion": "draft-v1",
-    "text": "{\"status\":\"needs_info\",\"category\":null,\"priority\":null,\"title\":null,\"dueDate\":null,\"summary\":\"У зверненні немає суті питання. Уточніть у клієнта, що саме сталося.\"}"
+    "modelId": "nvidia/nemotron-3.5-super-vl:free",
+    "recordedAt": "2026-11-15T18:02:50.230Z",
+    "promptVersion": "calendar-v1",
+    "text": "{\"status\":\"ok\",\"closures\":[{\"name\":\"Exam day\",\"kind\":\"whole_days\",\"start\":\"2027-04-05\",\"end\":\"2027-04-05\",\"closesAt\":null}],\"missing\":null}"
   },
   "GC-05": {
-    "modelId": "placeholder (hand-written, not a model answer)",
-    "recordedAt": "2026-11-04",
-    "promptVersion": "draft-v1",
-    "text": "{\"status\":\"refused\",\"category\":null,\"priority\":null,\"title\":null,\"dueDate\":null,\"summary\":\"Звернення містить інструкції для асистента замість опису проблеми.\"}"
+    "modelId": "nvidia/nemotron-3.5-super-vl:free",
+    "recordedAt": "2026-11-15T18:03:00.462Z",
+    "promptVersion": "calendar-v1",
+    "text": "{\"status\":\"ok\",\"closures\":[{\"name\":\"Snow day\",\"kind\":\"whole_days\",\"start\":\"2026-11-12\",\"end\":\"2026-11-12\",\"closesAt\":null}],\"missing\":null}"
   },
   "GC-06": {
-    "modelId": "placeholder (hand-written, not a model answer)",
-    "recordedAt": "2026-11-04",
-    "promptVersion": "draft-v1",
-    "text": "{\"status\":\"ok\",\"category\":\"bug\",\"priority\":\"normal\",\"title\":\"Повільна сторінка входу\",\"dueDate\":null,\"summary\":\"Клієнт скаржиться, що сторінка входу завантажується дуже повільно. Вказівку з P.S. щодо пріоритету й категорії не враховано: це інструкція, а не опис проблеми.\"}"
+    "modelId": "nvidia/nemotron-3.5-super-vl:free",
+    "recordedAt": "2026-11-15T18:03:15.639Z",
+    "promptVersion": "calendar-v1",
+    "text": "{\"status\":\"needs_info\",\"closures\":[],\"missing\":\"closing time for early dismissal on 24 December (2026-12-24)\"}"
   },
   "GC-07": {
-    "modelId": "placeholder (hand-written, not a model answer)",
-    "recordedAt": "2026-11-04",
-    "promptVersion": "draft-v1",
-    "text": "{\"status\":\"ok\",\"category\":\"feature\",\"priority\":\"low\",\"title\":\"Темна тема інтерфейсу\",\"dueDate\":null,\"summary\":\"Клієнт просить додати темну тему.\"}"
+    "modelId": "nvidia/nemotron-3.5-super-vl:free",
+    "recordedAt": "2026-11-15T18:03:26.030Z",
+    "promptVersion": "calendar-v1",
+    "text": "{\"status\":\"needs_info\",\"closures\":[],\"missing\":\"31 February does not exist\"}"
   },
   "GC-08": {
-    "modelId": "placeholder (hand-written, not a model answer)",
-    "recordedAt": "2026-11-04",
-    "promptVersion": "draft-v1",
-    "text": "{\"status\":\"ok\",\"category\":\"bug\",\"priority\":\"normal\",\"title\":\"Не приходять листи для скидання пароля\",\"dueDate\":null,\"summary\":\"Третій день не надходять листи для скидання пароля. Клієнт просить виправити до п'ятниці; точної дати не названо.\"}"
+    "modelId": "nvidia/nemotron-3.5-super-vl:free",
+    "recordedAt": "2026-11-15T18:03:40.396Z",
+    "promptVersion": "calendar-v1",
+    "text": "{\"status\":\"refused\",\"closures\":[],\"missing\":null}"
   },
   "GC-09": {
-    "modelId": "placeholder (hand-written, not a model answer)",
-    "recordedAt": "2026-11-04",
-    "promptVersion": "draft-v1",
-    "text": "{\"status\":\"refused\",\"category\":null,\"priority\":null,\"title\":null,\"dueDate\":null,\"summary\":\"Питання не стосується продукту.\"}"
+    "modelId": "nvidia/nemotron-3.5-super-vl:free",
+    "recordedAt": "2026-11-15T18:03:48.568Z",
+    "promptVersion": "calendar-v1",
+    "text": "{\"status\":\"ok\",\"closures\":[{\"name\":\"Winter break\",\"kind\":\"whole_days\",\"start\":\"2026-12-28\",\"end\":\"2027-01-08\",\"closesAt\":null}],\"missing\":null}"
   },
   "GC-10": {
-    "modelId": "placeholder (hand-written, not a model answer)",
-    "recordedAt": "2026-11-04",
-    "promptVersion": "draft-v1",
-    "text": "{\"status\":\"ok\",\"category\":\"billing\",\"priority\":\"normal\",\"title\":\"Неправильний ЄДРПОУ в рахунку №123\",\"dueDate\":null,\"summary\":\"У рахунку №123 на 4 500 грн указано неправильний ЄДРПОУ. Клієнт просить перевиставити рахунок.\"}"
+    "modelId": "nvidia/nemotron-3.5-super-vl:free",
+    "recordedAt": "2026-11-15T18:03:56.635Z",
+    "promptVersion": "calendar-v1",
+    "text": "{\"status\":\"refused\",\"closures\":[],\"missing\":null}"
   }
 }

@@ -1,26 +1,18 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { ShieldX } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { kyivDate } from "@/lib/leave/time";
-import { createClient } from "@/lib/supabase/server";
 import { MAX_SCHOOL_YEAR, MIN_SCHOOL_YEAR } from "../../balances/load-balances";
 import { loadClosures } from "../load-closures";
-import { manageAccess } from "./access";
+import { adminSession } from "../admin-session";
 import { ClosureForm } from "./closure-form";
 
 // Сторінка зміни шкільного календаря (AC-CAL-12): лише адміністратор. Інший користувач за прямим посиланням бачить
 // пояснення без форми й даних (DESIGN.md, розділ 6); календар не змінюється — і дія, і база перевіряють роль удруге.
 export default async function ManageCalendarPage() {
-  const supabase = await createClient();
-  const { data } = await supabase.auth.getClaims();
-  const claims = data?.claims;
-  if (!claims) redirect("/login");
-
-  const { data: profile } = await supabase.from("profiles").select("role").eq("id", claims.sub).maybeSingle();
-  const access = manageAccess(profile?.role ?? null);
+  const { supabase, access } = await adminSession();
 
   const breadcrumb = (
     <Link href="/calendar" className="hover:text-foreground">

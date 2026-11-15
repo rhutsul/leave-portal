@@ -1,22 +1,11 @@
 // Взято з https://github.com/koldovsky/2026-quitcode-10-ai-features-hw/blob/main/materials/ai-feature/src/lib/ai/draft.ts
-import {
-  APICallError,
-  NoObjectGeneratedError,
-  Output,
-  RetryError,
-  generateText,
-  type LanguageModel,
-  type UserContent,
-} from "ai";
-import { DRAFT_INSTRUCTIONS, wrapDocument } from "./prompts/draft";
-import { DraftSchema, type Draft } from "./schema";
+// і перероблено під помічника календаря: лише вставлений текст (файли — поза зрізом), «сьогодні» — параметром.
+import { APICallError, NoObjectGeneratedError, Output, RetryError, generateText, type LanguageModel } from "ai";
+import { draftInstructions, wrapDocument } from "./prompts/draft";
+import { CalendarSuggestionsSchema, type CalendarSuggestions } from "./schema";
 
 // `ProviderOptions` не експортується з "ai" 7.0.162 — беремо тип із параметрів generateText.
 type ProviderOptions = NonNullable<Parameters<typeof generateText>[0]["providerOptions"]>;
-
-export const FILE_TYPES = ["application/pdf", "image/png", "image/jpeg"] as const;
-export type FileType = (typeof FILE_TYPES)[number];
-export const isFileType = (t: string): t is FileType => (FILE_TYPES as readonly string[]).includes(t);
 
 // Чиста функція: модель передають параметром. Застосунок передає модель OpenRouter (src/lib/ai/openrouter.ts),
 // тести — MockLanguageModelV4 із записаною відповіддю. Тут немає `import "server-only"` і немає process.env,
@@ -24,12 +13,15 @@ export const isFileType = (t: string): t is FileType => (FILE_TYPES as readonly 
 
 export type DraftInput = {
   text: string;
-  file?: { data: Uint8Array; mediaType: FileType; filename?: string };
+  /** «Сьогодні» за Києвом, "YYYY-MM-DD": від нього рахуються відносні дати й навчальний рік. */
+  today: string;
 };
 
+export type DraftFailure = "invalid_output" | "rate_limited" | "timeout" | "provider_error";
+
 export type DraftResult =
-  | { ok: true; draft: Draft; modelId: string }
-  | { ok: false; reason: "invalid_output" | "rate_limited" | "timeout" | "provider_error"; message: string };
+  | { ok: true; draft: CalendarSuggestions; modelId: string }
+  | { ok: false; reason: DraftFailure; message: string };
 
 export type DraftOptions = {
   maxRetries?: number;
@@ -38,25 +30,19 @@ export type DraftOptions = {
 };
 
 export async function proposeDraft(input: DraftInput, model: LanguageModel, opts: DraftOptions = {}): Promise<DraftResult> {
-  const content: UserContent = [{ type: "text", text: wrapDocument(input.text) }];
-  if (input.file) {
-    // AI SDK 7: і зображення, і PDF — частина `type: "file"`.
-    content.push({ type: "file", data: input.file.data, mediaType: input.file.mediaType, filename: input.file.filename });
-  }
-
   try {
     const result = await generateText({
       model,
-      instructions: DRAFT_INSTRUCTIONS, // `system` в AI SDK 7 застаріле
-      messages: [{ role: "user", content }],
-      output: Output.object({ name: "draft", schema: DraftSchema }), // generateObject застарілий
+      instructions: draftInstructions(input.today), // `system` в AI SDK 7 застаріле
+      messages: [{ role: "user", content: [{ type: "text", text: wrapDocument(input.text) }] }],
+      output: Output.object({ name: "calendar_suggestions", schema: CalendarSuggestionsSchema }), // generateObject застарілий
       temperature: 0,
       // На безкоштовному тарифі повтор витрачає той самий денний ліміт: 0–1, не типові 2.
-      maxRetries: opts.maxRetries ?? 1,
-      timeout: opts.timeoutMs ?? 45_000,
+      maxRetries: opts.maxRetries ?? 0,
+      timeout: opts.timeoutMs ?? 30_000, // AC-ASSIST-09: не відповів за 30 с — недоступний
       providerOptions: opts.providerOptions,
     });
-    // result.output уже перевірено за DraftSchema (інакше — виняток NoObjectGeneratedError).
+    // result.output уже перевірено за схемою (інакше — виняток NoObjectGeneratedError).
     return { ok: true, draft: result.output, modelId: result.response.modelId };
   } catch (error) {
     return classifyError(error);
@@ -81,11 +67,3 @@ export function classifyError(error: unknown): Extract<DraftResult, { ok: false 
   }
   return { ok: false, reason: "provider_error", message: cause instanceof Error ? cause.message : String(cause) };
 }
-
-// Повідомлення для інтерфейсу: людина бачить причину, а не стек помилки.
-export const USER_MESSAGES: Record<Extract<DraftResult, { ok: false }>["reason"], string> = {
-  invalid_output: "Модель повернула відповідь не за схемою. Спробуйте ще раз або заповніть форму вручну.",
-  rate_limited: "Вичерпано ліміт безкоштовної моделі. Спробуйте за хвилину (або завтра після 02:00 за Києвом).",
-  timeout: "Модель не відповіла вчасно. Спробуйте ще раз.",
-  provider_error: "Сервіс моделі недоступний. Заповніть форму вручну.",
-};

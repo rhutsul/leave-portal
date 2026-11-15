@@ -70,7 +70,7 @@ shadcn/ui (CLI 4.22.1, Base UI) + `tw-animate-css` + `lucide-react` — диза
 - Нові шари курсу — новими файлами: e2e/UAT — `tests/e2e/**/*.spec.ts` (Playwright, `playwright.config.ts`; Vitest
   їх не запускає). Їх запускає `npm run uat -- --url <прод>` (звіт — `docs/qa/uat/<дата>/`) і job `e2e` у CI
   (`.github/workflows/e2e.yml`: одноразовий Supabase у раннері, без секретів; `pull_request`, `push` у `main`,
-  `workflow_dispatch`; не обов'язковий у ruleset), тож `ac:coverage` рахує їх
+  `workflow_dispatch`; обов'язковий у ruleset `solo-main` з 15.11 — за рев'ю викладача WS9), тож `ac:coverage` рахує їх
   як покриття AC (`isRunByPlaywright` у `scripts/lib/test-titles.mjs`); помічники `tests/e2e/support/**` і
   `tests/e2e/*.test.ts` — ні. Новий раннер — розширюй цей фільтр разом із кроком, що його запускає. Нові перевірки —
   окремим workflow у `.github/workflows/`. Jobs `spec`, `app`,
@@ -99,7 +99,7 @@ shadcn/ui (CLI 4.22.1, Base UI) + `tw-animate-css` + `lucide-react` — диза
   (`…/issues/new?template=question.yml`; адреса — з шапки `docs/conformance.md`) з повною адресою вимоги (issue PM
   або шлях `docs/requirements/…`) і AC, не `gh issue create`: скіл `spec-clarify`; спершу шукай наявне issue —
   дублікатів не створюємо; журнал — `docs/spec-reading.md`.
-- Усе йде в `main` лише через PR (ruleset `solo-main`): зелені `spec`, `app`, `conformance`, `db-check`; approve не потрібен.
+- Усе йде в `main` лише через PR (ruleset `solo-main`): зелені `spec`, `app`, `conformance`, `db-check`, `e2e`, «Ворота: fallow audit», «Покриття: доменна підлога»; approve не потрібен.
 - Типи PR (шаблон PR):
   - «Оновлення вимог» (`sync/<дата>`) — лише `requirements/` і рядок «Вимоги: …» шапки `docs/conformance.md`;
   - «Специфікація» (`spec/<id зміни>`) — `openspec/**` (зміна специфікації з archive в `openspec/specs/` або план
