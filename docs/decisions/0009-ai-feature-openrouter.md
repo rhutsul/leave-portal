@@ -2,8 +2,7 @@
 
 - Статус: прийнято (нові залежності погоджено людиною 2026-11-15)
 - Дата: 2026-11-15
-- AC: AC-ASSIST-01…AC-ASSIST-11 (`requirements/05-calendar-assistant.md`; у `openspec/specs/` — після PR
-  «Специфікація» `add-calendar-assistant`)
+- AC: AC-ASSIST-01…AC-ASSIST-11 (`requirements/05-calendar-assistant.md`, `openspec/specs/calendar-assistant/`)
 - Джерело: заготовка ADR із набору курсу
   https://github.com/koldovsky/2026-quitcode-10-ai-features-hw/tree/main/materials/ai-feature
   (`docs/decisions/NNNN-ai-feature-openrouter.md`), «Контекст» переписано під наш зріз 4
