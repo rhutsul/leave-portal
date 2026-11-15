@@ -41,10 +41,13 @@ export function draftInstructions(today: string): string {
 }
 
 /**
- * Недовірений текст — між межами <document>…</document>. Теги-межі з самого тексту вирізаємо (інакше текст міг би
- * «закрити» документ і продовжити як інструкції), довжину обрізаємо до DOCUMENT_MAX знаків (AC-ASSIST-07, -10).
+ * Недовірений текст — між межами <document>…</document> (AC-ASSIST-07, -10):
+ * - кутові дужки кодуємо (`&lt;`, `&gt;`), а не вирізаємо теги: вирізання могло б саме скласти нову межу
+ *   (`</doc<document>ument>` → `</document>`), а закодований текст не закриє документ ніколи;
+ * - CRLF → LF, як у assistantTextLength: обрізаємо до DOCUMENT_MAX тих самих знаків, які порахувала перевірка
+ *   довжини, тож кінець тексту не губиться.
  */
 export function wrapDocument(text: string): string {
-  const clean = text.replace(/<\s*\/?\s*document\b[^>]*>/gi, "");
+  const clean = text.replace(/\r\n/g, "\n").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
   return `<document>\n${[...clean].slice(0, DOCUMENT_MAX).join("")}\n</document>`;
 }

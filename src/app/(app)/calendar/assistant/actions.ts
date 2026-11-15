@@ -9,7 +9,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { productModel } from "@/lib/ai/openrouter";
-import { ASSISTANT_MESSAGES, ASSISTANT_TEXT_MAX, assistantTextLength, runAssistant, type Suggestion } from "@/lib/ai/suggestions";
+import { ASSISTANT_MESSAGES, ASSISTANT_TEXT_MAX, assistantTextLength, runAssistant, SUGGESTIONS_MAX, type Suggestion } from "@/lib/ai/suggestions";
 import { schoolYearOf } from "@/lib/leave/balance";
 import { closureRpcMessage, parseClosureForm } from "@/lib/leave/calendar";
 import { kyivDate } from "@/lib/leave/time";
@@ -67,9 +67,6 @@ async function saveOne(
   return error ? { ok: false, message: closureRpcMessage(error) } : { ok: true, start: parsed.input.start };
 }
 
-/** Найбільше пропозицій за одне збереження: захист від підробленого payload. */
-const SAVE_MAX = 50;
-
 /**
  * «Save closures» (AC-ASSIST-02, -03, -04): лише дія людини пише в базу. Кожна пропозиція — окремий виклик
  * add_school_closure під сесією адміністратора; ті, що пройшли, зберігаються, навіть якщо інші відхилено. Усе
@@ -78,7 +75,7 @@ const SAVE_MAX = 50;
 export async function saveSuggestions(_prev: SaveState, form: FormData): Promise<SaveState> {
   const { supabase, access } = await adminSession();
   const count = Number(form.get("count"));
-  if (!Number.isSafeInteger(count) || count < 1 || count > SAVE_MAX) return { failed: [], saved: 0 };
+  if (!Number.isSafeInteger(count) || count < 1 || count > SUGGESTIONS_MAX) return { failed: [], saved: 0 };
   const all = Array.from({ length: count }, (_, index) => index);
   if (!access.allowed) return { failed: all.map((index) => ({ index, message: access.message })), saved: 0 };
 

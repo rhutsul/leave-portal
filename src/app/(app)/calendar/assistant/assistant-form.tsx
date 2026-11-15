@@ -18,6 +18,7 @@ import { closureFields, closurePick } from "@/lib/leave/closure-dates";
 import { formatTime } from "@/lib/leave/time";
 import { cn } from "@/lib/utils";
 import { requestSuggestions, saveSuggestions, type AssistantState, type SaveState } from "./actions";
+import { applySaveResult, submittedKeys } from "./save-result";
 
 type Kind = "days" | "early";
 type FieldErrors = ReturnType<typeof closureFieldErrors>;
@@ -150,9 +151,9 @@ function SuggestionsForm({
   const ids = useId();
   const [tried, setTried] = useState(false);
   const [save, saveAction, saving] = useActionState(async (prev: SaveState, form: FormData) => {
+    const keys = submittedKeys(form);
     const next = await saveSuggestions(prev, form);
-    const failed = new Map(next.failed.map((f) => [f.index, f.message]));
-    setItems((current) => current.flatMap((item, i) => (failed.has(i) ? [{ ...item, error: failed.get(i) ?? null }] : [])));
+    setItems((current) => applySaveResult(current, keys, next));
     return next;
   }, { failed: [], saved: 0 } as SaveState);
   const update = (key: number, patch: Partial<Item>) =>
@@ -177,6 +178,7 @@ function SuggestionsForm({
         <p className="text-sm text-muted-foreground">Not saved yet — review and save.</p>
       </div>
       <input type="hidden" name="count" value={items.length} />
+      <input type="hidden" name="keys" value={items.map((item) => item.key).join(",")} />
       <ul className="flex flex-col gap-3">
         {items.map((item, index) => (
           <SuggestionCard

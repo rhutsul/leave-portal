@@ -22,6 +22,12 @@ export const ASSISTANT_MESSAGES = {
 /** Найдовший текст календаря (AC-ASSIST-10). */
 export const ASSISTANT_TEXT_MAX = 2000;
 
+/**
+ * Найбільше пропозицій за одну відповідь — і за одне збереження (`saveSuggestions`): довший список відповідь
+ * непридатна (AC-ASSIST-09), інакше форма показала б те, що «Save closures» потім не прийме.
+ */
+export const SUGGESTIONS_MAX = 50;
+
 /** Найдовше пояснення «чого бракує» від моделі, яке показуємо людині. */
 const MISSING_MAX = 300;
 
@@ -79,14 +85,14 @@ function closingMinutes(value: string): number | null {
  * - refused → відмова AC-ASSIST-06 без пропозицій, навіть якщо модель їх повернула;
  * - needs_info → повідомлення AC-ASSIST-05 з тим, чого бракує; без `missing` — відповідь непридатна;
  * - дата, якої не існує, чи скорочений день без часу → needs_info текстом коду, без підстановки іншої дати (GC-06, GC-07);
- * - кінець раніше за початок, час поза 00:05–23:55 чи не кратний 5 хв, порожня назва чи понад 100 знаків, ok без
+ * - понад SUGGESTIONS_MAX закриттів, кінець раніше за початок, час поза 00:05–23:55 чи не кратний 5 хв, порожня назва чи понад 100 знаків, ok без
  *   жодного закриття → відповідь непридатна: «недоступний» (AC-ASSIST-09), а не «майже пропозиція»;
  * - пропозиції — за датою початку (GC-03).
  */
 export function checkSuggestions(draft: CalendarSuggestions): AssistantOutcome {
   if (draft.status === "refused") return { kind: "refused", message: ASSISTANT_MESSAGES.refused };
   if (draft.status === "needs_info") return checkMissing(draft.missing);
-  if (draft.closures.length === 0) return unavailable("invalid_output");
+  if (draft.closures.length === 0 || draft.closures.length > SUGGESTIONS_MAX) return unavailable("invalid_output");
 
   const closures: Suggestion[] = [];
   for (const c of draft.closures) {
