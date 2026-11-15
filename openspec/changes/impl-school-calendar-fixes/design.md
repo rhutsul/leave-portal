@@ -73,6 +73,6 @@ leave» і «Sick leave», і для двох різних типів (0.71 + 0.
   420 = 0.36), другий — після (11:00–12:00, решта 60 з 210 = 0.29): весь скорочений день коштує 0.65 замість 1.00. Це
   буквально випливає з AC-CAL-20 (частка фіксується при погодженні), але суперечить Assumptions 03 «records that
   together cover all those minutes count as 1.00». Питання для вебформи «Питання до вимог» підготовано
-  (`docs/spec-reading.md`, 2026-11-15); публікує розробник. Поки відповіді немає — поточна поведінка (0.65), яку закріплює
+  (`docs/spec-reading.md`, Q13) і опубліковано: mkozlovskyi-ops/course-staff-management-spec#28. Поки відповіді немає — поточна поведінка (0.65), яку закріплює
   тест «used 0.65 (open question to PM)» у `tests/db/school-calendar.test.ts` — його додає задача 2.2 (PR «Реалізація»
   `task/ws9-day-share-closure-kind`).
