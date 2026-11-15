@@ -49,6 +49,11 @@
   - `Textarea` з `Label` «School calendar text» і лічильником «N / 2000».
   - Кнопка `default` «Suggest closures». Поки дія виконується (`useActionState` pending), кнопка `disabled` з `aria-busy`, а поруч `role="status"` з «Preparing suggestions…» (AC-ASSIST-08).
   - Довжину понад 2000 знаків показує форма, і сервер перевіряє її ще раз до виклику моделі (AC-ASSIST-10).
+    Довжину рахує одна функція `assistantTextLength` для форми й сервера: спершу `\r\n` → `\n` (браузер надсилає
+    переноси textarea як CRLF), потім кодові точки, як `closureNameLength`. `maxLength` у textarea не ставимо, інакше
+    AC-ASSIST-10 не показати.
+  - Порожнє поле (лише пробіли) — кнопка вимкнена, сервер модель не викликає; нового тексту помилки не вводимо
+    (власне рішення розробника: у PM цього випадку немає).
 - **Стани — `Alert`** з текстами AC дослівно:
   - `warning` — «The calendar assistant needs more details: …» (AC-ASSIST-05);
   - `info` — відмова AC-ASSIST-06;
@@ -71,15 +76,19 @@ CalendarSuggestions = { status: "ok" | "needs_info" | "refused",
 - `missing` — що саме бракує, текстом моделі; потрібен лише для `needs_info`.
 
 **Правила коду після zod** (`src/lib/ai/suggestions.ts`, чиста функція `checkSuggestions`). Модель пропонує, сервер перевіряє:
-- кожна дата — справжня календарна дата;
+- дата, якої не існує (`2027-02-31`), → стан `needs_info` без пропозицій, текст від коду: «<дата> does not exist»
+  (вимога «Брак даних у тексті», GC-07); іншу дату замість неї код не підставляє;
+- скорочений день без `closesAt` → `needs_info` без пропозицій, текст від коду: «the closing time for <дата>» (GC-06);
+- `closesAt` — «HH:MM» у межах 00:05–23:55 з кроком 5 хв, як перевіряє база; `end` скороченого дня = `null` або = `start`;
 - для цілих днів кінець не раніший за початок;
-- скорочений день має `closesAt` з кроком 5 хв і `end` = `null` або = `start`;
 - назва — 1–100 знаків;
 - `ok` має щонайменше одне закриття;
+- `needs_info` має непорожній `missing` до 300 знаків;
 - `needs_info` і `refused` — закриття відкидаються, «нічого не запропоновано» тримає код, а не модель;
 - пропозиції сортуються за датою, як у GC-03.
 
-Відповідь, що не пройшла zod чи ці правила, — збій `invalid_output`. Адміністратор бачить AC-ASSIST-09, а не «майже пропозицію».
+Відповідь не за схемою zod, `ok` без закриттів чи `needs_info` без `missing` — збій `invalid_output`. Адміністратор
+бачить AC-ASSIST-09, а не «майже пропозицію».
 
 ### D3. Промпт і межа даних (AC-ASSIST-07, GC-09, GC-10)
 
@@ -107,7 +116,7 @@ CalendarSuggestions = { status: "ok" | "needs_info" | "refused",
 
 **`requestSuggestions(prev, form)`** нічого не пише. Кроки по черзі:
 1. `getClaims()` → роль з `profiles` → `manageAccess`. Не адміністратор — AC-ASSIST-11, модель не викликається.
-2. Текст: порожній — повідомлення поля, модель не викликається. Понад 2000 знаків — «The text can be at most 2000 characters», модель не викликається (AC-ASSIST-10).
+2. Текст: порожній — модель не викликається (D1). Понад 2000 знаків за `assistantTextLength` — «The text can be at most 2000 characters», модель не викликається (AC-ASSIST-10).
 3. `productModel()`. Без ключа (зокрема порожній рядок чи пробіли, `trim()`) — AC-ASSIST-09.
 4. `proposeDraft(…, { timeoutMs: 30_000, maxRetries: 0 })`, потім `checkSuggestions`.
 5. Збій (`rate_limited` — HTTP 429 чи 429 у тілі HTTP 200, `timeout`, `invalid_output`, `provider_error`) — AC-ASSIST-09. Повтору в циклі немає.
@@ -115,8 +124,13 @@ CalendarSuggestions = { status: "ok" | "needs_info" | "refused",
 
 **`saveSuggestions(prev, form)`** — окрема дія людини:
 1. Знову `getClaims()` і роль.
-2. Пропозиції з форми (людина могла їх змінити) — повторна валідація zod і тими самими `closureFieldErrors` / `parseClosureForm`, що й ручна форма.
+2. Пропозиції з форми (людина могла їх змінити) — поля з індексом (`s[0].name`, `s[0].kind`, `s[0].start`,
+   `s[0].end`, `s[0].time`); вид — `whole` / `early`, як у ручній формі. Кожну пропозицію читає `parseClosureForm`
+   через функцію поля з префіксом `s[i].`, тож правила й тексти AC-CAL-18, -19 ті самі,
+   що в «Add closure». Повторна валідація zod — на масиві в цілому (кількість, індекси).
 3. Для кожної пропозиції окремо — `supabase.rpc("add_school_closure", …)` під сесією адміністратора. База ще раз перевіряє роль (AC-CAL-13) і правила вимоги 04.
+   Помилку `rpc` перетворює спільна `closureRpcMessage` (виносимо `rpcMessage` з `calendar/actions.ts` у
+   `src/lib/leave/calendar.ts`): P0001 — текст бази дослівно, 42501 — AC-CAL-12, інше — загальне повідомлення.
 4. Збережені зникають зі списку. Відхилені лишаються з повідомленням бази дослівно, наприклад «2026-12-28 is already closed: Winter break» (AC-ASSIST-04). Ті, що пройшли, зберігаються, навіть якщо інші відхилено.
 5. Якщо збережено все — перехід на `/calendar?year=…` з підсвіткою нових закриттів, як після «Add closure» (AC-ASSIST-02, -03).
 
@@ -126,7 +140,7 @@ CalendarSuggestions = { status: "ok" | "needs_info" | "refused",
 |---|---|
 | Модель | ланцюжок `:free` з набору: `google/gemma-4-31b-it:free` → `google/gemma-4-26b-a4b-it:free` → `nvidia/nemotron-3.5-super-vl:free`; перед eval — `npm run ai:models` (код 2 — оновити ланцюжок і ADR 0009) |
 | Виклик | `generateText` + `Output.object({ schema })`, `temperature: 0`, `timeout: 30_000` (AC-ASSIST-09), `maxRetries: 0`; один запит на «Suggest closures», без історії |
-| Ключ | `OPENROUTER_API_KEY` читає лише `src/lib/ai/openrouter.ts` з `import "server-only"`; клієнтські компоненти його не імпортують; у Vercel — Production і Preview, без `NEXT_PUBLIC_`; у `.env.example` — лише назва; `tests/ai-key.test.ts` |
+| Ключ | `OPENROUTER_API_KEY` читає лише `src/lib/ai/openrouter.ts` з `import "server-only"`; клієнтські компоненти його не імпортують; у Vercel — лише Production, без `NEXT_PUBLIC_` (Preview без ключа показує AC-ASSIST-09 і не витрачає спільний ліміт); у `.env.example` — лише назва; у CI ключа немає; `tests/ai-key.test.ts` |
 | Хто платить ліміт | дія перевіряє `getClaims()` і роль до виклику моделі, тож ліміт (50 на добу) витрачає лише адміністратор |
 | Що бачить людина без ключа, на 429, таймаут, не за схемою | одне повідомлення AC-ASSIST-09; ручна «Add closure» працює, як у вимозі 04 |
 | Що робить людина | перевіряє й виправляє пропозиції, прибирає зайві і сама натискає «Save closures»; модель не має інструментів і нічого не пише |
@@ -151,17 +165,20 @@ CalendarSuggestions = { status: "ok" | "needs_info" | "refused",
   - `"AC-ASSIST-06: golden $id"` — GC-08, GC-10;
   - `"AC-ASSIST-07: golden $id"` — GC-09.
   - Реплей `recorded.json` через `MockLanguageModelV4`, тест «кожен кейс має запис поточної версії промпту». До живого прогону — заглушки набору, позначені як заглушки.
+  - Реплей іде тим самим ланцюжком, що й `requestSuggestions` (модель → zod → `checkSuggestions` → стан), і звіряє
+    стан, пропозиції й текст, які бачить людина, а не сиру відповідь моделі. Так правила коду (GC-06, GC-07,
+    сортування GC-03) теж під golden. Живий eval — той самий ланцюжок.
 - **Живий eval — `npm run eval`** (людина, у звичайному терміналі, `RECORD=1`): звіт `evals/reports/<дата й час>.md` з моделлю на кожен кейс, pass rate загалом і за моделями, версією промпту. Кожен FAIL пояснено одним рядком. Окрема доба від приймання PM.
 
 ### D8. Тести й доказ, що тест падає
 
 | AC | Тест |
 |---|---|
-| AC-ASSIST-01, -05, -06, -07 | golden офлайн; unit `checkSuggestions` (неіснуюча дата, кінець раніше за початок, скорочений день без часу, `refused` з закриттями → без закриттів); unit промпту: `wrapDocument` вирізає `</document>`, «сьогодні» з параметра |
+| AC-ASSIST-01, -05, -06, -07 | golden офлайн; unit `checkSuggestions` (неіснуюча дата → `needs_info`, кінець раніше за початок, скорочений день без часу → `needs_info`, час поза 00:05–23:55, `needs_info` без `missing`, `refused` з закриттями → без закриттів); unit промпту: `wrapDocument` вирізає `</document>`, «сьогодні» з параметра; тест дії AC-ASSIST-01: `rpc` і запис не викликались («the school calendar still has no closures») |
 | AC-ASSIST-02, -03, -04 | тест дії `saveSuggestions` з підміненим клієнтом Supabase (кожна пропозиція — окремий `rpc`, змінені поля доходять, повідомлення бази дослівно, частковий успіх); PGlite: дві пропозиції, одна на вже закриту дату |
 | AC-ASSIST-08 | тест компонента: pending → «Preparing suggestions…» і `disabled` |
 | AC-ASSIST-09 | тести збоїв набору з AC ID: 429, 429 у тілі HTTP 200, таймаут, не за схемою, немає ключа, ключ з пробілів → текст AC дослівно; `maxRetries` 0 |
-| AC-ASSIST-10 | тест дії: 2001 знак → повідомлення, модель (мок) не викликано |
+| AC-ASSIST-10 | тест дії: 2001 знак → повідомлення, модель (мок) не викликано; межа 2000 / 2001 з переносами CRLF і символами поза BMP (`assistantTextLength`) |
 | AC-ASSIST-11 | тест дії: роль `employee` → повідомлення, модель не викликано, `rpc` не викликано; e2e під teacher1 |
 | межа ключа | `tests/ai-key.test.ts` (без AC ID, інструмент) |
 
@@ -172,6 +189,10 @@ CalendarSuggestions = { status: "ok" | "needs_info" | "refused",
 `tests/e2e/calendar-assistant.spec.ts`:
 - **AC-ASSIST-03** — людина прибирає й перейменовує, і лише «Save closures» створює закриття. До збереження календар без змін — це «людина підтверджує перед записом».
 - **AC-ASSIST-06** — відмова на справжній моделі.
+- **AC-ASSIST-10** і **AC-ASSIST-11** — без моделі (текст 2001 знак; teacher1 за прямим посиланням).
+- **Живий виклик моделі в CI не буває.** Тести AC-ASSIST-03 і -06 мають тег `@live-model`; `playwright.config.ts`
+  виключає його через `grepInvert`, коли `UAT_BASE_URL` не задано (job `e2e` у CI, локальна збірка), а не через
+  `test.skip` (пропущений тест робить job червоним). AC-ASSIST-10 і -11 ідуть і в CI.
 - Перед тестом — перевірка, що дати AC вільні; прибирання створеного — за id.
 - Кожен прогін — 2 запити до моделі. Запускає людина: `npm run uat -- --url https://leave-portal-olive.vercel.app`, з чистого дерева.
 - Звіт — `docs/qa/uat/<дата>/`.

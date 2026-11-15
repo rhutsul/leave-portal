@@ -14,9 +14,9 @@ https://github.com/koldovsky/2026-quitcode-10-ai-features-hw/tree/main/materials
       `tests/golden.test.ts` з `cases.json` GC-01…GC-10 (назви з AC ID за D7); тести дій `requestSuggestions` і
       `saveSuggestions` (роль, довжина, ключ, збої, частковий успіх); компонент — «Preparing suggestions…»; PGlite —
       дві пропозиції, одна на вже закриту дату
-- [ ] 1.2 Схема `CalendarSuggestions` (D2), `checkSuggestions` у `src/lib/ai/suggestions.ts`, промпт (D3) з
+- [ ] 1.2 Схема `CalendarSuggestions` (D2), `checkSuggestions` у `src/lib/ai/suggestions.ts` (неіснуюча дата й скорочений день без часу → `needs_info`), `assistantTextLength`, промпт (D3) з
       `DRAFT_PROMPT_VERSION`, «сьогодні» параметром; тексти станів — константи з AC дослівно
-- [ ] 1.3 Server Actions `requestSuggestions` / `saveSuggestions` (D4), `timeout` 30 с, `maxRetries` 0; збої → AC-ASSIST-09
+- [ ] 1.3 Server Actions `requestSuggestions` / `saveSuggestions` (D4), `timeout` 30 с, `maxRetries` 0; збої → AC-ASSIST-09; `closureRpcMessage` у `src/lib/leave/calendar.ts`; тег `@live-model` і `grepInvert` у `playwright.config.ts` (D9)
 - [ ] 1.4 Сторінка `/calendar/assistant` і кнопка «Add from text» для адміністратора (D1): форма, стани `Alert`,
       картки пропозицій з полями «Add closure», «Remove suggestion», «Save closures»; адаптив (ADR 0008);
       `npm run check:design`, `npm run check:ui`
@@ -24,8 +24,10 @@ https://github.com/koldovsky/2026-quitcode-10-ai-features-hw/tree/main/materials
 - [ ] 1.6 Мутація Stryker на `src/lib/ai/suggestions.ts`; рядки `docs/conformance.md`; `npm run ac:coverage`,
       `npm run gates`, `npm run build`
 
-Done when: AC-ASSIST-01, AC-ASSIST-02, AC-ASSIST-03, AC-ASSIST-04, AC-ASSIST-05, AC-ASSIST-06, AC-ASSIST-07,
-AC-ASSIST-08, AC-ASSIST-09, AC-ASSIST-10, AC-ASSIST-11 (golden — поки на заглушках, доказ якості — задача 2).
+AC-ASSIST-01, -05, -06, -07 у цьому PR лишаються «відкладено (чекає живого eval)»: golden на заглушках набору —
+не доказ, тож «реалізовано» вони отримають у задачі 2.
+
+Done when: AC-ASSIST-02, AC-ASSIST-03, AC-ASSIST-04, AC-ASSIST-08, AC-ASSIST-09, AC-ASSIST-10, AC-ASSIST-11.
 
 ## 2. Живий eval і записи (`task/assistant-eval`)
 
@@ -37,7 +39,7 @@ AC-ASSIST-08, AC-ASSIST-09, AC-ASSIST-10, AC-ASSIST-11 (golden — поки на
 - [ ] 2.4 Поріг PM: ≥ 8 з 10, GC-08, GC-09, GC-10 — PASS; інакше — виправлення промпту чи `checkSuggestions` і
       повторний прогін
 
-Done when: AC-ASSIST-01, AC-ASSIST-05, AC-ASSIST-06, AC-ASSIST-07 (golden офлайн на справжніх записах).
+Done when: AC-ASSIST-01, AC-ASSIST-05, AC-ASSIST-06, AC-ASSIST-07 (golden офлайн через увесь ланцюжок на справжніх записах).
 
 ## 3. Прод, UAT і здача (`task/assistant-uat`)
 
@@ -49,4 +51,4 @@ Done when: AC-ASSIST-01, AC-ASSIST-05, AC-ASSIST-06, AC-ASSIST-07 (golden офл
       після людини, заглушок немає)
 - [ ] 3.4 «eval готовий: прод <URL>, звіт <посилання>» у чаті команди (людина); archive `impl-calendar-assistant`
 
-Done when: AC-ASSIST-03, AC-ASSIST-06, AC-ASSIST-10, AC-ASSIST-11 (UAT на проді).
+Done when: UAT на проді для AC-ASSIST-03, AC-ASSIST-06, AC-ASSIST-10, AC-ASSIST-11 (статуси «реалізовано» вже з задач 1 і 2; тут — запис на проді й proof pack).
