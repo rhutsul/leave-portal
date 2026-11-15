@@ -3,6 +3,9 @@
 //   npm run uat -- --url … --grep-invert '@writes'          (лише AC, що нічого не пишуть; решта аргументів → Playwright)
 //   npm run uat:nc -- --url …                               (негативні контролі; звіт у test-results/uat-report-nc/)
 // Кроки: playwright test → pack.mjs → review.mjs (claude -p) → combine.mjs → report.mjs.
+// Лише з чистого дерева (git status --porcelain порожній): звіт для PM має відповідати закоміченому коду тестів.
+// Негативні контролі — першими (npm run uat:nc): їхній звіт іде в test-results/ і дерева не бруднить, а основний
+// прогін бере результати NC того самого коду й проду в manifest.negativeControls.
 // Звіт пишеться завжди, навіть якщо тести червоні: FAIL — теж результат для PM. Код виходу 1, якщо є FAIL.
 import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -48,6 +51,31 @@ async function deployedSha(base) {
   }
 }
 
+// Звіт для PM — лише з закоміченого коду: «Код тестів: main @ <sha>, дерево чисте». Брудне дерево — зупинка, нічого
+// не запущено (рев'ю WS9: звіти 08.11 і 13.11 знято з «+ незакомічені зміни»).
+let porcelain = null;
+try {
+  porcelain = execFileSync("git", ["status", "--porcelain"], { encoding: "utf8" }).replace(/\s+$/, "");
+} catch {
+  porcelain = null;
+}
+if (porcelain === null) {
+  console.error("UAT зупинено: не вдалося прочитати git status — запускайте з робочої копії репозиторію.");
+  process.exit(1);
+}
+if (porcelain) {
+  console.error(
+    "UAT зупинено: у робочому дереві є незакомічені зміни — звіт не відповідав би коду тестів. " +
+      "Закомітьте або приберіть їх (git status) і запустіть знову:\n" +
+      porcelain
+        .split("\n")
+        .slice(0, 20)
+        .map((l) => `  ${l}`)
+        .join("\n"),
+  );
+  process.exit(1);
+}
+
 const startedAt = new Date().toISOString();
 const env = { ...process.env, UAT_NEGATIVE_CONTROLS: negativeControls ? "1" : "" };
 if (url) env.UAT_BASE_URL = url;
@@ -61,7 +89,8 @@ const calendarRows = path.join(ROOT, "test-results", "uat-calendar-rows.jsonl");
 if (existsSync(calendarRows) && readFileSync(calendarRows, "utf8").trim()) {
   console.error(
     `UAT зупинено: ${path.relative(ROOT, calendarRows)} не порожній — попередній прогін не прибрав за собою. ` +
-      "Видаліть ці рядки з бази (id і таблиці — у файлі), потім сам файл, і запустіть знову.",
+      "Видаліть ці рядки з бази (id і таблиці — у файлі; uat_users — це користувачі Supabase Auth: видаляйте їх за id в " +
+      "Authentication → Users, каскад прибере профіль, посаду й записи), потім сам файл, і запустіть знову.",
   );
   process.exit(1);
 }

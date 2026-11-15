@@ -17,22 +17,22 @@ Done when: AC-CAL-16, AC-CAL-17, AC-CAL-18, AC-CAL-19, AC-CAL-20.
 
 ## 2. Частка дати й вид закриття в базі (`task/ws9-day-share-closure-kind`)
 
-- [ ] 2.1 Міграція `day_share_cap_and_closure_kind` (D1, D2): `date_room`, нові `record_share`, `fix_day_share`,
+- [x] 2.1 Міграція `day_share_cap_and_closure_kind` (D1, D2): `date_room`, нові `record_share`, `fix_day_share`,
       `add_school_closure(p_kind, …)`; перевірка — `db-check` зелений
-- [ ] 2.2 Тести PGlite: послідовність «погодження під закриттям → `remove_school_closure` → друге погодження» дає 1.00
+- [x] 2.2 Тести PGlite: послідовність «погодження під закриттям → `remove_school_closure` → друге погодження» дає 1.00
       («Unpaid leave», «Sick leave», різні типи); дзеркальний випадок 0.65 закріплено (Q1); скорочений день без часу —
       «Enter the closing time»
-- [ ] 2.3 Виклики в TS (`ClosureInput.kind`, Server Action `addClosure`, `database.types.ts`, e2e AC-CAL-13)
-- [ ] 2.4 SQL-мутанти: S12–S17, S24–S27 на новій міграції; S28–S31 → `KILLED`; таблиця — `docs/qa/mutation-sql.md`
+- [x] 2.3 Виклики в TS (`ClosureInput.kind`, Server Action `addClosure`, `database.types.ts`, e2e AC-CAL-13)
+- [x] 2.4 SQL-мутанти: S12–S17, S24–S27 на новій міграції; S28–S31 → `KILLED`; таблиця — `docs/qa/mutation-sql.md`
 
 Done when: AC-BALANCE-05, AC-CAL-20.
 
 ## 3. Синтетичний працівник, e2e і чисте дерево UAT (`task/ws9-uat-employee`)
 
-- [ ] 3.1 `createUatEmployee` у `tests/e2e/support/admin.ts` і прибирання за id (D3)
-- [ ] 3.2 e2e AC-CAL-06 і AC-CAL-20 на синтетичному працівнику з точними числами «Тоді» від 0.00, без винятку для проду
-- [ ] 3.3 e2e AC-CAL-16 (`fri: [[780, 1020]]`)
-- [ ] 3.4 `scripts/uat/run.mjs`: зупинка на брудному дереві, `gitDirty` у manifest (D4); NC-3 на AC-CAL-17
+- [x] 3.1 `createUatEmployee` у `tests/e2e/support/admin.ts` і прибирання за id (D3)
+- [x] 3.2 e2e AC-CAL-06 і AC-CAL-20 на синтетичному працівнику з точними числами «Тоді» від 0.00, без винятку для проду
+- [x] 3.3 e2e AC-CAL-16 (`fri: [[780, 1020]]`)
+- [x] 3.4 `scripts/uat/run.mjs`: зупинка на брудному дереві, `gitDirty` у manifest (D4); NC-3 на AC-CAL-17
 
 Done when: AC-CAL-06, AC-CAL-16, AC-CAL-20.
 

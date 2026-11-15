@@ -1,7 +1,9 @@
 // Крок 4 UAT: звіт для PM у git — docs/qa/uat/<дата>/report.md + frames/*.png + manifest.json.
 // Відео й траси в git НЕ кладемо (0,8–1,7 МБ на AC): вони лишаються в test-results/ локально й в артефакті CI.
 // Тому manifest.json ще не сумісний із check-recordings конвеєра WS9 (той вимагає відео на диску) — див. поле note.
-// Негативні контролі (NC-…) у manifest.results не потрапляють — лише в окремий список negativeControls.
+// Негативні контролі (NC-…) у manifest.results не потрапляють — лише в окремий список negativeControls. Основний прогін
+// (проєкт chromium) NC не запускає, тож бере їх із прогону npm run uat:nc того самого коду тестів і проду
+// (test-results/uat-report-nc/manifest.json) — інакше список порожній.
 // Використання: node scripts/uat/report.mjs [--out docs/qa/uat/2026-10-26]
 import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
@@ -23,6 +25,29 @@ const kyivTime = (iso) =>
 const sec = (ms) => `${(ms / 1000).toFixed(1)} с`;
 const usd = (x) => `$${x.toFixed(4)}`;
 const md = (s = "") => String(s).replace(/\|/g, "\\|").replace(/\r?\n/g, " ");
+
+/**
+ * NC з окремого прогону npm run uat:nc — лише того самого застосунку (baseURL), коду тестів (testsCommit) і розгортання
+ * (deployedSha; для адреси без відомого коміту — ні). Кадри NC копіюємо до кадрів звіту, щоб посилання вели в git.
+ */
+function ncFromSeparateRun(run, outDir) {
+  const dir = path.join(ROOT, "test-results", "uat-report-nc");
+  const file = path.join(dir, "manifest.json");
+  if (!existsSync(file)) return [];
+  const nc = readJson(file);
+  const sameApp = nc.baseURL === (run.baseURL ?? null) && nc.testsCommit === (run.gitSha ?? null);
+  const sameDeploy = nc.deployedSha === (run.deployedSha ?? null) && (nc.deployedSha != null || !run.baseURL?.startsWith("https://"));
+  if (!sameApp || !sameDeploy || nc.gitDirty) return [];
+  return (nc.negativeControls ?? []).map((e) => {
+    let screenshot = null;
+    if (e.screenshot && existsSync(path.join(ROOT, e.screenshot))) {
+      const name = path.basename(e.screenshot);
+      copyFileSync(path.join(ROOT, e.screenshot), path.join(outDir, "frames", name));
+      screenshot = rel(path.join(outDir, "frames", name));
+    }
+    return { ...e, screenshot, separateRun: nc.generatedAt };
+  });
+}
 
 export function report(rows = combine(), { out } = {}) {
   const runFile = path.join(WORK, "run.json");
@@ -74,20 +99,30 @@ export function report(rows = combine(), { out } = {}) {
     baseURL: run.baseURL ?? null,
     deployedSha: run.deployedSha ?? null,
     testsCommit: run.gitSha ?? null,
+    testsBranch: run.gitBranch ?? null,
+    gitDirty: run.gitDirty ?? null,
     reviewer: { model: HAIKU, disputes: SONNET },
     note: "Відео й траси не в git (test-results/ локально, артефакт CI). check-recordings конвеєра WS9 вимагає відео на диску — для нього цей manifest треба доповнити.",
     results: real.map(entry),
-    negativeControls: nc.map(entry),
+    negativeControls: nc.length ? nc.map(entry) : ncFromSeparateRun(run, outDir),
     cleanup,
   };
   writeFileSync(path.join(outDir, "manifest.json"), JSON.stringify(manifest, null, 2) + "\n");
+  const ncLine = !nc.length && manifest.negativeControls.length
+    ? [
+        `- **Негативні контролі** (окремий прогін \`npm run uat:nc\` того самого коду й проду): ${manifest.negativeControls
+          .map((e) => `${e.id} (${e.proof}) — ${e.verdict}`)
+          .join("; ")}`,
+      ]
+    : [];
 
   const lines = [
     `# Звіт UAT — ${kyivDate(started).split("-").reverse().join(".")}`,
     "",
     `- **Застосунок:** ${run.baseURL ?? "локальна збірка"}${run.deployedSha ? ` (/api/health: коміт \`${run.deployedSha.slice(0, 7)}\`)` : ""}`,
-    `- **Код тестів:** \`${run.gitBranch ?? "?"}\` @ \`${(run.gitSha ?? "?").slice(0, 7)}\`${run.gitDirty ? " + незакомічені зміни" : ""}`,
+    `- **Код тестів:** \`${run.gitBranch ?? "?"}\` @ \`${(run.gitSha ?? "?").slice(0, 7)}\`, ${run.gitDirty ? "дерево брудне (незакомічені зміни)" : "дерево чисте"}`,
     `- **Прогін:** ${kyivTime(started)} (Київ), Playwright ${run.playwrightMs ? sec(run.playwrightMs) : "—"}; AC: ${real.length} — PASS ${count("PASS")}, FAIL ${count("FAIL")}, NEEDS-HUMAN ${count("NEEDS-HUMAN")}${nc.length ? `; негативних контролів: ${nc.length}` : ""}`,
+    ...ncLine,
     `- **Рецензент:** \`${HAIKU}\`; суперечки → \`${SONNET}\`. Разом за розбір: ${usd(totalCost)} (ціни API; за підпискою — у межах ліміту плану)`,
     cleanup
       ? cleanup.scope === "school-calendar" && cleanup.error

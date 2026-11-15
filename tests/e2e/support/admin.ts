@@ -9,9 +9,13 @@
 //     інакше зупиняється, а не ламає справжні дані;
 //   * усе, що створив (закриття, заявки з записами), записує в журнал і видаляє за id в afterEach,
 //     а teardown «cleanup» після прогону видаляє все, що лишилось у вікнах дат AC, і падає, якщо щось лишилось.
+// AC, що не називають teacher1@ («an employee with a single position (schedule Fri …)» — AC-CAL-06, -16, -20), беруть
+// синтетичного працівника uat-<run>@example.test (createUatEmployee): «Дано» з балансом 0.00 і потрібним розкладом
+// правдиве й на проді, а прибирання видаляє його за id разом із посадою, розкладом і записами.
 //
 // Джерело каркаса (adminClient, hasAdminKey, журнал прибирання): матеріали курсу WS9,
 // materials/uat/tests/e2e/support/admin.ts. Помічники календаря — наші.
+import { randomBytes } from "node:crypto";
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { BLOCKING_STATUSES } from "../../../src/lib/leave/request";
@@ -42,7 +46,9 @@ const BLOCKING = [...BLOCKING_STATUSES];
 const LOG = "test-results/uat-calendar-rows.jsonl";
 const DELETED_LOG = "test-results/uat-calendar-deleted.jsonl";
 
-type Row = { table: "school_closures" | "leave_requests"; id: number; what: string };
+type Row =
+  | { table: "school_closures" | "leave_requests"; id: number; what: string }
+  | { table: "uat_users"; id: string; what: string };
 
 function remember(row: Row) {
   mkdirSync("test-results", { recursive: true });
@@ -72,6 +78,80 @@ async function mainPositionId(supabase: SupabaseClient, employeeId: string): Pro
     .single();
   if (error) throw error;
   return data.id as number;
+}
+
+/** Розклад синтетичного працівника: дні тижня → блоки [початок, кінець) у хвилинах від півночі. */
+export type UatSchedule = Partial<Record<"mon" | "tue" | "wed" | "thu" | "fri", [number, number][]>>;
+
+const WEEKDAY = { mon: 1, tue: 2, wed: 3, thu: 4, fri: 5 } as const;
+
+/** Мітка прогону для адрес uat-<run>…@example.test: та сама в усіх тестах одного прогону (UAT_RUN_STARTED). */
+function runLabel(): string {
+  const started = process.env.UAT_RUN_STARTED ? Date.parse(process.env.UAT_RUN_STARTED) : Date.now();
+  return started.toString(36);
+}
+
+export type UatEmployee = { id: string; email: string; password: string; fullName: string };
+
+/**
+ * Синтетичний працівник для «Дано» AC, які не називають конкретного акаунта: uat-<run>-<n>@example.test з роллю
+ * employee, однією основною посадою (менеджер — manager1@example.test, як у teacher1@) і розкладом `schedule`.
+ * Пароль — випадковий, у пам'яті тесту: не друкуємо й не пишемо в журнали. Вхід на /login (signIn) іде в трасу
+ * Playwright (trace.zip, test-results/), а вимкнути трасу для одного тесту не можна (опція воркера) — тож пароль живий,
+ * лише доки живий працівник: прибирання видаляє його за id, а teardown називає й падає на будь-якому uat-…@example.test,
+ * що лишився. Повертає id для прибирання: журнал
+ * створеного (uat_users) — afterEach видаляє користувача за id, а каскад — профіль, посаду, розклад і записи.
+ */
+export async function createUatEmployee(schedule: UatSchedule): Promise<UatEmployee> {
+  const supabase = adminClient();
+  const suffix = randomBytes(3).toString("hex");
+  const email = `uat-${runLabel()}-${suffix}@example.test`;
+  const fullName = `UAT employee ${suffix}`;
+  const password = randomBytes(18).toString("base64url");
+  const { data, error } = await supabase.auth.admin.createUser({
+    email,
+    password,
+    email_confirm: true,
+    user_metadata: { full_name: fullName },
+  });
+  if (error) throw error;
+  const id = data.user.id;
+  remember({ table: "uat_users", id, what: `працівник ${email}` });
+
+  const { error: profileError } = await supabase
+    .from("profiles")
+    .upsert({ id, email, full_name: fullName, role: "employee" }, { onConflict: "id" });
+  if (profileError) throw profileError;
+  const { data: division, error: divisionError } = await supabase
+    .from("divisions")
+    .select("id")
+    .order("id")
+    .limit(1)
+    .single();
+  if (divisionError) throw divisionError;
+  const { data: position, error: positionError } = await supabase
+    .from("positions")
+    .insert({ employee_id: id, division_id: division.id, title: "UAT teacher", kind: "main" })
+    .select("id")
+    .single();
+  if (positionError) throw positionError;
+  const manager = await profileId(supabase, "manager1@example.test");
+  const { error: managerError } = await supabase
+    .from("position_managers")
+    .insert({ position_id: position.id, manager_id: manager });
+  if (managerError) throw managerError;
+  const blocks = Object.entries(schedule).flatMap(([day, ranges]) =>
+    (ranges ?? []).map(([start, end]) => ({
+      position_id: position.id,
+      employee_id: id,
+      weekday: WEEKDAY[day as keyof typeof WEEKDAY],
+      start_min: start,
+      end_min: end,
+    })),
+  );
+  const { error: blocksError } = await supabase.from("schedule_blocks").insert(blocks);
+  if (blocksError) throw blocksError;
+  return { id, email, password, fullName };
 }
 
 /** Закриття для «Дано» (AC каже, що його вже додав адміністратор). */
@@ -180,12 +260,15 @@ export async function assertCalendarClean() {
     for (const c of closures ?? []) problems.push(`закриття «${c.name}» ${c.start_date}…${c.end_date}`);
     const { data: records, error: recordsError } = await supabase
       .from("leave_records")
-      .select("date, status, employee_id")
+      .select("date, status, profiles(email)")
       .gte("date", w.from)
       .lte("date", w.to)
       .in("status", BLOCKING);
     if (recordsError) throw recordsError;
-    for (const r of records ?? []) problems.push(`запис ${r.date} (${r.status})`);
+    for (const r of records ?? []) {
+      const owner = (r.profiles as unknown as { email: string } | null)?.email ?? "?";
+      problems.push(`запис ${owner} ${r.date} (${r.status})`);
+    }
     const { data: own, error: ownError } = await supabase
       .from("leave_records")
       .select("date, status")
@@ -212,6 +295,13 @@ export async function cleanupRemembered(): Promise<string[]> {
     (row, i, all) => all.findIndex((r) => r.table === row.table && r.id === row.id) === i,
   );
   for (const row of unique.reverse()) {
+    if (row.table === "uat_users") {
+      // Каскад: profiles → positions, schedule_blocks, position_managers, leave_requests, leave_records.
+      const { error } = await supabase.auth.admin.deleteUser(row.id);
+      if (error && error.status !== 404) throw error;
+      if (!error) deleted.push(row.what);
+      continue;
+    }
     const { data, error } = await supabase.from(row.table).delete().eq("id", row.id).select("id");
     if (error) throw error;
     if (data?.length) deleted.push(row.what);
@@ -265,6 +355,14 @@ export async function cleanupCalendar(): Promise<{ deleted: string[]; remaining:
     if (countError) throw countError;
     leftoverRequests += count ?? 0;
   }
+  // Синтетичні працівники (uat-…@example.test), яких прибирання не видалило, — і цього прогону, і попередніх: інакше
+  // залишок перерваного прогону ніхто б не назвав.
+  const { data: uatProfiles, error: uatError } = await supabase
+    .from("profiles")
+    .select("email")
+    .like("email", "uat-%@example.test");
+  if (uatError) throw uatError;
+  for (const p of uatProfiles ?? []) remaining.push(`працівник ${p.email}`);
   return { deleted, remaining, leftoverRequests };
 }
 

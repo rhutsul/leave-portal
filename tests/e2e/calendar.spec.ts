@@ -9,19 +9,24 @@
 //     сторінках — видаляють за id в afterEach; teardown cleanup після прогону перевіряє, що нічого не лишилось.
 // @prod-writes вибирається лише з SUPABASE_SECRET_KEY (playwright.config.ts): на проді з .env.local розробника і в
 // CI на одноразовому Supabase. AC-CAL-12 і AC-CAL-15 лише читають (@uat).
-import { expect, test, type Page } from "@playwright/test";
+// AC-CAL-06, AC-CAL-16 і AC-CAL-20 не називають акаунта («an employee with a single position (schedule Fri …)»): там
+// синтетичний працівник uat-<run>-…@example.test з потрібним розкладом і балансом 0.00 (createUatEmployee), тож числа
+// «Тоді» перевіряються точно й на проді; прибирання видаляє його за id.
+import { expect, test, type Browser, type Page } from "@playwright/test";
 import {
   addClosure,
   addRecord,
   assertCalendarClean,
   cleanupRemembered,
+  createUatEmployee,
   hasAdminKey,
   rememberClosuresNamed,
   rememberRequestsOn,
+  type UatEmployee,
 } from "./support/admin";
 import { clickDate, closeDates, showMonth } from "./support/calendar";
 import { asRole } from "./support/direct";
-import { attachRuntimeErrors, given, thenStep, when } from "./support/uat";
+import { attachRuntimeErrors, given, signIn, thenStep, when } from "./support/uat";
 
 const WRITES = { tag: ["@uat", "@prod-writes"] };
 const ac = (id: string) => ({ annotation: { type: "ac", description: id } });
@@ -56,13 +61,18 @@ function usedDays(cardText: string): number {
   return Number(m[1]);
 }
 
-/**
- * Стартове «used» для AC-CAL-06. Локально й у CI (одноразова база, у teacher1 немає лікарняних) — рівно 0.00, як у
- * «Дано» AC; на проді (UAT_BASE_URL) там можуть бути справжні погоджені лікарняні — тоді лише запам'ятовуємо значення.
- */
-function expectStartUsed(used: number) {
-  if (process.env.UAT_BASE_URL) return;
-  expect(used, "«Дано» AC-CAL-06: Sick leave used 0.00").toBe(0);
+/** Стартове «used» з «Дано» AC: синтетичний працівник щойно створений, тож рівно стільки й на проді. */
+function expectStartUsed(used: number, expected = 0) {
+  expect(used, `«Дано»: Sick leave used ${expected.toFixed(2)}`).toBe(expected);
+}
+
+/** Окремий браузерний контекст, у якому увійшов синтетичний працівник (вхід — сторінкою /login, як людина). */
+async function signedInAs(browser: Browser, employee: UatEmployee) {
+  const context = await browser.newContext({ storageState: { cookies: [], origins: [] } });
+  const page = await context.newPage();
+  await signIn(page, employee.email, employee.password);
+  await expect(page.getByTestId("user-email")).toHaveText(employee.email);
+  return { context, page };
 }
 
 /** Шаблон «N of … used» для точного числа днів (не збігається з частиною більшого числа). */
@@ -353,21 +363,18 @@ test.describe("admin@example.test", () => {
     'AC-CAL-20: an approved "Sick leave" 2026-11-20 08:30–11:00 (0.36) — after the early dismissal from 12:00 balances still show used 0.36',
     { ...WRITES, ...ac("AC-CAL-20") },
     async ({ page, browser }) => {
-      const employee = await browser.newContext({ storageState: "playwright/.auth/teacher1.json" });
-      const balances = await employee.newPage();
+      // «An employee with a single position (schedule Fri 08:30–15:30)» — синтетичний, без інших лікарняних.
+      const employee = await createUatEmployee({ fri: [[WHOLE_DAY.start, WHOLE_DAY.end]] });
+      const { context, page: balances } = await signedInAs(browser, employee);
       const sick = balances.getByRole("group", { name: "Sick leave left" });
-      // AC: запис уже враховано як 0.36. На проді в teacher1 можуть бути інші погоджені лікарняні — тож тест бере
-      // «used» з цим записом і перевіряє, що після закриття воно те саме.
-      let usedWithRecord = 0;
 
       await given('an employee with a single position (schedule Fri 08:30–15:30) and an approved "Sick leave" record 2026-11-20 08:30–11:00 counted as used 0.36 (150 of 420 minutes)', async () => {
         await balances.goto("/balances?year=2026");
         await expect(sick).toContainText(/ of [\d.]+ used/);
-        const usedBefore = usedDays((await sick.textContent()) ?? "");
-        await addRecord(TEACHER1, { date: "2026-11-20", start: WHOLE_DAY.start, end: 11 * 60, leaveType: "sick", status: "approved" });
+        expectStartUsed(usedDays((await sick.textContent()) ?? ""));
+        await addRecord(employee.email, { date: "2026-11-20", start: WHOLE_DAY.start, end: 11 * 60, leaveType: "sick", status: "approved" });
         await balances.goto("/balances?year=2026");
-        await expect(sick).toContainText(usedPattern(usedBefore + 0.36));
-        usedWithRecord = usedBefore + 0.36;
+        await expect(sick).toContainText(usedPattern(0.36));
       });
 
       await when('the administrator adds the early dismissal "Teachers\' meeting" on 2026-11-20 from 12:00', async () => {
@@ -386,19 +393,19 @@ test.describe("admin@example.test", () => {
         balances,
         {
           clause: 'the employee\'s balances still show "Sick leave" used 0.36.',
-          visible: ["the card «Sick leave left» with «… of … used»"],
+          visible: ["the card «Sick leave left» with «0.36 of … used»"],
           hidden: [
-            "used is the same as before the closure: the record's share 0.36 was fixed at approval, not recounted as 150 of 210 = 0.71",
-            "AC starts from used 0.36; on prod the test takes the value with the record and checks it did not change",
+            "the employee is a synthetic uat-…@example.test with one position, Fri 08:30–15:30, and no other Sick leave: used was 0.00 before the record",
+            "used is exactly 0.36, not 150 of 210 = 0.71: the record's share was fixed at approval",
           ],
         },
         async () => {
           await balances.goto("/balances?year=2026");
-          await expect(sick).toContainText(usedPattern(usedWithRecord));
-          await expect(sick).not.toContainText(usedPattern(usedWithRecord - 0.36 + 0.71));
+          await expect(sick).toContainText(usedPattern(0.36));
+          await expect(sick).not.toContainText(usedPattern(0.71));
         },
       );
-      await employee.close();
+      await context.close();
     },
   );
 
@@ -668,25 +675,27 @@ test.describe("manager1@example.test", () => {
     'AC-CAL-06: the manager approves the whole-day "Sick leave" 2026-11-20 08:30–12:00 — balances show "Sick leave" used 1.00, not 0.50',
     { ...WRITES, ...ac("AC-CAL-06") },
     async ({ page, browser }) => {
-      const employee = await browser.newContext({ storageState: "playwright/.auth/teacher1.json" });
-      const balances = await employee.newPage();
+      // «An employee with a single position (schedule Fri 08:30–15:30) and "Sick leave" used 0.00» — синтетичний.
+      const employee = await createUatEmployee({ fri: [[WHOLE_DAY.start, WHOLE_DAY.end]] });
+      const { context, page: balances } = await signedInAs(browser, employee);
       const sick = balances.getByRole("group", { name: "Sick leave left" });
-      // AC: «Sick leave» used 0.00 до рішення. На проді в teacher1 вже можуть бути погоджені лікарняні цього року,
-      // тож тест запам'ятовує стартове «used» і перевіряє різницю: +1.00, а не +0.50.
-      let usedBefore = 0;
 
-      await given('the early dismissal from AC-CAL-04, an employee with a single position (schedule Fri 08:30–15:30) and "Sick leave" used 0.00 (on prod: the used value before the decision is noted, the check is +1.00)', async () => {
+      await given('the early dismissal from AC-CAL-04, an employee with a single position (schedule Fri 08:30–15:30) and "Sick leave" used 0.00', async () => {
         await addClosure("Teachers' meeting", "2026-11-20", "2026-11-20", NOON);
-        await addRecord(TEACHER1, { date: "2026-11-20", start: WHOLE_DAY.start, end: NOON, leaveType: "sick", status: "awaiting" });
+        await addRecord(employee.email, { date: "2026-11-20", start: WHOLE_DAY.start, end: NOON, leaveType: "sick", status: "awaiting" });
         await balances.goto("/balances?year=2026");
         await expect(sick).toContainText(/ of [\d.]+ used/);
-        usedBefore = usedDays((await sick.textContent()) ?? "");
-        expectStartUsed(usedBefore);
+        expectStartUsed(usedDays((await sick.textContent()) ?? ""));
       });
 
       await when('the manager approves the whole-day "Sick leave" record 2026-11-20 08:30–12:00', async () => {
         await page.goto("/decisions");
-        await page.getByTestId("decision-record").filter({ hasText: "Fri, 20 Nov 2026" }).first().getByRole("link").click();
+        await page
+          .getByTestId("decision-record")
+          .filter({ hasText: "Fri, 20 Nov 2026" })
+          .filter({ hasText: employee.fullName })
+          .getByRole("link")
+          .click();
         await expect(page).toHaveURL(/record=\d+/);
         await page.getByRole("button", { name: "Approve", exact: true }).click();
         await page.getByRole("dialog").getByRole("button", { name: "Approve", exact: true }).click();
@@ -697,19 +706,19 @@ test.describe("manager1@example.test", () => {
         balances,
         {
           clause: 'the employee\'s balances show "Sick leave" used 1.00 (210 of 210 working minutes that day), not 0.50.',
-          visible: ["the card «Sick leave left» with «… of … used»"],
+          visible: ["the card «Sick leave left» with «1.00 of … used»"],
           hidden: [
-            "used grew by exactly 1.00, not 0.50: 210 of 210 working minutes on the early dismissal day",
-            "AC starts from used 0.00; on prod the test takes the starting value it finds and checks the difference",
+            "the employee is a synthetic uat-…@example.test with one position, Fri 08:30–15:30: used was 0.00 before the decision",
+            "used is exactly 1.00, not 0.50: 210 of 210 working minutes on the early dismissal day",
           ],
         },
         async () => {
           await balances.goto("/balances?year=2026");
-          await expect(sick).toContainText(usedPattern(usedBefore + 1));
-          await expect(sick).not.toContainText(usedPattern(usedBefore + 0.5));
+          await expect(sick).toContainText(usedPattern(1));
+          await expect(sick).not.toContainText(usedPattern(0.5));
         },
       );
-      await employee.close();
+      await context.close();
     },
   );
 
@@ -803,3 +812,50 @@ test(
     await guest.close();
   },
 );
+
+// ── Синтетичний працівник: п'ятниця лише після обіду ─────────────────────────
+
+test.describe("an employee whose only Friday block is 13:00–17:00", () => {
+  test(
+    'AC-CAL-16: the early dismissal from 12:00 leaves no working time on 2026-11-20 — «The school is closed on this day: Teachers\' meeting»',
+    { ...WRITES, ...ac("AC-CAL-16") },
+    async ({ browser }) => {
+      // «An employee whose only schedule block that Friday is 13:00–17:00» — синтетичний (у демо-акаунтів такого немає).
+      const employee = await createUatEmployee({ fri: [[13 * 60, 17 * 60]] });
+      const { context, page } = await signedInAs(browser, employee);
+
+      await given('an early dismissal "Teachers\' meeting" on Friday 2026-11-20 from 12:00 and an employee whose only schedule block that Friday is 13:00–17:00', async () => {
+        await addClosure("Teachers' meeting", "2026-11-20", "2026-11-20", NOON);
+        await page.goto("/requests/new");
+        await expect(page.getByText("Your weekly schedule")).toBeVisible();
+        await showMonth(page, 2026, 11);
+      });
+
+      await when("the employee tries to choose 2026-11-20 in a new request", async () => {
+        await page.getByRole("button", { name: /^Fri, 20 Nov 2026/ }).click();
+      });
+
+      await thenStep(
+        page,
+        {
+          clause: 'the date is not accepted, and the employee sees the message "The school is closed on this day: Teachers\' meeting".',
+          visible: [
+            "the message «The school is closed on this day: Teachers' meeting»",
+            "no selected dates («No dates yet — pick them in the calendar.»)",
+          ],
+          hidden: [
+            "the employee is a synthetic uat-…@example.test whose only Friday block is 13:00–17:00",
+            "the date is not accepted: no «Remove Fri, 20 Nov 2026» button",
+          ],
+        },
+        async () => {
+          const main = page.getByRole("main");
+          await expect(main.getByRole("alert")).toHaveText("The school is closed on this day: Teachers' meeting");
+          await expect(main.getByText("No dates yet — pick them in the calendar.")).toBeVisible();
+          await expect(main.getByRole("button", { name: "Remove Fri, 20 Nov 2026" })).toHaveCount(0);
+        },
+      );
+      await context.close();
+    },
+  );
+});
