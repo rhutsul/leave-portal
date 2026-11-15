@@ -122,3 +122,14 @@
 | AC-CAL-18 | Порожня назва | `src/lib/leave/calendar.ts` (closureNameError, parseClosureForm), `src/app/(app)/calendar/manage/closure-form.tsx`, `src/app/(app)/calendar/actions.ts`, `supabase/migrations/20261113145925_school_calendar_clarifications.sql` (add_school_closure) | `src/lib/leave/calendar-form.test.ts`, `tests/db/school-calendar.test.ts`, `tests/e2e/calendar.spec.ts` | реалізовано |
 | AC-CAL-19 | Назва довша за 100 знаків | `src/lib/leave/calendar.ts` (closureNameError, parseClosureForm), `src/app/(app)/calendar/manage/closure-form.tsx`, `src/app/(app)/calendar/actions.ts`, `supabase/migrations/20261113145925_school_calendar_clarifications.sql` (add_school_closure) | `src/lib/leave/calendar-form.test.ts`, `tests/db/school-calendar.test.ts`, `tests/e2e/calendar.spec.ts` | реалізовано |
 | AC-CAL-20 | Закриття після погодження | `supabase/migrations/20261113145925_school_calendar_clarifications.sql` (leave_records.day_share, fix_day_share, used_hundredths, get_balance_inputs), `src/lib/leave/balance.ts` (parseBalanceInputs, shares) | `src/lib/leave/balance.test.ts`, `tests/db/school-calendar.test.ts`, `tests/e2e/calendar.spec.ts` | реалізовано |
+| AC-ASSIST-01 | Два запропоновані закриття, календар без змін | — | — | відкладено (чекає реалізації) |
+| AC-ASSIST-02 | Збереження без змін | — | — | відкладено (чекає реалізації) |
+| AC-ASSIST-03 | Виправлення й прибирання перед збереженням | — | — | відкладено (чекає реалізації) |
+| AC-ASSIST-04 | Пропозиція на вже закриті дати | — | — | відкладено (чекає реалізації) |
+| AC-ASSIST-05 | Канікули без дат | — | — | відкладено (чекає реалізації) |
+| AC-ASSIST-06 | Прохання написати вірш | — | — | відкладено (чекає реалізації) |
+| AC-ASSIST-07 | Ін'єкція поруч із правильним закриттям | — | — | відкладено (чекає реалізації) |
+| AC-ASSIST-08 | Помічник ще не відповів | — | — | відкладено (чекає реалізації) |
+| AC-ASSIST-09 | Таймаут або вичерпаний ліміт | — | — | відкладено (чекає реалізації) |
+| AC-ASSIST-10 | Текст 2001 знак | — | — | відкладено (чекає реалізації) |
+| AC-ASSIST-11 | Працівник за прямим посиланням | — | — | відкладено (чекає реалізації) |
