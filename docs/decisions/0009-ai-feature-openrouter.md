@@ -37,8 +37,12 @@ AC-ASSIST-02…04). Помічник нічого не зберігає сам. 
   Схема zod (`src/lib/ai/schema.ts`) має стан `status: ok | needs_info | refused`; «невідоме» = `null`.
 - Чиста функція `proposeDraft(input, model)` (`src/lib/ai/draft.ts`) отримує модель параметром;
   ключ читає лише `src/lib/ai/openrouter.ts` з `import "server-only"`. Змінна — `OPENROUTER_API_KEY`, без `NEXT_PUBLIC_`.
-- Ланцюжок моделей (лише `:free`): `google/gemma-4-31b-it:free` → `google/gemma-4-26b-a4b-it:free` →
-  `nvidia/nemotron-3.5-super-vl:free`; суддя живого eval — `nvidia/nemotron-3.5-super-vl:free`. Рушій PDF
+- Ланцюжок моделей (лише `:free`): `nvidia/nemotron-3.5-super-vl:free` → `google/gemma-4-31b-it:free` →
+  `google/gemma-4-26b-a4b-it:free`; суддя живого eval — `google/gemma-4-31b-it:free` (інша родина, ніж перша модель).
+  Оновлено 2026-11-15 у PR функції (людина погодила): у наборі курсу Nemotron стоїть третьою, але відповідь помічника
+  — суто структура, а Nemotron — єдина з трьох зі строгою схемою (`structured_outputs`), тож менше відповідей не за
+  схемою (для людини це AC-ASSIST-09); golden cases PM — англійською, тож брак української в її картці не заважає.
+  Живий eval показує, яка модель відповіла на кожен кейс; якщо Nemotron провалиться — повертаємо порядок набору. Рушій PDF
   `cloudflare-ai` з набору лишаємо в `models.ts` (безкоштовний; без нього OpenRouter узяв би платний `mistral-ocr`),
   хоча файлів зріз 4 не приймає.
 - Таймаут виклику в функції — 30 с: дія передає явно `timeoutMs: 30_000` і `maxRetries: 0` (типові значення набору

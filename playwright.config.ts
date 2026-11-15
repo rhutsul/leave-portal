@@ -27,8 +27,12 @@ const withWrites = !deployed && !!process.env.CI;
 const withAdminKey = Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SECRET_KEY);
 // Знімки сторінок для docs/img/ (calendar-screenshots.spec.ts) — лише на прохання: UAT_SCREENSHOTS=1.
 const withScreenshots = process.env.UAT_SCREENSHOTS === "1";
+// @live-model — тести помічника календаря, що кличуть справжню модель (AC-ASSIST-03, -06). Лише на проді
+// (UAT_BASE_URL), де є ключ у Vercel; у CI і локальній збірці живого виклику моделі не буває — не вибираємо.
+const withLiveModel = Boolean(deployed);
 const excluded = [
   "@negative-control",
+  ...(withLiveModel ? [] : ["@live-model"]),
   ...(withWrites ? [] : ["@writes"]),
   ...(withAdminKey ? [] : ["@prod-writes"]),
   ...(withScreenshots ? [] : ["@screenshots"]),

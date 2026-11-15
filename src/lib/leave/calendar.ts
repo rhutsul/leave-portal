@@ -24,6 +24,20 @@ export const CALENDAR_MESSAGES = {
   timeRequired: "Enter the closing time",
 } as const;
 
+/** Загальна помилка зміни календаря: збій, текст якого людині нічого не скаже. */
+export const CLOSURE_FAILED = "The school calendar could not be changed. Please try again.";
+
+/**
+ * Помилка rpc add_school_closure / remove_school_closure → текст для людини: P0001 — тексти PM з функції бази
+ * (AC-CAL-07, -10, -11, -17, -18, -19), 42501 — не адміністратор (AC-CAL-12); решту не показуємо. Спільна для
+ * «Add closure» і збереження пропозицій помічника (AC-ASSIST-04).
+ */
+export function closureRpcMessage(error: { code: string; message: string }): string {
+  if (error.code === "P0001") return error.message;
+  if (error.code === "42501") return CALENDAR_MESSAGES.adminOnly;
+  return CLOSURE_FAILED;
+}
+
 /** Найдовша назва закриття (Assumptions 04-school-calendar, AC-CAL-19). */
 export const CLOSURE_NAME_MAX = 100;
 

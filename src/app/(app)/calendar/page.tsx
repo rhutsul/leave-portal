@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { CircleCheck, Plus } from "lucide-react";
+import { CircleCheck, Plus, Sparkles } from "lucide-react";
 import { SchoolYearSwitcher } from "@/components/school-year-switcher";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { buttonVariants } from "@/components/ui/button";
@@ -63,10 +63,17 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
         description="Holidays, school breaks and early dismissals of the whole school. Closed days and hours cannot be taken as leave."
         actions={
           isAdmin && (
-            <Link href="/calendar/manage" className={buttonVariants()}>
-              <Plus />
-              Add closure
-            </Link>
+            <div className="flex flex-wrap gap-2">
+              {/* Помічник календаря (AC-ASSIST-01…11): пропонує закриття з тексту, зберігає людина. */}
+              <Link href="/calendar/assistant" className={buttonVariants({ variant: "secondary" })}>
+                <Sparkles />
+                Add from text
+              </Link>
+              <Link href="/calendar/manage" className={buttonVariants()}>
+                <Plus />
+                Add closure
+              </Link>
+            </div>
           )
         }
       />

@@ -1,12 +1,14 @@
 // Взято з https://github.com/koldovsky/2026-quitcode-10-ai-features-hw/blob/main/materials/ai-feature/evals/golden.live.eval.ts
+// і перероблено під помічника календаря: той самий ланцюжок, що й дія (runAssistant), оцінка — стан для людини.
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { setTimeout as sleep } from "node:timers/promises";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { classifyError, proposeDraft } from "@/lib/ai/draft";
+import { classifyError } from "@/lib/ai/draft";
 import { JUDGE_MODEL, PRODUCT_MODELS, makeJudgeModel, makeProductModel } from "@/lib/ai/models";
 import { DRAFT_PROMPT_VERSION } from "@/lib/ai/prompts/draft";
-import { DraftSchema } from "@/lib/ai/schema";
-import { judgeSummary, passRate, scoreFields, type GoldenCase } from "@/lib/ai/scorer";
+import { CalendarSuggestionsSchema } from "@/lib/ai/schema";
+import { judgeSummary, passRate, scoreOutcome, shownText, type GoldenCase } from "@/lib/ai/scorer";
+import { runAssistant } from "@/lib/ai/suggestions";
 import casesJson from "../tests/fixtures/golden/cases.json";
 
 // `npm run eval` — ЖИВИЙ прогін golden cases на безкоштовних моделях OpenRouter. Ніколи не в `npm test` і не в CI.
@@ -57,24 +59,26 @@ describe.skipIf(!key)("golden cases, живий прогін (безкоштов
         }
         await sleep(GAP_MS);
         // maxRetries 0: денний 429 повтором не виправити, повтор лише з'їдає ліміт.
-        const result = await proposeDraft({ text: c.input }, makeProductModel(key), { maxRetries: 0, timeoutMs: 90_000 });
-        if (!result.ok) {
+        // Той самий ланцюжок і той самий таймаут 30 с, що й дія на проді (AC-ASSIST-09): eval міряє те, що бачить людина.
+        const result = await runAssistant({ text: c.input, today: c.today }, makeProductModel(key), { maxRetries: 0 });
+        const outcome = result.outcome;
+        if (outcome.kind === "unavailable") {
           // Рядок у звіт — ДО перевірки: інакше кейс зникає зі звіту, і частку успіху рахують з меншого знаменника.
-          if (result.reason === "rate_limited") {
+          if (outcome.reason === "rate_limited") {
             stoppedAt = `${c.id}, прогін ${run}`;
-            rows.push({ run, id: c.id, modelId: "—", fields: false, pass: false, notRun: true, why: `NOT RUN: 429 — ${result.message}` });
+            rows.push({ run, id: c.id, modelId: "—", fields: false, pass: false, notRun: true, why: "NOT RUN: 429" });
             return ctx.skip();
           }
-          // Таймаут, помилка постачальника, відповідь не за схемою — це FAIL з причиною, він входить у частку успіху.
-          rows.push({ run, id: c.id, modelId: "—", fields: false, pass: false, why: `${result.reason}: ${result.message}` });
+          // Таймаут, помилка постачальника, відповідь не за схемою чи правилами коду — FAIL з причиною, входить у частку успіху.
+          rows.push({ run, id: c.id, modelId: result.modelId ?? "—", fields: false, pass: false, why: `unavailable: ${outcome.reason}` });
         }
-        expect(result.ok, result.ok ? "" : `${result.reason}: ${result.message}`).toBe(true);
-        if (!result.ok) return;
-        const fields = scoreFields(c.expected, result.draft);
+        expect(outcome.kind, outcome.kind === "unavailable" ? outcome.reason : "").not.toBe("unavailable");
+        if (outcome.kind === "unavailable" || !result.modelId || !result.draft) return;
+        const fields = scoreOutcome(c.expected, outcome);
         let verdict: { pass: boolean; reason: string } | undefined;
         if (c.rubric) {
           try {
-            verdict = await judgeSummary(makeJudgeModel(key), c.rubric, result.draft.summary);
+            verdict = await judgeSummary(makeJudgeModel(key), c.rubric, shownText(outcome));
           } catch (error) {
             // Суддя теж може отримати 429 чи не відповісти — кейс лишається у звіті з причиною.
             const failure = classifyError(error);
@@ -87,14 +91,15 @@ describe.skipIf(!key)("golden cases, живий прогін (безкоштов
           }
         }
         const pass = fields.pass && (verdict?.pass ?? true);
-        rows.push({ run, id: c.id, modelId: result.modelId, fields: fields.pass, judge: verdict?.pass, pass, why: verdict?.reason });
+        const mismatch = fields.pass ? "" : `${fields.mismatches.map((m) => m.field).join(", ")}: ${JSON.stringify(fields.mismatches.map((m) => m.actual))}`;
+        rows.push({ run, id: c.id, modelId: result.modelId, fields: fields.pass, judge: verdict?.pass, pass, why: [mismatch, verdict?.reason].filter(Boolean).join("; ") });
         // Записуємо ЛИШЕ успішні відповіді: офлайн-реплей у CI має лишатися зеленим.
         if (RECORD && pass) {
           fresh[c.id] = {
             modelId: result.modelId,
             recordedAt: new Date().toISOString(),
             promptVersion: DRAFT_PROMPT_VERSION,
-            text: JSON.stringify(DraftSchema.parse(result.draft)),
+            text: JSON.stringify(CalendarSuggestionsSchema.parse(result.draft)),
           };
         }
         expect(fields.mismatches).toEqual([]);

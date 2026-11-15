@@ -10,14 +10,14 @@ https://github.com/koldovsky/2026-quitcode-10-ai-features-hw/tree/main/materials
 
 ## 1. Помічник календаря: пропозиції, перевірка, збереження (`task/calendar-assistant`)
 
-- [ ] 1.1 Тести з тексту AC (окрема сесія, спершу червоні): unit `checkSuggestions` і промпту; golden офлайн
+- [x] 1.1 Тести з тексту AC (окрема сесія, спершу червоні): unit `checkSuggestions` і промпту; golden офлайн
       `tests/golden.test.ts` з `cases.json` GC-01…GC-10 (назви з AC ID за D7); тести дій `requestSuggestions` і
       `saveSuggestions` (роль, довжина, ключ, збої, частковий успіх); компонент — «Preparing suggestions…»; PGlite —
       дві пропозиції, одна на вже закриту дату
-- [ ] 1.2 Схема `CalendarSuggestions` (D2), `checkSuggestions` у `src/lib/ai/suggestions.ts` (неіснуюча дата й скорочений день без часу → `needs_info`), `assistantTextLength`, промпт (D3) з
+- [x] 1.2 Схема `CalendarSuggestions` (D2), `checkSuggestions` у `src/lib/ai/suggestions.ts` (неіснуюча дата й скорочений день без часу → `needs_info`), `assistantTextLength`, промпт (D3) з
       `DRAFT_PROMPT_VERSION`, «сьогодні» параметром; тексти станів — константи з AC дослівно
-- [ ] 1.3 Server Actions `requestSuggestions` / `saveSuggestions` (D4), `timeout` 30 с, `maxRetries` 0; збої → AC-ASSIST-09; `closureRpcMessage` у `src/lib/leave/calendar.ts`; тег `@live-model` і `grepInvert` у `playwright.config.ts` (D9)
-- [ ] 1.4 Сторінка `/calendar/assistant` і кнопка «Add from text» для адміністратора (D1): форма, стани `Alert`,
+- [x] 1.3 Server Actions `requestSuggestions` / `saveSuggestions` (D4), `timeout` 30 с, `maxRetries` 0; збої → AC-ASSIST-09; `closureRpcMessage` у `src/lib/leave/calendar.ts`; тег `@live-model` і `grepInvert` у `playwright.config.ts` (D9)
+- [x] 1.4 Сторінка `/calendar/assistant` і кнопка «Add from text» для адміністратора (D1): форма, стани `Alert`,
       картки пропозицій з полями «Add closure», «Remove suggestion», «Save closures»; адаптив (ADR 0008);
       `npm run check:design`, `npm run check:ui`
 - [ ] 1.5 Перевірка руками без ключа (`OPENROUTER_API_KEY=" "`): сторінка показує AC-ASSIST-09, ручна форма працює
