@@ -35,8 +35,9 @@ function replay(text: string, modelId = "recorded") {
 }
 
 describe("golden cases, офлайн-реплей", () => {
-  // leave-portal: AC ID набору (AC-DRAFT-01) прибрано з назви — AC зрізу 4 (AC-ASSIST-…) ще немає в
-  // openspec/specs/, тож ac:coverage дав би ORPHAN. ID критерію PM повертаємо в PR функції calendar assistant.
+  // leave-portal: AC ID набору (AC-DRAFT-01) прибрано з назви — його немає в openspec/specs/ (ORPHAN), а кейси
+  // прикладу «звернення → тікет» не покривають жодного AC-ASSIST. ID критерію PM повертається разом із golden cases
+  // calendar assistant у PR функції.
   // Назва — звичайний рядок, що ПОЧИНАЄТЬСЯ з AC ID: `${AC} …` (шаблонний рядок) ac:coverage не зарахує.
   // Без .skip / .skipIf і без умови «є ключ»: пропущений тест не рахується як покриття.
   // Кілька AC (напр. окремий AC на відмови)? Розділіть: it.each(cases.filter(…))("AC-…-02: golden $id", …).
