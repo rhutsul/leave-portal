@@ -464,7 +464,8 @@ describe("day share fixed at approval", () => {
     expect(await usedOf("sick")).toBe("0.29");
   });
 
-  // Дзеркальний випадок — відкрите питання до PM (Open question у design.md зміни impl-school-calendar-fixes): перший
+  // Дзеркальний випадок — відкрите питання до PM (mkozlovskyi-ops/course-staff-management-spec#28; Open question у
+  // openspec/changes/archive/2026-11-15-impl-school-calendar-fixes/design.md): перший
   // запис погоджено до появи скороченого дня (150 з 420 = 0.36), другий — після (60 з 210 від решти = 0.29). AC-CAL-20
   // фіксує частку кожного запису на момент погодження, тож разом 0.65, а не 1.00. Тест закріплює поточну поведінку:
   // відповідь PM покаже, що саме змінити.
