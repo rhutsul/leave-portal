@@ -45,7 +45,9 @@ function ncFromSeparateRun(run, outDir) {
       copyFileSync(path.join(ROOT, e.screenshot), path.join(outDir, "frames", name));
       screenshot = rel(path.join(outDir, "frames", name));
     }
-    return { ...e, screenshot, separateRun: nc.generatedAt };
+    // Identity of the separate NC run, so a reviewer can check it matches the main run without the local file.
+    const separateRun = { generatedAt: nc.generatedAt, baseURL: nc.baseURL, testsCommit: nc.testsCommit, deployedSha: nc.deployedSha, gitDirty: nc.gitDirty ?? false };
+    return { ...e, screenshot, separateRun };
   });
 }
 

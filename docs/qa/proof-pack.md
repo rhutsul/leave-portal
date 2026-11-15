@@ -32,26 +32,26 @@ Proof pack WS8 — docs/qa/proof-pack-ws8.md. Рядок на кожен AC зр
 
 | AC | Вердикт 15.11 | Рядок звіту і кадр | Що змінилось після 13.11 |
 |---|---|---|---|
-| AC-CAL-01 | **PASS (R6)** | [рядок 14](uat/2026-11-15/report.md?plain=1#L14), [кадр](uat/2026-11-15/frames/AC-CAL-01-then-1.png) | — |
-| AC-CAL-02 | **PASS (R6)** | [рядок 15](uat/2026-11-15/report.md?plain=1#L15), [кадр](uat/2026-11-15/frames/AC-CAL-02-then-1.png) | — |
-| AC-CAL-03 | **PASS (R6)** | [рядок 16](uat/2026-11-15/report.md?plain=1#L16), [кадр](uat/2026-11-15/frames/AC-CAL-03-then-1.png) | — |
-| AC-CAL-04 | **PASS (R6)** | [рядок 17](uat/2026-11-15/report.md?plain=1#L17), [кадр](uat/2026-11-15/frames/AC-CAL-04-then-1.png) | — |
-| AC-CAL-05 | **PASS (R6)** | [рядок 18](uat/2026-11-15/report.md?plain=1#L18), [кадр](uat/2026-11-15/frames/AC-CAL-05-then-1.png) | — |
-| AC-CAL-06 | **PASS (R6)** | [рядок 19](uat/2026-11-15/report.md?plain=1#L19), [кадр](uat/2026-11-15/frames/AC-CAL-06-then-1.png) | синтетичний працівник `uat-…@example.test` (пт 08:30–15:30): «Дано used 0.00» і «Тоді 1.00» — точно, без винятку для проду |
-| AC-CAL-07 | **PASS (R6)** | [рядок 20](uat/2026-11-15/report.md?plain=1#L20), [кадр](uat/2026-11-15/frames/AC-CAL-07-then-1.png) | `add_school_closure` з видом закриття (#82), тексти й перевірки ті самі |
-| AC-CAL-08 | **PASS (R6)** | [рядок 21](uat/2026-11-15/report.md?plain=1#L21), [кадр](uat/2026-11-15/frames/AC-CAL-08-then-1.png) | — |
-| AC-CAL-09 | **PASS (R6)** | [рядок 22](uat/2026-11-15/report.md?plain=1#L22), [кадр](uat/2026-11-15/frames/AC-CAL-09-then-1.png) | — |
-| AC-CAL-10 | **PASS (R6)** | [рядок 23](uat/2026-11-15/report.md?plain=1#L23), [кадр](uat/2026-11-15/frames/AC-CAL-10-then-1.png) | — |
-| AC-CAL-11 | **PASS (R6)** | [рядок 24](uat/2026-11-15/report.md?plain=1#L24), [кадр](uat/2026-11-15/frames/AC-CAL-11-then-1.png) | — |
-| AC-CAL-12 | **PASS (R6)** — Haiku: NEEDS-HUMAN, Sonnet: PASS | [рядок 25](uat/2026-11-15/report.md?plain=1#L25), [кадр](uat/2026-11-15/frames/AC-CAL-12-then-1.png) | — |
-| AC-CAL-13 | **PASS (R6)** — Haiku: NEEDS-HUMAN, Sonnet: PASS | [рядок 26](uat/2026-11-15/report.md?plain=1#L26), [кадр](uat/2026-11-15/frames/AC-CAL-13-then-1.png) | пряма спроба менеджера передає `p_kind` (нова сигнатура, #82); база так само відповідає 42501 |
-| AC-CAL-14 | **PASS (R6)** | [рядок 27](uat/2026-11-15/report.md?plain=1#L27), [кадр](uat/2026-11-15/frames/AC-CAL-14-then-1.png) | — |
-| AC-CAL-15 | **PASS (R6)** | [рядок 28](uat/2026-11-15/report.md?plain=1#L28), [кадр](uat/2026-11-15/frames/AC-CAL-15-then-1.png) | — |
-| AC-CAL-16 | **PASS (R6)** | [рядок 29](uat/2026-11-15/report.md?plain=1#L29), [кадр](uat/2026-11-15/frames/AC-CAL-16-then-1.png) | **уперше на проді**: синтетичний працівник, єдиний блок п'ятниці 13:00–17:00 |
-| AC-CAL-17 | **PASS (R6)** | [рядок 30](uat/2026-11-15/report.md?plain=1#L30), [кадр](uat/2026-11-15/frames/AC-CAL-17-then-1.png) | NC-3 на цей AC (зворотний порядок частин) → FAIL |
-| AC-CAL-18 | **PASS (R6)** | [рядок 31](uat/2026-11-15/report.md?plain=1#L31), [кадр](uat/2026-11-15/frames/AC-CAL-18-then-1.png) | назва з табуляції чи нерозривного пробілу — теж «Enter a name for the closure» (база, #82) |
-| AC-CAL-19 | **PASS (R6)** | [рядок 32](uat/2026-11-15/report.md?plain=1#L32), [кадр](uat/2026-11-15/frames/AC-CAL-19-then-1.png) | — |
-| AC-CAL-20 | **PASS (R6)** | [рядок 33](uat/2026-11-15/report.md?plain=1#L33), [кадр](uat/2026-11-15/frames/AC-CAL-20-then-1.png) | синтетичний працівник: 0.36 до й після закриття точно; для «Sick leave» тепер є мутант S31 і тест без `paid_days` |
+| AC-CAL-01 | **PASS (R6)** | [рядок 15](uat/2026-11-15/report.md?plain=1#L15), [кадр](uat/2026-11-15/frames/AC-CAL-01-then-1.png) | — |
+| AC-CAL-02 | **PASS (R6)** | [рядок 16](uat/2026-11-15/report.md?plain=1#L16), [кадр](uat/2026-11-15/frames/AC-CAL-02-then-1.png) | — |
+| AC-CAL-03 | **PASS (R6)** | [рядок 17](uat/2026-11-15/report.md?plain=1#L17), [кадр](uat/2026-11-15/frames/AC-CAL-03-then-1.png) | — |
+| AC-CAL-04 | **PASS (R6)** | [рядок 18](uat/2026-11-15/report.md?plain=1#L18), [кадр](uat/2026-11-15/frames/AC-CAL-04-then-1.png) | — |
+| AC-CAL-05 | **PASS (R6)** | [рядок 19](uat/2026-11-15/report.md?plain=1#L19), [кадр](uat/2026-11-15/frames/AC-CAL-05-then-1.png) | — |
+| AC-CAL-06 | **PASS (R6)** | [рядок 20](uat/2026-11-15/report.md?plain=1#L20), [кадр](uat/2026-11-15/frames/AC-CAL-06-then-1.png) | синтетичний працівник `uat-…@example.test` (пт 08:30–15:30): «Дано used 0.00» і «Тоді 1.00» — точно, без винятку для проду |
+| AC-CAL-07 | **PASS (R6)** | [рядок 21](uat/2026-11-15/report.md?plain=1#L21), [кадр](uat/2026-11-15/frames/AC-CAL-07-then-1.png) | `add_school_closure` з видом закриття (#82), тексти й перевірки ті самі |
+| AC-CAL-08 | **PASS (R6)** | [рядок 22](uat/2026-11-15/report.md?plain=1#L22), [кадр](uat/2026-11-15/frames/AC-CAL-08-then-1.png) | — |
+| AC-CAL-09 | **PASS (R6)** | [рядок 23](uat/2026-11-15/report.md?plain=1#L23), [кадр](uat/2026-11-15/frames/AC-CAL-09-then-1.png) | — |
+| AC-CAL-10 | **PASS (R6)** | [рядок 24](uat/2026-11-15/report.md?plain=1#L24), [кадр](uat/2026-11-15/frames/AC-CAL-10-then-1.png) | — |
+| AC-CAL-11 | **PASS (R6)** | [рядок 25](uat/2026-11-15/report.md?plain=1#L25), [кадр](uat/2026-11-15/frames/AC-CAL-11-then-1.png) | — |
+| AC-CAL-12 | **PASS (R6)** — Haiku: NEEDS-HUMAN, Sonnet: PASS | [рядок 26](uat/2026-11-15/report.md?plain=1#L26), [кадр](uat/2026-11-15/frames/AC-CAL-12-then-1.png) | — |
+| AC-CAL-13 | **PASS (R6)** — Haiku: NEEDS-HUMAN, Sonnet: PASS | [рядок 27](uat/2026-11-15/report.md?plain=1#L27), [кадр](uat/2026-11-15/frames/AC-CAL-13-then-1.png) | пряма спроба менеджера передає `p_kind` (нова сигнатура, #82); база так само відповідає 42501 |
+| AC-CAL-14 | **PASS (R6)** | [рядок 28](uat/2026-11-15/report.md?plain=1#L28), [кадр](uat/2026-11-15/frames/AC-CAL-14-then-1.png) | — |
+| AC-CAL-15 | **PASS (R6)** | [рядок 29](uat/2026-11-15/report.md?plain=1#L29), [кадр](uat/2026-11-15/frames/AC-CAL-15-then-1.png) | — |
+| AC-CAL-16 | **PASS (R6)** | [рядок 30](uat/2026-11-15/report.md?plain=1#L30), [кадр](uat/2026-11-15/frames/AC-CAL-16-then-1.png) | **уперше на проді**: синтетичний працівник, єдиний блок п'ятниці 13:00–17:00 |
+| AC-CAL-17 | **PASS (R6)** | [рядок 31](uat/2026-11-15/report.md?plain=1#L31), [кадр](uat/2026-11-15/frames/AC-CAL-17-then-1.png) | NC-3 на цей AC (зворотний порядок частин) → FAIL |
+| AC-CAL-18 | **PASS (R6)** | [рядок 32](uat/2026-11-15/report.md?plain=1#L32), [кадр](uat/2026-11-15/frames/AC-CAL-18-then-1.png) | назва з табуляції чи нерозривного пробілу — теж «Enter a name for the closure» (база, #82) |
+| AC-CAL-19 | **PASS (R6)** | [рядок 33](uat/2026-11-15/report.md?plain=1#L33), [кадр](uat/2026-11-15/frames/AC-CAL-19-then-1.png) | — |
+| AC-CAL-20 | **PASS (R6)** | [рядок 34](uat/2026-11-15/report.md?plain=1#L34), [кадр](uat/2026-11-15/frames/AC-CAL-20-then-1.png) | синтетичний працівник: 0.36 до й після закриття точно; для «Sick leave» тепер є мутант S31 і тест без `paid_days` |
 
 Кадри AC-CAL-06, -16 і -20 знято на сторінці синтетичного працівника (окремий контекст браузера); у склеєному відео —
 сторінка того, хто діє (менеджер чи адміністратор), бо Playwright записує відео лише основної сторінки тесту. Те саме

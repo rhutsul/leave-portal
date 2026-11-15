@@ -869,7 +869,13 @@
       "playwrightMs": 10148,
       "reviewCostUsd": 0.00163,
       "reviewWallMs": 9669,
-      "separateRun": "2026-11-15T17:57:42.115Z"
+      "separateRun": {
+        "generatedAt": "2026-11-15T17:57:42.115Z",
+        "baseURL": "https://leave-portal-olive.vercel.app",
+        "testsCommit": "edb808fffc4678000464fd8900c45d5b4178b119",
+        "deployedSha": "edb808fffc4678000464fd8900c45d5b4178b119",
+        "gitDirty": false
+      }
     },
     {
       "id": "NC-2",
@@ -897,7 +903,13 @@
       "playwrightMs": 10360,
       "reviewCostUsd": 0.03999,
       "reviewWallMs": 20341,
-      "separateRun": "2026-11-15T17:57:42.115Z"
+      "separateRun": {
+        "generatedAt": "2026-11-15T17:57:42.115Z",
+        "baseURL": "https://leave-portal-olive.vercel.app",
+        "testsCommit": "edb808fffc4678000464fd8900c45d5b4178b119",
+        "deployedSha": "edb808fffc4678000464fd8900c45d5b4178b119",
+        "gitDirty": false
+      }
     },
     {
       "id": "NC-3",
@@ -930,7 +942,13 @@
       "playwrightMs": 27559,
       "reviewCostUsd": 0.00215,
       "reviewWallMs": 12602,
-      "separateRun": "2026-11-15T17:57:42.115Z"
+      "separateRun": {
+        "generatedAt": "2026-11-15T17:57:42.115Z",
+        "baseURL": "https://leave-portal-olive.vercel.app",
+        "testsCommit": "edb808fffc4678000464fd8900c45d5b4178b119",
+        "deployedSha": "edb808fffc4678000464fd8900c45d5b4178b119",
+        "gitDirty": false
+      }
     }
   ],
   "cleanup": {
