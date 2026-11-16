@@ -150,6 +150,8 @@ test.describe("admin@example.test", () => {
         },
         async () => {
           await expect(panel(page).getByRole("alert")).toHaveText(TOO_LONG);
+          // Повідомлення видно без прокрутки: перший UAT 16.11 знайшов, що довгий текст виштовхував його за край панелі.
+          await expect(panel(page).getByRole("alert")).toBeInViewport();
           await expect(panel(page).getByLabel("Name")).toHaveCount(0);
         },
       );
