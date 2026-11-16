@@ -2,7 +2,7 @@
 // кадр екрана, aria-знімок сторінки і список частин «Тоді», які людина БАЧИТЬ (агент має їх процитувати з кадру).
 // Невидимі частини (буфер обміну, рядки в базі, «даних немає») вирішують лише автоматичні перевірки.
 // Джерело: матеріали курсу WS8 (materials/uat/tests/e2e/support/uat.ts). Змінено лише signIn (наша форма входу).
-import { test, type Locator, type Page } from "@playwright/test";
+import { test, type Locator, type Page, type Request } from "@playwright/test";
 
 export type ThenSpec = {
   /** Частина «Тоді» — дослівно з AC від PM. */
@@ -73,8 +73,12 @@ export async function attachRuntimeErrors(page: Page) {
     .filter((m) => m.type() === "error")
     .map((m) => m.text());
   const pageErrors = (await page.pageErrors({ filter: "all" })).map((e) => String(e));
+  // Запит, що ще чекає відповіді (напр. потік RSC після останнього переходу), не тримає хук до таймауту тесту:
+  // чекаємо відповідь не довше 2 с, далі статус 0 — «не відповів», а не «впав» (UAT AC-ASSIST-11, 16.11).
+  const settled = (r: Request) =>
+    Promise.race([r.response(), new Promise<null>((done) => setTimeout(() => done(null), 2_000))]).catch(() => null);
   const responses = await Promise.all(
-    (await page.requests()).map(async (r) => ({ r, status: (await r.response())?.status() ?? 0 })),
+    (await page.requests()).map(async (r) => ({ r, status: (await settled(r))?.status() ?? 0 })),
   );
   const failed = responses
     .filter(({ r, status }) => r.failure() !== null || status >= 500)

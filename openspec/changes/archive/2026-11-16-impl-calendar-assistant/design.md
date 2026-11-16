@@ -148,13 +148,13 @@ CalendarSuggestions = { status: "ok" | "needs_info" | "refused",
 | Що робить людина | перевіряє й виправляє пропозиції, прибирає зайві і сама натискає «Save closures»; модель не має інструментів і нічого не пише |
 | Дані | лише синтетичні тексти; модель не бачить людей і записів; у логах — без тексту запиту |
 
-### D6. Дані й RLS
+### D6. Дані й RLS (AC-ASSIST-02, -03, -04)
 
 - Нових таблиць і політик немає: пропозиції живуть у стані форми, не в базі.
 - Запис — лише `add_school_closure` під сесією користувача. Таблиця `school_closures` і далі без `insert` для `authenticated` (D1 `impl-school-calendar`).
 - Єдина зміна бази — вид закриття й «Enter the closing time» у `add_school_closure` (сесія WS9). Тест помічника спирається на неї: пропозиція скороченого дня без часу не стає закриттям на весь день.
 
-### D7. Golden cases і evals
+### D7. Golden cases і evals (AC-ASSIST-01, -05, -06, -07)
 
 - **`tests/fixtures/golden/cases.json`** — GC-01…GC-10 з вимоги PM.
   - `input` дослівно.

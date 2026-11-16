@@ -21,6 +21,7 @@ https://github.com/koldovsky/2026-quitcode-10-ai-features-hw/tree/main/materials
       картки пропозицій з полями «Add closure», «Remove suggestion», «Save closures»; адаптив (ADR 0008);
       `npm run check:design`, `npm run check:ui`
 - [ ] 1.5 Перевірка руками без ключа (`OPENROUTER_API_KEY=" "`): сторінка показує AC-ASSIST-09, ручна форма працює
+      — не робили руками: замінено тестом дії «немає ключа → AC-ASSIST-09» (`tests/calendar-assistant-actions.test.ts`), proof pack «Не перевірено»
 - [x] 1.6 Мутація Stryker на `src/lib/ai/suggestions.ts`; рядки `docs/conformance.md`; `npm run ac:coverage`,
       `npm run gates`, `npm run build`
 
@@ -43,12 +44,13 @@ Done when: AC-ASSIST-01, AC-ASSIST-05, AC-ASSIST-06, AC-ASSIST-07 (golden офл
 
 ## 3. Прод, UAT і здача (`task/assistant-uat`)
 
-- [ ] 3.1 `OPENROUTER_API_KEY` у Vercel Production (людина); `/api/health` — SHA `main`; на проді — один кейс, що
+- [x] 3.1 `OPENROUTER_API_KEY` у Vercel Production (людина); `/api/health` — SHA `main`; на проді — один кейс, що
       проходить, і одна відмова руками
-- [ ] 3.2 `tests/e2e/calendar-assistant.spec.ts` (D9): AC-ASSIST-03, AC-ASSIST-06, AC-ASSIST-10, AC-ASSIST-11;
+- [x] 3.2 `tests/e2e/calendar-assistant.spec.ts` (D9): AC-ASSIST-03, AC-ASSIST-06, AC-ASSIST-10, AC-ASSIST-11;
       `npm run uat -- --url https://leave-portal-olive.vercel.app` (людина, чисте дерево) → `docs/qa/uat/<дата>/`
-- [ ] 3.3 `docs/conformance.md` — чесний статус кожного AC зрізу 4; proof pack; самоперевірка (ключ ніде, запис лише
+- [x] 3.3 `docs/conformance.md` — чесний статус кожного AC зрізу 4; proof pack; самоперевірка (ключ ніде, запис лише
       після людини, заглушок немає)
 - [ ] 3.4 «eval готовий: прод <URL>, звіт <посилання>» у чаті команди (людина); archive `impl-calendar-assistant`
+      — archive зроблено в PR UAT; повідомлення в чат команди — людина
 
 Done when: UAT на проді для AC-ASSIST-03, AC-ASSIST-06, AC-ASSIST-10, AC-ASSIST-11 (статуси «реалізовано» вже з задач 1 і 2; тут — запис на проді й proof pack).
