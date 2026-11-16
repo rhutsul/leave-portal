@@ -103,6 +103,10 @@ function RequestForm({ action, preparing, secondary }: { action: (form: FormData
               id={id}
               name="text"
               rows={6}
+              // Поле росте з текстом, але не вище за 15rem: інакше довгий текст виштовхує повідомлення AC-ASSIST-10
+              // («The text can be at most 2000 characters») за край панелі, і людина його не бачить (UAT 16.11).
+              className="max-h-60 overflow-y-auto"
+              aria-invalid={length > ASSISTANT_TEXT_MAX || undefined}
               value={text}
               onChange={(e) => setText(e.target.value)}
               placeholder="Winter break 28.12–08.01; Teachers' meeting 20.11 from 12:00"

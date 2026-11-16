@@ -1,0 +1,165 @@
+{
+  "kind": "uat",
+  "generatedAt": "2026-11-16T08:50:54.500Z",
+  "baseURL": "https://leave-portal-olive.vercel.app",
+  "deployedSha": "407393056f2d79d9417b85c4b8fe95ff32c00052",
+  "testsCommit": "9e0c323356491238b806698163fc32bcff3a842a",
+  "testsBranch": "task/assistant-uat",
+  "gitDirty": false,
+  "reviewer": {
+    "model": "claude-haiku-5-5",
+    "disputes": "claude-sonnet-5-5"
+  },
+  "note": "Відео й траси не в git (test-results/ локально, артефакт CI). check-recordings конвеєра WS9 вимагає відео на диску — для нього цей manifest треба доповнити.",
+  "results": [
+    {
+      "id": "AC-ASSIST-03",
+      "proof": "AC-ASSIST-03",
+      "title": "AC-ASSIST-03: removes \"Teachers' meeting\", renames \"Winter break\" to \"Winter holidays\" and saves — the calendar shows only \"Winter holidays\"",
+      "screenshot": "docs/qa/uat/2026-11-16/frames/AC-ASSIST-03-then-1.png",
+      "video": "test-results/artifacts/calendar-assistant-admin-e-b61e6-shows-only-Winter-holidays--chromium/video.webm",
+      "trace": "test-results/artifacts/calendar-assistant-admin-e-b61e6-shows-only-Winter-holidays--chromium/trace.zip",
+      "asserted": true,
+      "vision": {
+        "met": true,
+        "readable": true,
+        "notes": "У блоці Closures (лічильник «1») видно лише один запис «Winter holidays» з датами 2026-12-28 – 2027-01-08 і позначкою «Whole days». Записів «Teachers' meeting» і «Winter break» у списку немає, що підтверджує лічильник 1."
+      },
+      "agentModel": "claude-haiku-5-5",
+      "agentVerdicts": {
+        "claude-haiku-5-5": "PASS",
+        "claude-sonnet-5-5": null
+      },
+      "escalated": false,
+      "quotesVerified": [
+        {
+          "quote": "Winter holidays",
+          "onPage": true
+        },
+        {
+          "quote": "2026-12-28 – 2027-01-08",
+          "onPage": true
+        },
+        {
+          "quote": "Closures",
+          "onPage": true
+        },
+        {
+          "quote": "1",
+          "onPage": true
+        }
+      ],
+      "verdict": "PASS",
+      "factoryGate": "PASS",
+      "rule": "R6: перевірки, агент і цитати збігаються",
+      "playwrightMs": 27933,
+      "reviewCostUsd": 0.00219,
+      "reviewWallMs": 7939
+    },
+    {
+      "id": "AC-ASSIST-06",
+      "proof": "AC-ASSIST-06",
+      "title": "AC-ASSIST-06: a poem request — no closures suggested, the refusal message",
+      "screenshot": "docs/qa/uat/2026-11-16/frames/AC-ASSIST-06-then-1.png",
+      "video": "test-results/artifacts/calendar-assistant-admin-e-abaf6-ggested-the-refusal-message-chromium/video.webm",
+      "trace": "test-results/artifacts/calendar-assistant-admin-e-abaf6-ggested-the-refusal-message-chromium/trace.zip",
+      "asserted": true,
+      "vision": {
+        "met": true,
+        "readable": true,
+        "notes": "На кадрі в бічній панелі «Calendar assistant» з полем, де введено «Write a short poem about the winter holidays», видно повідомлення, що збігається з критерієм посимвольно (у кадрі воно розбито на два рядки, але це один текст). Списку запропонованих канікул немає, кнопки «Save closures» немає, є лише «Suggest closures»; ця частина підтверджується відсутністю елементів, тому цитати немає."
+      },
+      "agentModel": "claude-haiku-5-5",
+      "agentVerdicts": {
+        "claude-haiku-5-5": "PASS",
+        "claude-sonnet-5-5": null
+      },
+      "escalated": false,
+      "quotesVerified": [
+        {
+          "quote": "The calendar assistant only helps to add school closures. Paste the text of the school calendar.",
+          "onPage": true
+        }
+      ],
+      "verdict": "PASS",
+      "factoryGate": "PASS",
+      "rule": "R6: перевірки, агент і цитати збігаються",
+      "playwrightMs": 10693,
+      "reviewCostUsd": 0.00264,
+      "reviewWallMs": 13986
+    },
+    {
+      "id": "AC-ASSIST-10",
+      "proof": "AC-ASSIST-10",
+      "title": "AC-ASSIST-10: a text of 2001 characters — the assistant is not asked, the length message",
+      "screenshot": "docs/qa/uat/2026-11-16/frames/AC-ASSIST-10-then-1.png",
+      "video": "test-results/artifacts/calendar-assistant-admin-e-95c32-ot-asked-the-length-message-chromium/video.webm",
+      "trace": "test-results/artifacts/calendar-assistant-admin-e-95c32-ot-asked-the-length-message-chromium/trace.zip",
+      "asserted": true,
+      "vision": {
+        "met": false,
+        "readable": true,
+        "notes": "На кадрі відкрита панель Calendar assistant із довгим текстом з «x» у полі. Повідомлення про помилку довжини й лічильника «2001 / 2000» немає. Можливо, вони поза видимою ділянкою, але з кадру це підтвердити не можна."
+      },
+      "agentModel": "claude-sonnet-5-5",
+      "agentVerdicts": {
+        "claude-haiku-5-5": "FAIL",
+        "claude-sonnet-5-5": "FAIL"
+      },
+      "escalated": true,
+      "quotesVerified": [],
+      "verdict": "NEEDS-HUMAN",
+      "factoryGate": "NOT-EARNED",
+      "rule": "R3: перевірки пройшли, агент не погоджується — вирішує людина",
+      "playwrightMs": 10155,
+      "reviewCostUsd": 0.04039,
+      "reviewWallMs": 20011
+    },
+    {
+      "id": "AC-ASSIST-11",
+      "proof": "AC-ASSIST-11",
+      "title": "AC-ASSIST-11: teacher1@example.test opens the calendar assistant by a direct link — «Only an administrator can change the school calendar»",
+      "screenshot": "docs/qa/uat/2026-11-16/frames/AC-ASSIST-11-then-1.png",
+      "video": "test-results/artifacts/calendar-assistant-teacher-7e034-change-the-school-calendar»-chromium/video.webm",
+      "trace": "test-results/artifacts/calendar-assistant-teacher-7e034-change-the-school-calendar»-chromium/trace.zip",
+      "asserted": true,
+      "vision": {
+        "met": true,
+        "readable": true,
+        "notes": "На кадрі панель «Calendar assistant» показує повідомлення «Only an administrator can change the school calendar» з поясненням. У панелі немає ні текстового поля, ні кнопок «Suggest closures» чи «Save closures». Підпис користувача — teacher1@exampl…"
+      },
+      "agentModel": "claude-sonnet-5-5",
+      "agentVerdicts": {
+        "claude-haiku-5-5": "NEEDS-HUMAN",
+        "claude-sonnet-5-5": "PASS"
+      },
+      "escalated": true,
+      "quotesVerified": [
+        {
+          "quote": "Only an administrator can change the school calendar",
+          "onPage": true
+        },
+        {
+          "quote": "You can see the school calendar, but only an administrator adds closures.",
+          "onPage": true
+        }
+      ],
+      "verdict": "PASS",
+      "factoryGate": "PASS",
+      "rule": "R6: перевірки, агент і цитати збігаються",
+      "playwrightMs": 9832,
+      "reviewCostUsd": 0.03332,
+      "reviewWallMs": 22116
+    }
+  ],
+  "negativeControls": [],
+  "cleanup": {
+    "at": "2026-11-16T08:50:23.085Z",
+    "scope": "school-calendar",
+    "deleted": [
+      "закриття «Winter holidays» 2026-12-28…2027-01-08 (зі сторінки)"
+    ],
+    "remaining": [],
+    "leftoverRequests": 0
+  }
+}
