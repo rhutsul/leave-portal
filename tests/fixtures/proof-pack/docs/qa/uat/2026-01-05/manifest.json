@@ -1,0 +1,14 @@
+{
+  "deployedSha": "1111111111111111111111111111111111111111",
+  "testsCommit": "2222222222222222222222222222222222222222",
+  "gitDirty": false,
+  "results": [
+    {
+      "id": "AC-DEMO-01",
+      "screenshot": "docs/qa/uat/2026-01-05/frames/AC-DEMO-01-then-1.png",
+      "agentVerdicts": { "claude-haiku-5-5": "NEEDS-HUMAN", "claude-sonnet-5-5": "PASS" },
+      "verdict": "PASS",
+      "rule": "R6: перевірки, агент і цитати збігаються"
+    }
+  ]
+}

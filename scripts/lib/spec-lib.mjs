@@ -141,19 +141,25 @@ export function stripHtmlComments(text) {
   return text.replace(/<!--[\s\S]*?-->/g, (m) => m.replace(/[^\n]/g, ""));
 }
 
+// Клітинки рядка Markdown-таблиці: ділимо лише за неекранованим «|», а «\|» у клітинці повертаємо як «|».
+export function splitTableRow(line) {
+  return line
+    .trim()
+    .replace(/^\|/, "")
+    .replace(/(?<!\\)\|$/, "")
+    .split(/(?<!\\)\|/)
+    .map((c) => c.replaceAll("\\|", "|").trim());
+}
+
 // Рядки матриці docs/conformance.md: | AC-… | що перевіряє | код | тест | статус |
+
 export function parseConformance(file = path.join(root(), "docs", "conformance.md")) {
   if (!existsSync(file)) return { exists: false, rows: [] };
   const rows = [];
   const lines = stripHtmlComments(readText(file)).split("\n");
   lines.forEach((line, i) => {
     if (!line.trim().startsWith("|")) return;
-    const cells = line
-      .trim()
-      .replace(/^\|/, "")
-      .replace(/\|$/, "")
-      .split("|")
-      .map((c) => c.trim());
+    const cells = splitTableRow(line);
     const id = cells[0]?.replace(/`/g, "");
     if (!id || !new RegExp(`^${AC_ID}$`).test(id)) return;
     rows.push({ id, status: cells[cells.length - 1] ?? "", cells, line: i + 1 });
