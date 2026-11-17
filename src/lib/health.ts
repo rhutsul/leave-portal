@@ -27,3 +27,16 @@ export function classifyDbProbe({ status, error }: DbProbe): DbHealth {
   // 0 — мережа (Supabase недоступний або хибний URL), 5xx, PGRST000–003, SQLSTATE класів 08, 53, 57.
   return { db: "down", reason: `status-${status}${code ? `-${code}` : ""}` };
 }
+
+/** Відповідь rpc("schema_version"): версія останньої застосованої міграції або помилка. */
+export type SchemaProbe = { data: string | null; status: number; error: { code?: string; message?: string } | null };
+export type SchemaHealth = { schema: string | null; reason: string };
+
+/** Версія схеми для поля schema у /api/health. Збій виклику health не валить (база могла відповісти): причина — у
+ *  reason з префіксом schema-, напр. schema-PGRST202 — функції ще немає (міграцію не застосовано), schema-timeout. */
+export function classifySchemaProbe({ data, status, error }: SchemaProbe, aborted = false): SchemaHealth {
+  if (aborted) return { schema: null, reason: "schema-timeout" };
+  if (error) return { schema: null, reason: `schema-${error.code || `status-${status}`}` };
+  if (typeof data !== "string" || !/^\d+$/.test(data)) return { schema: null, reason: "schema-empty" };
+  return { schema: data, reason: "" };
+}

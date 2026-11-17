@@ -441,6 +441,38 @@ describe("day share fixed at approval", () => {
     expect(await usedOf("unpaid")).toBe("0.71");
   });
 
+  // Друга думка до #75, знахідка 6: частку рішення рахують двічі — private.record_share (paid_days, unpaid_days) і тригер
+  // private.fix_day_share (day_share), кожен своїм знімком. Закриття, закомічене між ними, розвело б їх (0.71 і 0.36).
+  // Тому погодження тримає спільний lock календаря до кінця транзакції, і add/remove_school_closure (ексклюзивний lock)
+  // чекають на нього. PGlite — одне з'єднання, тож саму гонку тут не відтворити: перевіряємо, що lock узято й утримано.
+  it("AC-CAL-20: approving holds the school calendar lock until the end of the decision, so a closure cannot change the share midway", async () => {
+    const requestId = await submit(teacher1, "sick", [
+      { position_id: teacher1Main, date: "2026-11-20", start_min: 510, end_min: 660 },
+    ]);
+    const [{ id }] = await asOwner<{ id: number }>("select id from public.leave_records where request_id = $1", [
+      requestId,
+    ]);
+    const [{ key }] = await asOwner<{ key: string }>("select private.calendar_lock_key()::text as key");
+    const calendarLocks = `select mode from pg_locks
+      where locktype = 'advisory' and pid = pg_backend_pid() and objsubid = 1
+        and ((classid::bigint << 32) | objid::bigint) = $1::bigint`;
+
+    await t.db.exec("begin; set local role authenticated;");
+    try {
+      await t.db.query("select set_config('request.jwt.claim.sub', $1, true)", [manager1]);
+      expect((await t.db.query(calendarLocks, [key])).rows).toEqual([]);
+      const { rows } = await t.db.query<{ result: { status: string; paid_days: number } }>(
+        "select public.decide_leave_record($1, 'approve', 510, 660) as result",
+        [id],
+      );
+      expect(rows[0].result).toMatchObject({ status: "approved", paid_days: 0.36 });
+      // Спільний (ShareLock), а не ексклюзивний: рішення й заявки одне одного не чекають, чекає лише зміна календаря.
+      expect((await t.db.query(calendarLocks, [key])).rows).toEqual([{ mode: "ShareLock" }]);
+    } finally {
+      await t.db.exec("rollback");
+    }
+  });
+
   // «One date never counts as more than 1.00 day» (03-leave-balance, Assumptions) і AC-BALANCE-05, коли календар
   // змінюється між двома погодженнями однієї дати: частка другого запису — не більша за те, що лишилося від дати.
   it.each(["unpaid", "sick"] as const)(

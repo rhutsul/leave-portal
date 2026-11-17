@@ -320,6 +320,9 @@ isOneToOne: false
 "resubmit_leave_record":
 { Args: { "p_record_id": number }; Returns: undefined
                            },
+"schema_version":
+{ Args: Record<PropertyKey, never>; Returns: string
+                           },
 "submit_leave_request":
 { Args: { "p_comment"?: string,"p_leave_type": string,"p_records": Json,"p_relationship"?: string }; Returns: number
                            },

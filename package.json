@@ -28,6 +28,7 @@
     "coverage:summary": "node scripts/coverage-summary.mjs",
     "mutation:ts": "stryker run",
     "mutation:sql": "node scripts/mutation-check.mjs --kind sql",
+    "proof-pack:table": "node scripts/proof-pack-table.mjs",
     "eval": "vitest run -c vitest.eval.config.mts",
     "ai:models": "node scripts/free-models.mjs",
     "ai:quota": "node --env-file-if-exists=.env.local scripts/quota.mjs"
