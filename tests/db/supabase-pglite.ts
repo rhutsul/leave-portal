@@ -70,12 +70,13 @@ async function inTransaction<T>(db: PGlite, role: string, userId: string | null,
 export async function createLeaveDb(): Promise<LeaveDb> {
   const db = new PGlite({ extensions: { btree_gist } });
   await db.exec(SUPABASE_SHIM);
+  // Той самий шаблон імені, що в Supabase CLI: <версія>_<назва>.sql (інший файл CLI не застосує).
   const migrations = readdirSync(new URL("supabase/migrations/", root))
-    .filter((f) => f.endsWith(".sql"))
+    .filter((f) => /^\d+_.*\.sql$/.test(f))
     .sort();
   for (const file of migrations) {
     await db.exec(read(`supabase/migrations/${file}`));
-    const [, version, name] = /^(\d+)_(.*)\.sql$/.exec(file) ?? [];
+    const [, version, name] = /^(\d+)_(.*)\.sql$/.exec(file)!;
     await db.query("insert into supabase_migrations.schema_migrations (version, name) values ($1, $2)", [version, name]);
   }
   await db.exec(read("supabase/seed.sql"));

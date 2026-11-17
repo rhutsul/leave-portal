@@ -38,19 +38,24 @@ jobs:
        contains(github.event.branches.*.name, github.event.repository.default_branch)) ||
       (github.event_name == 'repository_dispatch' && github.event.client_payload.environment == 'production')
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    # Найгірше — 24 паузи × 20 с і 25 запитів health (route сам обриває базу за 5 с) ≈ 10 хв + checkout.
+    timeout-minutes: 14
     env:
       PROD_URL: ${{ vars.PROD_URL }}
       # Очікуваний коміт: щойно розгорнутий (status / repository_dispatch) або HEAD main (schedule, ручний запуск з main).
       EXPECT_SHA: ${{ github.event.client_payload.git.sha || github.event.sha || github.sha }}
     steps:
-      # Саме той коміт, що розгорнуто: найновіший файл supabase/migrations у ньому — версія схеми, яку чекає код.
+      # Скрипт — з main (github.sha): і після Instant Rollback на старий коміт працює свіжий smoke з перевіркою схеми.
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: scripts
+      # Міграції — саме того коміту, що розгорнуто: найновіший файл у них — версія схеми, яку чекає код.
+      # Коміт, якого вже немає в репо (force-push), — checkout упаде: smoke тоді й так нема з чим звіряти.
       - uses: actions/checkout@v7
         with:
           ref: ${{ env.EXPECT_SHA }}
-          sparse-checkout: |
-            scripts
-            supabase/migrations
+          path: deployed
+          sparse-checkout: supabase/migrations
       - uses: actions/setup-node@v7
         with:
           node-version: 24
@@ -62,3 +67,5 @@ jobs:
           fi
       - name: Прод = main, сторінка входу відкривається, база відповідає, схема = міграції коміту
         run: node scripts/smoke.mjs "$PROD_URL" "$EXPECT_SHA"
+        env:
+          SMOKE_MIGRATIONS_DIR: deployed/supabase/migrations

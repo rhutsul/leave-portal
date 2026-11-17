@@ -29,9 +29,15 @@ export async function GET() {
     );
     // GET, не HEAD: потрібне тіло помилки, щоб відрізнити «anon без прав» (база відповіла) від «хибний ключ».
     // Перерваний запит supabase-js повертає помилку зі status 0, а не кидає виняток, тож причину беремо із сигналу.
-    // Обидва запити паралельно і з тим самим таймаутом: версія схеми не подовжує перевірку.
+    // Обидва запити паралельно і з тим самим таймаутом: версія схеми не подовжує перевірку. Чи перервано, фіксуємо
+    // для кожного запиту в мить його відповіді: повільна версія схеми не робить «timeout» з бази, що відповіла вчасно.
     const [probe, version] = await Promise.all([
-      supabase.from("profiles").select("id").limit(1).abortSignal(timeout),
+      supabase
+        .from("profiles")
+        .select("id")
+        .limit(1)
+        .abortSignal(timeout)
+        .then((r) => ({ ...r, aborted: timeout.aborted })),
       // Збій версії (функції ще немає, мережа) не валить health: база могла відповісти — причина піде в reason.
       supabase
         .rpc("schema_version")
@@ -42,7 +48,7 @@ export async function GET() {
         ),
     ]);
     schema = version;
-    health = timeout.aborted ? { db: "down", reason: "timeout" } : classifyDbProbe(probe);
+    health = probe.aborted ? { db: "down", reason: "timeout" } : classifyDbProbe(probe);
   } catch {
     health = { db: "down", reason: timeout.aborted ? "timeout" : "exception" };
   }

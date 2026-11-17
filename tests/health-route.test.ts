@@ -76,6 +76,22 @@ describe("GET /api/health", () => {
     expect(await res.json()).toMatchObject({ ok: true, db: "ok", schema: null, reason: "schema-exception" });
   });
 
+  it("лишає 200, коли база відповіла вчасно, а версія схеми — ні: таймаут версії не стає таймаутом бази", async () => {
+    const timer = new AbortController();
+    vi.spyOn(AbortSignal, "timeout").mockReturnValue(timer.signal);
+    // Версія відповідає лише тоді, коли спрацював таймаут — як supabase-js на перерваний запит.
+    probe.version = (signal) =>
+      new Promise((resolve) =>
+        signal.addEventListener("abort", () => resolve({ data: null, error: { message: "AbortError" }, status: 0 })),
+      );
+    const pending = GET();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    timer.abort();
+    const res = await pending;
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ ok: true, db: "ok", schema: null, reason: "schema-timeout" });
+  });
+
   it("у reason — причина бази, коли база недоступна, навіть якщо й версію не прочитано", async () => {
     probe.answer = () => Promise.resolve({ error: { code: "53300", message: "too many connections" }, status: 503 });
     probe.version = () => Promise.resolve({ data: null, error: { code: "53300", message: "too many connections" }, status: 503 });

@@ -6,7 +6,8 @@
 //   2) "/login"      → 200 і поле пароля (застосунок справді віддає сторінку);
 //   3) "/api/health" → 200 {db:"ok"}; з expected-sha — sha збігається (до 6 спроб × 20 с: прод-домен перемикається
 //                      на новий деплой не миттєво) і schema — версія останньої застосованої міграції — дорівнює
-//                      найновішому файлу supabase/migrations цього checkout (workflow робить checkout саме expected-sha).
+//                      найновішому файлу supabase/migrations розгорнутого коміту (workflow кладе їх у
+//                      SMOKE_MIGRATIONS_DIR; без змінної — supabase/migrations цього checkout).
 //                      Гонка: Vercel віддає новий код за ~1 хв після merge, а db-deploy застосовує міграцію лише після
 //                      решти jobs CI (~2 хв, бувало й довше в черзі). Тому схему, старшу за код (або ще без функції
 //                      schema_version), чекаємо до 25 спроб × 20 с (≈ 8 хв) і лише тоді падаємо. Схема,
@@ -14,6 +15,8 @@
 //                      (AGENTS.md, «База даних») старий код працює з новою схемою ще один реліз.
 // Код виходу: 0 — усе гаразд, 1 — є збій (рядки ::error:: видно в GitHub Actions), 2 — адресу не вказано чи вона некоректна.
 import { readdirSync } from "node:fs";
+import path from "node:path";
+import { pathToFileURL } from "node:url";
 
 const [rawBase = process.env.PROD_URL ?? "", expectSha = ""] = process.argv.slice(2);
 // Адреса проду: лише схема, хост і шлях. Облікові дані (https://user:pass@…) прибираємо: прод публічний. Адресу з
@@ -42,10 +45,14 @@ const SCHEMA_ATTEMPTS = 25;
 // SMOKE_PAUSE_MS — лише для перевірки скрипту локально (макет проду без 20-секундних пауз).
 const PAUSE_MS = Number(process.env.SMOKE_PAUSE_MS) || 20_000;
 
-/** Версія найновішої міграції в checkout (мітка часу з імені файлу), "" — теки немає. */
+/** Версія найновішої міграції (мітка часу з імені файлу), "" — теки немає. Тека — SMOKE_MIGRATIONS_DIR (workflow кладе
+ *  туди міграції розгорнутого коміту) або supabase/migrations цього checkout. */
 function newestMigration() {
+  const dir = process.env.SMOKE_MIGRATIONS_DIR
+    ? pathToFileURL(`${path.resolve(process.env.SMOKE_MIGRATIONS_DIR)}/`)
+    : new URL("../supabase/migrations/", import.meta.url);
   try {
-    const files = readdirSync(new URL("../supabase/migrations/", import.meta.url)).filter((f) => /^\d+_.*\.sql$/.test(f));
+    const files = readdirSync(dir).filter((f) => /^\d+_.*\.sql$/.test(f));
     return files.sort().at(-1)?.split("_")[0] ?? "";
   } catch {
     return "";
