@@ -144,7 +144,17 @@ shadcn/ui (CLI 4.22.1, Base UI) + `tw-animate-css` + `lucide-react` — диза
   перетину): у supabase-js немає транзакцій, кожен запит — окрема транзакція. Роби це однією функцією Postgres через
   `supabase.rpc(…)`, як `submit_leave_request` у демо (`supabase/migrations/20261013000000_leave_requests.sql`
   репозиторію `koldovsky/2026-quitcode-06-leave-portal-demo`): `security invoker`, або `security definer` лише в
-  схемі `private` з `set search_path = ''`.
+  схемі `private` з `set search_path = ''`. Свідомий виняток — `public.schema_version()` для `/api/health`
+  (`security definer`, виконує `anon`): лише версія останньої міграції, причина — у заголовку
+  `20261117081842_schema_version.sql`; що він єдиний такий, перевіряє `tests/db/schema-version.test.ts`.
+- Код і схема виходять на прод не разом: Vercel віддає новий код приблизно за хвилину після merge, а `db-deploy`
+  застосовує міграцію лише після решти jobs CI (так було з #82). Тому зміна сигнатури RPC, яку викликає код
+  (параметри, їхні типи чи порядок, назва, тип результату), — у два кроки, **expand → contract**: (1) PR з новою
+  функцією, а стара сигнатура лишається тонкою обгорткою над новою на один реліз — і старий код, і новий працюють з
+  будь-якою з двох схем; (2) окремим PR, коли новий код уже на проді (`/api/health`: `sha` і `schema` збігаються з
+  `main`), — `drop` старої сигнатури. Тест старого виклику живе разом з обгорткою і прибирається в тому самому PR, що
+  й `drop`. Те саме для колонки, яку читає код: спершу додати нову, потім прибрати стару. Smoke (`scripts/smoke.mjs`)
+  чекає `db-deploy` до ≈ 8 хв і падає, якщо схема лишилася старшою за код.
 - Авторизація на сервері — `supabase.auth.getClaims()`, ніколи `getSession()`.
 - Набір статусів у фільтрі запиту (`.in("status", …)`, `.neq`, `.not`, `where status …` — у TS і SQL) — правило з
   вимог PM, а не деталь запиту: блокують лише «Awaiting decision», «Returned for revision», «Approved»

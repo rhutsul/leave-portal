@@ -1,5 +1,6 @@
 # D0 smoke проду: після кожного деплою main і щодня. Лише GET, без секретів: "/", "/login", "/api/health"
-# (коміт збірки = main, база відповідає). Скрипт — scripts/smoke.mjs; локально: npm run smoke -- <прод-URL>.
+# (коміт збірки = main, база відповідає, версія схеми = найновіша міграція цього коміту; гонку з db-deploy чекає до
+# ≈ 8 хв — пояснення в шапці scripts/smoke.mjs). Скрипт — scripts/smoke.mjs; локально: npm run smoke -- <прод-URL>.
 # Налаштування: змінна репозиторію PROD_URL (Settings → Secrets and variables → Actions → Variables), напр.
 # https://<проєкт>.vercel.app. Не секрет. Без неї прогін червоний з підказкою: адресу за замовчуванням не беремо,
 # щоб smoke ніколи не перевіряв чужий прод.
@@ -24,7 +25,7 @@ permissions:
   contents: read
 
 # Група враховує context статусу: статус іншого сервісу на тому ж коміті не скасує прогін «Vercel».
-# Без cancel-in-progress: прогін може чекати перемикання прод-домену (до 6 × 20 с).
+# Без cancel-in-progress: прогін може чекати перемикання прод-домену (до 6 × 20 с) і db-deploy (до 25 × 20 с).
 concurrency:
   group: smoke-${{ github.event_name }}-${{ github.event.context || 'na' }}-${{ github.event.client_payload.git.sha || github.event.sha || github.run_id }}
   cancel-in-progress: false
@@ -37,15 +38,19 @@ jobs:
        contains(github.event.branches.*.name, github.event.repository.default_branch)) ||
       (github.event_name == 'repository_dispatch' && github.event.client_payload.environment == 'production')
     runs-on: ubuntu-latest
-    timeout-minutes: 6
+    timeout-minutes: 12
     env:
       PROD_URL: ${{ vars.PROD_URL }}
       # Очікуваний коміт: щойно розгорнутий (status / repository_dispatch) або HEAD main (schedule, ручний запуск з main).
       EXPECT_SHA: ${{ github.event.client_payload.git.sha || github.event.sha || github.sha }}
     steps:
+      # Саме той коміт, що розгорнуто: найновіший файл supabase/migrations у ньому — версія схеми, яку чекає код.
       - uses: actions/checkout@v7
         with:
-          sparse-checkout: scripts
+          ref: ${{ env.EXPECT_SHA }}
+          sparse-checkout: |
+            scripts
+            supabase/migrations
       - uses: actions/setup-node@v7
         with:
           node-version: 24
@@ -55,5 +60,5 @@ jobs:
             echo "::error title=smoke::Немає змінної репо PROD_URL — Settings → Secrets and variables → Actions → Variables → PROD_URL = https://<проєкт>.vercel.app"
             exit 1
           fi
-      - name: Прод = main, сторінка входу відкривається, база відповідає
+      - name: Прод = main, сторінка входу відкривається, база відповідає, схема = міграції коміту
         run: node scripts/smoke.mjs "$PROD_URL" "$EXPECT_SHA"

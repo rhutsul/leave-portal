@@ -5,8 +5,16 @@
 //                      і не стіна входу Vercel);
 //   2) "/login"      → 200 і поле пароля (застосунок справді віддає сторінку);
 //   3) "/api/health" → 200 {db:"ok"}; з expected-sha — sha збігається (до 6 спроб × 20 с: прод-домен перемикається
-//                      на новий деплой не миттєво).
+//                      на новий деплой не миттєво) і schema — версія останньої застосованої міграції — дорівнює
+//                      найновішому файлу supabase/migrations цього checkout (workflow робить checkout саме expected-sha).
+//                      Гонка: Vercel віддає новий код за ~1 хв після merge, а db-deploy застосовує міграцію лише після
+//                      решти jobs CI (~2 хв, бувало й довше в черзі). Тому схему, старшу за код (або ще без функції
+//                      schema_version), чекаємо до 25 спроб × 20 с (≈ 8 хв) і лише тоді падаємо. Схема,
+//                      новіша за код (Instant Rollback коду після міграції), — попередження: за правилом expand → contract
+//                      (AGENTS.md, «База даних») старий код працює з новою схемою ще один реліз.
 // Код виходу: 0 — усе гаразд, 1 — є збій (рядки ::error:: видно в GitHub Actions), 2 — адресу не вказано чи вона некоректна.
+import { readdirSync } from "node:fs";
+
 const [rawBase = process.env.PROD_URL ?? "", expectSha = ""] = process.argv.slice(2);
 // Адреса проду: лише схема, хост і шлях. Облікові дані (https://user:pass@…) прибираємо: прод публічний. Адресу з
 // параметрами запиту чи фрагментом або нерозбірну відхиляємо, не друкуючи її: там може бути токен.
@@ -27,6 +35,26 @@ function parseBase(raw) {
   }
 }
 const { base = "", strippedCredentials = false, error: baseError } = parseBase(rawBase);
+/** Скільки разів питати /api/health, поки прод-домен не перемкнувся на новий коміт / поки db-deploy не застосував
+ *  міграцію; пауза між спробами. */
+const SHA_ATTEMPTS = 6;
+const SCHEMA_ATTEMPTS = 25;
+// SMOKE_PAUSE_MS — лише для перевірки скрипту локально (макет проду без 20-секундних пауз).
+const PAUSE_MS = Number(process.env.SMOKE_PAUSE_MS) || 20_000;
+
+/** Версія найновішої міграції в checkout (мітка часу з імені файлу), "" — теки немає. */
+function newestMigration() {
+  try {
+    const files = readdirSync(new URL("../supabase/migrations/", import.meta.url)).filter((f) => /^\d+_.*\.sql$/.test(f));
+    return files.sort().at(-1)?.split("_")[0] ?? "";
+  } catch {
+    return "";
+  }
+}
+/** Порівняння версій міграцій (рядки цифр різної довжини теж): <0 — a старша. */
+const compareVersions = (a, b) => (BigInt(a) < BigInt(b) ? -1 : BigInt(a) > BigInt(b) ? 1 : 0);
+const isVersion = (v) => typeof v === "string" && /^\d+$/.test(v);
+
 /** Межа на кожен запит разом із читанням тіла: завислий прод має дати збій, а не тримати прогін. */
 const REQUEST_TIMEOUT_MS = 10_000;
 
@@ -82,8 +110,13 @@ async function main() {
     fail.push(`"/login": HTTP ${login.status} ${login.vercelError}${login.status === 200 ? " (немає поля пароля)" : ""}`.trim());
   }
 
+  // Версію схеми звіряємо лише з expected-sha: без нього checkout може бути на іншій гілці з новими міграціями.
+  const expectSchema = expectSha ? newestMigration() : "";
+  if (expectSha && !expectSchema) {
+    console.log("::warning title=smoke::Немає supabase/migrations у checkout — версію схеми не перевірено");
+  }
   let health = null;
-  for (let attempt = 1; attempt <= (expectSha ? 6 : 1) && login.status === 200; attempt++) {
+  for (let attempt = 1; login.status === 200; attempt++) {
     const r = await get("/api/health");
     try {
       // status — фактичний код HTTP, а не поле з тіла.
@@ -92,8 +125,20 @@ async function main() {
       health = { status: r.status, location: r.location };
     }
     // sha=local — Vercel не віддає VERCEL_GIT_COMMIT_SHA: чекати марно.
-    if (!expectSha || health.sha === expectSha || health.sha === "local") break;
-    if (attempt < 6) await new Promise((res) => setTimeout(res, 20_000));
+    if (!expectSha || health.sha === "local") break;
+    const shaPending = health.sha !== expectSha;
+    // Код уже новий, а схема ще стара чи без schema_version (db-deploy іде) — це гонка, а не збій: чекаємо.
+    const schemaPending =
+      !shaPending &&
+      Boolean(expectSchema) &&
+      health.status === 200 &&
+      health.db === "ok" &&
+      (!isVersion(health.schema) || compareVersions(health.schema, expectSchema) < 0);
+    if (!(shaPending && attempt < SHA_ATTEMPTS) && !(schemaPending && attempt < SCHEMA_ATTEMPTS)) break;
+    if (schemaPending) {
+      console.log(`схема ${health.schema ?? `не прочитана (${health.reason || "?"})`} старша за код (чекаємо ${expectSchema}) — db-deploy ще йде? спроба ${attempt}/${SCHEMA_ATTEMPTS}`);
+    }
+    await new Promise((res) => setTimeout(res, PAUSE_MS));
   }
   if (!health) {
     // прод не відкрився — причина вже у fail
@@ -117,6 +162,21 @@ async function main() {
     fail.push(`"/api/health": у відповіді немає sha — очікувався ${expectSha.slice(0, 7)}`);
   } else if (expectSha && health?.status === 200 && health.sha !== expectSha) {
     fail.push(`прод показує ${String(health.sha).slice(0, 7)}, а очікувався ${expectSha.slice(0, 7)} — деплой main не пройшов чи зроблено Instant Rollback?`);
+  } else if (expectSchema && health?.status === 200 && health.db === "ok") {
+    // Коміт збігся — звіряємо схему бази з міграціями цього коміту.
+    if (!isVersion(health.schema)) {
+      fail.push(
+        `"/api/health": версію схеми не прочитано (${health.reason || "немає поля schema"}), а код ${expectSha.slice(0, 7)} чекає міграцію ${expectSchema} — db-deploy не пройшов? Перевірте job db-deploy у CI main`,
+      );
+    } else if (compareVersions(health.schema, expectSchema) < 0) {
+      fail.push(
+        `база на міграції ${health.schema}, а код ${expectSha.slice(0, 7)} чекає ${expectSchema} — новий код на проді зі старою схемою: db-deploy не пройшов чи завис? Перевірте job db-deploy у CI main`,
+      );
+    } else if (compareVersions(health.schema, expectSchema) > 0) {
+      console.log(
+        `::warning title=smoke ${base}::база на міграції ${health.schema}, новіша за код ${expectSha.slice(0, 7)} (${expectSchema}) — Instant Rollback коду після міграції? Старий код має працювати з новою схемою (expand → contract)`,
+      );
+    }
   }
 
   console.log(JSON.stringify({ base, root: root.status, login: login.status, health }));

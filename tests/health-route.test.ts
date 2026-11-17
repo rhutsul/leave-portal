@@ -2,13 +2,22 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 type Probe = { error: { code?: string; message?: string } | null; status: number };
+type Version = Probe & { data: string | null };
 const probe = vi.hoisted(() => ({
   answer: ((): Promise<Probe> => Promise.resolve({ error: null, status: 200 })) as (signal: AbortSignal) => Promise<Probe>,
+  version: ((): Promise<Version> => Promise.resolve({ data: "20261117081842", error: null, status: 200 })) as (
+    signal: AbortSignal,
+  ) => Promise<Version>,
 }));
+const defaults = { answer: probe.answer, version: probe.version };
 
 vi.mock("@supabase/supabase-js", () => ({
   createClient: () => ({
     from: () => ({ select: () => ({ limit: () => ({ abortSignal: (signal: AbortSignal) => probe.answer(signal) }) }) }),
+    rpc: (name: string) => {
+      expect(name).toBe("schema_version");
+      return { abortSignal: (signal: AbortSignal) => probe.version(signal) };
+    },
   }),
 }));
 
@@ -16,6 +25,7 @@ const { GET } = await import("@/app/api/health/route");
 
 afterEach(() => {
   vi.restoreAllMocks();
+  Object.assign(probe, defaults);
 });
 
 describe("GET /api/health", () => {
@@ -23,7 +33,7 @@ describe("GET /api/health", () => {
     probe.answer = () => Promise.resolve({ error: { code: "42501", message: "permission denied" }, status: 401 });
     const res = await GET();
     expect(res.status).toBe(200);
-    expect(await res.json()).toMatchObject({ ok: true, db: "ok", reason: "" });
+    expect(await res.json()).toMatchObject({ ok: true, db: "ok", schema: "20261117081842", reason: "" });
     expect(res.headers.get("cache-control")).toBe("no-store");
   });
 
@@ -49,5 +59,28 @@ describe("GET /api/health", () => {
     const res = await GET();
     expect(res.status).toBe(503);
     expect(await res.json()).toMatchObject({ ok: false, db: "down", reason: "exception" });
+  });
+
+  it("лишає 200, коли версію схеми не прочитано, і пише причину в reason (функції ще немає — міграцію не застосовано)", async () => {
+    probe.version = () =>
+      Promise.resolve({ data: null, error: { code: "PGRST202", message: "Could not find the function" }, status: 404 });
+    const res = await GET();
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ ok: true, db: "ok", schema: null, reason: "schema-PGRST202" });
+  });
+
+  it("лишає 200 «schema-exception», коли виклик версії кинув виняток", async () => {
+    probe.version = () => Promise.reject(new Error("boom"));
+    const res = await GET();
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ ok: true, db: "ok", schema: null, reason: "schema-exception" });
+  });
+
+  it("у reason — причина бази, коли база недоступна, навіть якщо й версію не прочитано", async () => {
+    probe.answer = () => Promise.resolve({ error: { code: "53300", message: "too many connections" }, status: 503 });
+    probe.version = () => Promise.resolve({ data: null, error: { code: "53300", message: "too many connections" }, status: 503 });
+    const res = await GET();
+    expect(res.status).toBe(503);
+    expect(await res.json()).toMatchObject({ ok: false, db: "down", schema: null, reason: "status-503-53300" });
   });
 });

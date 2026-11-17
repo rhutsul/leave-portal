@@ -2,7 +2,8 @@
 // Адаптовано з tests/db/supabase-pglite.ts демо-репозиторію курсу:
 // https://github.com/koldovsky/2026-quitcode-06-leave-portal-demo/blob/5a5fc27/tests/db/supabase-pglite.ts
 // Що змінено: розширення btree_gist і схема extensions (exclusion-обмеження D3); посади й розклади не з
-// demo-users.json, а з тестових даних міграції (D7) — тригер на profiles.
+// demo-users.json, а з тестових даних міграції (D7) — тригер на profiles; журнал supabase_migrations.schema_migrations,
+// який веде Supabase CLI (для public.schema_version() і /api/health).
 //
 // Застосовує ті самі supabase/migrations/*.sql і supabase/seed.sql, що й job db-check у CI, без Docker.
 // Межа емуляції: Auth, PostgREST і JWT спрощені (auth.uid() читає request.jwt.claim.sub).
@@ -34,6 +35,10 @@ const SUPABASE_SHIM = `
   grant execute on function auth.uid() to anon, authenticated, service_role;
   grant select, insert, delete on auth.users to supabase_auth_admin;
   grant usage on schema public to anon, authenticated, service_role;
+  -- Журнал застосованих міграцій, як його веде Supabase CLI (supabase db push / db start): без прав для anon і
+  -- authenticated. Рядок на кожну міграцію додає createLeaveDb — так само, як CLI після кожного файлу.
+  create schema supabase_migrations;
+  create table supabase_migrations.schema_migrations (version text primary key, statements text[], name text);
 `;
 
 export interface LeaveDb {
@@ -68,7 +73,11 @@ export async function createLeaveDb(): Promise<LeaveDb> {
   const migrations = readdirSync(new URL("supabase/migrations/", root))
     .filter((f) => f.endsWith(".sql"))
     .sort();
-  for (const file of migrations) await db.exec(read(`supabase/migrations/${file}`));
+  for (const file of migrations) {
+    await db.exec(read(`supabase/migrations/${file}`));
+    const [, version, name] = /^(\d+)_(.*)\.sql$/.exec(file) ?? [];
+    await db.query("insert into supabase_migrations.schema_migrations (version, name) values ($1, $2)", [version, name]);
+  }
   await db.exec(read("supabase/seed.sql"));
 
   // Як scripts/create-demo-users.mjs: користувач Auth → тригер створює профіль (і застосовує тестові посади D7) →

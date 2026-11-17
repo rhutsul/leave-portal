@@ -1,6 +1,6 @@
 // D0: /api/health відрізняє «база відповіла» від «база недоступна, призупинена чи ключ хибний».
 import { describe, expect, it } from "vitest";
-import { classifyDbProbe } from "@/lib/health";
+import { classifyDbProbe, classifySchemaProbe } from "@/lib/health";
 
 describe("classifyDbProbe (/api/health)", () => {
   it("рахує базу живою, коли запит пройшов або Postgres відмовив у правах (42501)", () => {
@@ -56,5 +56,31 @@ describe("classifyDbProbe (/api/health)", () => {
       reason: "status-503-PGRST002",
     });
     expect(classifyDbProbe({ status: 0, error: { message: "fetch failed" } })).toEqual({ db: "down", reason: "status-0" });
+  });
+});
+
+describe("classifySchemaProbe (/api/health, поле schema)", () => {
+  it("повертає версію останньої міграції без причини", () => {
+    expect(classifySchemaProbe({ data: "20261117081842", status: 200, error: null })).toEqual({
+      schema: "20261117081842",
+      reason: "",
+    });
+  });
+
+  it("пише код помилки в reason, а без коду — статус HTTP", () => {
+    expect(classifySchemaProbe({ data: null, status: 404, error: { code: "PGRST202", message: "not found" } })).toEqual({
+      schema: null,
+      reason: "schema-PGRST202",
+    });
+    expect(classifySchemaProbe({ data: null, status: 0, error: { message: "fetch failed" } })).toEqual({
+      schema: null,
+      reason: "schema-status-0",
+    });
+  });
+
+  it("рахує таймаут таймаутом, а порожню чи нечислову версію — «schema-empty»", () => {
+    expect(classifySchemaProbe({ data: null, status: 0, error: { message: "aborted" } }, true).reason).toBe("schema-timeout");
+    expect(classifySchemaProbe({ data: null, status: 200, error: null }).reason).toBe("schema-empty");
+    expect(classifySchemaProbe({ data: "v1", status: 200, error: null }).reason).toBe("schema-empty");
   });
 });
