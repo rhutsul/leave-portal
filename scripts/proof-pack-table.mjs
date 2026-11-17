@@ -14,9 +14,12 @@
 //   <!-- proof-pack:ac-table:start --> і <!-- proof-pack:ac-table:end -->
 // у вказаному файлі (маркерів немає — помилка, файл не змінюється). Посилання на тести — на --sha (permalink),
 // посилання на звіт і кадри — відносні від docs/qa/ (proof pack лежить там же).
+// Номери рядків тестів беремо з робочого дерева, тож src/ і tests/ мають збігатися з --sha: інакше посилання вкажуть
+// не на той рядок. Скрипт перевіряє через git саме ці файли (є на SHA, без змін) і без збігу нічого не пише.
+import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import { parseConformance, root } from "./lib/spec-lib.mjs";
+import { parseConformance, root, splitTableRow } from "./lib/spec-lib.mjs";
 import { collectTestRefs } from "./lib/test-titles.mjs";
 
 const REPO = "https://github.com/rhutsul/leave-portal";
@@ -27,12 +30,49 @@ function parseArgs(argv) {
   const args = {};
   for (let i = 0; i < argv.length; i++) {
     const key = argv[i];
-    if (!key.startsWith("--")) throw new Error(`Невідомий аргумент: ${key}`);
+    if (!key.startsWith("--")) throw new Error(`невідомий аргумент: ${key}`);
     args[key.slice(2)] = argv[++i];
   }
-  for (const need of ["prefix", "uat", "sha"]) if (!args[need]) throw new Error(`Бракує --${need}`);
+  for (const need of ["prefix", "uat", "sha"]) if (!args[need]) throw new Error(`бракує --${need}`);
   if (!/^[0-9a-f]{40}$/.test(args.sha)) throw new Error("--sha — повний SHA коміту (40 hex)");
   return args;
+}
+
+function git(args) {
+  const r = spawnSync("git", args, { cwd: root(), encoding: "utf8" });
+  if (r.error || r.status === null) throw new Error("не вдалося запустити git — потрібен репозиторій git");
+  return r;
+}
+
+/**
+ * Файли, з яких беремо посилання, мають бути в робочому дереві тими самими, що на --sha: номери рядків беремо з дерева,
+ * посилання — на SHA. Інші файли (тести скриптів, фікстури) не важать.
+ */
+function assertTestsMatch(sha, files) {
+  if (git(["cat-file", "-e", `${sha}^{commit}`]).status !== 0) throw new Error(`коміту ${sha} немає в цьому репозиторії`);
+  const missing = files.filter((f) => git(["cat-file", "-e", `${sha}:${f}`]).status !== 0);
+  const changed = files.length ? git(["diff", "--name-only", sha, "--", ...files]).stdout.trim().split("\n") : [];
+  const differ = [...new Set([...missing, ...changed.filter(Boolean)])].join("\n");
+  if (differ) {
+    throw new Error(
+      `тести в робочому дереві відрізняються від ${sha.slice(0, 7)}, і номери рядків не збіглися б з посиланнями. ` +
+        `Закомітьте зміни й передайте новий --sha або поверніть файли:\n${differ}`,
+    );
+  }
+}
+
+function readRequired(file, what) {
+  if (!existsSync(file)) throw new Error(`немає ${what}: ${path.relative(root(), file).split(path.sep).join("/")}`);
+  return readFileSync(file, "utf8");
+}
+
+function readManifest(file) {
+  const text = readRequired(file, "manifest.json прогону UAT");
+  try {
+    return JSON.parse(text);
+  } catch (e) {
+    throw new Error(`manifest.json прогону UAT — не JSON: ${e.message}`);
+  }
 }
 
 const level = (file) => (file.startsWith("tests/e2e/") ? "e2e" : file.startsWith("tests/db/") ? "база" : "unit");
@@ -54,14 +94,13 @@ function testCell(refs, sha) {
     .join("; ");
 }
 
-/** Таблиця мутантів: | Мутант | AC | Що зламано | Вердикт | … | → Map(AC → [{id, verdict}]). */
+/** Таблиця мутантів: | Мутант | AC | Що зламано | Вердикт | … | → Map(AC → [{id, verdict}]); «\|» у клітинці — не межа. */
 function parseMutants(file) {
   const byAc = new Map();
   if (!existsSync(file)) return byAc;
   for (const line of readFileSync(file, "utf8").split("\n")) {
-    const cells = line.split("|").map((c) => c.trim());
-    if (!/^S\d+$/.test(cells[1] ?? "")) continue;
-    const [, id, ac, , verdict] = cells;
+    const [id, ac, , verdict] = splitTableRow(line);
+    if (!/^S\d+$/.test(id ?? "")) continue;
     if (!byAc.has(ac)) byAc.set(ac, []);
     byAc.get(ac).push({ id, verdict });
   }
@@ -73,16 +112,18 @@ function mutantCell(mutants) {
   return mutants.map((m) => `${m.id} ${m.verdict}`).join(", ");
 }
 
-/** Вердикт UAT: «**PASS** (R6), Haiku: …», рядок звіту, кадр. Немає в manifest — «немає в прогоні». */
+const agentName = (model) => (/sonnet/.test(model) ? "Sonnet" : /haiku/.test(model) ? "Haiku" : model);
+
+/** Вердикт UAT: «**PASS** (R6) — Haiku: …», рядок звіту, кадр. Немає в manifest — «немає в прогоні». */
 function uatCell(result, reportLines, uatRel) {
   if (!result) return "немає в прогоні";
   const agents = Object.entries(result.agentVerdicts ?? {})
     .filter(([, v]) => v)
-    .map(([model, v]) => `${/sonnet/.test(model) ? "Sonnet" : /haiku/.test(model) ? "Haiku" : model}: ${v}`)
+    .map(([model, v]) => `${agentName(model)}: ${v}`)
     .join(", ");
   const rule = (result.rule ?? "").split(":")[0];
+  const parts = [[`**${result.verdict}**`, rule && `(${rule})`, agents && `— ${agents}`].filter(Boolean).join(" ")];
   const row = reportLines.findIndex((l) => l.startsWith(`| ${result.id} |`));
-  const parts = [`**${result.verdict}**${rule ? ` (${rule})` : ""}${agents ? ` — ${agents}` : ""}`];
   if (row >= 0) parts.push(`[рядок ${row + 1}](${uatRel}/report.md?plain=1#L${row + 1})`);
   if (result.screenshot) parts.push(`[кадр](${uatRel}/frames/${path.posix.basename(result.screenshot)})`);
   return parts.join(", ");
@@ -90,17 +131,19 @@ function uatCell(result, reportLines, uatRel) {
 
 function buildTable({ prefix, uat, sha }) {
   const rows = parseConformance(path.join(root(), "docs", "conformance.md")).rows.filter((r) => r.id.startsWith(`${prefix}-`));
-  if (rows.length === 0) throw new Error(`У docs/conformance.md немає AC з префіксом ${prefix}`);
-  const manifest = JSON.parse(readFileSync(path.join(root(), uat, "manifest.json"), "utf8"));
-  const reportLines = readFileSync(path.join(root(), uat, "report.md"), "utf8").split("\n");
-  const results = new Map((manifest.results ?? []).map((r) => [r.id, r]));
+  if (rows.length === 0) throw new Error(`у docs/conformance.md немає AC з префіксом ${prefix}`);
   const refs = collectTestRefs();
+  const used = new Set(rows.flatMap((r) => (refs.get(r.id) ?? []).map((t) => t.file)));
+  assertTestsMatch(sha, [...used].sort());
+  const manifest = readManifest(path.join(root(), uat, "manifest.json"));
+  const reportLines = readRequired(path.join(root(), uat, "report.md"), "report.md прогону UAT").split("\n");
+  const results = new Map((manifest.results ?? []).map((r) => [r.id, r]));
   const mutants = parseMutants(path.join(root(), "docs", "qa", "mutation-sql.md"));
-  const uatRel = path.posix.relative("docs/qa", uat.replaceAll("\\", "/"));
-  const date = path.posix.basename(uat.replaceAll("\\", "/"));
+  const uatPosix = uat.split("\\").join("/");
+  const uatRel = path.posix.relative("docs/qa", uatPosix);
 
   const head = [
-    `| AC | Що | Тести (на \`${sha.slice(0, 7)}\`) | Здатен упасти (SQL-мутант) | UAT ${date} | Матриця |`,
+    `| AC | Що | Тести (на \`${sha.slice(0, 7)}\`) | Здатен упасти (SQL-мутант) | UAT ${path.posix.basename(uatPosix)} | Матриця |`,
     "|---|---|---|---|---|---|",
   ];
   const body = rows.map((r) =>
@@ -118,7 +161,7 @@ function buildTable({ prefix, uat, sha }) {
 function replaceBetweenMarkers(text, table) {
   const start = text.indexOf(START);
   const end = text.indexOf(END);
-  if (start < 0 || end < start) throw new Error(`Немає маркерів ${START} … ${END}`);
+  if (start < 0 || end < start) throw new Error(`немає маркерів ${START} … ${END}`);
   return `${text.slice(0, start + START.length)}\n${table}\n${text.slice(end)}`;
 }
 
@@ -130,7 +173,7 @@ function main() {
     return;
   }
   const file = path.join(root(), args.write);
-  writeFileSync(file, replaceBetweenMarkers(readFileSync(file, "utf8"), table));
+  writeFileSync(file, replaceBetweenMarkers(readRequired(file, "файлу для --write"), table));
   console.log(`Таблицю записано: ${args.write}`);
 }
 
