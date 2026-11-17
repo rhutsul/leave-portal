@@ -50,7 +50,8 @@ describe("scripts/proof-pack-table.mjs", () => {
     const [first, second] = rows;
     expect(first).toContain("| AC-DEMO-01 | Закриття \\| дні |");
     expect(first).toContain(`база: [demo.test.ts#L3](${blob}/tests/db/demo.test.ts#L3), [#L7](${blob}/tests/db/demo.test.ts#L7)`);
-    expect(first).toContain("| S1 KILLED, S2 SURVIVED |");
+    // TS-мутант того самого списку (T1) — теж доказ «здатен упасти», коли правило AC живе в TS.
+    expect(first).toContain("| S1 KILLED, S2 SURVIVED, T1 KILLED |");
     expect(first).toContain("**PASS** (R6) — Haiku: NEEDS-HUMAN, Sonnet: PASS");
     expect(first).toContain("[рядок 5](uat/2026-01-05/report.md?plain=1#L5)");
     expect(first).toContain("[кадр](uat/2026-01-05/frames/AC-DEMO-01-then-1.png)");
