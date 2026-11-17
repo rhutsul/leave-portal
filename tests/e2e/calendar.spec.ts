@@ -21,6 +21,7 @@ import {
   createUatEmployee,
   hasAdminKey,
   rememberClosuresAddedOn,
+  rememberClosuresNamed,
   rememberRequestsOn,
   type UatEmployee,
 } from "./support/admin";
@@ -753,16 +754,22 @@ test.describe("manager1@example.test", () => {
 
       await when("manager1@example.test tries to close 2026-11-27 directly, bypassing the portal's pages", async () => {
         // Те, що зробив би менеджер із консолі браузера: функція бази й запис у таблицю з його сесією.
-        attempts.push(
-          await asRole("manager1", "rpc/add_school_closure", {
-            method: "POST",
-            body: { p_kind: "whole_days", p_name: "Staff day", p_start: "2026-11-27", p_end: "2026-11-27" },
-          }),
-          await asRole("manager1", "school_closures", {
-            method: "POST",
-            body: { name: "Staff day", start_date: "2026-11-27", end_date: "2026-11-27" },
-          }),
-        );
+        // Прямий запис іде повз сторінку, тож id з відповіді (added=) тут немає: якщо RLS колись пропустить його, рядок
+        // знайдемо за назвою у вікні дат AC (2026-11-27) і приберемо в afterEach — пошук за назвою лише тут.
+        try {
+          attempts.push(
+            await asRole("manager1", "rpc/add_school_closure", {
+              method: "POST",
+              body: { p_kind: "whole_days", p_name: "Staff day", p_start: "2026-11-27", p_end: "2026-11-27" },
+            }),
+            await asRole("manager1", "school_closures", {
+              method: "POST",
+              body: { name: "Staff day", start_date: "2026-11-27", end_date: "2026-11-27" },
+            }),
+          );
+        } finally {
+          if (hasAdminKey()) await rememberClosuresNamed("Staff day");
+        }
       });
 
       const employee = await browser.newContext({ storageState: "playwright/.auth/teacher1.json" });

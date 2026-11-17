@@ -11,9 +11,15 @@ async function noSideScroll(page: Page) {
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
 }
 
-/** Розмір елемента в розкладці (CSS px), без transform предків — на відміну від boundingBox(). */
+/**
+ * Розмір елемента в розкладці (CSS px, з дробовою частиною), без transform предків — на відміну від boundingBox().
+ * getComputedStyle, а не offsetWidth / offsetHeight: ті округлюють до цілого, і 43.5 px читалось би як 44.
+ */
 function layoutSize(locator: Locator) {
-  return locator.evaluate((el) => ({ width: (el as HTMLElement).offsetWidth, height: (el as HTMLElement).offsetHeight }));
+  return locator.evaluate((el) => {
+    const style = getComputedStyle(el);
+    return { width: parseFloat(style.width), height: parseFloat(style.height) };
+  });
 }
 
 test.describe("administrator on a narrow phone", () => {
@@ -29,7 +35,7 @@ test.describe("administrator on a narrow phone", () => {
     // Розмір дотику — розмір у розкладці, а не на екрані. Панель з'являється з zoom-in-95 (--duration-base, DESIGN.md
     // розділ 11), а boundingBox() рахує й transform: у CI клітинку зловили на 43.96 і 43.99 px замість 44 (run
     // 43451608456 і 43451369044, 13.11). Очікування кінця анімації (getAnimations) лишало гонку з її стартом, тож
-    // міряємо розкладку (offsetWidth / offsetHeight — без transform), і результат не залежить від того, коли міряємо.
+    // міряємо розкладку (getComputedStyle — без transform), і результат не залежить від того, коли міряємо.
     const days = picker.getByRole("grid").getByRole("button");
     const first = await layoutSize(days.first());
     expect(first.height).toBeGreaterThanOrEqual(44);
@@ -37,6 +43,15 @@ test.describe("administrator on a narrow phone", () => {
     for (const label of ["Previous month", "Next month"]) {
       expect((await layoutSize(picker.getByRole("button", { name: label }))).height).toBeGreaterThanOrEqual(44);
     }
+    // «Вміщається в 360 px» — положення на екрані, тож тут потрібен boundingBox(), але вже без zoom-in-95: чекаємо стан
+    // «на панелі немає анімацій» (атрибут data-open уже стоїть, тож getAnimations бачить і анімацію, що лише почалась).
+    await expect
+      .poll(() =>
+        picker.evaluate(
+          (el) => (el.closest('[data-slot="popover-content"]') ?? el).getAnimations({ subtree: true }).filter((a) => a.playState === "running").length,
+        ),
+      )
+      .toBe(0);
     const grid = (await picker.boundingBox())!;
     expect(grid.x).toBeGreaterThanOrEqual(0);
     expect(grid.x + grid.width).toBeLessThanOrEqual(360);

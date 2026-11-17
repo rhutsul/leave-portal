@@ -13,9 +13,12 @@ on:
       - "tests/db/**"
       - "scripts/mutants.mjs"
       - "scripts/mutation-check.mjs"
-      # T1 (AC-CAL-15) мутує правило року в TS — той самий список мутантів.
-      - "src/lib/leave/calendar.ts"
-      - "src/lib/leave/calendar.test.ts"
+      # T1 (AC-CAL-15) мутує правило року в TS; тести бази імпортують модулі src/lib/leave.
+      - "src/lib/leave/**"
+      # Версії PGlite і Vitest та конфіг тестів теж можуть змінити вердикт.
+      - "package.json"
+      - "package-lock.json"
+      - "vitest.config.mts"
       - ".github/workflows/mutation.yml"
   workflow_dispatch:
 
@@ -47,6 +50,8 @@ jobs:
           set -o pipefail
           npm run mutation:sql -- --markdown 2>&1 | tee "$RUNNER_TEMP/mutation-sql.txt"
       - name: TS mutants of the same list (AC-CAL-15)
+        # І коли SQL-мутанти впали: Summary має показати обидві таблиці.
+        if: ${{ !cancelled() }}
         run: |
           set -o pipefail
           node scripts/mutation-check.mjs --kind ts --markdown 2>&1 | tee "$RUNNER_TEMP/mutation-ts.txt"

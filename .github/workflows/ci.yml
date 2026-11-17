@@ -150,6 +150,9 @@ jobs:
           fi
       - if: steps.mode.outputs.mode != 'skip'
         uses: actions/checkout@v7
+        with:
+          # Токен checkout не лишаємо в .git/config, поки CLI працює з секретами проду.
+          persist-credentials: false
       - if: steps.mode.outputs.mode != 'skip'
         uses: supabase/setup-cli@689adcfb80d947100a1eab127289b97d1fb07b13 # v3.2.0
       # Запасний шлях (README, «Міграції в прод: запасний шлях»): офіційний supabase link + db push.
