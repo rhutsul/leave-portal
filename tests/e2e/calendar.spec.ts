@@ -20,13 +20,13 @@ import {
   cleanupRemembered,
   createUatEmployee,
   hasAdminKey,
-  rememberClosuresNamed,
+  rememberClosuresAddedOn,
   rememberRequestsOn,
   type UatEmployee,
 } from "./support/admin";
 import { clickDate, closeDates, showMonth } from "./support/calendar";
 import { asRole } from "./support/direct";
-import { attachRuntimeErrors, given, signIn, thenStep, when } from "./support/uat";
+import { attachRuntimeErrors, given, thenStep, when } from "./support/uat";
 
 const WRITES = { tag: ["@uat", "@prod-writes"] };
 const ac = (id: string) => ({ annotation: { type: "ac", description: id } });
@@ -39,17 +39,18 @@ const WHOLE_DAY = { start: 8 * 60 + 30, end: 15 * 60 + 30 };
 // перевірка пройшла: Playwright виконує afterEach і після помилки в beforeEach, а тоді рядки у вікнах AC — чужі.
 let windowsClean = false;
 
-test.beforeEach(async ({}, info) => {
+test.beforeEach(async ({ page }, info) => {
   windowsClean = false;
   if (!info.tags.includes("@prod-writes")) return;
   await assertCalendarClean();
   windowsClean = true;
+  // Закриття, додані формою «Add closure», — у журнал прибирання за id з відповіді сервера (added=<id>).
+  rememberClosuresAddedOn(page);
 });
 
 test.afterEach(async ({ page }, info) => {
   await attachRuntimeErrors(page);
   if (!info.tags.includes("@prod-writes") || !hasAdminKey() || !windowsClean) return;
-  for (const name of ["Winter break", "Teachers' meeting", "Staff day", "Extra break"]) await rememberClosuresNamed(name);
   for (const date of ["2026-11-20", "2026-11-27", "2026-12-29"]) await rememberRequestsOn(TEACHER1, date);
   await cleanupRemembered();
 });
@@ -66,11 +67,26 @@ function expectStartUsed(used: number, expected = 0) {
   expect(used, `«Дано»: Sick leave used ${expected.toFixed(2)}`).toBe(expected);
 }
 
-/** Окремий браузерний контекст, у якому увійшов синтетичний працівник (вхід — сторінкою /login, як людина). */
+/**
+ * Окремий браузерний контекст, у якому увійшов синтетичний працівник. Вхід зроблено в Node (createUatEmployee →
+ * supabase-js), а контекст отримує лише куки сесії — без введення пароля в браузері, тож у trace.zip його немає.
+ */
 async function signedInAs(browser: Browser, employee: UatEmployee) {
+  const baseURL = test.info().project.use.baseURL;
+  if (!baseURL) throw new Error("немає baseURL у playwright.config.ts");
   const context = await browser.newContext({ storageState: { cookies: [], origins: [] } });
+  const now = Math.floor(Date.now() / 1000);
+  await context.addCookies(
+    employee.session.map(({ name, value, maxAge }) => ({
+      name,
+      value,
+      url: baseURL,
+      sameSite: "Lax" as const,
+      expires: maxAge ? now + maxAge : -1,
+    })),
+  );
   const page = await context.newPage();
-  await signIn(page, employee.email, employee.password);
+  await page.goto("/");
   await expect(page.getByTestId("user-email")).toHaveText(employee.email);
   return { context, page };
 }

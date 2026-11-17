@@ -1,8 +1,10 @@
 # SQL-мутанти (npm run mutation:sql -- --markdown)
 
-Знято 2026-11-15 на гілці `task/ws9-day-share-closure-kind` (база — main @ `7f67117` + міграція `20261115122625_day_share_cap_and_closure_kind.sql`), PGlite, локально. Мутант — одне правило з AC, навмисно зламане у файлі міграції (`scripts/mutants.mjs`); KILLED — тест з AC ID упав. Мутант, що не застосувався, скрипт не зараховує.
+Знято 2026-11-17 на гілці `task/ws9-ci-quality` (база — main @ `2de3a3e`), PGlite. Мутант — одне правило з AC, навмисно зламане у файлі міграції (`scripts/mutants.mjs`); KILLED — тест з AC ID упав. Мутант, що не застосувався, скрипт не зараховує.
 
-Мутаційний бал: 32 з 32 вбито (100 %) — 171.3 с
+З 17.11 той самий набір запускає CI: job `mutation-sql` (`.github/workflows/mutation.yml`) у кожному PR, що змінює `supabase/migrations/**`, `tests/db/**` чи список мутантів; таблиця — у Summary прогону. За рев'ю викладача WS9 додано S33 (AC-CAL-01), S34 (AC-CAL-09) і T1 (AC-CAL-15), тож мутант, здатний упасти, тепер є на кожному з 20 AC шкільного календаря.
+
+Мутаційний бал: 34 з 34 вбито (100 %) — 496.9 с
 
 | Мутант | AC | Що зламано | Вердикт | Який тест упав |
 |---|---|---|---|---|
@@ -38,5 +40,17 @@
 | S30 | (Assumptions 04-school-calendar, без AC) | add_school_closure: скорочений день без часу більше не відмовляє — закривається цілий день | KILLED | an early dismissal without a closing time is not saved — Enter the closing time (Assumptions) |
 | S31 | AC-CAL-20 | decide_leave_record: «Sick leave» / «Personal leave» більше не фіксують частку в paid_days при погодженні | KILLED | AC-CAL-06: approved Sick leave 08:30–12:00 on the early dismissal 2026-11-20 counts as used 1.00 (210 of 210), not 0.50; AC-CAL-20: approved Sick leave 08:30–11:00 on 2026-11-20 is used 0.36 and stays 0.36 after "Teachers' meeting" from 12:00 |
 | S32 | AC-CAL-18 | add_school_closure: назва обрізається лише від пробілів (btrim) — назва з табуляції зберігається порожньою на вигляд | KILLED | AC-CAL-18: a name of only a tab or a line break is empty too — Enter a name for the closure |
+| S33 | AC-CAL-01 | add_school_closure: закриття цілими днями зберігається лише першим днем (кінець = початок) | KILLED | AC-CAL-01: admin@ adds "Winter break" as whole days 2026-12-28 – 2027-01-08 and the calendar shows it; AC-CAL-11: "Staff day" on 2026-12-30 inside "Winter break" is not saved — 2026-12-30 is already closed: Winter break; AC-CAL-17: "Extra break" 2027-01-05 – 2027-01-15 over "Winter break" and "Staff day" — not saved, one part per closure; AC-CAL-17: parts follow the dates of the overlap, not the order the closures were added; AC-CAL-08: the only record on 2026-12-29 is Rejected — "Winter break" is saved and shown; AC-CAL-08: a Cancelled record does not block either; AC-CAL-02: teacher1@ sees "Winter break" 2026-12-28 – 2027-01-08 added by the administrator; AC-CAL-02: manager1@ sees the same "Winter break"; AC-CAL-13: manager1@ can neither remove nor change an existing closure — directly or through the function |
+| S34 | AC-CAL-09 | remove_school_closure: закриття не видаляється, хоч помилки немає — дата не стає робочою | KILLED | AC-CAL-09: after the admin removes "Winter break", 2026-12-29 is accepted with hours 08:30–15:30; AC-CAL-09: admin@ removes a closure: it leaves the calendar and no leave record changes; AC-CAL-20: the same holds for Unpaid leave, and removing or changing a closure later does not change the share; AC-BALANCE-05: unpaid 08:30–11:00 approved under the early dismissal, closure removed, 11:00–15:30 approved — the date is used 1.00, not 1.35; AC-BALANCE-05: sick 08:30–11:00 approved under the early dismissal, closure removed, 11:00–15:30 approved — the date is used 1.00, not 1.35; AC-BALANCE-05: records of different types on one date never count more than 1.00 together |
 
-Як повторити: `npm run mutation:sql -- --markdown` (мутований файл скрипт повертає сам; мутовану міграцію не комітимо).
+## TS-мутанти того самого списку (`node scripts/mutation-check.mjs --kind ts --markdown`)
+
+Правило AC-CAL-15 (порожній навчальний рік) живе не в SQL, а в `closuresInSchoolYear` (`src/lib/leave/calendar.ts`), тож його мутант — TS. Job `mutation-sql` запускає і його.
+
+Мутаційний бал: 1 з 1 вбито (100 %) — 1.8 с
+
+| Мутант | AC | Що зламано | Вердикт | Який тест упав |
+|---|---|---|---|---|
+| T1 | AC-CAL-15 | closuresInSchoolYear: закриття наступних років теж потрапляють у рік (немає межі 31 серпня) | KILLED | AC-CAL-02: closures are listed by date, and other school years are left out; AC-CAL-02: 1 September and 31 August are the first and last days of the school year; AC-CAL-02: a whole-day closure across 31 August is shown in both school years; AC-CAL-15: school year 2026–2027 without closures shows "No closed days in school year 2026–2027" |
+
+Як повторити: `npm run mutation:sql -- --markdown` і `node scripts/mutation-check.mjs --kind ts --markdown` (мутований файл скрипт повертає сам; мутовану міграцію не комітимо).

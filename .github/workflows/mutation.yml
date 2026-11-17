@@ -1,0 +1,76 @@
+# Мутаційна перевірка правил у SQL (npm run mutation:sql, scripts/mutants.mjs) — у PR, що змінюють базу або тести бази.
+# Рев'ю викладача WS9 (16.11): наступна міграція з `create or replace` може залишити мутанти на мертвому тілі старого
+# файлу (як 13.11) — CI має зловити це в PR, а не локальний прогін «колись». Набір іде на PGlite у Node: ні Docker,
+# ні секретів, ні мережі до Supabase.
+# Окремий workflow: назви jobs у ci.yml не змінюємо (на них тримається ruleset). Job `mutation-sql` НЕ обов'язковий у
+# ruleset: через фільтр шляхів він не запускається в більшості PR, а обов'язкова перевірка, якої немає, блокує злиття.
+name: mutation
+
+on:
+  pull_request:
+    paths:
+      - "supabase/migrations/**"
+      - "tests/db/**"
+      - "scripts/mutants.mjs"
+      - "scripts/mutation-check.mjs"
+      # T1 (AC-CAL-15) мутує правило року в TS — той самий список мутантів.
+      - "src/lib/leave/calendar.ts"
+      - "src/lib/leave/calendar.test.ts"
+      - ".github/workflows/mutation.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mutation-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  mutation-sql:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # Токен checkout не лишаємо в .git/config: npm ci запускає сторонні lifecycle-скрипти (CodeRabbit, #45).
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      # Код виходу 1 — є SURVIVED чи ERROR, 2 — тести червоні без мутацій або find не знайдено (мутант на мертвому тілі
+      # функції, яку перекрила новіша міграція). Таблицю пишемо в Summary в будь-якому разі.
+      - name: SQL mutants (npm run mutation:sql)
+        run: |
+          set -o pipefail
+          npm run mutation:sql -- --markdown 2>&1 | tee "$RUNNER_TEMP/mutation-sql.txt"
+      - name: TS mutants of the same list (AC-CAL-15)
+        run: |
+          set -o pipefail
+          node scripts/mutation-check.mjs --kind ts --markdown 2>&1 | tee "$RUNNER_TEMP/mutation-ts.txt"
+      - name: Summary
+        if: ${{ !cancelled() }}
+        run: |
+          for kind in sql ts; do
+            file="$RUNNER_TEMP/mutation-$kind.txt"
+            [ -f "$file" ] || continue
+            {
+              echo "### Мутанти ($kind)"
+              echo
+              grep -E '^(Мутаційний бал|✗ )' "$file" || true
+              echo
+              grep -E '^\|' "$file" || true
+              echo
+            } >> "$GITHUB_STEP_SUMMARY"
+          done
+      # Скрипт повертає мутований файл сам (і після Ctrl+C); тут доводимо, що міграції після прогону — як у коміті.
+      - name: Working tree is clean after the mutants
+        if: ${{ !cancelled() }}
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            git status --porcelain
+            echo "::error::Після мутантів дерево брудне — мутований файл не повернуто"
+            exit 1
+          fi

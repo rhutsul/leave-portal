@@ -247,4 +247,26 @@ export const mutants = [
     find: "  v_name text := regexp_replace(coalesce(p_name, ''),",
     replace: "  v_name text := btrim(p_name); -- ",
   },
+  // Рев'ю викладача WS9 (16.11): по мутанту на AC-CAL-01, -09 і -15, щоб «здатен упасти» було на всіх 20 AC календаря.
+  {
+    id: "S33", kind: "sql", ac: "AC-CAL-01", file: REVIEW_FIXES, tests: [CALENDAR_DB],
+    what: "add_school_closure: закриття цілими днями зберігається лише першим днем (кінець = початок)",
+    find: "  values (v_name, p_start, v_end, p_closes_at, (select auth.uid()))",
+    replace: "  values (v_name, p_start, p_start, p_closes_at, (select auth.uid()))",
+  },
+  {
+    // Не «delete … and false»: тоді «Closure not found» уронив би тест з іншої причини. Тут рядок знайдено, помилки
+    // немає, а закриття лишається — день не стає робочим.
+    id: "S34", kind: "sql", ac: "AC-CAL-09", file: CALENDAR, tests: [CALENDAR_DB, CALENDAR_REQUEST_DB],
+    what: "remove_school_closure: закриття не видаляється, хоч помилки немає — дата не стає робочою",
+    find: "  delete from public.school_closures as c where c.id = p_id;",
+    replace: "  update public.school_closures as c set name = c.name where c.id = p_id;",
+  },
+  {
+    // Правило AC-CAL-15 живе в TS, а не в SQL: рік на /calendar — це closuresInSchoolYear над рядками бази.
+    id: "T1", kind: "ts", ac: "AC-CAL-15", file: "src/lib/leave/calendar.ts", tests: ["src/lib/leave/calendar.test.ts"],
+    what: "closuresInSchoolYear: закриття наступних років теж потрапляють у рік (немає межі 31 серпня)",
+    find: ".filter((c) => c.startDate <= to && c.endDate >= from)",
+    replace: ".filter((c) => c.endDate >= from)",
+  },
 ];

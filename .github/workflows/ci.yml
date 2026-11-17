@@ -100,7 +100,7 @@ jobs:
         env:
           MIGRATION_BASE: origin/${{ github.base_ref }}
       # Без `version:` setup-cli@v3 бере версію supabase з package-lock.json (2.120.0).
-      - uses: supabase/setup-cli@v3
+      - uses: supabase/setup-cli@689adcfb80d947100a1eab127289b97d1fb07b13 # v3.2.0
       - name: Apply all migrations and seed to a throwaway database
         run: supabase db start
       - name: Generated types (summary, never fails)
@@ -128,22 +128,21 @@ jobs:
     concurrency:
       group: supabase-prod
       cancel-in-progress: false
+    # Секрети проду — НЕ в env рівня job, а лише в env кроків, що їх використовують (supabase link / db push), щоб
+    # сторонні дії job (setup-cli) їх не бачили (рев'ю викладача WS9, 16.11). Сторонні дії — за повним SHA коміту.
     env:
-      # Основний шлях: рядок Session pooler (порт 5432) з Dashboard → Connect; пароль у ньому — percent-encoded.
-      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
-      # Запасний шлях (README, «Міграції в прод: запасний шлях»): офіційний supabase link + db push.
-      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
-      SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
       SEED_FLAG: ${{ github.event_name == 'workflow_dispatch' && inputs.include_seed && '--include-seed' || '' }}
     steps:
-      # secrets.* не можна використати в if на рівні job, тому перевіряємо їх кроком.
+      # secrets.* не можна використати в if на рівні job, тому перевіряємо їх кроком — лише чи задано, без значень.
       - name: Check Supabase secrets
         id: mode
+        env:
+          HAS_DB_URL: ${{ secrets.SUPABASE_DB_URL != '' }}
+          HAS_LINK: ${{ secrets.SUPABASE_ACCESS_TOKEN != '' && secrets.SUPABASE_DB_PASSWORD != '' && secrets.SUPABASE_PROJECT_ID != '' }}
         run: |
-          if [ -n "$SUPABASE_DB_URL" ]; then
+          if [ "$HAS_DB_URL" = "true" ]; then
             echo "mode=db-url" >> "$GITHUB_OUTPUT"
-          elif [ -n "$SUPABASE_ACCESS_TOKEN" ] && [ -n "$SUPABASE_DB_PASSWORD" ] && [ -n "$SUPABASE_PROJECT_ID" ]; then
+          elif [ "$HAS_LINK" = "true" ]; then
             echo "mode=link" >> "$GITHUB_OUTPUT"
           else
             echo "mode=skip" >> "$GITHUB_OUTPUT"
@@ -152,23 +151,39 @@ jobs:
       - if: steps.mode.outputs.mode != 'skip'
         uses: actions/checkout@v7
       - if: steps.mode.outputs.mode != 'skip'
-        uses: supabase/setup-cli@v3
+        uses: supabase/setup-cli@689adcfb80d947100a1eab127289b97d1fb07b13 # v3.2.0
+      # Запасний шлях (README, «Міграції в прод: запасний шлях»): офіційний supabase link + db push.
       - name: Link project (fallback path)
         if: steps.mode.outputs.mode == 'link'
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
         run: supabase link --project-ref "$SUPABASE_PROJECT_ID"
       # Без --include-all: міграція, старша за вже застосовану, має впасти тут, а не застосуватись не в тому порядку.
+      # Основний шлях: рядок Session pooler (порт 5432) з Dashboard → Connect; пароль у ньому — percent-encoded.
       - name: Dry run (list of migrations to apply)
         if: steps.mode.outputs.mode != 'skip'
+        env:
+          MODE: ${{ steps.mode.outputs.mode }}
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
         run: |
-          if [ "${{ steps.mode.outputs.mode }}" = "db-url" ]; then
+          if [ "$MODE" = "db-url" ]; then
             supabase db push --yes --dry-run --db-url "$SUPABASE_DB_URL" $SEED_FLAG
           else
             supabase db push --yes --dry-run $SEED_FLAG
           fi
       - name: Apply migrations
         if: steps.mode.outputs.mode != 'skip'
+        env:
+          MODE: ${{ steps.mode.outputs.mode }}
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
         run: |
-          if [ "${{ steps.mode.outputs.mode }}" = "db-url" ]; then
+          if [ "$MODE" = "db-url" ]; then
             supabase db push --yes --db-url "$SUPABASE_DB_URL" $SEED_FLAG
           else
             supabase db push --yes $SEED_FLAG
