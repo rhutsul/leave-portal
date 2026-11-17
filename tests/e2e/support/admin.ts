@@ -17,6 +17,8 @@
 // materials/uat/tests/e2e/support/admin.ts. Помічники календаря — наші.
 import { randomBytes } from "node:crypto";
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import type { Page } from "@playwright/test";
+import { createServerClient } from "@supabase/ssr";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { BLOCKING_STATUSES } from "../../../src/lib/leave/request";
 
@@ -91,16 +93,45 @@ function runLabel(): string {
   return started.toString(36);
 }
 
-export type UatEmployee = { id: string; email: string; password: string; fullName: string };
+/** Кука сесії @supabase/ssr (sb-<ref>-auth-token, за потреби частинами .0, .1 …): ім'я, значення і строк у секундах. */
+export type SessionCookie = { name: string; value: string; maxAge: number | undefined };
+
+export type UatEmployee = { id: string; email: string; fullName: string; session: SessionCookie[] };
+
+/**
+ * Вхід у Node (supabase-js, publishable-ключ) без браузера: @supabase/ssr сам кодує сесію в куки так само, як
+ * src/lib/supabase/server.ts після входу на /login, — ми лише збираємо їх із setAll. Браузер отримує вже готову сесію
+ * (context.addCookies / storageState), тож пароль не потрапляє ні в поле форми, ні в trace.zip (рев'ю викладача WS9).
+ */
+async function signInCookies(email: string, password: string): Promise<SessionCookie[]> {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+  if (!url || !key) throw new Error("Для входу синтетичного працівника потрібні NEXT_PUBLIC_SUPABASE_URL і NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY");
+  const jar = new Map<string, SessionCookie>();
+  const supabase = createServerClient(url, key, {
+    cookies: {
+      getAll: () => [...jar.values()].map(({ name, value }) => ({ name, value })),
+      setAll: (cookies) => {
+        for (const { name, value, options } of cookies) {
+          if (value && options.maxAge !== 0) jar.set(name, { name, value, maxAge: options.maxAge });
+          else jar.delete(name);
+        }
+      },
+    },
+  });
+  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  if (error) throw error;
+  if (jar.size === 0) throw new Error(`вхід ${email}: @supabase/ssr не записав куку сесії`);
+  return [...jar.values()];
+}
 
 /**
  * Синтетичний працівник для «Дано» AC, які не називають конкретного акаунта: uat-<run>-<n>@example.test з роллю
  * employee, однією основною посадою (менеджер — manager1@example.test, як у teacher1@) і розкладом `schedule`.
- * Пароль — випадковий, у пам'яті тесту: не друкуємо й не пишемо в журнали. Вхід на /login (signIn) іде в трасу
- * Playwright (trace.zip, test-results/), а вимкнути трасу для одного тесту не можна (опція воркера) — тож пароль живий,
- * лише доки живий працівник: прибирання видаляє його за id, а teardown називає й падає на будь-якому uat-…@example.test,
- * що лишився. Повертає id для прибирання: журнал
- * створеного (uat_users) — afterEach видаляє користувача за id, а каскад — профіль, посаду, розклад і записи.
+ * Пароль — випадковий і не виходить за межі цієї функції: вхід — тут же, у Node (signInCookies), а назовні —
+ * лише куки сесії для браузерного контексту. Тож у трасі Playwright (trace.zip) пароля немає взагалі.
+ * Повертає id для прибирання: журнал створеного (uat_users) — afterEach видаляє користувача за id, а каскад —
+ * профіль, посаду, розклад і записи; teardown називає й падає на будь-якому uat-…@example.test, що лишився.
  */
 export async function createUatEmployee(schedule: UatSchedule): Promise<UatEmployee> {
   const supabase = adminClient();
@@ -151,7 +182,7 @@ export async function createUatEmployee(schedule: UatSchedule): Promise<UatEmplo
   );
   const { error: blocksError } = await supabase.from("schedule_blocks").insert(blocks);
   if (blocksError) throw blocksError;
-  return { id, email, password, fullName };
+  return { id, email, fullName, session: await signInCookies(email, password) };
 }
 
 /** Закриття для «Дано» (AC каже, що його вже додав адміністратор). */
@@ -220,8 +251,36 @@ export async function rememberRequestsOn(email: string, date: string) {
   }
 }
 
+/** id нового закриття з адреси, куди веде «Add closure» після збереження: /calendar?year=…&added=<id>. */
+function addedClosureId(location: string | undefined): number | null {
+  const m = /[?&]added=(\d+)/.exec(location ?? "");
+  return m ? Number(m[1]) : null;
+}
+
 /**
- * Закриття, які адміністратор додав через сторінку під час тесту (AC-CAL-01, -08): записати в журнал прибирання.
+ * Закриття, які адміністратор додає формою «Add closure» на цій сторінці, — у журнал прибирання за id з ВІДПОВІДІ
+ * сервера, а не пошуком за назвою (рев'ю викладача WS9). Server Action addClosure після збереження відповідає
+ * переходом на /calendar?year=…&added=<id> (заголовок x-action-redirect; без JavaScript — звичайний перехід), тож
+ * слухаємо і відповіді, і переходи. Викликати до дії (у beforeEach): id запам'ятовується одразу, навіть якщо
+ * перевірка після збереження впаде.
+ */
+export function rememberClosuresAddedOn(page: Page) {
+  const seen = new Set<number>();
+  const take = (location: string | undefined, how: string) => {
+    const id = addedClosureId(location);
+    if (id == null || seen.has(id)) return;
+    seen.add(id);
+    remember({ table: "school_closures", id, what: `закриття #${id} (зі сторінки, ${how})` });
+  };
+  page.on("response", (r) => take(r.headers()["x-action-redirect"], "відповідь Server Action"));
+  page.on("framenavigated", (f) => {
+    if (f === page.mainFrame()) take(f.url(), "перехід");
+  });
+}
+
+/**
+ * Запасний шлях для «Save closures» помічника (AC-ASSIST-03): saveSuggestions не повертає id збережених закриттів
+ * (перехід без added=), тож лише тут закриття, додані через сторінку, шукаємо за назвою.
  * Лише у вікнах дат AC: після assertCalendarClean будь-яке закриття там створив цей тест, а закриття з тією самою
  * назвою на інші дати (наступні зимові канікули) — справжні, їх не чіпаємо.
  */
@@ -290,7 +349,7 @@ export async function assertCalendarClean() {
 export async function cleanupRemembered(): Promise<string[]> {
   const supabase = adminClient();
   const deleted: string[] = [];
-  // Один рядок може потрапити в журнал двічі (addClosure і rememberClosuresNamed) — лишаємо перший опис.
+  // Один рядок може потрапити в журнал двічі (відповідь і перехід rememberClosuresAddedOn, запасний rememberClosuresNamed) — лишаємо перший опис.
   const unique = remembered().filter(
     (row, i, all) => all.findIndex((r) => r.table === row.table && r.id === row.id) === i,
   );

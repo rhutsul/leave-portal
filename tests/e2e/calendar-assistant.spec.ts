@@ -34,6 +34,7 @@ test.afterEach(async ({ page }, info) => {
   await attachRuntimeErrors(page);
   // Прибираємо лише тоді, коли перевірка «чисто» пройшла: інакше рядки на датах AC — чужі.
   if (!info.tags.includes("@prod-writes") || !hasAdminKey() || !windowsClean) return;
+  // saveSuggestions не повертає id збережених закриттів (перехід без added=) — тут лишається пошук за назвою у вікнах AC.
   for (const name of ["Winter holidays", "Winter break", "Teachers' meeting"]) await rememberClosuresNamed(name);
   await cleanupRemembered();
 });

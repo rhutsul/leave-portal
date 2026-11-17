@@ -9,7 +9,7 @@
 //          @prod-writes у calendar.spec.ts, лише з SUPABASE_SECRET_KEY, з перевіркою «дати чисті» до і прибиранням за id
 //          після.
 import { expect, test } from "@playwright/test";
-import { addClosure, assertCalendarClean, cleanupRemembered, hasAdminKey, rememberClosuresNamed } from "./support/admin";
+import { addClosure, assertCalendarClean, cleanupRemembered, hasAdminKey, rememberClosuresAddedOn } from "./support/admin";
 import { clickDate, showNovember2026 } from "./support/calendar";
 import { attachRuntimeErrors, given, thenStep, when } from "./support/uat";
 
@@ -105,16 +105,17 @@ test.describe("admin@example.test", () => {
 
   let windowsClean = false;
 
-  test.beforeEach(async () => {
+  test.beforeEach(async ({ page }) => {
     windowsClean = false;
     if (!hasAdminKey()) throw new Error("NC-3 створює закриття «Дано» — потрібен SUPABASE_SECRET_KEY (.env.local)");
     await assertCalendarClean();
     windowsClean = true;
+    // «Winter break» і «Staff day» — addClosure (журнал за id); те, що додасть форма, — за id з відповіді (added=<id>).
+    rememberClosuresAddedOn(page);
   });
 
   test.afterEach(async () => {
     if (!hasAdminKey() || !windowsClean) return;
-    for (const name of ["Winter break", "Staff day", "Extra break"]) await rememberClosuresNamed(name);
     await cleanupRemembered();
   });
 

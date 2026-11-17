@@ -38,7 +38,7 @@ jobs:
           cache: npm
       - run: npm ci
       # Без `version:` setup-cli@v3 бере версію supabase з package-lock.json (2.120.0), як у db-check.
-      - uses: supabase/setup-cli@v3
+      - uses: supabase/setup-cli@689adcfb80d947100a1eab127289b97d1fb07b13 # v3.2.0
       - name: Local Supabase (лише Postgres, Auth, REST і шлюз)
         # Міграції й supabase/seed.sql застосовуються при старті: свіжа база на кожен прогін.
         run: supabase start -x realtime,storage-api,imgproxy,mailpit,postgres-meta,studio,edge-runtime,logflare,vector,supavisor

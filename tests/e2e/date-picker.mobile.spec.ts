@@ -1,6 +1,6 @@
 // DatePicker на телефоні (ADR 0008, проєкт Playwright «mobile», Pixel 7) — розкладка за розробником, не AC PM: тому без
 // AC ID і без тегу @uat. Нічого не зберігає: форму «Add closure» не надсилаємо.
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 import { clickDate, openDates } from "./support/calendar";
 import { attachRuntimeErrors } from "./support/uat";
 
@@ -9,6 +9,17 @@ test.afterEach(async ({ page }) => attachRuntimeErrors(page));
 async function noSideScroll(page: Page) {
   const width = page.viewportSize()!.width;
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+}
+
+/**
+ * Розмір елемента в розкладці (CSS px, з дробовою частиною), без transform предків — на відміну від boundingBox().
+ * getComputedStyle, а не offsetWidth / offsetHeight: ті округлюють до цілого, і 43.5 px читалось би як 44.
+ */
+function layoutSize(locator: Locator) {
+  return locator.evaluate((el) => {
+    const style = getComputedStyle(el);
+    return { width: parseFloat(style.width), height: parseFloat(style.height) };
+  });
 }
 
 test.describe("administrator on a narrow phone", () => {
@@ -21,21 +32,26 @@ test.describe("administrator on a narrow phone", () => {
     expect((await field.boundingBox())!.height).toBeGreaterThanOrEqual(44);
     await openDates(page);
     const picker = page.getByTestId("date-picker");
-    // Панель з'являється з масштабом 0.98 → 1 (--duration-base, DESIGN.md розділ 11): міряємо після анімації, інакше
-    // клітинка на мить 43.96 px замість 44.
-    await picker.evaluate((el) =>
-      Promise.all(
-        (el.closest('[data-slot="popover-content"]') ?? el).getAnimations({ subtree: true }).map((a) => a.finished),
-      ),
-    );
+    // Розмір дотику — розмір у розкладці, а не на екрані. Панель з'являється з zoom-in-95 (--duration-base, DESIGN.md
+    // розділ 11), а boundingBox() рахує й transform: у CI клітинку зловили на 43.96 і 43.99 px замість 44 (run
+    // 43451608456 і 43451369044, 13.11). Очікування кінця анімації (getAnimations) лишало гонку з її стартом, тож
+    // міряємо розкладку (getComputedStyle — без transform), і результат не залежить від того, коли міряємо.
     const days = picker.getByRole("grid").getByRole("button");
-    const first = (await days.first().boundingBox())!;
+    const first = await layoutSize(days.first());
     expect(first.height).toBeGreaterThanOrEqual(44);
     expect(first.width).toBeGreaterThanOrEqual(38);
     for (const label of ["Previous month", "Next month"]) {
-      const box = (await picker.getByRole("button", { name: label }).boundingBox())!;
-      expect(box.height).toBeGreaterThanOrEqual(44);
+      expect((await layoutSize(picker.getByRole("button", { name: label }))).height).toBeGreaterThanOrEqual(44);
     }
+    // «Вміщається в 360 px» — положення на екрані, тож тут потрібен boundingBox(), але вже без zoom-in-95: чекаємо стан
+    // «на панелі немає анімацій» (атрибут data-open уже стоїть, тож getAnimations бачить і анімацію, що лише почалась).
+    await expect
+      .poll(() =>
+        picker.evaluate(
+          (el) => (el.closest('[data-slot="popover-content"]') ?? el).getAnimations({ subtree: true }).filter((a) => a.playState === "running").length,
+        ),
+      )
+      .toBe(0);
     const grid = (await picker.boundingBox())!;
     expect(grid.x).toBeGreaterThanOrEqual(0);
     expect(grid.x + grid.width).toBeLessThanOrEqual(360);

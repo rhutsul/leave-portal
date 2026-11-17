@@ -5,7 +5,7 @@
 // Джерела (усі — у репо; шляхи від кореня проєкту, тобто від process.cwd()):
 //   * рядки AC і короткі назви — docs/conformance.md (AC з префіксом --prefix);
 //   * тести — назви, що починаються з AC ID, у файлах, які справді запускає раннер (collectTestRefs, як ac:coverage);
-//   * «здатен упасти» — таблиця SQL-мутантів docs/qa/mutation-sql.md (npm run mutation:sql -- --markdown);
+//   * «здатен упасти» — таблиці SQL- і TS-мутантів docs/qa/mutation-sql.md (npm run mutation:sql -- --markdown);
 //   * вердикт UAT — manifest.json і report.md теки --uat (рядок звіту й кадр «Тоді»).
 //
 // Використання:
@@ -100,7 +100,8 @@ function parseMutants(file) {
   if (!existsSync(file)) return byAc;
   for (const line of readFileSync(file, "utf8").split("\n")) {
     const [id, ac, , verdict] = splitTableRow(line);
-    if (!/^S\d+$/.test(id ?? "")) continue;
+    // S — SQL-мутанти, T — TS-мутанти того самого списку (правило AC у TS, напр. AC-CAL-15).
+    if (!/^[ST]\d+$/.test(id ?? "")) continue;
     if (!byAc.has(ac)) byAc.set(ac, []);
     byAc.get(ac).push({ id, verdict });
   }
