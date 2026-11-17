@@ -30,7 +30,9 @@ const CLARIFY = "supabase/migrations/20261113145925_school_calendar_clarificatio
 // Виправлення за рев'ю WS9: нові версії add_school_closure (вид закриття), fix_day_share і record_share (частка дати не
 // більша за 1.00) перекривають копії в CLARIFY і 20261021133002_leave_decisions.sql — їхні мутанти мутують цей файл.
 const REVIEW_FIXES = "supabase/migrations/20261115122625_day_share_cap_and_closure_kind.sql";
-const RECORD_EDIT = "supabase/migrations/20261021171135_leave_record_edit.sql";
+// Погодження зі спільним lock календаря (друга думка до #75, знахідка 6): чинна версія private.decide_leave_record —
+// тут, вона перекриває копію в 20261021171135_leave_record_edit.sql, тож мутанти рішення мутують цей файл.
+const DECIDE = "supabase/migrations/20261117083144_decide_calendar_lock.sql";
 const RECORD_EDIT_DB = "tests/db/leave-record-edit.test.ts";
 const START_INSIDE = "p_start >= b.start_min and p_start < b.end_min\n  ) or not exists";
 
@@ -236,7 +238,7 @@ export const mutants = [
     replace: "  if false then",
   },
   {
-    id: "S31", kind: "sql", ac: "AC-CAL-20", file: RECORD_EDIT, tests: [CALENDAR_DB],
+    id: "S31", kind: "sql", ac: "AC-CAL-20", file: DECIDE, tests: [CALENDAR_DB],
     what: "decide_leave_record: «Sick leave» / «Personal leave» більше не фіксують частку в paid_days при погодженні",
     find: "    v_paid := least(v_share, greatest(v_remaining, 0));",
     replace: "    v_paid := null;",
@@ -246,5 +248,11 @@ export const mutants = [
     what: "add_school_closure: назва обрізається лише від пробілів (btrim) — назва з табуляції зберігається порожньою на вигляд",
     find: "  v_name text := regexp_replace(coalesce(p_name, ''),",
     replace: "  v_name text := btrim(p_name); -- ",
+  },
+  {
+    id: "S33", kind: "sql", ac: "AC-CAL-20", file: DECIDE, tests: [CALENDAR_DB],
+    what: "decide_leave_record: без спільного lock календаря — закриття, закомічене посеред рішення, розводить paid_days і day_share",
+    find: "  perform pg_advisory_xact_lock_shared(private.calendar_lock_key());",
+    replace: "  -- без lock календаря",
   },
 ];
