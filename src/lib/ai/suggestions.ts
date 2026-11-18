@@ -3,6 +3,8 @@ import type { ClosureKind } from "@/lib/leave/calendar";
 import { closureIssue, ClosureInputSchema } from "@/lib/leave/closure-input";
 import { isCalendarDate, parseTime } from "@/lib/leave/time";
 import { proposeDraft, type DraftFailure, type DraftOptions } from "./draft";
+import { isFallback, logLlmCall, type LlmState } from "./llm-log";
+import { DRAFT_PROMPT_VERSION } from "./prompts/draft";
 import type { CalendarSuggestions, ClosureSuggestion } from "./schema";
 
 /**
@@ -299,19 +301,66 @@ export type AssistantRun = {
   injectionSuspected: boolean;
 };
 
+/** Куди писати журнал llm.call (WS11): id запиту, маршрут-шаблон і перша модель ланцюжка. */
+export type LlmLogContext = { requestId: string; route: string; primaryModel: string };
+
+export type AssistantOptions = DraftOptions & {
+  /** WS11: писати рядок llm.call. Немає — журналу немає (так працюють golden-реплей і живий eval з WS10). */
+  log?: LlmLogContext;
+};
+
+/**
+ * Стан у журналі — те, що побачила людина (після checkSuggestions), а не лише статус моделі: відповідь, яку код
+ * відкинув, — unavailable з errorKind invalid_output.
+ */
+const LOG_STATE: Record<AssistantOutcome["kind"], LlmState> = {
+  suggestions: "ok",
+  needs_info: "needs_info",
+  refused: "refused",
+  unavailable: "unavailable",
+};
+
 /**
  * Увесь ланцюжок помічника: модель → схема zod → checkSuggestions → стан. Його викликають дія `requestSuggestions`,
  * офлайн-реплей golden cases і живий eval (design.md D7) — тож golden перевіряє те, що бачить людина. Збій виклику
  * (немає відповіді за 30 с, 429, відповідь не за схемою, помилка постачальника) — стан AC-ASSIST-09, без повторів.
+ * З `log` — один рядок llm.call на виклик моделі: модель, затримка, токени, стан, версія промпту, без тексту (WS11).
  */
 export async function runAssistant(
   input: { text: string; today: string },
   model: LanguageModel,
-  opts: DraftOptions = {},
+  { log, ...opts }: AssistantOptions = {},
 ): Promise<AssistantRun> {
   const injectionSuspected = detectInjection(input.text);
+  const started = performance.now();
   const result = await proposeDraft(input, model, { maxRetries: 0, timeoutMs: 30_000, ...opts });
-  if (!result.ok) return { outcome: unavailable(result.reason), modelId: null, draft: null, injectionSuspected };
+  if (!result.ok) {
+    if (log) {
+      logLlmCall({
+        ...log,
+        model: log.primaryModel,
+        fallbackUsed: false,
+        state: "unavailable",
+        latencyMs: performance.now() - started,
+        promptVersion: DRAFT_PROMPT_VERSION,
+        errorKind: result.reason, // КОД причини; result.message (текст постачальника) у журнал не йде
+      });
+    }
+    return { outcome: unavailable(result.reason), modelId: null, draft: null, injectionSuspected };
+  }
   const outcome = checkSuggestions(result.draft, input.text);
+  if (log) {
+    logLlmCall({
+      ...log,
+      model: result.modelId,
+      fallbackUsed: isFallback(result.modelId, log.primaryModel),
+      state: LOG_STATE[outcome.kind],
+      latencyMs: performance.now() - started,
+      ...result.usage,
+      promptVersion: DRAFT_PROMPT_VERSION,
+      // Модель відповіла, але відповідь не пройшла перевірки кодом (checkSuggestions) — людина бачить «недоступний».
+      errorKind: outcome.kind === "unavailable" ? outcome.reason : undefined,
+    });
+  }
   return { outcome, modelId: result.modelId, draft: result.draft, injectionSuspected };
 }

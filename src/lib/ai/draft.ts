@@ -19,8 +19,11 @@ export type DraftInput = {
 
 export type DraftFailure = "invalid_output" | "rate_limited" | "timeout" | "provider_error";
 
+/** Що виклик коштував (WS11, журнал llm.call): токени й вартість, якщо постачальник їх повернув. Без тексту. */
+export type DraftUsage = { inputTokens?: number; outputTokens?: number; costUsd?: number };
+
 export type DraftResult =
-  | { ok: true; draft: CalendarSuggestions; modelId: string }
+  | { ok: true; draft: CalendarSuggestions; modelId: string; usage: DraftUsage }
   | { ok: false; reason: DraftFailure; message: string };
 
 export type DraftOptions = {
@@ -43,7 +46,14 @@ export async function proposeDraft(input: DraftInput, model: LanguageModel, opts
       providerOptions: opts.providerOptions,
     });
     // result.output уже перевірено за схемою (інакше — виняток NoObjectGeneratedError).
-    return { ok: true, draft: result.output, modelId: result.response.modelId };
+    // Вартість OpenRouter кладе в providerMetadata.openrouter.usage.cost (для :free — 0); інші моделі — без неї.
+    const cost = (result.providerMetadata?.openrouter as { usage?: { cost?: unknown } } | undefined)?.usage?.cost;
+    const usage: DraftUsage = {
+      inputTokens: result.usage.inputTokens,
+      outputTokens: result.usage.outputTokens,
+      costUsd: typeof cost === "number" ? cost : undefined,
+    };
+    return { ok: true, draft: result.output, modelId: result.response.modelId, usage };
   } catch (error) {
     return classifyError(error);
   }
