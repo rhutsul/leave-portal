@@ -46,17 +46,17 @@ jobs:
       EXPECT_SHA: ${{ github.event.client_payload.git.sha || github.event.sha || github.sha }}
     steps:
       # Скрипт — з main (github.sha): і після Instant Rollback на старий коміт працює свіжий smoke з перевіркою схеми.
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           sparse-checkout: scripts
       # Міграції — саме того коміту, що розгорнуто: найновіший файл у них — версія схеми, яку чекає код.
       # Коміт, якого вже немає в репо (force-push), — checkout упаде: smoke тоді й так нема з чим звіряти.
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ env.EXPECT_SHA }}
           path: deployed
           sparse-checkout: supabase/migrations
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
       - name: Змінна PROD_URL задана

@@ -182,9 +182,23 @@ shadcn/ui (CLI 4.22.1, Base UI) + `tw-animate-css` + `lucide-react` — диза
   ніколи (лише ваш `.env.local` для скриптів).
 - Імена: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY` лише для скриптів
   (не `NEXT_PUBLIC_`, не `*_ANON_KEY`/`SERVICE_ROLE_KEY`). Шаблон — `.env.example`.
-- `.claude/settings.json` забороняє Claude Code читати `.env*` (крім `.env.example`); Cursor цих правил не читає — у Cursor не відкривай `.env*` агентом і не вставляй значень у чат. Скрипти з секретами запускай
+- `.claude/settings.json` забороняє Claude Code читати `.env*`, і `.env.example` теж (правило `deny` сильніше за
+  будь-який виняток; список назв змінних — у цьому файлі, розділ «Секрети»); Cursor цих правил не читає — у Cursor не відкривай `.env*` агентом і не вставляй значень у чат. Скрипти з секретами запускай
   як `node --env-file=.env.local …` — вони значень не друкують.
 - Supabase MCP (`.mcp.json`, лише Claude Code; Cursor бере MCP з `.cursor/mcp.json`) — лише читання, один проєкт: перед запуском задай `SUPABASE_PROJECT_REF`.
+  Vercel MCP (`.mcp.json`, вхід OAuth у `/mcp`, токенів у файлі немає) — лише читання за правилами
+  `.claude/settings.json`: інструменти запису й розкриття значень змінних MCP Vercel і Supabase заборонені поіменно
+  (`deny`), `filter_project_envs` і `execute_sql` — `ask` (WS11, трек C). Розбір інциденту — лише в профілі
+  «лише пропонує»: `claude --settings .claude/settings.incident.json --mcp-config .mcp.incident.json
+  --strict-mcp-config --permission-mode plan` (plan, заборона `Edit`/`Write`, `git push`, команд `vercel`/`supabase`,
+  що змінюють деплой, змінні чи базу; Supabase MCP — проєкт staging). Агент лише пропонує; відкат, змінні, деплой —
+  людина. Нові інструменти запису MCP, яких немає в `deny`, — додавати поіменно (звіряти з `/mcp`).
+- Ланцюг постачання (WS11, трек D): `.github/dependabot.yml` (npm і дії, щотижня, `cooldown`, групи; `next`,
+  `eslint-config-next`, `react`, `react-dom`, `supabase` — лише патчі, мажорні `typescript`, `eslint`, `@types/react*`
+  і будь-які `@fission-ai/openspec` ігноруються — стек вище),
+  `.npmrc` `min-release-age=7` (npm ≥ 11.10; термінове — разово `--min-release-age=0` з поясненням у PR); кожне
+  `uses:` у workflow — за повним SHA з `# vX.Y.Z` (перевірка: `grep -rn "uses:" .github/workflows | grep -vE
+  "@[0-9a-f]{40} # v"` — порожньо).
 - `product/denylist.local*` — справжні назви клієнта (список PM надсилає особистим повідомленням; git файл не відстежує): не відкривай і не цитуй (найкраще зусилля, не гарантія: у Claude Code — deny `Read(product/denylist.local*)` у `.claude/settings.json`, у Cursor — `.cursorignore`, який за документацією Cursor не закриває термінал і MCP; чи deny діє на пошук і `cat`, звіряємо на репетиції).
 
 ## Дизайн-система
