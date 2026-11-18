@@ -161,12 +161,57 @@ describe("onRequestError", () => {
     for (const marker of SECRET_MARKERS) expect(body.text).not.toContain(marker);
   });
 
-  it("збій Telegram не ламає запит", async () => {
+  it("збій Telegram не ламає запит, не пише токен у журнал, а ту саму помилку надсилає знову", async () => {
     vi.stubEnv("TELEGRAM_BOT_TOKEN", "test-token");
     vi.stubEnv("TELEGRAM_CHAT_ID", "-100");
-    fetchMock.mockRejectedValue(new Error("network down https://api.telegram.org/bottest-token"));
+    const spies = (["log", "info", "warn", "error", "debug"] as const).map((level) =>
+      vi.spyOn(console, level).mockImplementation(() => {}),
+    );
+    fetchMock.mockRejectedValueOnce(new Error("network down https://api.telegram.org/bottest-token/sendMessage"));
     const { onRequestError } = await import("@/instrumentation");
     await expect(onRequestError(new Error("x"), request, context)).resolves.toBeUndefined();
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    for (const spy of spies) {
+      for (const call of spy.mock.calls) expect(JSON.stringify(call)).not.toContain("test-token");
+    }
+    // Невдале надсилання паузи не ставить: наступна така сама помилка йде в чат.
+    await onRequestError(new Error("x"), request, context);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    // Telegram відповів не 2xx — теж не пауза.
+    fetchMock.mockResolvedValueOnce(new Response("{}", { status: 502 }));
+    await onRequestError(new RangeError("y"), request, context);
+    await onRequestError(new RangeError("y"), request, context);
+    expect(fetchMock).toHaveBeenCalledTimes(4);
+    vi.restoreAllMocks();
+  });
+
+  it("надсилає з таймаутом: у запиті є AbortSignal", async () => {
+    vi.stubEnv("TELEGRAM_BOT_TOKEN", "test-token");
+    vi.stubEnv("TELEGRAM_CHAT_ID", "-100");
+    const timeout = vi.spyOn(AbortSignal, "timeout");
+    const { onRequestError } = await import("@/instrumentation");
+    await onRequestError(new Error("x"), request, context);
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(init.signal).toBeInstanceOf(AbortSignal);
+    expect(timeout).toHaveBeenCalledWith(2_500);
+    vi.restoreAllMocks();
+  });
+
+  it("дивне кинуте значення (геттер, що кидає) не ламає хук", async () => {
+    vi.stubEnv("TELEGRAM_BOT_TOKEN", "test-token");
+    vi.stubEnv("TELEGRAM_CHAT_ID", "-100");
+    const hostile = new Proxy(
+      {},
+      {
+        get() {
+          throw new Error(USER_TEXT);
+        },
+        getPrototypeOf() {
+          throw new Error(USER_TEXT);
+        },
+      },
+    );
+    const { onRequestError } = await import("@/instrumentation");
+    await expect(onRequestError(hostile, request, context)).resolves.toBeUndefined();
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });
