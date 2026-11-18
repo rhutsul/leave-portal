@@ -38,6 +38,14 @@ const excluded = [
   ...(withScreenshots ? [] : ["@screenshots"]),
 ];
 const grepInvert = new RegExp(excluded.join("|"));
+// WS11: UAT тепер лише на staging (npm run uat -- --url <staging>; .env.local = staging), а preview і staging закриті
+// захистом Vercel (Standard Protection). Перепустка — заголовок обходу, значення з VERCEL_AUTOMATION_BYPASS_SECRET у
+// .env.local (той самий секрет, що в GitHub Secrets для smoke); x-vercel-set-bypass-cookie — щоб і запити сторінки
+// (скрипти, RSC) пройшли захист. Локальному серверу заголовок не потрібен — лише розгорнутому.
+const bypassSecret = deployed ? process.env.VERCEL_AUTOMATION_BYPASS_SECRET : undefined;
+const bypassHeaders = bypassSecret
+  ? { "x-vercel-protection-bypass": bypassSecret, "x-vercel-set-bypass-cookie": "true" }
+  : undefined;
 const noRecording = { video: "off", trace: "off", screenshot: "off" } as const;
 
 export default defineConfig({
@@ -58,6 +66,7 @@ export default defineConfig({
   use: {
     ...devices["Desktop Chrome"],
     baseURL,
+    extraHTTPHeaders: bypassHeaders,
     locale: "uk-UA",
     timezoneId: "Europe/Kyiv",
     viewport: { width: 1280, height: 800 },

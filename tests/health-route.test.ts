@@ -37,6 +37,29 @@ describe("GET /api/health", () => {
     expect(res.headers.get("cache-control")).toBe("no-store");
   });
 
+  it("показує середовище гілки й ref бази Supabase, без ключів (WS11)", async () => {
+    vi.stubEnv("APP_ENV", "staging");
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://tgvhqyboeeusptbjskio.supabase.co");
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "sb_publishable_test_value");
+    try {
+      const res = await GET();
+      const body = await res.json();
+      expect(body).toMatchObject({ appEnv: "staging", supabaseRef: "tgvhqyboeeusptbjskio" });
+      expect(JSON.stringify(body)).not.toContain("sb_publishable_test_value");
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it("на проді без APP_ENV appEnv — null", async () => {
+    vi.stubEnv("APP_ENV", "");
+    try {
+      expect(await (await GET()).json()).toMatchObject({ appEnv: null });
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
   it("відповідає 503, коли база не обслуговує запитів", async () => {
     probe.answer = () => Promise.resolve({ error: { code: "53300", message: "too many connections" }, status: 503 });
     const res = await GET();
