@@ -45,7 +45,7 @@ const TONE = { needs_info: "warning", refused: "info", unavailable: "destructive
  * Без ключа, на 429, таймаут 30 с чи відповідь не за схемою — повідомлення AC-ASSIST-09, без повтору.
  */
 export async function requestSuggestions(_prev: AssistantState, form: FormData): Promise<AssistantState> {
-  const { access } = await adminSession();
+  const { supabase, access } = await adminSession();
   if (!access.allowed) return { step: "message", tone: "destructive", message: access.message }; // AC-ASSIST-11
 
   const text = String(form.get("text") ?? "");
@@ -56,6 +56,13 @@ export async function requestSuggestions(_prev: AssistantState, form: FormData):
 
   const model = productModel();
   if (!model) return { step: "message", tone: "destructive", message: ASSISTANT_MESSAGES.unavailable };
+
+  // Денний ліміт на користувача рахує база (рев'ю WS10, п. 1; private.take_ai_quota, 20 на добу за Києвом): лічильник
+  // спільний для всіх екземплярів сервера. Понад ліміт чи збій лічильника — AC-ASSIST-09, модель не кличемо.
+  const { data: allowed, error } = await supabase.rpc("take_ai_quota");
+  if (error || allowed !== true) {
+    return { step: "message", tone: "destructive", message: ASSISTANT_MESSAGES.unavailable };
+  }
 
   const { outcome } = await runAssistant({ text, today: kyivDate(new Date()) }, model);
   if (outcome.kind === "suggestions") {

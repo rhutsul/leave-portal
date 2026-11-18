@@ -1,10 +1,10 @@
 # SQL-мутанти (npm run mutation:sql -- --markdown)
 
-Знято 2026-11-17 на гілці `task/ws9-ci-quality` @ `7d8c688` (main @ `45a967d` + #91), PGlite. Мутант — одне правило з AC, навмисно зламане у файлі міграції (`scripts/mutants.mjs`); KILLED — тест з AC ID упав. Мутант, що не застосувався, скрипт не зараховує.
+Знято 2026-11-18 на гілці `task/ai-quota` (main @ `fc2a859` + #94 @ `1d0e054` + міграція `20261118083501_ai_quota.sql`), PGlite. Мутант — одне правило з AC, навмисно зламане у файлі міграції (`scripts/mutants.mjs`); KILLED — тест з AC ID упав. Мутант, що не застосувався, скрипт не зараховує.
 
-З 17.11 той самий набір запускає CI: job `mutation-sql` (`.github/workflows/mutation.yml`) у кожному PR, що змінює `supabase/migrations/**`, `tests/db/**` чи список мутантів; таблиця — у Summary прогону. За рев'ю викладача WS9 додано S34 (AC-CAL-01), S35 (AC-CAL-09) і T1 (AC-CAL-15), тож мутант, здатний упасти, тепер є на кожному з 20 AC шкільного календаря.
+З 17.11 той самий набір запускає CI: job `mutation-sql` (`.github/workflows/mutation.yml`) у кожному PR, що змінює `supabase/migrations/**`, `tests/db/**` чи список мутантів; таблиця — у Summary прогону. За рев'ю викладача WS9 додано S34 (AC-CAL-01), S35 (AC-CAL-09) і T1 (AC-CAL-15), тож мутант, здатний упасти, є на кожному з 20 AC шкільного календаря. За рев'ю WS10 (п. 1, денний ліміт запитів до моделі) додано S36 і S37 (AC-ASSIST-09).
 
-Мутаційний бал: 35 з 35 вбито (100 %) — 217.3 с
+Мутаційний бал: 37 з 37 вбито (100 %) — 363.9 с. TS-мутант T1 (AC-CAL-15) у цьому прогоні (`--kind sql`) не бере участі — його запускає той самий job CI окремим кроком; без змін, KILLED (17.11).
 
 | Мутант | AC | Що зламано | Вердикт | Який тест упав |
 |---|---|---|---|---|
@@ -43,15 +43,5 @@
 | S33 | AC-CAL-20 | decide_leave_record: без спільного lock календаря — закриття, закомічене посеред рішення, розводить paid_days і day_share | KILLED | AC-CAL-20: approving holds the school calendar lock until the end of the decision, so a closure cannot change the share midway |
 | S34 | AC-CAL-01 | add_school_closure: закриття цілими днями зберігається лише першим днем (кінець = початок) | KILLED | AC-CAL-01: admin@ adds "Winter break" as whole days 2026-12-28 – 2027-01-08 and the calendar shows it; AC-CAL-11: "Staff day" on 2026-12-30 inside "Winter break" is not saved — 2026-12-30 is already closed: Winter break; AC-CAL-17: "Extra break" 2027-01-05 – 2027-01-15 over "Winter break" and "Staff day" — not saved, one part per closure; AC-CAL-17: parts follow the dates of the overlap, not the order the closures were added; AC-CAL-08: the only record on 2026-12-29 is Rejected — "Winter break" is saved and shown; AC-CAL-08: a Cancelled record does not block either; AC-CAL-02: teacher1@ sees "Winter break" 2026-12-28 – 2027-01-08 added by the administrator; AC-CAL-02: manager1@ sees the same "Winter break"; AC-CAL-13: manager1@ can neither remove nor change an existing closure — directly or through the function |
 | S35 | AC-CAL-09 | remove_school_closure: закриття не видаляється, хоч помилки немає — дата не стає робочою | KILLED | AC-CAL-09: after the admin removes "Winter break", 2026-12-29 is accepted with hours 08:30–15:30; AC-CAL-09: admin@ removes a closure: it leaves the calendar and no leave record changes; AC-CAL-20: the same holds for Unpaid leave, and removing or changing a closure later does not change the share; AC-BALANCE-05: unpaid 08:30–11:00 approved under the early dismissal, closure removed, 11:00–15:30 approved — the date is used 1.00, not 1.35; AC-BALANCE-05: sick 08:30–11:00 approved under the early dismissal, closure removed, 11:00–15:30 approved — the date is used 1.00, not 1.35; AC-BALANCE-05: records of different types on one date never count more than 1.00 together |
-
-## TS-мутанти того самого списку (`node scripts/mutation-check.mjs --kind ts --markdown`)
-
-Правило AC-CAL-15 (порожній навчальний рік) живе не в SQL, а в `closuresInSchoolYear` (`src/lib/leave/calendar.ts`), тож його мутант — TS. Job `mutation-sql` запускає і його.
-
-Мутаційний бал: 1 з 1 вбито (100 %) — 1.4 с
-
-| Мутант | AC | Що зламано | Вердикт | Який тест упав |
-|---|---|---|---|---|
-| T1 | AC-CAL-15 | closuresInSchoolYear: закриття наступних років теж потрапляють у рік (немає межі 31 серпня) | KILLED | AC-CAL-02: closures are listed by date, and other school years are left out; AC-CAL-02: 1 September and 31 August are the first and last days of the school year; AC-CAL-02: a whole-day closure across 31 August is shown in both school years; AC-CAL-15: school year 2026–2027 without closures shows "No closed days in school year 2026–2027" |
-
-Як повторити: `npm run mutation:sql -- --markdown` і `node scripts/mutation-check.mjs --kind ts --markdown` (мутований файл скрипт повертає сам; мутовану міграцію не комітимо).
+| S36 | AC-ASSIST-09 | take_ai_quota: понад 20 запитів на добу теж «можна» — модель кличуть без межі | KILLED | AC-ASSIST-09: the 21st request of one administrator in a day is refused, the first 20 are allowed; AC-ASSIST-09: another user has their own counter |
+| S37 | AC-ASSIST-09 | take_ai_quota: доба не за Києвом, а одна на весь час — учорашні запити рахуються сьогодні | KILLED | AC-ASSIST-09: the day is the Kyiv date — yesterday's 20 requests do not count today |

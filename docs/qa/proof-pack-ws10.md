@@ -60,9 +60,9 @@ Proof pack зрізу 3 — docs/qa/proof-pack.md, WS8 — docs/qa/proof-pack-ws
 | AC-ASSIST-04 | реалізовано | дія + PGlite: P0001 дослівно для своєї пропозиції, інша збережена | `tests/calendar-assistant-actions.test.ts`, `tests/db/calendar-assistant.test.ts` |
 | AC-ASSIST-05 | реалізовано | golden (GC-06, GC-07), суддя «так»; unit `checkSuggestions` і промпту | `tests/golden.test.ts`, `src/lib/ai/suggestions.test.ts` |
 | AC-ASSIST-06 | реалізовано | **UAT на проді, жива модель — PASS** (Haiku NEEDS-HUMAN → Sonnet PASS) + golden GC-08, GC-10 | [рядок 13](uat/2026-11-16/report.md?plain=1#L13), [кадр](uat/2026-11-16/frames/AC-ASSIST-06-then-1.png) |
-| AC-ASSIST-07 | реалізовано | golden GC-09 (рівно 1 закриття); межа `<document>` з кодуванням дужок | `tests/golden.test.ts`, `src/lib/ai/suggestions.test.ts` |
+| AC-ASSIST-07 | реалізовано | golden GC-09 (рівно 1 закриття); межа `<document>` з кодуванням дужок; дія: GC-09 позначено кодом (`injectionSuspected`), «Every Monday» з речення з ін'єкцією не пропонується | `tests/golden.test.ts`, `src/lib/ai/suggestions.test.ts` |
 | AC-ASSIST-08 | реалізовано | компонент: «Preparing suggestions…», кнопка `disabled` | `src/app/(app)/calendar/assistant/assistant-form.test.tsx` |
-| AC-ASSIST-09 | реалізовано | unit + дія: 429 (і в тілі HTTP 200), таймаут 30 с, не за схемою, немає ключа → текст AC, без повтору | `tests/golden.test.ts`, `tests/calendar-assistant-actions.test.ts`, `src/lib/ai/suggestions.test.ts` |
+| AC-ASSIST-09 | реалізовано | unit + дія: 429 (і в тілі HTTP 200), таймаут 30 с, не за схемою, немає ключа, 21-й запит за добу → текст AC, без повтору; PGlite: ліміт 20 на добу в базі | `tests/golden.test.ts`, `tests/calendar-assistant-actions.test.ts`, `src/lib/ai/suggestions.test.ts`, `tests/db/ai-quota.test.ts` |
 | AC-ASSIST-10 | реалізовано | **UAT на проді — PASS** (+ CI e2e): повідомлення видно без прокрутки | [рядок 14](uat/2026-11-16/report.md?plain=1#L14), [кадр](uat/2026-11-16/frames/AC-ASSIST-10-then-1.png) |
 | AC-ASSIST-11 | реалізовано | **UAT на проді — PASS** (+ CI e2e) | [рядок 15](uat/2026-11-16/report.md?plain=1#L15), [кадр](uat/2026-11-16/frames/AC-ASSIST-11-then-1.png) |
 
@@ -89,6 +89,15 @@ Proof pack зрізу 3 — docs/qa/proof-pack.md, WS8 — docs/qa/proof-pack-ws
   час скороченого дня з текстами PM. Решту правил вимоги 04 перевіряє `add_school_closure` у базі. Окремий модуль —
   щоб zod не потрапив у клієнтські форми календаря. Рівень доказу: `src/lib/leave/calendar-form.test.ts` без змін
   очікувань, тест AC-ASSIST-04 про порожню назву зелений.
+- **Денний ліміт запитів (п. 1, PR `task/ai-quota`).** Лічильник у базі, а не в пам'яті процесу:
+  `private.ai_quota (user_id, day, used)` без прав для `anon` і `authenticated`, `private.take_ai_quota()`
+  (`security definer`, `set search_path = ''`, користувач — з `auth.uid()`) з обгорткою `public.take_ai_quota()`
+  (`security invoker`). 20 запитів на добу за Києвом; один `insert … on conflict do update … where used < 20`, тож
+  лічильник не росте понад ліміт. `requestSuggestions` кличе його після ролі й довжини тексту і перед моделлю; `false`
+  чи збій — повідомлення AC-ASSIST-09, модель не питаємо. Рівень доказу: дія (21-й запит → текст AC-ASSIST-09,
+  `doGenerateCalls` 0), PGlite (`tests/db/ai-quota.test.ts`: 21-й → `false`, інший користувач — свій лічильник,
+  учорашні запити не рахуються, прямий доступ до таблиці — 42501) і SQL-мутанти S36, S37. На проді ліміт не
+  вичерпували навмисно (той самий безкоштовний ліміт OpenRouter).
 - **`wrapDocument` (дрібне).** Обрізає до 2000 знаків до кодування дужок: «'a'×1990 + 10 `<`» доходить до моделі
   як 10 `&lt;`.
 

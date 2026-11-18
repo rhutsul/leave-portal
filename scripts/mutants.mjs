@@ -34,6 +34,9 @@ const REVIEW_FIXES = "supabase/migrations/20261115122625_day_share_cap_and_closu
 // тут, вона перекриває копію в 20261021171135_leave_record_edit.sql, тож мутанти рішення мутують цей файл.
 const DECIDE = "supabase/migrations/20261117083144_decide_calendar_lock.sql";
 const RECORD_EDIT_DB = "tests/db/leave-record-edit.test.ts";
+// Денний ліміт запитів до моделі (рев'ю WS10, п. 1): лічильник private.ai_quota і private.take_ai_quota.
+const AI_QUOTA = "supabase/migrations/20261118083501_ai_quota.sql";
+const AI_QUOTA_DB = "tests/db/ai-quota.test.ts";
 const START_INSIDE = "p_start >= b.start_min and p_start < b.end_min\n  ) or not exists";
 
 export const mutants = [
@@ -269,6 +272,20 @@ export const mutants = [
     what: "remove_school_closure: закриття не видаляється, хоч помилки немає — дата не стає робочою",
     find: "  delete from public.school_closures as c where c.id = p_id;",
     replace: "  update public.school_closures as c set name = c.name where c.id = p_id;",
+  },
+  {
+    // Не «where q.used < 21»: тоді 21-й запит упав би на check (used between 1 and 20), і тест зловив би помилку, а не
+    // відповідь. Тут лічильник лишається на 20, а функція все одно каже «можна».
+    id: "S36", kind: "sql", ac: "AC-ASSIST-09", file: AI_QUOTA, tests: [AI_QUOTA_DB],
+    what: "take_ai_quota: понад 20 запитів на добу теж «можна» — модель кличуть без межі",
+    find: "  return v_used is not null;",
+    replace: "  return true;",
+  },
+  {
+    id: "S37", kind: "sql", ac: "AC-ASSIST-09", file: AI_QUOTA, tests: [AI_QUOTA_DB],
+    what: "take_ai_quota: доба не за Києвом, а одна на весь час — учорашні запити рахуються сьогодні",
+    find: "  values (v_user, (now() at time zone 'Europe/Kyiv')::date, 1)",
+    replace: "  values (v_user, date '2000-01-01', 1)",
   },
   {
     // Правило AC-CAL-15 живе в TS, а не в SQL: рік на /calendar — це closuresInSchoolYear над рядками бази.
