@@ -326,6 +326,9 @@ isOneToOne: false
 "submit_leave_request":
 { Args: { "p_comment"?: string,"p_leave_type": string,"p_records": Json,"p_relationship"?: string }; Returns: number
                            },
+"take_ai_quota":
+{ Args: Record<PropertyKey, never>; Returns: boolean
+                           },
 "update_leave_record_hours":
 { Args: { "p_end_min": number,"p_record_id": number,"p_start_min": number }; Returns: undefined
                            }
