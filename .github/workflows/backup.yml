@@ -31,10 +31,10 @@ on:
         type: boolean
         default: true
       scope:
-        description: "Що відновлювати: all (разом з auth.*) або public (лише таблиці застосунку)"
+        description: "Що відновлювати: public (типово, лише таблиці застосунку) або all (разом з auth.*; схема auth локальної бази CI може відрізнятися від проду — docs/ops/restore.md)"
         type: choice
-        options: [all, public]
-        default: all
+        options: [public, all]
+        default: public
 
 permissions:
   contents: read
@@ -86,7 +86,7 @@ jobs:
             supabase db dump --db-url "$SUPABASE_DB_URL" -f "$d/schema.sql"
             supabase db dump --db-url "$SUPABASE_DB_URL" --data-only --use-copy \
               -x storage.buckets_vectors -x storage.vector_indexes -f "$d/data.sql"
-            # Запасний варіант для відновлення лише таблиць застосунку.
+            # Лише таблиці застосунку — саме їх відновлює тренування (типовий scope=public).
             supabase db dump --db-url "$SUPABASE_DB_URL" --data-only --use-copy -s public -f "$d/data-public.sql"
             after=$(migration_version) || { echo "::error title=backup::Не вдалося прочитати версію міграцій"; exit 1; }
             if [ "$before" = "$after" ]; then ok=1; echo "Схема незмінна під час дампів: міграція $after"; break; fi
@@ -101,6 +101,11 @@ jobs:
           done
           # Порожній підсумок означає, що дамп не той, а не «база порожня»: у public щонайменше profiles.
           [ -s "$d/data-public.counts" ] || { echo "::error title=backup::У дампі немає жодного блоку COPY схеми public"; exit 1; }
+          # Тренування типово не відновлює auth.*, тож хоча б перевіряємо, що акаунти в копії є (лише назва й число).
+          # Назва — у лапках чи без, залежно від pg_dump.
+          users=$(grep -E '^"?auth"?\."?users"?[|]' "$d/data.counts" | cut -d'|' -f2 || true)
+          [ -n "$users" ] || { echo "::error title=backup::У data.sql немає блоку COPY таблиці auth.users"; exit 1; }
+          echo "auth.users у копії: $users рядків"
           echo "Розміри файлів (вміст не друкуємо):"; wc -c "$d"/*.sql
           echo "Таблиць у дампі: $(wc -l < "$d/data.counts"), з них у public: $(wc -l < "$d/data-public.counts")"
       - name: Шифрування (gpg, AES256) і видалення відкритих файлів
@@ -135,7 +140,7 @@ jobs:
     environment: production # лише заради BACKUP_PASSPHRASE
     timeout-minutes: 25
     env:
-      SCOPE: ${{ inputs.scope || 'all' }}
+      SCOPE: ${{ inputs.scope || 'public' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -173,19 +178,34 @@ jobs:
           tar -xzf "$RUNNER_TEMP/backup.tgz" -C "$RUNNER_TEMP"
           rm -f "$RUNNER_TEMP/backup.tgz"
           echo "Розшифровано: $(ls "$RUNNER_TEMP/backup" | tr '\n' ' ')"
-      - name: Відновити дані (scope=${{ inputs.scope || 'all' }})
+      - name: Відновити дані (scope=${{ inputs.scope || 'public' }})
         run: |
           set -euo pipefail
-          file="$RUNNER_TEMP/backup/data.sql"; [ "$SCOPE" = public ] && file="$RUNNER_TEMP/backup/data-public.sql"
+          file="$RUNNER_TEMP/backup/data.sql"; expected="$RUNNER_TEMP/backup/data.counts"
+          [ "$SCOPE" = public ] && { file="$RUNNER_TEMP/backup/data-public.sql"; expected="$RUNNER_TEMP/backup/data-public.counts"; }
+          [ -s "$expected" ] || { echo "::error title=restore::У копії немає підсумку рядків — нічого відновлювати"; exit 1; }
+          # Міграції самі вставляють рядки (довідник divisions; за наявних профілів — ще й positions, schedule_blocks,
+          # position_managers, balance_carryovers), тож дамп поверх них дає «duplicate key» (прогін 44317599432,
+          # відтворено на PGlite з міграціями репо). Тому перед завантаженням
+          # очищаємо РІВНО ті таблиці, що є в дампі, у тій самій транзакції: після неї в кожній — лише рядки копії, і
+          # порівняння «у копії = відновлено» лишається чесним. Скільки рядків було від міграцій — у Summary.
+          : > "$RUNNER_TEMP/before.counts"
+          while IFS='|' read -r table _; do
+            echo "$table|$(psql "$LOCAL_DB" -At -c "select count(*) from $table" 2>/dev/null || echo "?")" >> "$RUNNER_TEMP/before.counts"
+          done < "$expected"
+          # Без CASCADE: якщо на таблицю дампу посилається таблиця, якої в дампі немає (розбіжність схем), краще явна
+          # помилка, ніж мовчки очищена таблиця поза порівнянням.
+          { printf 'TRUNCATE TABLE '; cut -d'|' -f1 "$expected" | paste -sd, -; printf ';\n'; } > "$RUNNER_TEMP/truncate.sql"
           # replica — тимчасово без тригерів і перевірок зовнішніх ключів, як в офіційній інструкції відновлення.
           # Вивід psql (там можуть бути рядки даних у помилках) не друкуємо — лише код результату.
           if psql "$LOCAL_DB" --quiet --single-transaction -v ON_ERROR_STOP=1 \
-               -c 'SET session_replication_role = replica' -f "$file" > /dev/null 2> "$RUNNER_TEMP/psql.err"; then
-            echo "Дані завантажено ($SCOPE)."
+               -c 'SET session_replication_role = replica' -f "$RUNNER_TEMP/truncate.sql" -f "$file" \
+               > /dev/null 2> "$RUNNER_TEMP/psql.err"; then
+            echo "Таблиці дампу очищено й дані завантажено ($SCOPE)."
           else
-            # Лише початок першого рядка помилки, до першої лапки: значення з рядків даних у журнал не потрапляють.
-            echo "::error title=restore::Завантаження не вдалося (scope=$SCOPE): $(head -n 1 "$RUNNER_TEMP/psql.err" | cut -d'"' -f1 | cut -c1-160)"
-            echo "Якщо scope=all падає на таблицях auth.* — запустіть з scope=public (docs/ops/restore.md)."
+            # Лише початок першого рядка ERROR (не NOTICE), до першої лапки: значення з рядків даних у журнал не потрапляють.
+            echo "::error title=restore::Завантаження не вдалося (scope=$SCOPE): $( (grep -m 1 'ERROR' "$RUNNER_TEMP/psql.err" || head -n 1 "$RUNNER_TEMP/psql.err") | cut -d'"' -f1 | cut -c1-160)"
+            [ "$SCOPE" = all ] && echo "scope=all відновлює й auth.*, а схема auth локальної бази CI інша, ніж на проді (docs/ops/restore.md). Типовий scope=public."
             exit 1
           fi
       - name: Порівняти кількість рядків (копія ↔ відновлена база)
@@ -197,17 +217,20 @@ jobs:
           {
             echo "### Тренування відновлення ($SCOPE)"
             echo
-            echo "| Таблиця | У копії | Відновлено | |"
-            echo "|---|---|---|---|"
+            echo "Перед завантаженням таблиці дампу очищено: рядки, які вставили міграції, у підсумок не входять."
+            echo
+            echo "| Таблиця | Від міграцій (очищено) | У копії | Відновлено | |"
+            echo "|---|---|---|---|---|"
           } >> "$GITHUB_STEP_SUMMARY"
           while IFS='|' read -r table want; do
+            before=$(awk -F'|' -v t="$table" '$1 == t {print $2; exit}' "$RUNNER_TEMP/before.counts")
             got=$(psql "$LOCAL_DB" -At -c "select count(*) from $table" 2>/dev/null || echo "?")
             mark="ok"; [ "$got" = "$want" ] || { mark="РІЗНИЦЯ"; fail=1; }
-            echo "$table | $want | $got | $mark"
-            echo "| \`$table\` | $want | $got | $mark |" >> "$GITHUB_STEP_SUMMARY"
+            echo "$table | ${before:-?} | $want | $got | $mark"
+            echo "| \`$table\` | ${before:-?} | $want | $got | $mark |" >> "$GITHUB_STEP_SUMMARY"
           done < "$expected"
           [ "$fail" = 0 ] || { echo "::error title=restore::Кількість рядків не збігається — дивіться Summary прогону"; exit 1; }
           echo "Кількість рядків збігається в усіх таблицях." | tee -a "$GITHUB_STEP_SUMMARY"
       - name: Прибрати відкриті файли
         if: always()
-        run: rm -rf "$RUNNER_TEMP/backup" "$RUNNER_TEMP/backup.tgz" "$RUNNER_TEMP/in" "$RUNNER_TEMP/psql.err"
+        run: rm -rf "$RUNNER_TEMP/backup" "$RUNNER_TEMP/backup.tgz" "$RUNNER_TEMP/in" "$RUNNER_TEMP/psql.err" "$RUNNER_TEMP/truncate.sql" "$RUNNER_TEMP/before.counts"
