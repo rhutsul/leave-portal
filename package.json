@@ -58,7 +58,7 @@
     "@stryker-mutator/core": "10.1.1",
     "@stryker-mutator/vitest-runner": "10.1.1",
     "@tailwindcss/turbopack": "^4",
-    "@types/node": "^24",
+    "@types/node": "^25",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@types/three": "0.186.0",
