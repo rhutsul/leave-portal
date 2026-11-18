@@ -31,7 +31,7 @@ on:
         type: boolean
         default: true
       scope:
-        description: "Що відновлювати: public (типово, лише таблиці застосунку) або all (разом з auth.*; на 18.11.2026 падає — інша версія схеми auth у локальній базі CI, docs/ops/restore.md)"
+        description: "Що відновлювати: public (типово, лише таблиці застосунку) або all (разом з auth.*; схема auth локальної бази CI може відрізнятися від проду — docs/ops/restore.md)"
         type: choice
         options: [public, all]
         default: public
@@ -86,7 +86,7 @@ jobs:
             supabase db dump --db-url "$SUPABASE_DB_URL" -f "$d/schema.sql"
             supabase db dump --db-url "$SUPABASE_DB_URL" --data-only --use-copy \
               -x storage.buckets_vectors -x storage.vector_indexes -f "$d/data.sql"
-            # Запасний варіант для відновлення лише таблиць застосунку.
+            # Лише таблиці застосунку — саме їх відновлює тренування (типовий scope=public).
             supabase db dump --db-url "$SUPABASE_DB_URL" --data-only --use-copy -s public -f "$d/data-public.sql"
             after=$(migration_version) || { echo "::error title=backup::Не вдалося прочитати версію міграцій"; exit 1; }
             if [ "$before" = "$after" ]; then ok=1; echo "Схема незмінна під час дампів: міграція $after"; break; fi
@@ -101,6 +101,11 @@ jobs:
           done
           # Порожній підсумок означає, що дамп не той, а не «база порожня»: у public щонайменше profiles.
           [ -s "$d/data-public.counts" ] || { echo "::error title=backup::У дампі немає жодного блоку COPY схеми public"; exit 1; }
+          # Тренування типово не відновлює auth.*, тож хоча б перевіряємо, що акаунти в копії є (лише назва й число).
+          # Назва — у лапках чи без, залежно від pg_dump.
+          users=$(grep -E '^"?auth"?\."?users"?[|]' "$d/data.counts" | cut -d'|' -f2 || true)
+          [ -n "$users" ] || { echo "::error title=backup::У data.sql немає блоку COPY таблиці auth.users"; exit 1; }
+          echo "auth.users у копії: $users рядків"
           echo "Розміри файлів (вміст не друкуємо):"; wc -c "$d"/*.sql
           echo "Таблиць у дампі: $(wc -l < "$d/data.counts"), з них у public: $(wc -l < "$d/data-public.counts")"
       - name: Шифрування (gpg, AES256) і видалення відкритих файлів
