@@ -64,67 +64,76 @@ async function askFor(page: Page, text: string) {
 test.describe("admin@example.test", () => {
   test.use({ storageState: "playwright/.auth/admin.json" });
 
-  test(
-    "AC-ASSIST-01: \"Winter break 28.12–08.01; Teachers' meeting 20.11 from 12:00\" — 2 suggested closures, and the school calendar still has no closures",
-    { tag: ["@uat", "@live-model"], ...ac("AC-ASSIST-01") },
-    async ({ page }) => {
-      // Без секретного ключа adminClient падає з поясненням: без другої половини «Тоді» тест AC не доводить.
-      await given("the school calendar has no closures (on the dates of the AC: 2026-11-20 – 2027-01-08)", async () => {
-        // «Today is Friday 2026-11-13» з AC на проді не відтворити: «сьогодні» помічнику дає код (дата за Києвом).
-        // Дати тексту від цього не змінюються, поки прогін — до 2026-11-20 у тому самому навчальному році.
-        expect(await closuresBetween(AC01_FROM, AC01_TO)).toEqual([]);
-        await openAssistant(page);
-      });
+  // Обидві пропозиції — в одному кадрі «Тоді»: на 1280×800 «Winter break» лежала нижче краю панелі, і агент не міг
+  // підтвердити її з кадру (UAT 18.11, docs/qa/uat/2026-11-18-run1). Вище вікно — лише тут, решта тестів — як у конфігу.
+  test.describe("both suggestions in one frame", () => {
+    test.use({ viewport: { width: 1280, height: 1400 } });
 
-      await when("the administrator asks the calendar assistant for suggestions for the text \"Winter break 28.12–08.01; Teachers' meeting 20.11 from 12:00\"", async () => {
-        await askFor(page, AC01_TEXT);
-      });
-
-      await thenStep(
-        page,
-        {
-          clause:
-            "the administrator sees 2 suggested closures — \"Winter break\" whole days 2026-12-28 – 2027-01-08 and \"Teachers' meeting\" early dismissal on 2026-11-20 from 12:00 — and the school calendar still has no closures.",
-          visible: [
-            "the heading «2 suggested closures» and «Not saved yet — review and save.»",
-            "«Teachers' meeting», «Early dismissal», the date Fri, 20 Nov 2026, «Closed from» 12:00",
-            "«Winter break», «Whole days», the dates 28 Dec 2026 – 8 Jan 2027",
-          ],
-          hidden: [
-            "the form fields that «Save closures» would send: Teachers' meeting early 2026-11-20 12:00, Winter break days 2026-12-28 – 2027-01-08 (checked)",
-            "the school calendar still has no closures: the UAT admin client finds no closures on 2026-11-20 – 2027-01-08 after the suggestions appeared (checked)",
-          ],
-        },
-        async () => {
-          // Один виклик моделі: відповідь — до 30 с (AC-ASSIST-09), далі сторінка показала б «unavailable».
-          await expect(panel(page).getByRole("heading", { name: "2 suggested closures" })).toBeVisible({ timeout: 45_000 });
-          await expect(panel(page).getByText("Not saved yet — review and save.")).toBeVisible();
-          await expect(panel(page).getByLabel("Name")).toHaveCount(2);
-
-          // Порядок пропозицій — за датою (як у Given AC-ASSIST-03): спершу «Teachers' meeting», потім «Winter break».
-          const meeting = panel(page).locator("[data-suggestion]").nth(0);
-          await expect(meeting.getByLabel("Name")).toHaveValue("Teachers' meeting");
-          await expect(meeting).toContainText("20 Nov 2026");
-          await expect(meeting.getByLabel("Closed from")).toHaveValue("12:00");
-          await expect(meeting.locator('input[type="hidden"][name$=".kind"]')).toHaveValue("early");
-          await expect(meeting.locator('input[type="hidden"][name$=".date"]')).toHaveValue("2026-11-20");
-          await expect(meeting.locator('input[type="hidden"][name$=".time"]')).toHaveValue("12:00");
-
-          const winter = panel(page).locator("[data-suggestion]").nth(1);
-          await expect(winter.getByLabel("Name")).toHaveValue("Winter break");
-          await expect(winter.getByLabel("Closed from")).toHaveCount(0);
-          await expect(winter).toContainText("28 Dec 2026");
-          await expect(winter).toContainText("8 Jan 2027");
-          await expect(winter.locator('input[type="hidden"][name$=".kind"]')).toHaveValue("days");
-          await expect(winter.locator('input[type="hidden"][name$=".start"]')).toHaveValue("2026-12-28");
-          await expect(winter.locator('input[type="hidden"][name$=".end"]')).toHaveValue("2027-01-08");
-
-          // Друга половина «Тоді»: пропозиції на екрані, а в базі на цих датах — жодного закриття.
+    test(
+      "AC-ASSIST-01: \"Winter break 28.12–08.01; Teachers' meeting 20.11 from 12:00\" — 2 suggested closures, and the school calendar still has no closures",
+      { tag: ["@uat", "@live-model"], ...ac("AC-ASSIST-01") },
+      async ({ page }) => {
+        // Без секретного ключа adminClient падає з поясненням: без другої половини «Тоді» тест AC не доводить.
+        await given("the school calendar has no closures (on the dates of the AC: 2026-11-20 – 2027-01-08)", async () => {
+          // «Today is Friday 2026-11-13» з AC на проді не відтворити: «сьогодні» помічнику дає код (дата за Києвом).
+          // Дати тексту від цього не змінюються, поки прогін — до 2026-11-20 у тому самому навчальному році.
           expect(await closuresBetween(AC01_FROM, AC01_TO)).toEqual([]);
-        },
-      );
-    },
-  );
+          await openAssistant(page);
+        });
+
+        await when("the administrator asks the calendar assistant for suggestions for the text \"Winter break 28.12–08.01; Teachers' meeting 20.11 from 12:00\"", async () => {
+          await askFor(page, AC01_TEXT);
+        });
+
+        await thenStep(
+          page,
+          {
+            clause:
+              "the administrator sees 2 suggested closures — \"Winter break\" whole days 2026-12-28 – 2027-01-08 and \"Teachers' meeting\" early dismissal on 2026-11-20 from 12:00 — and the school calendar still has no closures.",
+            visible: [
+              "the heading «2 suggested closures» and «Not saved yet — review and save.»",
+              "«Teachers' meeting», «Early dismissal», the date Fri, 20 Nov 2026, «Closed from» 12:00",
+              "«Winter break», «Whole days», the dates 28 Dec 2026 – 8 Jan 2027",
+            ],
+            hidden: [
+              "the form fields that «Save closures» would send: Teachers' meeting early 2026-11-20 12:00, Winter break days 2026-12-28 – 2027-01-08 (checked)",
+              "the school calendar still has no closures: the UAT admin client finds no closures on 2026-11-20 – 2027-01-08 after the suggestions appeared (checked)",
+              "the highlighted dates in the calendar behind the panel (20 Nov, 28 Dec – 8 Jan) are the preview of the unsaved suggestions, not closures: the database check above (checked)",
+            ],
+          },
+          async () => {
+            // Один виклик моделі: відповідь — до 30 с (AC-ASSIST-09), далі сторінка показала б «unavailable».
+            await expect(panel(page).getByRole("heading", { name: "2 suggested closures" })).toBeVisible({ timeout: 45_000 });
+            await expect(panel(page).getByText("Not saved yet — review and save.")).toBeVisible();
+            await expect(panel(page).getByLabel("Name")).toHaveCount(2);
+
+            // Порядок пропозицій — за датою (як у Given AC-ASSIST-03): спершу «Teachers' meeting», потім «Winter break».
+            const meeting = panel(page).locator("[data-suggestion]").nth(0);
+            await expect(meeting.getByLabel("Name")).toHaveValue("Teachers' meeting");
+            await expect(meeting).toContainText("20 Nov 2026");
+            await expect(meeting.getByLabel("Closed from")).toHaveValue("12:00");
+            await expect(meeting.locator('input[type="hidden"][name$=".kind"]')).toHaveValue("early");
+            await expect(meeting.locator('input[type="hidden"][name$=".date"]')).toHaveValue("2026-11-20");
+            await expect(meeting.locator('input[type="hidden"][name$=".time"]')).toHaveValue("12:00");
+
+            const winter = panel(page).locator("[data-suggestion]").nth(1);
+            await expect(winter.getByLabel("Name")).toHaveValue("Winter break");
+            await expect(winter.getByLabel("Closed from")).toHaveCount(0);
+            // Обидві пропозиції — на кадрі «Тоді», а не нижче краю панелі (UAT 18.11, run1).
+            await expect(winter).toBeInViewport();
+            await expect(winter).toContainText("28 Dec 2026");
+            await expect(winter).toContainText("8 Jan 2027");
+            await expect(winter.locator('input[type="hidden"][name$=".kind"]')).toHaveValue("days");
+            await expect(winter.locator('input[type="hidden"][name$=".start"]')).toHaveValue("2026-12-28");
+            await expect(winter.locator('input[type="hidden"][name$=".end"]')).toHaveValue("2027-01-08");
+
+            // Друга половина «Тоді»: пропозиції на екрані, а в базі на цих датах — жодного закриття.
+            expect(await closuresBetween(AC01_FROM, AC01_TO)).toEqual([]);
+          },
+        );
+      },
+    );
+  });
 
   test(
     'AC-ASSIST-03: removes "Teachers\' meeting", renames "Winter break" to "Winter holidays" and saves — the calendar shows only "Winter holidays"',
