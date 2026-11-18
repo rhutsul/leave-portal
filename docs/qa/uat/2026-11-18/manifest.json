@@ -1,0 +1,92 @@
+{
+  "kind": "uat",
+  "generatedAt": "2026-11-18T08:29:56.450Z",
+  "baseURL": "https://leave-portal-olive.vercel.app",
+  "deployedSha": "fc2a8595e7dab0098e4d1f88b92ed5250498dd48",
+  "testsCommit": "f14cc3432b245a7ee0254a762521263b3032060a",
+  "testsBranch": "task/assistant-uat-ac01",
+  "gitDirty": false,
+  "reviewer": {
+    "model": "claude-haiku-5-5",
+    "disputes": "claude-sonnet-5-5"
+  },
+  "note": "Відео й траси не в git (test-results/ локально, артефакт CI). check-recordings конвеєра WS9 вимагає відео на диску — для нього цей manifest треба доповнити.",
+  "results": [
+    {
+      "id": "AC-ASSIST-01",
+      "proof": "AC-ASSIST-01",
+      "title": "AC-ASSIST-01: \"Winter break 28.12–08.01; Teachers' meeting 20.11 from 12:00\" — 2 suggested closures, and the school calendar still has no closures",
+      "screenshot": "docs/qa/uat/2026-11-18/frames/AC-ASSIST-01-then-1.png",
+      "video": "test-results/artifacts/calendar-assistant-admin-e-6ac1d-endar-still-has-no-closures-chromium/video.webm",
+      "trace": "test-results/artifacts/calendar-assistant-admin-e-6ac1d-endar-still-has-no-closures-chromium/trace.zip",
+      "asserted": true,
+      "vision": {
+        "met": true,
+        "readable": true,
+        "notes": "На кадрі видно панель «Calendar assistant» із заголовком «2 suggested closures» і позначкою «Not saved yet — review and save.». Обидві пропозиції відповідають критерію: «Teachers' meeting» як Early dismissal на Fri, 20 Nov 2026 з 12:00, та «Winter break» як Whole days на Mon, 28 Dec 2026 – Fri, 8 Jan 2027. Частини про збереження в базі не з кадрів і не оцінені."
+      },
+      "agentModel": "claude-haiku-5-5",
+      "agentVerdicts": {
+        "claude-haiku-5-5": "PASS",
+        "claude-sonnet-5-5": null
+      },
+      "escalated": false,
+      "quotesVerified": [
+        {
+          "quote": "2 suggested closures",
+          "onPage": true
+        },
+        {
+          "quote": "Not saved yet — review and save.",
+          "onPage": true
+        },
+        {
+          "quote": "Teachers' meeting",
+          "onPage": true
+        },
+        {
+          "quote": "Early dismissal",
+          "onPage": true
+        },
+        {
+          "quote": "Fri, 20 Nov 2026",
+          "onPage": true
+        },
+        {
+          "quote": "Closed from",
+          "onPage": true
+        },
+        {
+          "quote": "12:00",
+          "onPage": true
+        },
+        {
+          "quote": "Winter break",
+          "onPage": true
+        },
+        {
+          "quote": "Whole days",
+          "onPage": true
+        },
+        {
+          "quote": "Mon, 28 Dec 2026 – Fri, 8 Jan 2027, 12 days",
+          "onPage": true
+        }
+      ],
+      "verdict": "PASS",
+      "factoryGate": "PASS",
+      "rule": "R6: перевірки, агент і цитати збігаються",
+      "playwrightMs": 24615,
+      "reviewCostUsd": 0.00248,
+      "reviewWallMs": 10560
+    }
+  ],
+  "negativeControls": [],
+  "cleanup": {
+    "at": "2026-11-18T08:29:44.868Z",
+    "scope": "school-calendar",
+    "deleted": [],
+    "remaining": [],
+    "leftoverRequests": 0
+  }
+}

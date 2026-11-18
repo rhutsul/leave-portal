@@ -50,11 +50,24 @@ Proof pack зрізу 3 — docs/qa/proof-pack.md, WS8 — docs/qa/proof-pack-ws
 відео — [uat-ac-assist.mp4](uat/2026-11-16/uat-ac-assist.mp4) (4 AC одним файлом, 57 с, AC і SHA проду в куті кадру).
 Живих запитів до моделі на UAT — 6 (по 2 на прогін: AC-ASSIST-03 і -06).
 
+## UAT на проді 18.11 — AC-ASSIST-01 (рев'ю викладача WS10, п. 4)
+
+Окремий тест `AC-ASSIST-01` (`@uat @live-model`, без `@prod-writes` — нічого не зберігає) прямо доводить другу половину
+«Тоді»: «the school calendar still has no closures». Прод `fc2a859` (тест від нового коду не залежить), лише цей AC
+(`--grep "AC-ASSIST-01"`), по одному запиту до моделі на прогін:
+
+| Прогін | Прод / код тестів | Підсумок | Що знайшов |
+|---|---|---|---|
+| [run1](uat/2026-11-18-run1/report.md) | `fc2a859` / `7bd84b7` | NEEDS-HUMAN 1 (перевірки пройшли) | Агент (Haiku → Sonnet) не побачив «Winter break»: друга пропозиція лежала нижче краю панелі 1280×800. Виправлено: вікно 1280×1400 для цього тесту і `toBeInViewport` для другої пропозиції (f14cc34) |
+| [**фінальний**](uat/2026-11-18/report.md) | `fc2a859` / `f14cc34` | **PASS 1** | — |
+
+Живих запитів до моделі — 2; на прод нічого не записано (прибирання: видалено 0, закриттів AC лишилось 0).
+
 ## Доказ на кожен AC зрізу 4
 
 | AC | Статус | Найвищий рівень доказу | Де |
 |---|---|---|---|
-| AC-ASSIST-01 | реалізовано | golden офлайн на записах живого прогону (GC-01…05) + дія | `tests/golden.test.ts`, `tests/calendar-assistant-actions.test.ts`; eval 16.11 |
+| AC-ASSIST-01 | реалізовано | **UAT на проді, жива модель — PASS** (18.11): 2 пропозиції на кадрі, «Not saved yet — review and save.», адмін-клієнт UAT не бачить закриттів на 2026-11-20…2027-01-08 до і після пропозицій; + golden GC-01…05 і дія | [звіт 18.11](uat/2026-11-18/report.md), [кадр](uat/2026-11-18/frames/AC-ASSIST-01-then-1.png); `tests/golden.test.ts`, `tests/calendar-assistant-actions.test.ts` |
 | AC-ASSIST-02 | реалізовано | дія (мок Supabase): один `rpc("add_school_closure")` на пропозицію, перехід у календар | `tests/calendar-assistant-actions.test.ts` |
 | AC-ASSIST-03 | реалізовано | **UAT на проді, жива модель — PASS** | [рядок 12](uat/2026-11-16/report.md?plain=1#L12), [кадр](uat/2026-11-16/frames/AC-ASSIST-03-then-1.png) |
 | AC-ASSIST-04 | реалізовано | дія + PGlite: P0001 дослівно для своєї пропозиції, інша збережена | `tests/calendar-assistant-actions.test.ts`, `tests/db/calendar-assistant.test.ts` |
