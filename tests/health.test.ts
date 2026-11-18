@@ -1,6 +1,6 @@
 // D0: /api/health відрізняє «база відповіла» від «база недоступна, призупинена чи ключ хибний».
 import { describe, expect, it } from "vitest";
-import { classifyDbProbe, classifySchemaProbe } from "@/lib/health";
+import { appEnvFrom, classifyDbProbe, classifySchemaProbe, supabaseRefFromUrl } from "@/lib/health";
 
 describe("classifyDbProbe (/api/health)", () => {
   it("рахує базу живою, коли запит пройшов або Postgres відмовив у правах (42501)", () => {
@@ -82,5 +82,27 @@ describe("classifySchemaProbe (/api/health, поле schema)", () => {
     expect(classifySchemaProbe({ data: null, status: 0, error: { message: "aborted" } }, true).reason).toBe("schema-timeout");
     expect(classifySchemaProbe({ data: null, status: 200, error: null }).reason).toBe("schema-empty");
     expect(classifySchemaProbe({ data: "v1", status: 200, error: null }).reason).toBe("schema-empty");
+  });
+});
+
+describe("supabaseRefFromUrl і appEnvFrom (/api/health, поля supabaseRef і appEnv, WS11)", () => {
+  it("бере ref проєкту з адреси Supabase, локальну базу називає local, решту — null", () => {
+    expect(supabaseRefFromUrl("https://tgvhqyboeeusptbjskio.supabase.co")).toBe("tgvhqyboeeusptbjskio");
+    expect(supabaseRefFromUrl("https://tgvhqyboeeusptbjskio.supabase.co/")).toBe("tgvhqyboeeusptbjskio");
+    expect(supabaseRefFromUrl("http://127.0.0.1:54321")).toBe("local");
+    expect(supabaseRefFromUrl("http://localhost:54321")).toBe("local");
+    expect(supabaseRefFromUrl("https://example.com")).toBeNull();
+    expect(supabaseRefFromUrl("https://short.supabase.co")).toBeNull();
+    expect(supabaseRefFromUrl("не адреса")).toBeNull();
+    expect(supabaseRefFromUrl(undefined)).toBeNull();
+  });
+
+  it("віддає APP_ENV лише коротким словом, інакше null", () => {
+    expect(appEnvFrom("staging")).toBe("staging");
+    expect(appEnvFrom(" staging ")).toBe("staging");
+    expect(appEnvFrom(undefined)).toBeNull();
+    expect(appEnvFrom("")).toBeNull();
+    expect(appEnvFrom("Staging with spaces")).toBeNull();
+    expect(appEnvFrom("x".repeat(40))).toBeNull();
   });
 });

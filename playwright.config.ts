@@ -38,11 +38,17 @@ const excluded = [
   ...(withScreenshots ? [] : ["@screenshots"]),
 ];
 const grepInvert = new RegExp(excluded.join("|"));
+// WS11: UAT тепер лише на staging (npm run uat -- --url <staging>; .env.local = staging), а preview і staging закриті
+// захистом Vercel (Standard Protection). Перепустка — не заголовок на кожен запит (він пішов би й на Supabase та інші
+// сторонні адреси), а cookie обходу лише для розгорнутого хосту: його один раз отримує globalSetup
+// (tests/e2e/support/vercel-bypass.global.ts) із VERCEL_AUTOMATION_BYPASS_SECRET у .env.local і кладе в стартовий
+// storageState. Локальному серверу нічого не потрібно — стан порожній.
 const noRecording = { video: "off", trace: "off", screenshot: "off" } as const;
 
 export default defineConfig({
   testDir: "tests/e2e",
   testMatch: "**/*.spec.ts",
+  globalSetup: "./tests/e2e/support/vercel-bypass.global.ts",
   outputDir: "test-results/artifacts",
   forbidOnly: !!process.env.CI,
   // Повтор на розгорнутому застосунку може вдруге створити дані, а доказом має бути перша спроба.
@@ -58,6 +64,7 @@ export default defineConfig({
   use: {
     ...devices["Desktop Chrome"],
     baseURL,
+    storageState: "playwright/.auth/vercel.json",
     locale: "uk-UA",
     timezoneId: "Europe/Kyiv",
     viewport: { width: 1280, height: 800 },

@@ -16,6 +16,9 @@ const NEWEST = "20261117081842";
 /** Відповіді /api/health по черзі; остання повторюється. */
 let answers: Array<Record<string, unknown>> = [];
 let calls = 0;
+/** WS11: значення заголовка обходу, яке вимагає макет (порожньо — захисту немає), і що прийшло в останньому запиті. */
+let requiredBypass = "";
+let seenBypass: string | undefined;
 let server: Server;
 let base = "";
 let migrations = "";
@@ -26,6 +29,12 @@ beforeAll(async () => {
     writeFileSync(path.join(migrations, f), "-- test\n");
   }
   server = createServer((req, res) => {
+    seenBypass = req.headers["x-vercel-protection-bypass"] as string | undefined;
+    if (requiredBypass && seenBypass !== requiredBypass) {
+      // Як стіна входу Vercel (Deployment Protection) для захищеного деплою без перепустки.
+      res.writeHead(401, { "content-type": "text/html" }).end("Authentication Required — Vercel");
+      return;
+    }
     if (req.url === "/") {
       res.writeHead(307, { location: "/welcome" }).end();
     } else if (req.url === "/login") {
@@ -56,12 +65,19 @@ const health = (schema: string | null, sha = SHA) => ({
 });
 
 function smoke(...responses: Array<Record<string, unknown>>) {
+  return smokeWith({}, ...responses);
+}
+
+function smokeWith(extraEnv: Record<string, string>, ...responses: Array<Record<string, unknown>>) {
   answers = responses;
   calls = 0;
+  const env: NodeJS.ProcessEnv = { ...process.env, SMOKE_PAUSE_MS: "1", SMOKE_MIGRATIONS_DIR: migrations, ...extraEnv };
+  // Змінні WS11 з оточення розробника не мають впливати на тести.
+  for (const k of ["VERCEL_AUTOMATION_BYPASS_SECRET", "SMOKE_TARGET", "SMOKE_SCHEMA", "SMOKE_EXPECT_REF", "SMOKE_EXPECT_APP_ENV"]) {
+    if (!(k in extraEnv)) delete env[k];
+  }
   return new Promise<{ code: number | null; out: string }>((resolve) => {
-    const child = spawn(process.execPath, [path.join(repoRoot, "scripts", "smoke.mjs"), base, SHA], {
-      env: { ...process.env, SMOKE_PAUSE_MS: "1", SMOKE_MIGRATIONS_DIR: migrations },
-    });
+    const child = spawn(process.execPath, [path.join(repoRoot, "scripts", "smoke.mjs"), base, SHA], { env });
     let out = "";
     child.stdout.on("data", (d) => (out += d));
     child.stderr.on("data", (d) => (out += d));
@@ -108,5 +124,81 @@ describe("smoke: schema version vs the deployed commit", () => {
     expect(code).toBe(1);
     expect(calls).toBe(6);
     expect(out).toContain("прод показує bbbbbbb");
+  });
+});
+
+describe("smoke of every deployment (WS11): bypass header, database ref, app env", () => {
+  const BYPASS = "test-bypass-value-0123456789abcdef";
+  const STAGING = "stagingref0000000000";
+  const deployHealth = (over: Record<string, unknown> = {}) => ({
+    ...health(NEWEST),
+    env: "preview",
+    appEnv: "staging",
+    supabaseRef: STAGING,
+    ...over,
+  });
+
+  it("passes a protected deployment with the bypass header and never prints the secret", async () => {
+    requiredBypass = BYPASS;
+    try {
+      const { code, out } = await smokeWith(
+        { VERCEL_AUTOMATION_BYPASS_SECRET: BYPASS, SMOKE_TARGET: "deploy", SMOKE_EXPECT_REF: STAGING, SMOKE_EXPECT_APP_ENV: "staging" },
+        deployHealth(),
+      );
+      expect(code).toBe(0);
+      expect(seenBypass).toBe(BYPASS);
+      expect(out).toContain('"bypass":true');
+      expect(out).toContain("OK — деплой живий");
+      expect(out).not.toContain(BYPASS);
+    } finally {
+      requiredBypass = "";
+    }
+  });
+
+  it("fails on the Vercel login wall and names the missing secret", async () => {
+    requiredBypass = BYPASS;
+    try {
+      const { code, out } = await smokeWith({ SMOKE_TARGET: "deploy" }, deployHealth());
+      expect(code).toBe(1);
+      expect(out).toContain("задайте секрет VERCEL_AUTOMATION_BYPASS_SECRET");
+    } finally {
+      requiredBypass = "";
+    }
+  });
+
+  it("fails when a preview talks to another Supabase project (e.g. the production database)", async () => {
+    const { code, out } = await smokeWith(
+      { SMOKE_TARGET: "deploy", SMOKE_EXPECT_REF: STAGING },
+      deployHealth({ supabaseRef: "prodref000000000000" }),
+    );
+    expect(code).toBe(1);
+    expect(out).toContain(`supabaseRef=prodref000000000000, а очікувався ${STAGING}`);
+  });
+
+  it("stops at once on the wrong database ref instead of waiting for the schema", async () => {
+    const { code, out } = await smokeWith(
+      { SMOKE_TARGET: "deploy", SMOKE_EXPECT_REF: STAGING },
+      deployHealth({ supabaseRef: "prodref000000000000", schema: "20261115122625" }),
+    );
+    expect(code).toBe(1);
+    expect(calls).toBe(1);
+    expect(out).toContain("supabaseRef=prodref000000000000");
+  });
+
+  it("fails when the staging branch was built without its APP_ENV", async () => {
+    const { code, out } = await smokeWith(
+      { SMOKE_TARGET: "deploy", SMOKE_EXPECT_APP_ENV: "staging" },
+      deployHealth({ appEnv: null }),
+    );
+    expect(code).toBe(1);
+    expect(out).toContain("appEnv=немає, а очікувався staging");
+  });
+
+  it("only warns for a PR preview whose migrations are not in the staging database yet", async () => {
+    const { code, out } = await smokeWith({ SMOKE_TARGET: "deploy", SMOKE_SCHEMA: "warn" }, deployHealth({ schema: "20261115122625" }));
+    expect(code).toBe(0);
+    expect(calls).toBe(1);
+    expect(out).toContain("::warning");
+    expect(out).toContain("міграції PR потраплять у базу staging лише після merge");
   });
 });

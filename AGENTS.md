@@ -42,7 +42,8 @@ shadcn/ui (CLI 4.22.1, Base UI) + `tw-animate-css` + `lucide-react` — диза
   і в CI job `mutation-sql` (`.github/workflows/mutation.yml`, лише PR зі змінами `supabase/migrations/**`, `tests/db/**`
   чи списку мутантів; не обов'язковий у ruleset); `mutation:ts` — лише локально; мутовану міграцію не комітимо
 - `node scripts/check-migration-order.mjs` — нова міграція новіша за `origin/main`, застосовані не змінено (у CI — `db-check`)
-- `npx supabase migration new <назва>` → SQL → PR. Застосовує міграції у вашу базу ЛИШЕ CI (`db-deploy` після merge у `main`)
+- `npx supabase migration new <назва>` → SQL → PR. Застосовує міграції у ваші бази ЛИШЕ CI (після merge у `main`:
+  спершу `db-deploy-staging`, потім `db-deploy`; ADR 0010)
 - Типи БД: готовий `database.types.ts` — у Summary прогону job `db-check` (Docker не потрібен); або `npm run db:types`
   після `npx supabase link` на ваш проєкт (якщо впав — `git restore src/lib/supabase/database.types.ts`)
 - `npm run users:demo` — синтетичні користувачі з `supabase/demo-users.json` (потрібен ваш `SUPABASE_SECRET_KEY` у `.env.local`)
@@ -75,7 +76,9 @@ shadcn/ui (CLI 4.22.1, Base UI) + `tw-animate-css` + `lucide-react` — диза
   як покриття AC (`isRunByPlaywright` у `scripts/lib/test-titles.mjs`); помічники `tests/e2e/support/**` і
   `tests/e2e/*.test.ts` — ні. Новий раннер — розширюй цей фільтр разом із кроком, що його запускає. Нові перевірки —
   окремим workflow у `.github/workflows/`. Jobs `spec`, `app`,
-  `conformance`, `db-check`, `db-deploy` у `ci.yml` не перейменовуй і не видаляй: на їхніх назвах тримається ruleset.
+  `conformance`, `db-check`, `db-deploy` у `ci.yml` не перейменовуй і не видаляй: на їхніх назвах тримається ruleset
+  (`db-deploy-staging` — WS11, теж не перейменовуй: на нього чекає `db-deploy`). `smoke.yml` (WS11): job `prod` і job
+  `deploy` (кожен непродовий деплой Vercel за його адресою, з обходом захисту), алерт у Telegram при збої.
 
 ## Процес і ролі
 
@@ -133,9 +136,15 @@ shadcn/ui (CLI 4.22.1, Base UI) + `tw-animate-css` + `lucide-react` — диза
 ## База даних (Supabase)
 
 - Власна база (ваш проєкт Supabase). Схему змінюємо ЛИШЕ міграцією в PR: `npx supabase migration new <назва>` → SQL →
-  PR → `db-check` (усі міграції на одноразовій базі + порядок міграцій) → merge → `db-deploy` застосовує її через
-  environment `production`. **Ніколи** `supabase db push` з ноутбука, **ніколи** DDL у SQL Editor чи Table Editor:
-  база розійдеться з `main`, і `db-deploy` впаде.
+  PR → `db-check` (усі міграції на одноразовій базі + порядок міграцій) → merge → `db-deploy-staging` застосовує її
+  в базу staging (environment `staging`), потім `db-deploy` — у прод (environment `production`); обидва звіряють ref
+  рядка підключення зі змінними репо `SUPABASE_STAGING_REF` / `SUPABASE_PROD_REF`. **Ніколи** `supabase db push` з
+  ноутбука, **ніколи** DDL у SQL Editor чи Table Editor: база розійдеться з `main`, і `db-deploy` впаде.
+- Середовища (WS11, ADR 0010): прод — `main` → Vercel Production → проєкт `leave-portal`; staging — гілка `staging`
+  (лише `git merge --ff-only origin/main`, без окремої розробки) і всі preview → Vercel Preview → проєкт
+  `leave-portal-staging`. `.env.local` = staging; прод для скриптів — лише явно `node --env-file=.env.prod.local …`.
+  UAT — лише `npm run uat -- --url <staging>`. Прод-дані в staging не копіюємо; чого бракує на staging — міграцією
+  чи `seed.sql`, а не руками в Dashboard лише staging.
 - Одна міграція на зміну; застосовані файли не редагуємо й не видаляємо — лише новий файл. `db-check` каже «OLDER»
   (міграцію з іншої вашої гілки злито раніше) — перейменуй файл новою міткою (команду друкує скрипт).
 - Дані: лише синтетичні (`*@example.test`); деструктивні зміни (drop, truncate) — лише міграцією в PR і з позначкою ризику в описі.
