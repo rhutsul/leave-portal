@@ -6,7 +6,7 @@
 import { MockLanguageModelV4 } from "ai/test";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-type RpcResult = { error: { code: string; message: string } | null };
+type RpcResult = { data?: unknown; error: { code: string; message: string } | null };
 
 const h = vi.hoisted(() => ({
   role: "admin" as string | null,
@@ -111,9 +111,13 @@ async function winterBreakAlreadyClosed(_name: string, args: Record<string, unkn
   return { error: { code: "P0001", message: "2026-12-28 is already closed: Winter break" } };
 }
 
+/** Записи в базу: усі виклики rpc, крім лічильника денного ліміту take_ai_quota (рев'ю WS10, п. 1). */
+const writes = () => h.rpc.mock.calls.filter(([name]) => name !== "take_ai_quota");
+
 beforeEach(() => {
   h.role = "admin";
-  h.rpc.mockReset().mockResolvedValue({ error: null });
+  // Денний ліміт (take_ai_quota) ще не вичерпано; add_school_closure — успіх.
+  h.rpc.mockReset().mockImplementation(async (name) => (name === "take_ai_quota" ? { data: true, error: null } : { error: null }));
   h.from.mockReset();
   h.model = null;
   h.createOpenRouter.mockReset();
@@ -147,8 +151,9 @@ describe("requestSuggestions", () => {
       ],
       injectionSuspected: false,
     });
-    // Календар без змін: жодного запису в базу.
-    expect(h.rpc).not.toHaveBeenCalled();
+    // Календар без змін: жодного запису в базу, лише один запит із денного ліміту.
+    expect(h.rpc.mock.calls).toEqual([["take_ai_quota"]]);
+    expect(writes()).toEqual([]);
     expect(h.from.mock.calls.map(([table]) => table)).toEqual(["profiles"]);
     expect(h.revalidatePath).not.toHaveBeenCalled();
     // Модель отримала «сьогодні» за Києвом і текст як дані.
@@ -227,7 +232,7 @@ describe("requestSuggestions", () => {
       message: "The calendar assistant only helps to add school closures. Paste the text of the school calendar.",
     });
     expect(state).not.toHaveProperty("closures");
-    expect(h.rpc).not.toHaveBeenCalled();
+    expect(writes()).toEqual([]);
   });
 
   it("AC-ASSIST-05: missing dates show 'The calendar assistant needs more details:' and what is missing", async () => {
@@ -237,7 +242,7 @@ describe("requestSuggestions", () => {
       step: "message",
       message: 'The calendar assistant needs more details: the dates of "Spring break".',
     });
-    expect(h.rpc).not.toHaveBeenCalled();
+    expect(writes()).toEqual([]);
   });
 });
 
@@ -254,7 +259,7 @@ describe("requestSuggestions — перевірки кодом після рев
       closures: [{ kind: "whole_days", name: "Winter break", start: "2026-12-28", end: "2027-01-08", closesAt: null }],
       injectionSuspected: true,
     });
-    expect(h.rpc).not.toHaveBeenCalled();
+    expect(writes()).toEqual([]);
   });
 
   // Не поведінка з AC PM (AC-ASSIST-07 чекає рівно 1 закриття від моделі, що не піддалась), а наш захист на випадок, коли
@@ -265,7 +270,7 @@ describe("requestSuggestions — перевірки кодом після рев
     const state = await requestSuggestions({ step: "idle" }, textForm(GC09));
     expect(state).toEqual({ step: "message", tone: "destructive", message: UNAVAILABLE });
     expect(state).not.toHaveProperty("closures");
-    expect(h.rpc).not.toHaveBeenCalled();
+    expect(writes()).toEqual([]);
   });
 
   it("AC-ASSIST-09: a link in what is missing shows the unavailable message, not the link", async () => {
@@ -273,6 +278,38 @@ describe("requestSuggestions — перевірки кодом після рев
     const state = await requestSuggestions({ step: "idle" }, textForm("Spring break sometime in March"));
     expect(state).toEqual({ step: "message", tone: "destructive", message: UNAVAILABLE });
     expect(JSON.stringify(state)).not.toContain("x.example");
+  });
+});
+
+// Рев'ю WS10, п. 1: денний ліміт запитів на користувача рахує база (private.take_ai_quota), а не кнопка в браузері.
+describe("requestSuggestions — денний ліміт запитів", () => {
+  it("AC-ASSIST-09: the 21st request of one administrator in a day shows the unavailable message and the model is not asked", async () => {
+    h.rpc.mockImplementation(async (name) => (name === "take_ai_quota" ? { data: false, error: null } : { error: null }));
+    const model = answering(AC01_ANSWER);
+    h.model = model;
+
+    const state = await requestSuggestions({ step: "idle" }, textForm(AC01_TEXT));
+
+    expect(state).toEqual({ step: "message", tone: "destructive", message: UNAVAILABLE });
+    expect(model.doGenerateCalls).toHaveLength(0);
+    expect(h.rpc.mock.calls).toEqual([["take_ai_quota"]]);
+  });
+
+  it("AC-ASSIST-09: a failing quota counter is treated as no quota — the model is not asked", async () => {
+    h.rpc.mockImplementation(async () => ({ data: null, error: { code: "XX000", message: "boom" } }));
+    const model = answering(AC01_ANSWER);
+    h.model = model;
+
+    const state = await requestSuggestions({ step: "idle" }, textForm(AC01_TEXT));
+
+    expect(state).toEqual({ step: "message", tone: "destructive", message: UNAVAILABLE });
+    expect(model.doGenerateCalls).toHaveLength(0);
+  });
+
+  it("AC-ASSIST-11: an employee does not spend the quota — the role is checked first", async () => {
+    h.role = "employee";
+    await requestSuggestions({ step: "idle" }, textForm(AC01_TEXT));
+    expect(h.rpc).not.toHaveBeenCalled();
   });
 });
 
