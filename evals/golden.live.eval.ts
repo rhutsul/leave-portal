@@ -33,7 +33,8 @@ const GAP_MS = 3_000; // ≤ 20 запитів/хв навіть коли мод
 
 type Recording = { modelId: string; recordedAt: string; promptVersion: string; text: string };
 // notRun — кейс не запускали через ліміт (429): у частку успіху не входить, у звіті — окремим рядком з причиною.
-type Row = { run: number; id: string; modelId: string; fields: boolean; judge?: boolean; pass: boolean; notRun?: boolean; why?: string };
+// judgeModelId — хто з ланцюжка судді оцінив кейс (основний чи запасний, models.ts); лише для кейсів із rubric.
+type Row = { run: number; id: string; modelId: string; fields: boolean; judge?: boolean; judgeModelId?: string; pass: boolean; notRun?: boolean; why?: string };
 const rows: Row[] = [];
 const fresh: Record<string, Recording> = {};
 // Перший 429 зупиняє прогін (і наступні RUNS): денний ліміт повтором не виправити, решта кейсів — NOT RUN.
@@ -75,7 +76,7 @@ describe.skipIf(!key)("golden cases, живий прогін (безкоштов
         expect(outcome.kind, outcome.kind === "unavailable" ? outcome.reason : "").not.toBe("unavailable");
         if (outcome.kind === "unavailable" || !result.modelId || !result.draft) return;
         const fields = scoreOutcome(c.expected, outcome);
-        let verdict: { pass: boolean; reason: string } | undefined;
+        let verdict: { pass: boolean; reason: string; modelId?: string } | undefined;
         if (c.rubric) {
           try {
             verdict = await judgeSummary(makeJudgeModel(key), c.rubric, shownText(outcome));
@@ -92,7 +93,7 @@ describe.skipIf(!key)("golden cases, живий прогін (безкоштов
         }
         const pass = fields.pass && (verdict?.pass ?? true);
         const mismatch = fields.pass ? "" : `${fields.mismatches.map((m) => m.field).join(", ")}: ${JSON.stringify(fields.mismatches.map((m) => m.actual))}`;
-        rows.push({ run, id: c.id, modelId: result.modelId, fields: fields.pass, judge: verdict?.pass, pass, why: [mismatch, verdict?.reason].filter(Boolean).join("; ") });
+        rows.push({ run, id: c.id, modelId: result.modelId, fields: fields.pass, judge: verdict?.pass, judgeModelId: verdict?.modelId, pass, why: [mismatch, verdict?.reason].filter(Boolean).join("; ") });
         // Записуємо ЛИШЕ успішні відповіді: офлайн-реплей у CI має лишатися зеленим.
         if (RECORD && pass) {
           fresh[c.id] = {
@@ -141,11 +142,11 @@ function writeReport() {
     "|---|---|---|",
     ...[...byModel].map(([m, rs]) => `| \`${m}\` | ${passRate(rs).passed} | ${rs.length} |`),
     "",
-    "| Прогін | Кейс | Модель | Поля | Суддя | Результат | Причина судді / помилка |",
-    "|---|---|---|---|---|---|---|",
+    "| Прогін | Кейс | Модель | Поля | Суддя | Суддя (модель) | Результат | Причина судді / помилка |",
+    "|---|---|---|---|---|---|---|---|",
     ...rows.map(
       (r) =>
-        `| ${r.run} | ${r.id} | \`${r.modelId}\` | ${r.fields ? "так" : "ні"} | ${r.judge === undefined ? "—" : r.judge ? "так" : "ні"} | ${r.notRun ? "NOT RUN" : r.pass ? "✅" : "❌"} | ${(r.why ?? "").replaceAll("|", "/")} |`,
+        `| ${r.run} | ${r.id} | \`${r.modelId}\` | ${r.fields ? "так" : "ні"} | ${r.judge === undefined ? "—" : r.judge ? "так" : "ні"} | ${r.judgeModelId ? `\`${r.judgeModelId}\`` : "—"} | ${r.notRun ? "NOT RUN" : r.pass ? "✅" : "❌"} | ${(r.why ?? "").replaceAll("|", "/")} |`,
     ),
     "",
   ];
