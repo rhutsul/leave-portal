@@ -39,18 +39,16 @@ const excluded = [
 ];
 const grepInvert = new RegExp(excluded.join("|"));
 // WS11: UAT тепер лише на staging (npm run uat -- --url <staging>; .env.local = staging), а preview і staging закриті
-// захистом Vercel (Standard Protection). Перепустка — заголовок обходу, значення з VERCEL_AUTOMATION_BYPASS_SECRET у
-// .env.local (той самий секрет, що в GitHub Secrets для smoke); x-vercel-set-bypass-cookie — щоб і запити сторінки
-// (скрипти, RSC) пройшли захист. Локальному серверу заголовок не потрібен — лише розгорнутому.
-const bypassSecret = deployed ? process.env.VERCEL_AUTOMATION_BYPASS_SECRET : undefined;
-const bypassHeaders = bypassSecret
-  ? { "x-vercel-protection-bypass": bypassSecret, "x-vercel-set-bypass-cookie": "true" }
-  : undefined;
+// захистом Vercel (Standard Protection). Перепустка — не заголовок на кожен запит (він пішов би й на Supabase та інші
+// сторонні адреси), а cookie обходу лише для розгорнутого хосту: його один раз отримує globalSetup
+// (tests/e2e/support/vercel-bypass.global.ts) із VERCEL_AUTOMATION_BYPASS_SECRET у .env.local і кладе в стартовий
+// storageState. Локальному серверу нічого не потрібно — стан порожній.
 const noRecording = { video: "off", trace: "off", screenshot: "off" } as const;
 
 export default defineConfig({
   testDir: "tests/e2e",
   testMatch: "**/*.spec.ts",
+  globalSetup: "./tests/e2e/support/vercel-bypass.global.ts",
   outputDir: "test-results/artifacts",
   forbidOnly: !!process.env.CI,
   // Повтор на розгорнутому застосунку може вдруге створити дані, а доказом має бути перша спроба.
@@ -66,7 +64,7 @@ export default defineConfig({
   use: {
     ...devices["Desktop Chrome"],
     baseURL,
-    extraHTTPHeaders: bypassHeaders,
+    storageState: "playwright/.auth/vercel.json",
     locale: "uk-UA",
     timezoneId: "Europe/Kyiv",
     viewport: { width: 1280, height: 800 },

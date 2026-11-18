@@ -155,6 +155,8 @@ async function main() {
     }
     // sha=local — Vercel не віддає VERCEL_GIT_COMMIT_SHA: чекати марно.
     if (!expectSha || health.sha === "local") break;
+    // Не та база Supabase — чекати міграцію марно: збій видно одразу (друга думка до #105).
+    if (EXPECT_REF && health.supabaseRef && health.supabaseRef !== EXPECT_REF) break;
     const shaPending = health.sha !== expectSha;
     // Код уже новий, а схема ще стара чи без schema_version (db-deploy іде) — це гонка, а не збій: чекаємо.
     const schemaPending =
@@ -210,6 +212,10 @@ async function main() {
       fail.push(
         `база на міграції ${health.schema}, а код ${expectSha.slice(0, 7)} чекає ${expectSchema} — новий код на проді зі старою схемою: db-deploy не пройшов чи завис? Перевірте job db-deploy у CI main`,
       );
+    } else if (compareVersions(health.schema, expectSchema) > 0 && SCHEMA_WARN_ONLY) {
+      console.log(
+        `база staging на міграції ${health.schema}, новіша за гілку ${expectSha.slice(0, 7)} (${expectSchema}) — для PR-preview це нормально: main уже пішов уперед`,
+      );
     } else if (compareVersions(health.schema, expectSchema) > 0) {
       console.log(
         `::warning title=smoke ${base}::база на міграції ${health.schema}, новіша за код ${expectSha.slice(0, 7)} (${expectSchema}) — Instant Rollback коду після міграції? Старий код має працювати з новою схемою (expand → contract)`,
@@ -218,7 +224,12 @@ async function main() {
   }
 
   // WS11: деплой ходить у свою базу (ref не секрет — він є в публічній NEXT_PUBLIC_SUPABASE_URL) і має свою змінну.
-  if (EXPECT_REF && health?.status === 200 && health.supabaseRef !== EXPECT_REF) {
+  if (!EXPECT_REF && process.env.GITHUB_ACTIONS) {
+    console.log(
+      `::warning title=smoke::Не задано очікуваний ref бази (змінні репо SUPABASE_PROD_REF / SUPABASE_STAGING_REF) — у яку базу ходить ${TARGET}, не перевірено`,
+    );
+  }
+  if (EXPECT_REF && health && (health.status === 200 || health.supabaseRef) && health.supabaseRef !== EXPECT_REF) {
     fail.push(
       `"/api/health": supabaseRef=${health.supabaseRef ?? "немає"}, а очікувався ${EXPECT_REF} — ${TARGET} ходить не в ту базу Supabase: звірте NEXT_PUBLIC_SUPABASE_URL у Vercel (Production — прод, Preview — staging) і зробіть Redeploy`,
     );

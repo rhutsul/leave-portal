@@ -175,6 +175,16 @@ describe("smoke of every deployment (WS11): bypass header, database ref, app env
     expect(out).toContain(`supabaseRef=prodref000000000000, а очікувався ${STAGING}`);
   });
 
+  it("stops at once on the wrong database ref instead of waiting for the schema", async () => {
+    const { code, out } = await smokeWith(
+      { SMOKE_TARGET: "deploy", SMOKE_EXPECT_REF: STAGING },
+      deployHealth({ supabaseRef: "prodref000000000000", schema: "20261115122625" }),
+    );
+    expect(code).toBe(1);
+    expect(calls).toBe(1);
+    expect(out).toContain("supabaseRef=prodref000000000000");
+  });
+
   it("fails when the staging branch was built without its APP_ENV", async () => {
     const { code, out } = await smokeWith(
       { SMOKE_TARGET: "deploy", SMOKE_EXPECT_APP_ENV: "staging" },
