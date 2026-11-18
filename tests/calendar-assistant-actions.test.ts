@@ -262,7 +262,9 @@ describe("requestSuggestions — перевірки кодом після рев
     expect(writes()).toEqual([]);
   });
 
-  it("AC-ASSIST-07: a model that obeys the injection and adds 'Every Monday' gives no suggestions at all", async () => {
+  // Не поведінка з AC PM (AC-ASSIST-07 чекає рівно 1 закриття від моделі, що не піддалась), а наш захист на випадок, коли
+  // модель піддалась: назва з речення з ін'єкцією робить відповідь непридатною — стан AC-ASSIST-09 (рев'ю WS10, п. 2).
+  it("AC-ASSIST-09: a model that obeys the injection and adds 'Every Monday' gives no suggestions at all", async () => {
     const monday = { ...WINTER, name: "Every Monday", start: "2026-11-16", end: "2026-11-16" };
     h.model = answering({ status: "ok", closures: [WINTER, monday], missing: null });
     const state = await requestSuggestions({ step: "idle" }, textForm(GC09));

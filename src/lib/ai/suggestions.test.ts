@@ -362,6 +362,18 @@ describe("checkSuggestions — лише те, що є у вставленому 
   it("AC-ASSIST-09: what is missing must name a closure or a date from the text", () => {
     expect(check(needs("the dates of \"Autumn break\"."), "Spring break sometime in March")).toEqual(UNUSABLE);
     expect(check(needs("please confirm everything."), "Spring break sometime in March")).toEqual(UNUSABLE);
+    // «The» на початку речення — не назва; «12» з часу 12:00 — не дата; «decision» — не «Dec».
+    expect(check(needs("please confirm the dates."), "The school closes sometime in March")).toEqual(UNUSABLE);
+    expect(check(needs("12 people must confirm."), "Half day, we finish at 12:00")).toEqual(UNUSABLE);
+    expect(check(needs("make a decision first."), "Staff day in December")).toEqual(UNUSABLE);
+  });
+
+  it.each([
+    ["a name with 'system'", 'the dates of "System maintenance day".', "System maintenance day sometime in March"],
+    ["a name with 'assistant'", `the dates of "Teaching assistants' day".`, "Teaching assistants' day sometime in May"],
+    ["two dates that are not a phone number", 'the closing time for "Winter break" (28.12.2026 - 08.01.2027).', "Winter break 28.12.2026 - 08.01.2027, half day"],
+  ])("AC-ASSIST-05: what is missing with %s is shown", (_case, missing, text) => {
+    expect(check(needs(missing), text)).toEqual({ kind: "needs_info", message: `${NEEDS_DETAILS} ${missing}` });
   });
 
   it.each([
@@ -374,11 +386,29 @@ describe("checkSuggestions — лише те, що є у вставленому 
     expect(check(needs(missing), text)).toEqual({ kind: "needs_info", message: `${NEEDS_DETAILS} ${missing}` });
   });
 
-  it("AC-ASSIST-07: an extra 'Every Monday' closure the text does not name makes the answer suggest nothing", () => {
+  // Наш захист, коли модель піддалась ін'єкції (рев'ю WS10, п. 2): стан AC-ASSIST-09, а не поведінка AC-ASSIST-07.
+  it("AC-ASSIST-09: an extra 'Every Monday' closure from the injection sentence makes the answer suggest nothing", () => {
     const monday: ClosureSuggestion = { ...WINTER, name: "Every Monday", start: "2026-11-16", end: "2026-11-16" };
     const outcome = check(ok(WINTER, monday), GC09);
     expect(outcome).toEqual(UNUSABLE);
     expect(outcome).not.toHaveProperty("closures");
+  });
+
+  it("AC-ASSIST-01: a name with a dot inside (St. Nicholas Day) is found across the sentence split", () => {
+    const stNicholas: ClosureSuggestion = { ...WINTER, name: "St. Nicholas Day", start: "2026-12-19", end: null };
+    expect(check(ok(stNicholas), "St. Nicholas Day 19.12")).toMatchObject({ kind: "suggestions", closures: [{ name: "St. Nicholas Day" }] });
+  });
+
+  it("AC-ASSIST-01: a name with a non-breaking hyphen in the text matches the model's ASCII hyphen", () => {
+    const halfTerm: ClosureSuggestion = { ...WINTER, name: "Half-term", start: "2027-02-15", end: "2027-02-19" };
+    expect(check(ok(halfTerm), "Half‑term 15.02–19.02")).toMatchObject({ kind: "suggestions" });
+  });
+
+  it("AC-ASSIST-01: 'Heating system:' in an ordinary sentence is not an injection, its closure is suggested", () => {
+    const heating: ClosureSuggestion = { ...WINTER, name: "Heating repair", start: "2026-11-20", end: null };
+    const text = "Heating system: Heating repair 20.11, the school is closed.";
+    expect(detectInjection(text)).toBe(false);
+    expect(check(ok(heating), text)).toMatchObject({ kind: "suggestions" });
   });
 
   it("AC-ASSIST-01: a name is matched to the text regardless of case, typographic apostrophe and spacing", () => {

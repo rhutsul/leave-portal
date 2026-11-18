@@ -26,8 +26,26 @@ comment on table private.ai_quota is
 alter table private.ai_quota enable row level security;
 revoke all on table private.ai_quota from public, anon, authenticated;
 
+-- Доба запиту — дата за Києвом (як kyivDate): 22:30 UTC 17 листопада — це вже 18 листопада. Окремою функцією, щоб
+-- правило перевіряв тест на конкретному моменті, а не на «зараз».
+create function private.kyiv_day(p_at timestamptz)
+returns date
+language sql
+stable
+set search_path = ''
+as $$
+  select (p_at at time zone 'Europe/Kyiv')::date;
+$$;
+
+revoke execute on function private.kyiv_day(timestamptz) from public, anon, authenticated;
+
 -- Одним insert … on conflict do update: два паралельні запити не прочитають той самий лічильник. Коли вже 20, умова
--- where не дає оновити рядок, returning нічого не повертає — і функція відповідає false.
+-- where не дає оновити рядок, returning нічого не повертає — і функція відповідає false. Ліміт 20 записано двічі —
+-- тут і в check таблиці; змінюється лише разом, новою міграцією.
+-- Роль тут не перевіряємо: модель кличе лише requestSuggestions, а вона перевіряє роль раніше (AC-ASSIST-11). Прямий
+-- виклик через REST витрачає лише власний лічильник того, хто кличе. Обидві функції — private і обгортка public —
+-- доступні authenticated, як пара add_school_closure. Глобальний ліміт акаунта OpenRouter (50 на добу на всіх) —
+-- поза цією міграцією.
 create function private.take_ai_quota()
 returns boolean
 language plpgsql
@@ -43,7 +61,7 @@ begin
   end if;
 
   insert into private.ai_quota as q (user_id, day, used)
-  values (v_user, (now() at time zone 'Europe/Kyiv')::date, 1)
+  values (v_user, private.kyiv_day(now()), 1)
   on conflict (user_id, day) do update set used = q.used + 1
     where q.used < 20
   returning q.used into v_used;

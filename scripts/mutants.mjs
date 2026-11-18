@@ -283,9 +283,15 @@ export const mutants = [
   },
   {
     id: "S37", kind: "sql", ac: "AC-ASSIST-09", file: AI_QUOTA, tests: [AI_QUOTA_DB],
-    what: "take_ai_quota: доба не за Києвом, а одна на весь час — учорашні запити рахуються сьогодні",
-    find: "  values (v_user, (now() at time zone 'Europe/Kyiv')::date, 1)",
+    what: "take_ai_quota: доба одна на весь час — учорашні запити рахуються сьогодні",
+    find: "  values (v_user, private.kyiv_day(now()), 1)",
     replace: "  values (v_user, date '2000-01-01', 1)",
+  },
+  {
+    id: "S38", kind: "sql", ac: "AC-ASSIST-09", file: AI_QUOTA, tests: [AI_QUOTA_DB],
+    what: "kyiv_day: доба за часовим поясом сесії (UTC), а не за Києвом — з 22:00 UTC лічильник учорашній",
+    find: "  select (p_at at time zone 'Europe/Kyiv')::date;",
+    replace: "  select p_at::date;",
   },
   {
     // Правило AC-CAL-15 живе в TS, а не в SQL: рік на /calendar — це closuresInSchoolYear над рядками бази.

@@ -42,14 +42,26 @@ describe("private.take_ai_quota", () => {
     expect(await take(other)).toBe(true);
   });
 
-  it("AC-ASSIST-09: the day is the Kyiv date — yesterday's 20 requests do not count today", async () => {
+  it("AC-ASSIST-09: the day is the Kyiv date — 22:30 UTC on 17 November is already 18 November", async () => {
+    // Час сесії — UTC, як у Supabase: доба за поясом сесії дала б 17 листопада.
+    await t.db.exec("set timezone = 'UTC'");
+    const day = async (at: string) =>
+      (await t.db.query<{ day: string }>("select private.kyiv_day($1::timestamptz)::text as day", [at])).rows[0].day;
+    expect(await day("2026-11-17T22:30:00Z")).toBe("2026-11-18");
+    expect(await day("2026-11-17T21:59:00Z")).toBe("2026-11-17");
+    // Літній час: о 20:59 UTC 1 липня в Києві вже 23:59, о 21:00 UTC — 2 липня.
+    expect(await day("2027-07-01T20:59:00Z")).toBe("2027-07-01");
+    expect(await day("2027-07-01T21:00:00Z")).toBe("2027-07-02");
+  });
+
+  it("AC-ASSIST-09: yesterday's 20 requests do not count today", async () => {
     await t.db.query(
-      "insert into private.ai_quota (user_id, day, used) values ($1, (now() at time zone 'Europe/Kyiv')::date - 1, 20)",
+      "insert into private.ai_quota (user_id, day, used) values ($1, private.kyiv_day(now()) - 1, 20)",
       [admin],
     );
     expect(await take(admin)).toBe(true);
     const { rows } = await t.db.query<{ today: boolean; used: number }>(
-      `select (day = (now() at time zone 'Europe/Kyiv')::date) as today, used from private.ai_quota
+      `select (day = private.kyiv_day(now())) as today, used from private.ai_quota
         where user_id = $1 order by day`,
       [admin],
     );

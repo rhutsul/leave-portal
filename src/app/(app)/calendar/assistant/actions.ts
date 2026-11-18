@@ -13,7 +13,6 @@ import {
   ASSISTANT_MESSAGES,
   ASSISTANT_TEXT_MAX,
   assistantTextLength,
-  detectInjection,
   runAssistant,
   SUGGESTIONS_MAX,
   type Suggestion,
@@ -58,15 +57,16 @@ export async function requestSuggestions(_prev: AssistantState, form: FormData):
   if (!model) return { step: "message", tone: "destructive", message: ASSISTANT_MESSAGES.unavailable };
 
   // Денний ліміт на користувача рахує база (рев'ю WS10, п. 1; private.take_ai_quota, 20 на добу за Києвом): лічильник
-  // спільний для всіх екземплярів сервера. Понад ліміт чи збій лічильника — AC-ASSIST-09, модель не кличемо.
+  // спільний для всіх екземплярів сервера. Понад ліміт чи збій лічильника — AC-ASSIST-09, модель не кличемо. Запит
+  // списується й тоді, коли модель потім не відповість (429, таймаут): до постачальника він уже пішов.
   const { data: allowed, error } = await supabase.rpc("take_ai_quota");
   if (error || allowed !== true) {
     return { step: "message", tone: "destructive", message: ASSISTANT_MESSAGES.unavailable };
   }
 
-  const { outcome } = await runAssistant({ text, today: kyivDate(new Date()) }, model);
+  const { outcome, injectionSuspected } = await runAssistant({ text, today: kyivDate(new Date()) }, model);
   if (outcome.kind === "suggestions") {
-    return { step: "suggestions", closures: outcome.closures, injectionSuspected: detectInjection(text) };
+    return { step: "suggestions", closures: outcome.closures, injectionSuspected };
   }
   return { step: "message", tone: TONE[outcome.kind], message: outcome.message };
 }
