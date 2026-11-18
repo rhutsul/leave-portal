@@ -28,19 +28,26 @@ updates:
       npm-minor-and-patch:
         update-types: [minor, patch]
     ignore:
+      # leave-portal: стек закріплено в AGENTS.md («не оновлювати без ADR»): Next 16.4, React 19.3, Supabase CLI 2.120
+      # — лише патчі (безпекові релізи на кшталт next 16.4.5 проходять); мінорні й мажорні — через ADR. TypeScript 7 і
+      # ESLint 10 шаблон не перевіряв. OpenSpec має збігатися з глобальним CLI 1.14.1.
       - dependency-name: supabase
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      - dependency-name: next
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      - dependency-name: eslint-config-next
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      - dependency-name: react
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      - dependency-name: react-dom
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      - dependency-name: "@types/react"
         update-types: ["version-update:semver-major"]
-      # leave-portal: стек закріплено в AGENTS.md («не оновлювати без ADR»): TypeScript 7 і ESLint 10 шаблон не
-      # перевіряв; Next 17 / React 20 — лише через ADR; OpenSpec має збігатися з глобальним CLI 1.14.1.
+      - dependency-name: "@types/react-dom"
+        update-types: ["version-update:semver-major"]
       - dependency-name: typescript
         update-types: ["version-update:semver-major"]
       - dependency-name: eslint
-        update-types: ["version-update:semver-major"]
-      - dependency-name: next
-        update-types: ["version-update:semver-major"]
-      - dependency-name: react
-        update-types: ["version-update:semver-major"]
-      - dependency-name: react-dom
         update-types: ["version-update:semver-major"]
       - dependency-name: "@fission-ai/openspec"
     open-pull-requests-limit: 5
