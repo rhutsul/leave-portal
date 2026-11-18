@@ -1,0 +1,192 @@
+# Зашифрована резервна копія прод-бази Supabase (щодня і вручну) + тренування відновлення в одноразовій базі раннера
+# з порівнянням кількості рядків. Бонус WS11 «Резервна копія і відновлення».
+# Взято з https://github.com/koldovsky/2026-quitcode-11-devops-operations-hw/blob/main/materials/ops-kit/bonus/backup.yml
+# (інструкція — bonus/restore-drill.md там само); що змінено й навіщо — нижче й у docs/ops/restore.md.
+#
+# Секрети (лише назви) — секрети середовища production (Settings → Environments → production → Environment secrets):
+#   SUPABASE_DB_URL   — уже є для db-deploy: рядок Session pooler, порт 5432 (раннери GitHub мають лише IPv4);
+#   BACKUP_PASSPHRASE — довга випадкова фраза для шифрування; копія фрази — у менеджері паролів людини, без неї
+#                       копію не розшифрувати.
+#
+# Чому так:
+# - Безкоштовний Supabase резервних копій не робить і не дає завантажити. Ця копія — єдина.
+# - Дамп містить e-mail і хеші паролів (схема auth). Відкритий дамп — НІДЕ: ні в git, ні в артефакті, ні в журналі.
+#   В артефакт іде лише *.gpg; журнал показує тільки розміри файлів, назви таблиць і кількості рядків. Без set -x.
+# - Репо публічне: артефакт може завантажити кожен, хто має доступ на читання, — тому лише шифротекст і 7 днів.
+# - Секрети — лише в env кроків, що їх використовують, а не на рівні job: сторонні дії (setup-cli, upload/download-
+#   artifact) їх не бачать (як db-deploy у ci.yml, рев'ю викладача WS9). Сторонні дії — за повним SHA коміту.
+# - Supabase CLI — 2.120.0 з package-lock.json (setup-cli без version:), крок перевіряє саме цю версію.
+#   npx supabase@latest — ніколи.
+# - Окрема група concurrency, НЕ supabase-prod: нічна копія в черзі не скасує db-deploy, що чекає.
+# - restore-drill ніколи не бачить SUPABASE_DB_URL: --local — лише одноразова база цього раннера.
+name: backup
+
+on:
+  schedule:
+    - cron: "41 1 * * *" # щодня ≈ 03:41 за Києвом; не на початку години (GitHub тоді затримує розклад)
+  workflow_dispatch:
+    inputs:
+      restore_drill:
+        description: "Після копії провести тренування відновлення"
+        type: boolean
+        default: true
+      scope:
+        description: "Що відновлювати: all (разом з auth.*) або public (лише таблиці застосунку)"
+        type: choice
+        options: [all, public]
+        default: all
+
+permissions:
+  contents: read
+
+concurrency:
+  group: supabase-backup
+  cancel-in-progress: false
+
+jobs:
+  dump:
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 20
+    steps:
+      # db dump читає supabase/config.toml (версія Postgres); setup-cli бере версію CLI з package-lock.json.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: supabase/setup-cli@689adcfb80d947100a1eab127289b97d1fb07b13 # v3.2.0
+      - name: CLI 2.120.0, секрети задані
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          v=$(supabase --version)
+          [ "$v" = "2.120.0" ] || { echo "::error title=backup::Очікувалась Supabase CLI 2.120.0 з package-lock.json, а встановлено $v"; exit 1; }
+          echo "Supabase CLI $v"
+          [ -n "$SUPABASE_DB_URL" ] || { echo "::error title=backup::Немає секрету середовища production SUPABASE_DB_URL"; exit 1; }
+          [ -n "$BACKUP_PASSPHRASE" ] || { echo "::error title=backup::Немає секрету середовища production BACKUP_PASSPHRASE — без шифрування копію не робимо"; exit 1; }
+      - name: Дамп (ролі, схема, дані; окремо — дані лише схеми public)
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          set -euo pipefail
+          umask 077
+          d="$RUNNER_TEMP/backup"; mkdir -p "$d"
+          supabase db dump --db-url "$SUPABASE_DB_URL" --role-only -f "$d/roles.sql"
+          supabase db dump --db-url "$SUPABASE_DB_URL" -f "$d/schema.sql"
+          supabase db dump --db-url "$SUPABASE_DB_URL" --data-only --use-copy \
+            -x storage.buckets_vectors -x storage.vector_indexes -f "$d/data.sql"
+          # Запасний варіант для відновлення лише таблиць застосунку.
+          supabase db dump --db-url "$SUPABASE_DB_URL" --data-only --use-copy -s public -f "$d/data-public.sql"
+          # Кількість рядків кожної таблиці — з блоків COPY самого дампу (лише назви таблиць і числа).
+          for f in data data-public; do
+            awk '/^COPY /{t=$2; n=0; inside=1; next} inside && /^\\\.$/{print t"|"n; inside=0; next} inside{n++}' \
+              "$d/$f.sql" | sort > "$d/$f.counts"
+          done
+          # Порожній підсумок означає, що дамп не той, а не «база порожня»: у public щонайменше profiles.
+          [ -s "$d/data-public.counts" ] || { echo "::error title=backup::У дампі немає жодного блоку COPY схеми public"; exit 1; }
+          echo "Розміри файлів (вміст не друкуємо):"; wc -c "$d"/*.sql
+          echo "Таблиць у дампі: $(wc -l < "$d/data.counts"), з них у public: $(wc -l < "$d/data-public.counts")"
+      - name: Шифрування (gpg, AES256) і видалення відкритих файлів
+        env:
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+          umask 077
+          stamp=$(date -u +%Y-%m-%dT%H%M)
+          mkdir -p "$RUNNER_TEMP/out"
+          tar -czf "$RUNNER_TEMP/backup.tgz" -C "$RUNNER_TEMP" backup
+          printf '%s' "$BACKUP_PASSPHRASE" | gpg --batch --yes --pinentry-mode loopback --passphrase-fd 0 \
+            --symmetric --cipher-algo AES256 -o "$RUNNER_TEMP/out/backup-$stamp.tgz.gpg" "$RUNNER_TEMP/backup.tgz"
+          rm -rf "$RUNNER_TEMP/backup" "$RUNNER_TEMP/backup.tgz"
+          ls -l "$RUNNER_TEMP/out"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: supabase-backup
+          path: ${{ runner.temp }}/out/*.gpg
+          retention-days: 7
+          if-no-files-found: error
+      - name: Прибрати відкриті файли, якщо крок вище впав
+        if: always()
+        run: rm -rf "$RUNNER_TEMP/backup" "$RUNNER_TEMP/backup.tgz"
+
+  restore-drill:
+    # Тренування відновлення: копію розшифровуємо й завантажуємо в ОДНОРАЗОВУ локальну базу раннера (Docker),
+    # зібрану з міграцій репо, як у db-check. Прод тут не чіпаємо: SUPABASE_DB_URL у цьому job не передається.
+    needs: dump
+    if: github.event_name == 'schedule' || inputs.restore_drill
+    runs-on: ubuntu-latest
+    environment: production # лише заради BACKUP_PASSPHRASE
+    timeout-minutes: 25
+    env:
+      SCOPE: ${{ inputs.scope || 'all' }}
+      LOCAL_DB: postgresql://postgres:postgres@127.0.0.1:54322/postgres # стандартна локальна база Supabase CLI, не секрет
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: supabase/setup-cli@689adcfb80d947100a1eab127289b97d1fb07b13 # v3.2.0
+      - name: Одноразова база з міграцій репо, без сиду
+        run: |
+          set -euo pipefail
+          v=$(supabase --version)
+          [ "$v" = "2.120.0" ] || { echo "::error title=restore::Очікувалась Supabase CLI 2.120.0, а встановлено $v"; exit 1; }
+          supabase db start
+          # --local — лише одноразова база цього раннера. Проти справжніх проєктів (--linked, --db-url) — НІКОЛИ.
+          # --no-seed: рядки з seed.sql зіткнулися б з рядками з копії.
+          supabase db reset --local --no-seed
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: supabase-backup
+          path: ${{ runner.temp }}/in
+      - name: Розшифрувати
+        env:
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+          umask 077
+          f=$(ls "$RUNNER_TEMP"/in/*.gpg | head -n 1)
+          if ! printf '%s' "$BACKUP_PASSPHRASE" | gpg --batch --yes --pinentry-mode loopback --passphrase-fd 0 \
+               -o "$RUNNER_TEMP/backup.tgz" -d "$f" 2>/dev/null; then
+            echo "::error title=restore::Не вдалося розшифрувати копію (фраза BACKUP_PASSPHRASE чи файл)"; exit 1
+          fi
+          tar -xzf "$RUNNER_TEMP/backup.tgz" -C "$RUNNER_TEMP"
+          rm -f "$RUNNER_TEMP/backup.tgz"
+          echo "Розшифровано: $(ls "$RUNNER_TEMP/backup" | tr '\n' ' ')"
+      - name: Відновити дані (scope=${{ inputs.scope || 'all' }})
+        run: |
+          set -euo pipefail
+          file="$RUNNER_TEMP/backup/data.sql"; [ "$SCOPE" = public ] && file="$RUNNER_TEMP/backup/data-public.sql"
+          # replica — тимчасово без тригерів і перевірок зовнішніх ключів, як в офіційній інструкції відновлення.
+          # Вивід psql (там можуть бути рядки даних у помилках) не друкуємо — лише код результату.
+          if psql "$LOCAL_DB" --quiet --single-transaction -v ON_ERROR_STOP=1 \
+               -c 'SET session_replication_role = replica' -f "$file" > /dev/null 2> "$RUNNER_TEMP/psql.err"; then
+            echo "Дані завантажено ($SCOPE)."
+          else
+            # Лише початок першого рядка помилки, до першої лапки: значення з рядків даних у журнал не потрапляють.
+            echo "::error title=restore::Завантаження не вдалося (scope=$SCOPE): $(head -n 1 "$RUNNER_TEMP/psql.err" | cut -d'"' -f1 | cut -c1-160)"
+            echo "Якщо scope=all падає на таблицях auth.* — запустіть з scope=public (docs/ops/restore.md)."
+            exit 1
+          fi
+      - name: Порівняти кількість рядків (копія ↔ відновлена база)
+        run: |
+          set -euo pipefail
+          expected="$RUNNER_TEMP/backup/data.counts"; [ "$SCOPE" = public ] && expected="$RUNNER_TEMP/backup/data-public.counts"
+          [ -s "$expected" ] || { echo "::error title=restore::У копії немає підсумку рядків — нічого порівнювати"; exit 1; }
+          fail=0
+          {
+            echo "### Тренування відновлення ($SCOPE)"
+            echo
+            echo "| Таблиця | У копії | Відновлено | |"
+            echo "|---|---|---|---|"
+          } >> "$GITHUB_STEP_SUMMARY"
+          while IFS='|' read -r table want; do
+            got=$(psql "$LOCAL_DB" -At -c "select count(*) from $table" 2>/dev/null || echo "?")
+            mark="ok"; [ "$got" = "$want" ] || { mark="РІЗНИЦЯ"; fail=1; }
+            echo "$table | $want | $got | $mark"
+            echo "| \`$table\` | $want | $got | $mark |" >> "$GITHUB_STEP_SUMMARY"
+          done < "$expected"
+          [ "$fail" = 0 ] || { echo "::error title=restore::Кількість рядків не збігається — дивіться Summary прогону"; exit 1; }
+          echo "Кількість рядків збігається в усіх таблицях." | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Прибрати відкриті файли
+        if: always()
+        run: rm -rf "$RUNNER_TEMP/backup" "$RUNNER_TEMP/backup.tgz" "$RUNNER_TEMP/in" "$RUNNER_TEMP/psql.err"
