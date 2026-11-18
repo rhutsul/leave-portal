@@ -39,7 +39,9 @@ async function replayCase(c: GoldenCase) {
   const rec = recorded[c.id];
   expect(rec, `немає запису для ${c.id} у recorded.json`).toBeDefined();
   const model = replay(rec.text, rec.modelId);
-  const { outcome } = await runAssistant({ text: c.input, today: c.today }, model);
+  const { outcome, injectionSuspected } = await runAssistant({ text: c.input, today: c.today }, model);
+  // Спробу ін'єкції код позначає лише в текстах, де вона є (GC-09, GC-10) — рев'ю WS10, п. 3.
+  expect(injectionSuspected).toBe(["GC-09", "GC-10"].includes(c.id));
   // Недовірений вхід дійшов до моделі загорнутим як дані, а «сьогодні» — з golden case, не з годинника.
   const prompt = JSON.stringify(model.doGenerateCalls[0].prompt);
   expect(prompt).toContain("<document>");

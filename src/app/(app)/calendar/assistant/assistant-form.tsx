@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
-import { ASSISTANT_MESSAGES, ASSISTANT_TEXT_MAX, assistantTextLength, type Suggestion } from "@/lib/ai/suggestions";
+import { ASSISTANT_INJECTION_WARNING, ASSISTANT_MESSAGES, ASSISTANT_TEXT_MAX, assistantTextLength, type Suggestion } from "@/lib/ai/suggestions";
 import { closureFieldErrors } from "@/lib/leave/calendar";
 import { closureFields, closurePick } from "@/lib/leave/closure-dates";
 import { formatTime } from "@/lib/leave/time";
@@ -75,6 +75,13 @@ export function AssistantForm({ today }: { today: string }) {
     <div className="flex flex-col gap-6">
       <RequestForm action={requestAction} preparing={preparing} secondary={items.length > 0} />
       {!preparing && request.step === "message" && <StateAlert tone={request.tone} message={request.message} />}
+      {/* Наше рішення після рев'ю WS10 (п. 3), AC PM немає: код позначив спробу ін'єкції — попереджаємо, не блокуємо. */}
+      {!preparing && request.step === "suggestions" && request.injectionSuspected && items.length > 0 && (
+        <Alert variant="warning" role="alert">
+          <TriangleAlert />
+          <AlertDescription>{ASSISTANT_INJECTION_WARNING}</AlertDescription>
+        </Alert>
+      )}
       {items.length > 0 && <SuggestionsForm items={items} setItems={setItems} today={today} />}
     </div>
   );

@@ -1,4 +1,4 @@
-import { formatTime, isCalendarDate, parseTime } from "@/lib/leave/time";
+import { formatTime, parseTime } from "@/lib/leave/time";
 
 /**
  * Шкільний календар (openspec/specs/school-calendar/spec.md, design.md D5): закриття цілими днями або скорочений день.
@@ -122,26 +122,6 @@ export function closureFieldErrors(form: { name: string; hasDates: boolean; earl
     dates: form.hasDates ? null : CALENDAR_MESSAGES.datesRequired,
     time: form.early && parseTime(form.time) == null ? CALENDAR_MESSAGES.timeRequired : null,
   };
-}
-
-/**
- * Поля форми «Add closure» → дані для add_school_closure або перша помилка поля текстом PM: назва порожня чи довша за
- * 100 знаків (AC-CAL-18, AC-CAL-19), немає дат, скорочений день без часу (Assumptions 04-school-calendar). Решту
- * правил (AC-CAL-07, -10, -11, -17) перевіряє база; вона ж повторює й ці перевірки для виклику напряму.
- */
-export function parseClosureForm(field: (name: string) => string): ClosureCheck {
-  const name = field("name").trim();
-  const early = field("kind") === "early";
-  const start = field(early ? "date" : "start");
-  const end = early ? start : field("end");
-  const closesAt = early ? parseTime(field("time")) : null;
-  const nameError = closureNameError(name);
-  if (nameError) return { ok: false, field: "name", message: nameError };
-  if (!isCalendarDate(start) || !isCalendarDate(end)) {
-    return { ok: false, field: "dates", message: CALENDAR_MESSAGES.datesRequired };
-  }
-  if (early && closesAt == null) return { ok: false, field: "time", message: CALENDAR_MESSAGES.timeRequired };
-  return { ok: true, input: { kind: early ? "early_dismissal" : "whole_days", name, start, end, closesAt } };
 }
 
 /** Закриття, що охоплює дату, або null (два закриття не мають спільної дати — AC-CAL-11). */
