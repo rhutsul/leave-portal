@@ -8,6 +8,7 @@
 //                           add_school_closure під сесією адміністратора (база перевіряє роль і правила вимоги 04).
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { PRODUCT_MODELS } from "@/lib/ai/models";
 import { productModel } from "@/lib/ai/openrouter";
 import {
   ASSISTANT_MESSAGES,
@@ -64,7 +65,10 @@ export async function requestSuggestions(_prev: AssistantState, form: FormData):
     return { step: "message", tone: "destructive", message: ASSISTANT_MESSAGES.unavailable };
   }
 
-  const { outcome, injectionSuspected } = await runAssistant({ text, today: kyivDate(new Date()) }, model);
+  // WS11: один рядок llm.call у Runtime Logs Vercel — модель, затримка, токени, стан; без тексту адміністратора.
+  const { outcome, injectionSuspected } = await runAssistant({ text, today: kyivDate(new Date()) }, model, {
+    log: { requestId: crypto.randomUUID(), route: "/calendar/assistant", primaryModel: PRODUCT_MODELS[0] },
+  });
   if (outcome.kind === "suggestions") {
     return { step: "suggestions", closures: outcome.closures, injectionSuspected };
   }
