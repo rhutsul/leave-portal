@@ -59,10 +59,13 @@ export function shownText(outcome: AssistantOutcome): string {
 
 // (2) Нечітка частина: LLM-суддя лише для вільного тексту, двійковий вердикт із причиною.
 const Verdict = z.object({ pass: z.boolean(), reason: z.string().max(300) });
-export type JudgeVerdict = z.infer<typeof Verdict>;
+// modelId — хто з ланцюжка судді (основний і запасні, models.ts) справді оцінив: OpenRouter називає модель, що
+// відповіла, у response.modelId. Звіт живого eval пише її в колонку «Суддя (модель)» (рев'ю викладача WS10): запасний
+// суддя Nemotron — родина основної моделі, і без цієї колонки не видно, чи не оцінювала вона саму себе.
+export type JudgeVerdict = z.infer<typeof Verdict> & { modelId: string };
 
 export async function judgeSummary(judge: LanguageModel, rubric: string, summary: string): Promise<JudgeVerdict> {
-  const { output } = await generateText({
+  const { output, response } = await generateText({
     model: judge,
     instructions: JUDGE_INSTRUCTIONS,
     prompt: judgePrompt(rubric, summary),
@@ -70,7 +73,7 @@ export async function judgeSummary(judge: LanguageModel, rubric: string, summary
     temperature: 0,
     maxRetries: 0, // повтор на безкоштовному тарифі витрачає той самий денний ліміт
   });
-  return output;
+  return { ...output, modelId: response.modelId };
 }
 
 // Частка успіху (pass rate) — визначення з WS8: прогін на задачах із відомими відповідями (ключ) → бал.
