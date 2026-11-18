@@ -13,7 +13,6 @@ import {
   ASSISTANT_MESSAGES,
   ASSISTANT_TEXT_MAX,
   assistantTextLength,
-  detectInjection,
   runAssistant,
   SUGGESTIONS_MAX,
   type Suggestion,
@@ -57,9 +56,9 @@ export async function requestSuggestions(_prev: AssistantState, form: FormData):
   const model = productModel();
   if (!model) return { step: "message", tone: "destructive", message: ASSISTANT_MESSAGES.unavailable };
 
-  const { outcome } = await runAssistant({ text, today: kyivDate(new Date()) }, model);
+  const { outcome, injectionSuspected } = await runAssistant({ text, today: kyivDate(new Date()) }, model);
   if (outcome.kind === "suggestions") {
-    return { step: "suggestions", closures: outcome.closures, injectionSuspected: detectInjection(text) };
+    return { step: "suggestions", closures: outcome.closures, injectionSuspected };
   }
   return { step: "message", tone: TONE[outcome.kind], message: outcome.message };
 }
