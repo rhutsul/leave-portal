@@ -84,7 +84,7 @@ workflow `backup` (`.github/workflows/backup.yml`). Взято з матеріа
    тій самій транзакції, очистити рівно ті таблиці, що є в дампі, — інакше `duplicate key`:
 
    ```bash
-   { printf 'TRUNCATE TABLE '; cut -d'|' -f1 "$BACKUP_DIR/backup/data-public.counts" | paste -sd, -; printf ' CASCADE;\n'; } \
+   { printf 'TRUNCATE TABLE '; cut -d'|' -f1 "$BACKUP_DIR/backup/data-public.counts" | paste -sd, -; printf ';\n'; } \
      > "$BACKUP_DIR/truncate.sql"
    psql "$LOCAL_DB" --single-transaction -v ON_ERROR_STOP=1 -c 'SET session_replication_role = replica' \
      -f "$BACKUP_DIR/truncate.sql" -f "$BACKUP_DIR/backup/data-public.sql"
@@ -99,7 +99,10 @@ workflow `backup` (`.github/workflows/backup.yml`). Взято з матеріа
 Лише рішення людини, лише за офіційною інструкцією Supabase «Backup and restore using the CLI»: порядок `roles.sql` →
 `schema.sql` → `data.sql`, у **новий** проєкт, а не поверх живих даних. Схему брати саме з `schema.sql` копії, а не
 міграціями репо: міграції вставляють власні рядки (довідник `divisions` тощо), і `data.sql` поверх них впаде на
-`duplicate key` (так упало перше тренування). Після цього перемкнути все на новий проєкт:
+`duplicate key` (так упав прогін 44317599432). Перевірити, що в `supabase_migrations.schema_migrations` нового
+проєкту є версії міграцій `main`: якщо таблиця порожня, `db-deploy` спробує застосувати всі міграції наново й упаде —
+історію вирівнює `supabase migration repair`, і робить це лише людина (README). Після цього перемкнути все на новий
+проєкт:
 
 1. у Vercel (Production і Preview) — `NEXT_PUBLIC_SUPABASE_URL` і `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` нового
    проєкту, потім Redeploy: без нового API URL застосунок і далі ходить у старий проєкт;
@@ -132,7 +135,9 @@ Storage (у проєкті їх немає, а дамп містить лише 
   створює GoTrue, і його версія в локальному Supabase CLI 2.120.0 інша, ніж на хмарному проді; міграції репо
   схему `auth` не описують, тож вирівняти її нам нічим. Тому нічний розклад і типовий ручний запуск — `scope=public`
   (таблиці застосунку; зовнішні ключі на `auth.users` не заважають, бо на час завантаження перевірки вимкнено), а
-  `all` — лише явним вибором у Run workflow, щоб перевірити, чи версії вже збіглися.
+  `all` — лише явним вибором у Run workflow, щоб перевірити, чи версії вже збіглися. З `all` тренування спершу
+  очищає й таблиці `auth.*`, `storage.*`, `private.*` з дампу — роль `postgres` локальної бази може не мати на це прав,
+  або на них посилається таблиця поза дампом; тоді помилка в журналі буде про `TRUNCATE`, а не про колонку.
 
   Що це означає: тренування доводить, що відновлюються дані застосунку, але не акаунти. Рядки `auth.*` (користувачі,
   e-mail, хеші паролів) у копії **є** — `data.sql` у тому самому зашифрованому архіві; job `dump` червоний, якщо в

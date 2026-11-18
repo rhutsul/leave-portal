@@ -193,7 +193,9 @@ jobs:
           while IFS='|' read -r table _; do
             echo "$table|$(psql "$LOCAL_DB" -At -c "select count(*) from $table" 2>/dev/null || echo "?")" >> "$RUNNER_TEMP/before.counts"
           done < "$expected"
-          { printf 'TRUNCATE TABLE '; cut -d'|' -f1 "$expected" | paste -sd, -; printf ' CASCADE;\n'; } > "$RUNNER_TEMP/truncate.sql"
+          # Без CASCADE: якщо на таблицю дампу посилається таблиця, якої в дампі немає (розбіжність схем), краще явна
+          # помилка, ніж мовчки очищена таблиця поза порівнянням.
+          { printf 'TRUNCATE TABLE '; cut -d'|' -f1 "$expected" | paste -sd, -; printf ';\n'; } > "$RUNNER_TEMP/truncate.sql"
           # replica — тимчасово без тригерів і перевірок зовнішніх ключів, як в офіційній інструкції відновлення.
           # Вивід psql (там можуть бути рядки даних у помилках) не друкуємо — лише код результату.
           if psql "$LOCAL_DB" --quiet --single-transaction -v ON_ERROR_STOP=1 \
@@ -201,8 +203,8 @@ jobs:
                > /dev/null 2> "$RUNNER_TEMP/psql.err"; then
             echo "Таблиці дампу очищено й дані завантажено ($SCOPE)."
           else
-            # Лише початок першого рядка помилки, до першої лапки: значення з рядків даних у журнал не потрапляють.
-            echo "::error title=restore::Завантаження не вдалося (scope=$SCOPE): $(head -n 1 "$RUNNER_TEMP/psql.err" | cut -d'"' -f1 | cut -c1-160)"
+            # Лише початок першого рядка ERROR (не NOTICE), до першої лапки: значення з рядків даних у журнал не потрапляють.
+            echo "::error title=restore::Завантаження не вдалося (scope=$SCOPE): $( (grep -m 1 'ERROR' "$RUNNER_TEMP/psql.err" || head -n 1 "$RUNNER_TEMP/psql.err") | cut -d'"' -f1 | cut -c1-160)"
             [ "$SCOPE" = all ] && echo "scope=all відновлює й auth.*, а схема auth локальної бази CI інша, ніж на проді (docs/ops/restore.md). Типовий scope=public."
             exit 1
           fi
