@@ -301,6 +301,20 @@ export async function rememberClosuresNamed(name: string) {
 }
 
 /**
+ * Закриття школи, що перетинають дати [from, to] (уся школа, будь-яка назва), — «календар без закриттів» на датах AC
+ * помічника (AC-ASSIST-01). Лише читає; повертає опис кожного знайденого для повідомлення про помилку.
+ */
+export async function closuresBetween(from: string, to: string): Promise<string[]> {
+  const { data, error } = await adminClient()
+    .from("school_closures")
+    .select("name, start_date, end_date")
+    .lte("start_date", to)
+    .gte("end_date", from);
+  if (error) throw error;
+  return (data ?? []).map((c) => `«${c.name}» ${c.start_date}…${c.end_date}`);
+}
+
+/**
  * Передумова кожного тесту: у вікнах дат AC немає закриттів і чинних записів, яких не створив цей прогін, і жодного
  * запису teacher1@example.test у будь-якому статусі (прибирання видаляє всі його заявки на ці дати, тож і Rejected
  * чи Cancelled там мають бути нашими). Інакше тест не доводить AC, а може зламати чужі дані — зупиняємось із поясненням.

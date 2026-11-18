@@ -1,0 +1,80 @@
+{
+  "kind": "uat",
+  "generatedAt": "2026-11-18T08:27:18.734Z",
+  "baseURL": "https://leave-portal-olive.vercel.app",
+  "deployedSha": "fc2a8595e7dab0098e4d1f88b92ed5250498dd48",
+  "testsCommit": "7bd84b7d00e3e05b03340617746f9eadcb993a8e",
+  "testsBranch": "task/assistant-uat-ac01",
+  "gitDirty": false,
+  "reviewer": {
+    "model": "claude-haiku-5-5",
+    "disputes": "claude-sonnet-5-5"
+  },
+  "note": "Відео й траси не в git (test-results/ локально, артефакт CI). check-recordings конвеєра WS9 вимагає відео на диску — для нього цей manifest треба доповнити.",
+  "results": [
+    {
+      "id": "AC-ASSIST-01",
+      "proof": "AC-ASSIST-01",
+      "title": "AC-ASSIST-01: \"Winter break 28.12–08.01; Teachers' meeting 20.11 from 12:00\" — 2 suggested closures, and the school calendar still has no closures",
+      "screenshot": "docs/qa/uat/2026-11-18-run1/frames/AC-ASSIST-01-then-1.png",
+      "video": "test-results/artifacts/calendar-assistant-admin-e-33319-endar-still-has-no-closures-chromium/video.webm",
+      "trace": "test-results/artifacts/calendar-assistant-admin-e-33319-endar-still-has-no-closures-chromium/trace.zip",
+      "asserted": true,
+      "vision": {
+        "met": false,
+        "readable": false,
+        "notes": "На кадрі видно заголовок «2 suggested closures» з «Not saved yet — review and save.» і першу пропозицію Teachers' meeting (Early dismissal, Fri, 20 Nov 2026, Closed from 12:00). Пропозиція Winter break лежить нижче видимої області й не видна, тому третю частину «Тоді» підтвердити неможливо."
+      },
+      "agentModel": "claude-sonnet-5-5",
+      "agentVerdicts": {
+        "claude-haiku-5-5": "NEEDS-HUMAN",
+        "claude-sonnet-5-5": "NEEDS-HUMAN"
+      },
+      "escalated": true,
+      "quotesVerified": [
+        {
+          "quote": "2 suggested closures",
+          "onPage": true
+        },
+        {
+          "quote": "Not saved yet — review and save.",
+          "onPage": true
+        },
+        {
+          "quote": "Teachers' meeting",
+          "onPage": true
+        },
+        {
+          "quote": "Early dismissal",
+          "onPage": true
+        },
+        {
+          "quote": "Fri, 20 Nov 2026",
+          "onPage": true
+        },
+        {
+          "quote": "Closed from",
+          "onPage": true
+        },
+        {
+          "quote": "12:00",
+          "onPage": true
+        }
+      ],
+      "verdict": "NEEDS-HUMAN",
+      "factoryGate": "NOT-EARNED",
+      "rule": "R3: перевірки пройшли, агент не погоджується — вирішує людина",
+      "playwrightMs": 46409,
+      "reviewCostUsd": 0.04757,
+      "reviewWallMs": 31223
+    }
+  ],
+  "negativeControls": [],
+  "cleanup": {
+    "at": "2026-11-18T08:26:46.413Z",
+    "scope": "school-calendar",
+    "deleted": [],
+    "remaining": [],
+    "leftoverRequests": 0
+  }
+}
