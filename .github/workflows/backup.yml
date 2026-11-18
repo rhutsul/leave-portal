@@ -31,10 +31,10 @@ on:
         type: boolean
         default: true
       scope:
-        description: "Що відновлювати: all (разом з auth.*) або public (лише таблиці застосунку)"
+        description: "Що відновлювати: public (типово, лише таблиці застосунку) або all (разом з auth.*; на 18.11.2026 падає — інша версія схеми auth у локальній базі CI, docs/ops/restore.md)"
         type: choice
-        options: [all, public]
-        default: all
+        options: [public, all]
+        default: public
 
 permissions:
   contents: read
@@ -135,7 +135,7 @@ jobs:
     environment: production # лише заради BACKUP_PASSPHRASE
     timeout-minutes: 25
     env:
-      SCOPE: ${{ inputs.scope || 'all' }}
+      SCOPE: ${{ inputs.scope || 'public' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -173,7 +173,7 @@ jobs:
           tar -xzf "$RUNNER_TEMP/backup.tgz" -C "$RUNNER_TEMP"
           rm -f "$RUNNER_TEMP/backup.tgz"
           echo "Розшифровано: $(ls "$RUNNER_TEMP/backup" | tr '\n' ' ')"
-      - name: Відновити дані (scope=${{ inputs.scope || 'all' }})
+      - name: Відновити дані (scope=${{ inputs.scope || 'public' }})
         run: |
           set -euo pipefail
           file="$RUNNER_TEMP/backup/data.sql"; [ "$SCOPE" = public ] && file="$RUNNER_TEMP/backup/data-public.sql"
@@ -185,7 +185,7 @@ jobs:
           else
             # Лише початок першого рядка помилки, до першої лапки: значення з рядків даних у журнал не потрапляють.
             echo "::error title=restore::Завантаження не вдалося (scope=$SCOPE): $(head -n 1 "$RUNNER_TEMP/psql.err" | cut -d'"' -f1 | cut -c1-160)"
-            echo "Якщо scope=all падає на таблицях auth.* — запустіть з scope=public (docs/ops/restore.md)."
+            [ "$SCOPE" = all ] && echo "scope=all відновлює й auth.*, а схема auth локальної бази CI інша, ніж на проді (docs/ops/restore.md). Типовий scope=public."
             exit 1
           fi
       - name: Порівняти кількість рядків (копія ↔ відновлена база)
