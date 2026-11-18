@@ -6,17 +6,20 @@ workflow `backup` (`.github/workflows/backup.yml`). Взято з матеріа
 і [`bonus/restore-drill.md`](https://github.com/koldovsky/2026-quitcode-11-devops-operations-hw/blob/main/materials/ops-kit/bonus/restore-drill.md);
 відмінності від зразка — у розділі «Що змінено відносно зразка курсу».
 
-> Копія, яку жодного разу не відновили, — не копія, а надія. Тому кожен прогін `backup` ще й відновлює її в
-> одноразову базу й звіряє кількість рядків.
+> Копія, яку жодного разу не відновили, — не копія, а надія. Тому нічний прогін `backup` і ручний з увімкненим
+> `restore_drill` (за замовчуванням) ще й відновлюють копію в одноразову базу й звіряють кількість рядків. Ручний
+> прогін з `restore_drill` = вимкнено лише робить копію, без перевірки.
 
 ## Що робить workflow
 
 | Job | Що робить | Що бачить журнал |
 |---|---|---|
-| `dump` | `supabase db dump` (CLI 2.120.0 з `package-lock.json`) через `SUPABASE_DB_URL`: `roles.sql`, `schema.sql`, `data.sql` (разом зі схемами `auth` і `storage`), окремо `data-public.sql` (лише `public`); рахує рядки кожної таблиці з блоків `COPY`; пакує в `tar.gz` і шифрує `gpg --symmetric --cipher-algo AES256` фразою `BACKUP_PASSPHRASE`; відкриті файли видаляє; артефакт `supabase-backup` — лише `backup-<дата>.tgz.gpg`, 7 днів | розміри файлів, кількість таблиць |
-| `restore-drill` | `supabase db start` + `supabase db reset --local --no-seed` — одноразова база в раннері з міграцій репо (як `db-check`), розшифровує копію, завантажує дані (`session_replication_role = replica`), порівнює кількість рядків кожної таблиці з копією | таблиця «у копії / відновлено» в Summary прогону; червоний, якщо хоч одна таблиця не збіглась |
+| `dump` | `supabase db dump` (CLI 2.120.0 з `package-lock.json`) через `SUPABASE_DB_URL`: `roles.sql`, `schema.sql`, `data.sql` (разом зі схемами `auth` і `storage`), окремо `data-public.sql` (лише `public`); дампи — окремі з'єднання, тому версію останньої міграції читає до й після них і, якщо `db-deploy` встиг застосувати міграцію, знімає все заново (до 3 спроб, далі червоний без артефакту); рахує рядки кожної таблиці з блоків `COPY`; пакує в `tar.gz` і шифрує `gpg --symmetric --cipher-algo AES256` фразою `BACKUP_PASSPHRASE`; відкриті файли видаляє; артефакт `supabase-backup` — лише `backup-<дата>.tgz.gpg`, 7 днів | розміри файлів, кількість таблиць |
+| `restore-drill` | за розкладом або з `restore_drill` = увімкнено: `supabase db start` + `supabase db reset --local --no-seed` — одноразова база в раннері з міграцій репо (як `db-check`), адресу якої дає `supabase status`; розшифровує копію, завантажує дані (`session_replication_role = replica`), порівнює кількість рядків кожної таблиці з копією | таблиця «у копії / відновлено» в Summary прогону; червоний, якщо хоч одна таблиця не збіглась |
 
-Коли: щодня о 01:41 UTC (≈ 03:41 за Києвом) і вручну. Отже **RPO** (скільки даних можна втратити) — до 24 годин.
+Коли: щодня о 01:41 UTC (≈ 03:41 за Києвом) і вручну. Цільовий **RPO** (скільки даних можна втратити) — 24 години.
+Це ціль, а не гарантія: фактичну втрату визначає вік останньої придатної копії, тож якщо нічний `dump` впав, вона
+більша — червоний прогін `backup` треба повторити вручну того ж дня.
 
 Чому відкритого дампу ніде немає: у даних є e-mail і хеші паролів (схема `auth`), а артефакти публічного репо може
 завантажити кожен, хто має доступ на читання. Тому в артефакті лише шифротекст, журнал не друкує вмісту, помилки `psql`
@@ -47,38 +50,58 @@ workflow `backup` (`.github/workflows/backup.yml`). Взято з матеріа
 Потрібні Docker, `gpg`, `psql` і Supabase CLI цього репо (`npx supabase` — версія з `package-lock.json`, не
 `@latest`). Усе — лише проти **локальної** бази.
 
-1. Завантажити артефакт: сторінка прогону → Artifacts → `supabase-backup` (або
-   `gh run download <run-id> -n supabase-backup -D <тимчасова тека>`). Тимчасова тека — поза репо: відкриті файли
-   не повинні потрапити в git.
+> **Передумова.** Крок 3 скидає локальну базу Supabase цього checkout (і будь-якого іншого з тим самим `project_id`
+> у `supabase/config.toml` — контейнери спільні). Якщо в локальній базі є потрібні вам дані, зупиніться тут: окремий
+> worktree не ізолює базу. Регулярну перевірку копії й так робить `restore-drill` у CI; локально відновлюємо лише тоді,
+> коли треба подивитися дані копії.
+
+1. Завантажити артефакт у тимчасову теку поза репо (відкриті файли не повинні потрапити в git) і запам'ятати її
+   абсолютний шлях — далі команди йдуть із checkout:
+
+   ```bash
+   BACKUP_DIR="$(mktemp -d)"
+   gh run download <run-id> -n supabase-backup -D "$BACKUP_DIR"   # або сторінка прогону → Artifacts
+   ```
+
 2. Розшифрувати (фраза — з менеджера паролів; `gpg` спитає її сам, у командний рядок не вписувати):
 
    ```bash
-   gpg -o backup.tgz -d backup-<дата>.tgz.gpg
-   tar -xzf backup.tgz   # тека backup/: roles.sql, schema.sql, data.sql, data-public.sql, *.counts
+   gpg -o "$BACKUP_DIR/backup.tgz" -d "$BACKUP_DIR"/backup-*.tgz.gpg
+   tar -xzf "$BACKUP_DIR/backup.tgz" -C "$BACKUP_DIR"
+   # тепер $BACKUP_DIR/backup/: roles.sql, schema.sql, data.sql, data-public.sql, data.counts, data-public.counts
    ```
 
-3. Підняти одноразову локальну базу з міграцій репо без сиду:
+3. З кореня checkout підняти одноразову локальну базу з міграцій репо без сиду й узяти її адресу в CLI:
 
    ```bash
    npx supabase db start
    npx supabase db reset --local --no-seed
+   LOCAL_DB="$(npx supabase status -o env | sed -n 's/^DB_URL="\{0,1\}\([^"]*\)"\{0,1\}$/\1/p')"
    ```
 
-4. Завантажити дані (`data-public.sql`, якщо `data.sql` падає на `auth.*`):
+4. Завантажити дані — `data.sql` (усе) або, якщо він падає на `auth.*`, `data-public.sql` (лише `public`):
 
    ```bash
-   psql postgresql://postgres:postgres@127.0.0.1:54322/postgres --single-transaction -v ON_ERROR_STOP=1 \
-     -c 'SET session_replication_role = replica' -f backup/data.sql
+   psql "$LOCAL_DB" --single-transaction -v ON_ERROR_STOP=1 \
+     -c 'SET session_replication_role = replica' -f "$BACKUP_DIR/backup/data.sql"
    ```
 
-5. Звірити кількість рядків із `backup/data.counts` (формат `таблиця|рядків`), як це робить `restore-drill`.
-6. Після перевірки — видалити `backup.tgz`, теку `backup/` і `npx supabase stop --no-backup`.
+5. Звірити кількість рядків із підсумком **того самого** дампу (формат `таблиця|рядків`), як це робить
+   `restore-drill`: `data.sql` → `data.counts`, `data-public.sql` → `data-public.counts`.
+6. Після перевірки — `rm -rf "$BACKUP_DIR"` і `npx supabase stop --no-backup`.
 
 ## Справжнє відновлення після інциденту
 
 Лише рішення людини, лише за офіційною інструкцією Supabase «Backup and restore using the CLI»: порядок `roles.sql` →
-`schema.sql` → `data.sql`, у **новий** проєкт, а не поверх живих даних; після — новий `SUPABASE_DB_URL` у середовищі
-`production` і ключі у Vercel. Агент цього не робить. `supabase db push` з ноутбука, `supabase db reset --linked`,
+`schema.sql` → `data.sql`, у **новий** проєкт, а не поверх живих даних. Після цього перемкнути все на новий проєкт:
+
+1. у Vercel (Production і Preview) — `NEXT_PUBLIC_SUPABASE_URL` і `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` нового
+   проєкту, потім Redeploy: без нового API URL застосунок і далі ходить у старий проєкт;
+2. у GitHub — новий `SUPABASE_DB_URL` у середовищі `production` (його беруть `db-deploy` і `backup`);
+3. перевірити `/api/health` проду (`schema` — версія останньої міграції `main`) і вхід синтетичним користувачем —
+   застосунок читає дані з нового проєкту.
+
+Агент цього не робить. `supabase db push` з ноутбука, `supabase db reset --linked`,
 `supabase migration down` проти справжнього проєкту — ніколи: вони розходяться з `main` або знищують дані.
 
 ## Що перевіряє тренування і чого не перевіряє
@@ -87,8 +110,9 @@ workflow `backup` (`.github/workflows/backup.yml`). Взято з матеріа
 транзакцією без помилок; у кожній таблиці стільки ж рядків, скільки в копії. Розбіжність схеми проду й міграцій
 `main` (наприклад, DDL повз CI) тренування теж виявить — завантаження впаде.
 
-Не перевіряє: вміст рядків (лише кількість), `roles.sql` і `schema.sql` (схему бере з міграцій, а не з дампу),
-файли Storage (у проєкті їх немає, а дамп містить лише метадані).
+Не перевіряє: вміст рядків (лише кількість), `roles.sql` і `schema.sql` (схему бере з міграцій, а не з дампу; що
+`schema.sql` і `data.sql` зняті з однієї схеми, гарантує перевірка версії міграцій у `dump`), файли Storage (у
+проєкті їх немає, а дамп містить лише метадані).
 
 ## Обмеження
 
@@ -109,3 +133,5 @@ workflow `backup` (`.github/workflows/backup.yml`). Взято з матеріа
 - Перевірка версії CLI — точно `2.120.0` (не будь-яка 2.x).
 - Порожній підсумок рядків `public` у дампі чи в тренуванні — помилка, а не «усе збіглося» з нуля таблиць.
 - Невдале розшифрування — зрозуміла помилка; відкриті файли прибираються й тоді, коли job впав.
+- Версія міграцій до й після дампів: схема й дані в копії — з одного стану бази (рев'ю CodeRabbit у PR #100).
+- Адреса одноразової бази — з `supabase status`, а не URL із паролем у файлі.

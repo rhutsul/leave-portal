@@ -70,13 +70,30 @@ jobs:
         run: |
           set -euo pipefail
           umask 077
-          d="$RUNNER_TEMP/backup"; mkdir -p "$d"
-          supabase db dump --db-url "$SUPABASE_DB_URL" --role-only -f "$d/roles.sql"
-          supabase db dump --db-url "$SUPABASE_DB_URL" -f "$d/schema.sql"
-          supabase db dump --db-url "$SUPABASE_DB_URL" --data-only --use-copy \
-            -x storage.buckets_vectors -x storage.vector_indexes -f "$d/data.sql"
-          # Запасний варіант для відновлення лише таблиць застосунку.
-          supabase db dump --db-url "$SUPABASE_DB_URL" --data-only --use-copy -s public -f "$d/data-public.sql"
+          d="$RUNNER_TEMP/backup"
+          # Чотири дампи — чотири окремі з'єднання, не один знімок. Якщо db-deploy застосує міграцію між ними,
+          # schema.sql і data.sql описуватимуть різні схеми. Тому версію останньої міграції читаємо до й після
+          # дампів; змінилась — знімаємо все заново (до 3 спроб), інакше не публікуємо нічого.
+          migration_version() {
+            psql "$SUPABASE_DB_URL" -At -v ON_ERROR_STOP=1 \
+              -c 'select coalesce(max(version), $$none$$) from supabase_migrations.schema_migrations' 2>/dev/null
+          }
+          ok=0
+          for attempt in 1 2 3; do
+            rm -rf "$d"; mkdir -p "$d"
+            before=$(migration_version) || { echo "::error title=backup::Не вдалося прочитати версію міграцій"; exit 1; }
+            supabase db dump --db-url "$SUPABASE_DB_URL" --role-only -f "$d/roles.sql"
+            supabase db dump --db-url "$SUPABASE_DB_URL" -f "$d/schema.sql"
+            supabase db dump --db-url "$SUPABASE_DB_URL" --data-only --use-copy \
+              -x storage.buckets_vectors -x storage.vector_indexes -f "$d/data.sql"
+            # Запасний варіант для відновлення лише таблиць застосунку.
+            supabase db dump --db-url "$SUPABASE_DB_URL" --data-only --use-copy -s public -f "$d/data-public.sql"
+            after=$(migration_version) || { echo "::error title=backup::Не вдалося прочитати версію міграцій"; exit 1; }
+            if [ "$before" = "$after" ]; then ok=1; echo "Схема незмінна під час дампів: міграція $after"; break; fi
+            echo "::warning title=backup::Під час дампів застосовано міграцію ($before → $after), спроба $attempt — знімаю заново"
+            sleep 60
+          done
+          [ "$ok" = 1 ] || { rm -rf "$d"; echo "::error title=backup::Схема змінювалась під час кожної з 3 спроб — копію не публікуємо"; exit 1; }
           # Кількість рядків кожної таблиці — з блоків COPY самого дампу (лише назви таблиць і числа).
           for f in data data-public; do
             awk '/^COPY /{t=$2; n=0; inside=1; next} inside && /^\\\.$/{print t"|"n; inside=0; next} inside{n++}' \
@@ -119,7 +136,6 @@ jobs:
     timeout-minutes: 25
     env:
       SCOPE: ${{ inputs.scope || 'all' }}
-      LOCAL_DB: postgresql://postgres:postgres@127.0.0.1:54322/postgres # стандартна локальна база Supabase CLI, не секрет
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -134,6 +150,11 @@ jobs:
           # --local — лише одноразова база цього раннера. Проти справжніх проєктів (--linked, --db-url) — НІКОЛИ.
           # --no-seed: рядки з seed.sql зіткнулися б з рядками з копії.
           supabase db reset --local --no-seed
+          # Адресу одноразової бази бере сам CLI, а не URL із паролем у файлі репо.
+          url=$(supabase status -o env 2>/dev/null | sed -n 's/^DB_URL="\{0,1\}\([^"]*\)"\{0,1\}$/\1/p')
+          [ -n "$url" ] || { echo "::error title=restore::supabase status не повернув DB_URL локальної бази"; exit 1; }
+          echo "::add-mask::$url"
+          echo "LOCAL_DB=$url" >> "$GITHUB_ENV"
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: supabase-backup
