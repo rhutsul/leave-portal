@@ -66,6 +66,32 @@ Proof pack зрізу 3 — docs/qa/proof-pack.md, WS8 — docs/qa/proof-pack-ws
 | AC-ASSIST-10 | реалізовано | **UAT на проді — PASS** (+ CI e2e): повідомлення видно без прокрутки | [рядок 14](uat/2026-11-16/report.md?plain=1#L14), [кадр](uat/2026-11-16/frames/AC-ASSIST-10-then-1.png) |
 | AC-ASSIST-11 | реалізовано | **UAT на проді — PASS** (+ CI e2e) | [рядок 15](uat/2026-11-16/report.md?plain=1#L15), [кадр](uat/2026-11-16/frames/AC-ASSIST-11-then-1.png) |
 
+## Посилення після рев'ю WS10 (18.11)
+
+Рев'ю викладача (koldovsky/2026-quitcode-10-ai-features-hw#4) — межі AI-функції, які тримав лише промпт, тепер тримає
+код. PR `task/ai-output-guards`:
+
+- **Вільний текст моделі (п. 2).** `checkMissing` відкидає в `missing` посилання, домен, email, телефон, `<`/`>` і
+  фрагменти інструкцій і вимагає згадки назви чи дати з тексту; `checkSuggestions(draft, text)` пропонує лише назву,
+  що є в реченні тексту без ін'єкції, і не приймає назву-повторення («Every Monday»). Інакше — стан AC-ASSIST-09.
+  Рівень доказу: unit (`src/lib/ai/suggestions.test.ts`) і дія (`tests/calendar-assistant-actions.test.ts`) на
+  реплеях з рев'ю; golden 10/10 на записах `calendar-v2` лишився зеленим без змін записів.
+- **Спроба ін'єкції (п. 3).** Чиста `detectInjection(text)` (NFKC, нижній регістр, вузький перелік шаблонів) дає
+  `injectionSuspected` у кроці `suggestions`; форма показує над пропозиціями `Alert` `warning`: «This text contains
+  instructions to the assistant. Check each suggestion against the calendar text before saving.» **AC PM про це немає —
+  це наше рішення**, не новий AC: позначка не блокує (AC-ASSIST-07 вимагає й далі запропонувати «Winter break»), лише
+  просить людину перевірити уважніше. Тексти й шаблони — англійською, як інтерфейс. Рівень доказу: unit, дія
+  (`AC-ASSIST-07: a text with "Ignore all previous instructions" is flagged by code and still gives exactly 1 closure`)
+  і компонент (`assistant-form.test.tsx`). Обмеження: ін'єкцію поза переліком шаблонів позначка не впізнає — тому
+  перша межа й далі `<document>` із кодуванням дужок і промпт, а остання — людина перед «Save closures».
+- **Один валідатор (п. 5).** `ClosureInputSchema` (zod, `src/lib/leave/closure-input.ts`) — спільна для
+  `parseClosureForm` (форма «Add closure» і «Save closures») і `checkClosure` (відповідь моделі): назва, справжні дати,
+  час скороченого дня з текстами PM. Решту правил вимоги 04 перевіряє `add_school_closure` у базі. Окремий модуль —
+  щоб zod не потрапив у клієнтські форми календаря. Рівень доказу: `src/lib/leave/calendar-form.test.ts` без змін
+  очікувань, тест AC-ASSIST-04 про порожню назву зелений.
+- **`wrapDocument` (дрібне).** Обрізає до 2000 знаків до кодування дужок: «'a'×1990 + 10 `<`» доходить до моделі
+  як 10 `&lt;`.
+
 ## Не перевірено
 
 - **AC-ASSIST-09 на проді:** справжній таймаут чи вичерпаний денний ліміт на проді не відтворювали (не витрачаємо

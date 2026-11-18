@@ -1,7 +1,8 @@
 // Розбір форми «Add closure» — допоміжна функція дії addClosure і форми: обов'язкові поля з текстами PM (AC-CAL-18,
 // AC-CAL-19, Assumptions 04-school-calendar); решту правил перевіряє база (tests/db/school-calendar.test.ts).
 import { describe, expect, it } from "vitest";
-import { closureFieldErrors, closureNameLength, closuresInSchoolYear, formatClosureTime, parseClosureForm, toClosure } from "./calendar";
+import { closureFieldErrors, closureNameLength, closuresInSchoolYear, formatClosureTime, toClosure } from "./calendar";
+import { parseClosureForm } from "./closure-input";
 
 const form = (fields: Record<string, string>) => (name: string) => fields[name] ?? "";
 

@@ -45,10 +45,10 @@ export function draftInstructions(today: string): string {
  * Недовірений текст — між межами <document>…</document> (AC-ASSIST-07, -10):
  * - кутові дужки кодуємо (`&lt;`, `&gt;`), а не вирізаємо теги: вирізання могло б саме скласти нову межу
  *   (`</doc<document>ument>` → `</document>`), а закодований текст не закриє документ ніколи;
- * - CRLF → LF, як у assistantTextLength: обрізаємо до DOCUMENT_MAX тих самих знаків, які порахувала перевірка
- *   довжини, тож кінець тексту не губиться.
+ * - CRLF → LF, як у assistantTextLength, і обрізаємо до DOCUMENT_MAX тих самих знаків, які порахувала перевірка
+ *   довжини, — ДО кодування: `&lt;` довший за `<`, і обрізка після кодування губила б кінець тексту з дужками.
  */
 export function wrapDocument(text: string): string {
-  const clean = text.replace(/\r\n/g, "\n").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
-  return `<document>\n${[...clean].slice(0, DOCUMENT_MAX).join("")}\n</document>`;
+  const cut = [...text.replace(/\r\n/g, "\n")].slice(0, DOCUMENT_MAX).join("");
+  return `<document>\n${cut.replaceAll("<", "&lt;").replaceAll(">", "&gt;")}\n</document>`;
 }

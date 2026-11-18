@@ -3,7 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { schoolYearOf } from "@/lib/leave/balance";
-import { CLOSURE_FAILED, closureRpcMessage, parseClosureForm } from "@/lib/leave/calendar";
+import { CLOSURE_FAILED, closureRpcMessage } from "@/lib/leave/calendar";
+import { parseClosureForm } from "@/lib/leave/closure-input";
 import { adminSession, insertClosure } from "./admin-session";
 
 export interface ClosureActionState {

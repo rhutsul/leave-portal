@@ -9,16 +9,26 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { productModel } from "@/lib/ai/openrouter";
-import { ASSISTANT_MESSAGES, ASSISTANT_TEXT_MAX, assistantTextLength, runAssistant, SUGGESTIONS_MAX, type Suggestion } from "@/lib/ai/suggestions";
+import {
+  ASSISTANT_MESSAGES,
+  ASSISTANT_TEXT_MAX,
+  assistantTextLength,
+  detectInjection,
+  runAssistant,
+  SUGGESTIONS_MAX,
+  type Suggestion,
+} from "@/lib/ai/suggestions";
 import { schoolYearOf } from "@/lib/leave/balance";
-import { closureRpcMessage, parseClosureForm } from "@/lib/leave/calendar";
+import { closureRpcMessage } from "@/lib/leave/calendar";
+import { parseClosureForm } from "@/lib/leave/closure-input";
 import { kyivDate } from "@/lib/leave/time";
 import { adminSession, insertClosure } from "../admin-session";
 
 export type AssistantState =
   | { step: "idle" }
   | { step: "message"; tone: "warning" | "info" | "destructive"; message: string }
-  | { step: "suggestions"; closures: Suggestion[] };
+  /** `injectionSuspected` — у тексті є спроба керувати моделлю (detectInjection): форма просить перевірити уважніше. */
+  | { step: "suggestions"; closures: Suggestion[]; injectionSuspected: boolean };
 
 export interface SaveState {
   /** Пропозиції, які не збережено: індекс у надісланому списку й повідомлення (база — дослівно, AC-ASSIST-04). */
@@ -48,7 +58,9 @@ export async function requestSuggestions(_prev: AssistantState, form: FormData):
   if (!model) return { step: "message", tone: "destructive", message: ASSISTANT_MESSAGES.unavailable };
 
   const { outcome } = await runAssistant({ text, today: kyivDate(new Date()) }, model);
-  if (outcome.kind === "suggestions") return { step: "suggestions", closures: outcome.closures };
+  if (outcome.kind === "suggestions") {
+    return { step: "suggestions", closures: outcome.closures, injectionSuspected: detectInjection(text) };
+  }
   return { step: "message", tone: TONE[outcome.kind], message: outcome.message };
 }
 
