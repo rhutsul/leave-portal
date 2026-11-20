@@ -54,7 +54,8 @@ export const onRequestError: Instrumentation.onRequestError = async (error, requ
     const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ chat_id: chatId, text }),
+      // HTML — як алерт smoke; посилань у тексті немає, але попередній перегляд вимкнено про всяк випадок.
+      body: JSON.stringify({ chat_id: chatId, text, parse_mode: "HTML", link_preview_options: { is_disabled: true } }),
       signal: AbortSignal.timeout(TIMEOUT_MS),
     });
     // Паузу ставимо лише після доставки: невдале надсилання не глушить ту саму помилку на хвилину.
