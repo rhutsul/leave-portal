@@ -57,6 +57,15 @@ updates:
       - dependency-name: eslint
         update-types: ["version-update:semver-major"]
       - dependency-name: "@fission-ai/openspec"
+      # Node 24 скрізь (engines, Vercel, CI): типи новішого Node дозволили б код, якого Node 24 не виконає. Мажорну
+      # версію @types/node — разом із переходом на новий Node (ADR). #104 (26) і #109 (25) закрито.
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
+      # 1.6.28 (patch!) вимагає peer typescript >=6.0.0, а стек — TypeScript 5 (typescript-eslint 8: <6.1.0):
+      # `npm install` на Vercel падає з ERESOLVE, хоча CI з `npm ci` зелений (група #108, 20.11.2026). Прибрати цей
+      # рядок разом із переходом на TypeScript 6 окремим PR (ADR) — тоді 1.6.28+ стане сумісним.
+      - dependency-name: "@vitest/eslint-plugin"
+        versions: [">=1.6.28"]
     open-pull-requests-limit: 5
 
   - package-ecosystem: github-actions
