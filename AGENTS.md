@@ -22,7 +22,7 @@ merge. Вимоги пише PM людською мовою у своєму ре
 Node 24.x · Next.js 16.4 (App Router, `src/`, без Cache Components) · React 19.3 · TypeScript ^5 · ESLint ^9 ·
 Tailwind 4 · `@supabase/supabase-js` 2.117 + `@supabase/ssr` 0.12 · Supabase CLI 2.120 (devDependency) ·
 OpenSpec 1.14.1 (devDependency + глобальний CLI тієї ж версії) · Vitest 5 · Vercel Hobby ·
-shadcn/ui (CLI 4.22.1, Base UI) + `tw-animate-css` + `lucide-react` — дизайн-система, див. `DESIGN.md`.
+shadcn/ui (CLI 4.22.x, Base UI) + `tw-animate-css` + `lucide-react` — дизайн-система, див. `DESIGN.md`.
 Не «оновлюй усе до latest»: TypeScript 7 і ESLint 10 цей шаблон не перевіряв.
 
 ## Команди
@@ -203,8 +203,11 @@ shadcn/ui (CLI 4.22.1, Base UI) + `tw-animate-css` + `lucide-react` — диза
   що змінюють деплой, змінні чи базу; Supabase MCP — проєкт staging). Агент лише пропонує; відкат, змінні, деплой —
   людина. Нові інструменти запису MCP, яких немає в `deny`, — додавати поіменно (звіряти з `/mcp`).
 - Ланцюг постачання (WS11, трек D): `.github/dependabot.yml` (npm і дії, щотижня, `cooldown`, групи; `next`,
-  `eslint-config-next`, `react`, `react-dom`, `supabase` — лише патчі, мажорні `typescript`, `eslint`, `@types/react*`
-  і будь-які `@fission-ai/openspec` ігноруються — стек вище),
+  `eslint-config-next`, `react`, `react-dom`, `supabase`, `@supabase/*`, `shadcn` — лише патчі, мажорні `typescript`,
+  `eslint`, `@types/react*`, `@types/node` і будь-які `@fission-ai/openspec` ігноруються — стек вище; кожен виняток —
+  з коментарем, чому і коли прибрати). Vercel ставить пакети так само, як CI, — `npm ci` за lockfile
+  (`vercel.json` → `installCommand`): інакше `npm install` на Vercel перераховує peer-залежності, і PR із зеленим CI
+  дає червоний деплой (#108). Перед злиттям PR оновлень дивимось і статус деплою preview, не лише CI. Далі —
   `.npmrc` `min-release-age=7` (npm ≥ 11.10; термінове — разово `--min-release-age=0` з поясненням у PR); кожне
   `uses:` у workflow — за повним SHA з `# vX.Y.Z` (перевірка: `grep -rn "uses:" .github/workflows | grep -vE
   "@[0-9a-f]{40} # v"` — порожньо).
