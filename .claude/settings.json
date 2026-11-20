@@ -66,7 +66,6 @@
       "mcp__vercel__get_runtime_errors",
       "mcp__vercel__get_runtime_logs",
       "mcp__vercel__get_project_trace",
-      "mcp__vercel__web_fetch_vercel_url",
       "mcp__vercel__search_vercel_documentation",
       "mcp__supabase__list_tables",
       "mcp__supabase__list_extensions",
@@ -81,6 +80,7 @@
     ],
     "ask": [
       "mcp__vercel__filter_project_envs",
+      "mcp__vercel__web_fetch_vercel_url",
       "mcp__supabase__execute_sql"
     ],
     "deny": [
