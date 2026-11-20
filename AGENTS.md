@@ -63,7 +63,9 @@ shadcn/ui (CLI 4.22.x, Base UI) + `tw-animate-css` + `lucide-react` — диза
   `openspec/changes/` — ваші зміни: `add-<зріз>` і уточнення (специфікація), `impl-<зріз>` (план реалізації);
   `openspec/config.yaml` — правила перекладу
 - `product/` — лише списки denylist для `spec:check`; `docs/` — `bootstrap.md` (чекліст дня 0),
-  `conformance.md` (ваша матриця; у шапці — звідки й коли знімок вимог), `spec-reading.md` (журнал), `decisions/` (ADR)
+  `conformance.md` (ваша матриця; у шапці — звідки й коли знімок вимог), `spec-reading.md` (журнал), `decisions/` (ADR),
+  `runbook.md` (WS11: що робити при червоному smoke, відкаті, паузі бази, ротації ключів; відновлення копії),
+  `incidents/` (postmortem і дослівні стенограми розбору агентом), `ops/` (знімки доказів експлуатації без секретів)
 - `.github/` — `ci.yml`, шаблон PR
 - `scripts/` — перевірки спеки й покриття AC; `tests/` — тести (`tests/fixtures/` — дані тестів скриптів)
 - `.claude/commands/` — наші `requirements-sync.md` і `conformance.md` (у `.cursor/commands/` — посилання на них);
