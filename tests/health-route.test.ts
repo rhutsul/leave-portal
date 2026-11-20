@@ -1,5 +1,5 @@
 // D0: GET /api/health — код відповіді за станом бази і таймаут проби. supabase-js підмінено: без мережі.
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 type Probe = { error: { code?: string; message?: string } | null; status: number };
 type Version = Probe & { data: string | null };
@@ -23,7 +23,17 @@ vi.mock("@supabase/supabase-js", () => ({
 
 const { GET } = await import("@/app/api/health/route");
 
+// Тестові значення (не справжні): health тепер спершу перевіряє, чи змінні Supabase взагалі придатні.
+const TEST_URL = "https://abcdefghijklmnopqrst.supabase.co";
+const TEST_KEY = "sb_publishable_test_value_not_real";
+
+beforeEach(() => {
+  vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", TEST_URL);
+  vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", TEST_KEY);
+});
+
 afterEach(() => {
+  vi.unstubAllEnvs();
   vi.restoreAllMocks();
   Object.assign(probe, defaults);
 });
@@ -121,5 +131,69 @@ describe("GET /api/health", () => {
     const res = await GET();
     expect(res.status).toBe(503);
     expect(await res.json()).toMatchObject({ ok: false, db: "down", schema: null, reason: "status-503-53300" });
+  });
+});
+
+describe("GET /api/health — config: яка змінна винна (дія з postmortem 2026-11-20)", () => {
+  it("база відповіла — config null", async () => {
+    expect(await (await GET()).json()).toMatchObject({ db: "ok", config: null });
+  });
+
+  it("немає NEXT_PUBLIC_SUPABASE_URL — 503 «config», до бази не йде, називає змінну", async () => {
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "");
+    const answer = vi.fn(probe.answer);
+    probe.answer = answer;
+    const res = await GET();
+    expect(res.status).toBe(503);
+    expect(await res.json()).toMatchObject({
+      ok: false,
+      db: "down",
+      reason: "config",
+      config: { variable: "NEXT_PUBLIC_SUPABASE_URL", problem: "missing" },
+    });
+    expect(answer).not.toHaveBeenCalled();
+  });
+
+  it("адреса не схожа на Supabase — «invalid», значення в відповіді немає", async () => {
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://example.com/secret-path");
+    const res = await GET();
+    const text = await res.text();
+    expect(JSON.parse(text)).toMatchObject({ config: { variable: "NEXT_PUBLIC_SUPABASE_URL", problem: "invalid" } });
+    expect(text).not.toContain("example.com");
+    expect(text).not.toContain("secret-path");
+  });
+
+  it("немає публічного ключа — «missing» для NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", async () => {
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "");
+    expect(await (await GET()).json()).toMatchObject({
+      config: { variable: "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", problem: "missing" },
+    });
+  });
+
+  it("база за адресою не відповіла (як на дрілі) — «unreachable» для NEXT_PUBLIC_SUPABASE_URL", async () => {
+    vi.spyOn(AbortSignal, "timeout").mockReturnValue(AbortSignal.abort(new DOMException("timeout", "TimeoutError")));
+    probe.answer = (signal) =>
+      Promise.resolve(signal.aborted ? { error: { message: "AbortError: aborted" }, status: 0 } : { error: null, status: 200 });
+    const res = await GET();
+    const text = await res.text();
+    expect(res.status).toBe(503);
+    expect(JSON.parse(text)).toMatchObject({
+      reason: "timeout",
+      config: { variable: "NEXT_PUBLIC_SUPABASE_URL", problem: "unreachable" },
+    });
+    expect(text).not.toContain(TEST_KEY);
+  });
+
+  it("Supabase відхилив ключ — «rejected» для NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", async () => {
+    probe.answer = () => Promise.resolve({ error: { message: "Invalid API key" }, status: 401 });
+    expect(await (await GET()).json()).toMatchObject({
+      reason: "invalid-api-key",
+      config: { variable: "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", problem: "rejected" },
+    });
+  });
+
+  it("база на паузі чи 5xx — config null: адреса правильна, Supabase відповів", async () => {
+    probe.answer = () => Promise.resolve({ error: null, status: 540 });
+    expect(await (await GET()).json()).toMatchObject({ reason: "paused", config: null });
   });
 });
