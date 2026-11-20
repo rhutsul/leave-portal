@@ -31,7 +31,7 @@ updates:
       # leave-portal: стек закріплено в AGENTS.md («не оновлювати без ADR»): Next 16.4, React 19.3, Supabase CLI 2.120
       # — лише патчі (безпекові релізи на кшталт next 16.4.5 проходять); мінорні й мажорні — через ADR. TypeScript 7 і
       # ESLint 10 шаблон не перевіряв. OpenSpec має збігатися з глобальним CLI 1.14.1. supabase-js 2.117, ssr 0.12 і
-      # shadcn CLI 4.22.1 — теж зі стеку AGENTS.md (група #103 18.11 принесла 2.119 і 4.23 — закрито).
+      # shadcn CLI 4.22.x — теж зі стеку AGENTS.md (група #103 18.11 принесла 2.119 і 4.23 — закрито).
       - dependency-name: supabase
         update-types: ["version-update:semver-major", "version-update:semver-minor"]
       - dependency-name: "@supabase/supabase-js"
@@ -62,7 +62,8 @@ updates:
       - dependency-name: "@types/node"
         update-types: ["version-update:semver-major"]
       # 1.6.28 (patch!) вимагає peer typescript >=6.0.0, а стек — TypeScript 5 (typescript-eslint 8: <6.1.0):
-      # `npm install` на Vercel падає з ERESOLVE, хоча CI з `npm ci` зелений (група #108, 20.11.2026). Прибрати цей
+      # `npm install` на Vercel падав з ERESOLVE, хоча CI з `npm ci` був зелений (група #108, 20.11.2026; тепер і Vercel
+      # ставить `npm ci` — vercel.json, але `npm install` локально й оновлення lockfile однаково впали б). Прибрати цей
       # рядок разом із переходом на TypeScript 6 окремим PR (ADR) — тоді 1.6.28+ стане сумісним.
       - dependency-name: "@vitest/eslint-plugin"
         versions: [">=1.6.28"]
