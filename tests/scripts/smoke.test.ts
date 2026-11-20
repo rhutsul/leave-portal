@@ -2,7 +2,7 @@
 // Макет — HTTP-сервер у цьому ж процесі, тож скрипт запускаємо асинхронно (spawnSync заблокував би сервер).
 // SMOKE_PAUSE_MS=1 — без 20-секундних пауз; SMOKE_MIGRATIONS_DIR — тимчасова тека з «міграціями розгорнутого коміту».
 import { spawn } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import os from "node:os";
@@ -73,7 +73,7 @@ function smokeWith(extraEnv: Record<string, string>, ...responses: Array<Record<
   calls = 0;
   const env: NodeJS.ProcessEnv = { ...process.env, SMOKE_PAUSE_MS: "1", SMOKE_MIGRATIONS_DIR: migrations, ...extraEnv };
   // Змінні WS11 з оточення розробника не мають впливати на тести.
-  for (const k of ["VERCEL_AUTOMATION_BYPASS_SECRET", "SMOKE_TARGET", "SMOKE_SCHEMA", "SMOKE_EXPECT_REF", "SMOKE_EXPECT_APP_ENV"]) {
+  for (const k of ["VERCEL_AUTOMATION_BYPASS_SECRET", "SMOKE_TARGET", "SMOKE_SCHEMA", "SMOKE_EXPECT_REF", "SMOKE_EXPECT_APP_ENV", "SMOKE_FAIL_FILE"]) {
     if (!(k in extraEnv)) delete env[k];
   }
   return new Promise<{ code: number | null; out: string }>((resolve) => {
@@ -200,5 +200,21 @@ describe("smoke of every deployment (WS11): bypass header, database ref, app env
     expect(calls).toBe(1);
     expect(out).toContain("::warning");
     expect(out).toContain("міграції PR потраплять у базу staging лише після merge");
+  });
+});
+
+describe("smoke: reasons for the Telegram alert (SMOKE_FAIL_FILE)", () => {
+  it("writes the same reasons as ::error, one per line, and nothing when green", async () => {
+    const file = path.join(migrations, "smoke-fail.txt");
+    const red = await smokeWith({ SMOKE_FAIL_FILE: file, SMOKE_EXPECT_REF: "stagingref0000000000" }, { ...health(NEWEST), supabaseRef: "prodref000000000000" });
+    expect(red.code).toBe(1);
+    const reasons = readFileSync(file, "utf8").trim().split("\n");
+    expect(reasons).toHaveLength(1);
+    expect(reasons[0]).toContain("supabaseRef=prodref000000000000, а очікувався stagingref0000000000");
+    rmSync(file);
+
+    const green = await smokeWith({ SMOKE_FAIL_FILE: file }, health(NEWEST));
+    expect(green.code).toBe(0);
+    expect(existsSync(file)).toBe(false);
   });
 });

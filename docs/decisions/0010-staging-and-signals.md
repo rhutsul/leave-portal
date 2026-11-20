@@ -39,7 +39,7 @@ Supabase Free (2 активні проєкти на акаунт, пауза п�
    (D0 і перевірка курсу читають `/api/health` без входу). PM відкриває staging спільним посиланням Vercel (Shareable
    Link); токен посилання в публічні файли не пишемо.
 6. **Сигнали — один канал, Telegram-група команди** (розробник і PM): крок алерту `if: failure()` в обох jobs smoke
-   (`scripts/telegram-alert.sh`; без секретів — попередження, не падіння) і власний `onRequestError` у
+   (`scripts/telegram-alert.mjs`; без секретів — попередження, не падіння) і власний `onRequestError` у
    `src/instrumentation.ts` (без Sentry): маршрут, метод, клас помилки, digest, ≤5 рядків стеку — без заголовків,
    cookie, тіла, рядка запиту й `error.message`. Журнал AI-функції — один рядок JSON `llm.call` без тексту
    користувача, промпту й відповіді моделі.

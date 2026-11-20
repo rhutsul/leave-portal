@@ -22,9 +22,12 @@
 //                      PR ще не в базі staging, вони потраплять туди лише після merge — тож лише попередження);
 //   SMOKE_EXPECT_REF — ref проєкту Supabase, у який має ходити деплой (поле supabaseRef у health): прод — ref
 //                      проду, preview і staging — ref staging. Інший ref — збій: preview у прод-базі чи навпаки;
-//   SMOKE_EXPECT_APP_ENV — значення appEnv (змінна APP_ENV лише для гілки staging у Vercel), напр. staging.
+//   SMOKE_EXPECT_APP_ENV — значення appEnv (змінна APP_ENV лише для гілки staging у Vercel), напр. staging;
+//   SMOKE_FAIL_FILE  — файл, куди скрипт пише причини збою (рядок на причину) для алерту в Telegram
+//                      (scripts/telegram-alert.mjs). Там лише те, що вже є в ::error: шлях, код HTTP, назва змінної чи
+//                      ref, — без значень секретів, тіл відповідей і даних користувачів.
 // Код виходу: 0 — усе гаразд, 1 — є збій (рядки ::error:: видно в GitHub Actions), 2 — адресу не вказано чи вона некоректна.
-import { readdirSync } from "node:fs";
+import { readdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
@@ -242,14 +245,27 @@ async function main() {
 
   console.log(JSON.stringify({ base, bypass: Boolean(BYPASS), root: root.status, login: login.status, health }));
   for (const f of fail) console.log(`::error title=smoke ${base}::${f}`);
+  writeFailures(fail);
   if (!fail.length) console.log(`OK — ${TARGET} живий, сторінка входу відкривається, база відповідає.`);
   return fail.length ? 1 : 0;
+}
+
+/** Причини збою для алерту (SMOKE_FAIL_FILE): ті самі рядки, що в ::error, по одному. Немає змінної — нічого. */
+function writeFailures(lines) {
+  const file = process.env.SMOKE_FAIL_FILE;
+  if (!file || !lines.length) return;
+  try {
+    writeFileSync(file, `${lines.join("\n")}\n`);
+  } catch {
+    // Алерт однаково піде — лише без причини.
+  }
 }
 
 // process.exitCode, а не process.exit(): на Windows exit() після fetch падає з assertion libuv.
 if (baseError) {
   // Саму адресу не друкуємо: у ній можуть бути облікові дані чи токен.
   console.error(`::error title=smoke::${baseError}`);
+  writeFailures([baseError]);
   process.exitCode = 2;
 } else if (!base) {
   console.error("Використання: node scripts/smoke.mjs <base-url> [expected-sha]  (або змінна PROD_URL)");
