@@ -9,7 +9,7 @@
 // (onRequestError, з v15.0.0). Перевірка: GET /api/ops/server-error під адміністратором на staging (маршрут —
 // src/app/api/ops/server-error/route.ts) → повідомлення в чаті.
 import type { Instrumentation } from "next";
-import { formatErrorReport, reportKey } from "@/lib/error-report";
+import { formatErrorReport, reportKey, toPlainText } from "@/lib/error-report";
 
 const TIMEOUT_MS = 2_500; // не тримаємо відповідь користувачу довше: Telegram недоступний — повідомлення пропадає
 const SAME_ERROR_PAUSE_MS = 60_000; // та сама помилка на тому самому маршруті — не частіше разу на хвилину
@@ -51,12 +51,16 @@ export const onRequestError: Instrumentation.onRequestError = async (error, requ
       commitSha: process.env.VERCEL_GIT_COMMIT_SHA,
     });
 
-    const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ chat_id: chatId, text }),
-      signal: AbortSignal.timeout(TIMEOUT_MS),
-    });
+    const send = (body: Record<string, unknown>) =>
+      fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ chat_id: chatId, link_preview_options: { is_disabled: true }, ...body }),
+        signal: AbortSignal.timeout(TIMEOUT_MS),
+      });
+    // HTML — як алерт smoke. Відхилив розмітку (400) — те саме звичайним текстом, щоб алерт не загубився.
+    let res = await send({ text, parse_mode: "HTML" });
+    if (res.status === 400) res = await send({ text: toPlainText(text) });
     // Паузу ставимо лише після доставки: невдале надсилання не глушить ту саму помилку на хвилину.
     if (res.ok) remember(key, now);
   } catch {

@@ -65,18 +65,36 @@ export function reportKey(input: Pick<ErrorReportInput, "error" | "routePath">):
   return `${input.routePath}|${errorDigest(input.error) || errorName(input.error)}`;
 }
 
-/** Текст повідомлення в Telegram: маршрут, метод, назва помилки, digest, середовище, деплой, ≤5 рядків стеку. */
+/** Екранування для parse_mode=HTML у Telegram: усе підставлене в повідомлення — лише як текст. */
+export function escapeHtml(value: string): string {
+  return value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
+}
+
+/**
+ * Текст повідомлення в Telegram (parse_mode=HTML, як алерт smoke у scripts/telegram-alert.mjs): середовище, маршрут
+ * з методом, назва помилки й digest, коміт і деплой, ≤5 рядків стеку моноширинним блоком. Усе підставлене екрановано.
+ */
 export function formatErrorReport(input: ErrorReportInput): string {
   const name = errorName(input.error);
   const digest = errorDigest(input.error);
   const frames = stackFrames(input.error);
   const method = /^[A-Z]{1,10}$/.test(input.method) ? input.method : "?";
+  const env = `${input.env}${input.branch ? ` (гілка ${input.branch})` : ""}`;
   return [
-    "ПОМИЛКА СЕРВЕРА",
-    `Середовище: ${input.env}${input.branch ? ` (гілка ${input.branch})` : ""}`,
-    `Маршрут: ${method} ${input.routePath} (${input.routeType}, ${input.routerKind})`,
-    `Помилка: ${name}${digest ? `, digest ${digest}` : ""}`,
-    `Деплой: ${input.deploymentId ?? "?"}, коміт ${(input.commitSha ?? "local").slice(0, 7)}`,
-    ...(frames.length ? ["Стек (верхні рядки):", ...frames] : []),
+    `🟠 <b>Помилка сервера</b> · ${escapeHtml(env)}`,
+    `<b>Маршрут:</b> <code>${escapeHtml(`${method} ${input.routePath}`)}</code> (${escapeHtml(`${input.routeType}, ${input.routerKind}`)})`,
+    `<b>Помилка:</b> ${escapeHtml(name)}${digest ? `, digest <code>${escapeHtml(digest)}</code>` : ""}`,
+    `<b>Коміт:</b> <code>${escapeHtml((input.commitSha || "local").slice(0, 7))}</code> · деплой <code>${escapeHtml(input.deploymentId || "?")}</code>`,
+    ...(frames.length ? ["<b>Стек:</b>", `<pre>${escapeHtml(frames.join("\n"))}</pre>`] : []),
   ].join("\n");
+}
+
+/** Той самий текст без HTML — запасний варіант, якщо Telegram відхилив розмітку (HTTP 400): алерт не губиться. */
+export function toPlainText(html: string): string {
+  return html
+    .replace(/<\/?(b|code|pre)>/g, "")
+    .replaceAll("&lt;", "<")
+    .replaceAll("&gt;", ">")
+    .replaceAll("&quot;", '"')
+    .replaceAll("&amp;", "&");
 }
