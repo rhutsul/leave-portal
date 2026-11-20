@@ -1,13 +1,24 @@
-// D0: публічна перевірка здоров'я проду — GET /api/health → { ok, sha, env, appEnv, supabaseRef, db, schema, reason }.
+// D0: публічна перевірка здоров'я проду — GET /api/health → { ok, sha, env, appEnv, supabaseRef, db, schema, reason, config }.
 // WS11: appEnv — змінна APP_ENV (у Vercel лише для гілки staging), supabaseRef — ref проєкту Supabase з
 // NEXT_PUBLIC_SUPABASE_URL: видно, що staging і preview ходять у базу staging, а прод — у прод-базу. Обидва не секрети.
 // Без секретів і без даних користувачів: коміт збірки (Vercel), чи відповідає база (один дешевий запит публічним
 // ключем) і версія схеми — остання застосована міграція (rpc schema_version, рев'ю WS9: код на проді раніше за
 // міграцію). Шлях — у PUBLIC_PATHS (src/lib/supabase/proxy.ts), інакше proxy віддав би 307 на /login.
+// WS11, дія з postmortem docs/incidents/2026-11-20-staging-bad-supabase-url.md: config — назва змінної середовища, через
+// яку застосунок не дістає до бази, і що з нею ({ variable, problem }), або null. Лише назва, значення — ніколи.
 // Читають: scripts/smoke.mjs, .github/workflows/smoke.yml і перевірка розгортань курсу.
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
-import { appEnvFrom, classifyDbProbe, classifySchemaProbe, supabaseRefFromUrl, type SchemaHealth } from "@/lib/health";
+import {
+  appEnvFrom,
+  classifyDbProbe,
+  classifySchemaProbe,
+  configProblemFromDbReason,
+  supabaseConfigProblem,
+  supabaseRefFromUrl,
+  type ConfigProblem,
+  type SchemaHealth,
+} from "@/lib/health";
 import type { Database } from "@/lib/supabase/database.types";
 
 export const dynamic = "force-dynamic";
@@ -21,6 +32,22 @@ export async function GET() {
   const env = process.env.VERCEL_ENV ?? "local";
   const appEnv = appEnvFrom(process.env.APP_ENV);
   const supabaseRef = supabaseRefFromUrl(process.env.NEXT_PUBLIC_SUPABASE_URL);
+  // Змінних немає чи вони не схожі на адресу Supabase — до бази навіть не йдемо: причина вже відома.
+  const preflight = supabaseConfigProblem(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY);
+  const { health, schema } = preflight
+    ? { health: { db: "down" as const, reason: "config" }, schema: { schema: null, reason: "" } satisfies SchemaHealth }
+    : await probeDatabase();
+  const config: ConfigProblem | null = preflight ?? (health.db === "down" ? configProblemFromDbReason(health.reason) : null);
+  // reason — одна причина: спершу база (без неї версія не важлива), потім версія схеми.
+  const reason = health.db === "down" ? health.reason : schema.reason;
+  return NextResponse.json(
+    { ok: health.db === "ok", sha, env, appEnv, supabaseRef, db: health.db, schema: schema.schema, reason, config },
+    { status: health.db === "ok" ? 200 : 503, headers: { "cache-control": "no-store" } },
+  );
+}
+
+/** Один дешевий запит у базу і версія схеми — паралельно, з одним таймаутом. */
+async function probeDatabase(): Promise<{ health: { db: "ok" | "down"; reason: string }; schema: SchemaHealth }> {
   let health: { db: "ok" | "down"; reason: string };
   let schema: SchemaHealth = { schema: null, reason: "schema-exception" };
   const timeout = AbortSignal.timeout(DB_PROBE_TIMEOUT_MS);
@@ -56,10 +83,5 @@ export async function GET() {
   } catch {
     health = { db: "down", reason: timeout.aborted ? "timeout" : "exception" };
   }
-  // reason — одна причина: спершу база (без неї версія не важлива), потім версія схеми.
-  const reason = health.db === "down" ? health.reason : schema.reason;
-  return NextResponse.json(
-    { ok: health.db === "ok", sha, env, appEnv, supabaseRef, db: health.db, schema: schema.schema, reason },
-    { status: health.db === "ok" ? 200 : 503, headers: { "cache-control": "no-store" } },
-  );
+  return { health, schema };
 }
