@@ -41,7 +41,9 @@ beforeAll(async () => {
       res.writeHead(200).end('<input type="password">');
     } else if (req.url === "/api/health") {
       const body = answers[Math.min(calls++, answers.length - 1)];
-      res.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify(body));
+      // __redirect — макет редиректу /api/health (напр. на вхід із токеном у параметрах).
+      if (typeof body.__redirect === "string") res.writeHead(307, { location: body.__redirect }).end();
+      else res.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify(body));
     } else {
       res.writeHead(404).end();
     }
@@ -216,5 +218,21 @@ describe("smoke: reasons for the Telegram alert (SMOKE_FAIL_FILE)", () => {
     const green = await smokeWith({ SMOKE_FAIL_FILE: file }, health(NEWEST));
     expect(green.code).toBe(0);
     expect(existsSync(file)).toBe(false);
+  });
+});
+
+describe("smoke: no token from a redirect address reaches the alert", () => {
+  it("keeps only the path of the /api/health redirect in the reason", async () => {
+    const file = path.join(migrations, "smoke-fail-redirect.txt");
+    const { code, out } = await smokeWith(
+      { SMOKE_FAIL_FILE: file },
+      { __redirect: "/login?next=%2Fapi%2Fhealth&token=supersecret123#frag" },
+    );
+    expect(code).toBe(1);
+    const reasons = readFileSync(file, "utf8");
+    expect(reasons).toContain('"/api/health": 307 → /login');
+    expect(reasons).not.toContain("supersecret123");
+    expect(out).not.toContain("supersecret123");
+    rmSync(file);
   });
 });

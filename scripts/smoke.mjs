@@ -104,6 +104,16 @@ const get = async (path) => {
 };
 const vercelWall = (r) =>
   /vercel\.com\/(sso|login)|_vercel_sso/.test(r.location) || ((r.status === 401 || r.status === 403) && /vercel/i.test(r.text));
+/** Адреса редиректу для повідомлення: лише шлях (і схема з хостом, якщо хост чужий) — без облікових даних,
+ *  параметрів і фрагмента: там може бути токен, а причина йде і в журнал, і в Telegram (SMOKE_FAIL_FILE). */
+function safeLocation(location) {
+  try {
+    const target = new URL(location || "/", `${base}/`);
+    return target.origin === new URL(base).origin ? target.pathname : target.origin + target.pathname;
+  } catch {
+    return "(нерозбірна адреса)";
+  }
+}
 
 async function main() {
   const fail = [];
@@ -130,8 +140,7 @@ async function main() {
     const allowed = [`${basePath}/welcome`, `${basePath}/login`];
     if (!sameOrigin || !allowed.includes(target.pathname)) {
       // Лише шлях (і хост, якщо чужий), без параметрів: у них може бути токен.
-      const shown = sameOrigin ? target.pathname : target.origin + target.pathname;
-      fail.push(`"/": редирект ${root.status} на ${shown}, а очікувався /welcome або /login`);
+      fail.push(`"/": редирект ${root.status} на ${safeLocation(root.location)}, а очікувався /welcome або /login`);
     }
   } else if (root.status !== 200) {
     fail.push(`"/": HTTP ${root.status}, а очікувався 200 або редирект на /welcome чи /login`);
@@ -154,7 +163,7 @@ async function main() {
       // status — фактичний код HTTP, а не поле з тіла.
       health = { ...JSON.parse(r.text), status: r.status };
     } catch {
-      health = { status: r.status, location: r.location };
+      health = { status: r.status, location: safeLocation(r.location) };
     }
     // sha=local — Vercel не віддає VERCEL_GIT_COMMIT_SHA: чекати марно.
     if (!expectSha || health.sha === "local") break;

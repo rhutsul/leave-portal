@@ -44,6 +44,7 @@ describe("telegram-alert: alert text", () => {
   it("never shows the path, query, fragment or credentials of the deployment address", () => {
     expect(hostOf("https://user:secret@host.vercel.app/path?x-vercel-protection-bypass=abc#f")).toBe("host.vercel.app");
     expect(hostOf("host.vercel.app/api/health")).toBe("host.vercel.app");
+    expect(hostOf("https://user:pa@ss@tail@host.vercel.app/path")).toBe("host.vercel.app");
     expect(hostOf("")).toBe("");
     const text = formatAlert({ ...base, url: "https://host.vercel.app/?token=abc" });
     expect(text).not.toContain("token=abc");

@@ -23,7 +23,8 @@ export const escapeHtml = (s) =>
 export function hostOf(url) {
   const s = String(url ?? "").trim();
   if (!s) return "";
-  return s.replace(/^[A-Za-z][A-Za-z0-9+.-]*:\/\//, "").replace(/[/?#].*$/, "").replace(/^[^@]*@/, "");
+  // Облікові дані — усе до ОСТАННЬОГО @ (у паролі може бути свій @).
+  return s.replace(/^[A-Za-z][A-Za-z0-9+.-]*:\/\//, "").replace(/[/?#].*$/, "").replace(/^.*@/, "");
 }
 
 /**
