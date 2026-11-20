@@ -1,5 +1,5 @@
 // npm run uat — UAT за AC на РОЗГОРНУТОМУ застосунку: запис → кадри «Тоді» → вердикт агента → звіт для PM.
-//   npm run uat -- --url https://<ваш-прод>.vercel.app      (або змінна UAT_BASE_URL; без неї — локальна збірка)
+//   npm run uat -- --url https://<staging>.vercel.app       (WS11: лише staging; або UAT_BASE_URL; без неї — локальна збірка)
 //   npm run uat -- --url … --grep-invert '@writes'          (лише AC, що нічого не пишуть; решта аргументів → Playwright)
 //   npm run uat:nc -- --url …                               (негативні контролі; звіт у test-results/uat-report-nc/)
 // Кроки: playwright test → pack.mjs → review.mjs (claude -p) → combine.mjs → report.mjs.
@@ -43,7 +43,14 @@ const git = (...a) => {
 async function deployedSha(base) {
   if (!base) return null;
   try {
-    const res = await fetch(`${base}/api/health`, { redirect: "manual", signal: AbortSignal.timeout(10_000) });
+    // WS11: staging і preview закриті захистом Vercel — перепустка заголовком (значення не друкуємо).
+    // Лише розгорнутому https-хосту: локальному серверу перепустка не потрібна.
+    const bypass = base.startsWith("https://") ? process.env.VERCEL_AUTOMATION_BYPASS_SECRET : undefined;
+    const res = await fetch(`${base}/api/health`, {
+      redirect: "manual",
+      headers: bypass ? { "x-vercel-protection-bypass": bypass } : {},
+      signal: AbortSignal.timeout(10_000),
+    });
     if (!res.headers.get("content-type")?.includes("json")) return null;
     return (await res.json()).sha ?? null;
   } catch {

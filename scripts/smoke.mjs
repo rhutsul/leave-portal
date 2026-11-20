@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-// D0 smoke розгорнутого застосунку: лише GET, без входу й форм, без секретів (Node 24, без залежностей).
+// D0 smoke розгорнутого застосунку: лише GET, без входу й форм (Node 24, без залежностей). WS11: і кожен НЕпродовий
+// деплой (preview, гілка staging) за його адресою — див. змінні середовища нижче.
 // Використання: node scripts/smoke.mjs <base-url> [expected-sha]     (або npm run smoke -- <base-url> [sha])
 //   1) "/"           → редірект на /welcome (landing для гостя, ADR 0007) чи /login цього ж проду або 200 (не 401/404/5xx
 //                      і не стіна входу Vercel);
@@ -13,8 +14,20 @@
 //                      schema_version), чекаємо до 25 спроб × 20 с (≈ 8 хв) і лише тоді падаємо. Схема,
 //                      новіша за код (Instant Rollback коду після міграції), — попередження: за правилом expand → contract
 //                      (AGENTS.md, «База даних») старий код працює з новою схемою ще один реліз.
+// Змінні середовища (WS11, .github/workflows/smoke.yml; локально всі необов'язкові):
+//   VERCEL_AUTOMATION_BYPASS_SECRET — кожен запит несе заголовок x-vercel-protection-bypass (захищені preview і
+//                      staging); значення ніде не друкується, у підсумку лише "bypass": true;
+//   SMOKE_TARGET     — prod (типово) або deploy: лише слова в повідомленнях;
+//   SMOKE_SCHEMA     — strict (типово: схема, старша за код, — збій після очікування) або warn (PR-preview: міграції
+//                      PR ще не в базі staging, вони потраплять туди лише після merge — тож лише попередження);
+//   SMOKE_EXPECT_REF — ref проєкту Supabase, у який має ходити деплой (поле supabaseRef у health): прод — ref
+//                      проду, preview і staging — ref staging. Інший ref — збій: preview у прод-базі чи навпаки;
+//   SMOKE_EXPECT_APP_ENV — значення appEnv (змінна APP_ENV лише для гілки staging у Vercel), напр. staging;
+//   SMOKE_FAIL_FILE  — файл, куди скрипт пише причини збою (рядок на причину) для алерту в Telegram
+//                      (scripts/telegram-alert.mjs). Там лише те, що вже є в ::error: шлях, код HTTP, назва змінної чи
+//                      ref, — без значень секретів, тіл відповідей і даних користувачів.
 // Код виходу: 0 — усе гаразд, 1 — є збій (рядки ::error:: видно в GitHub Actions), 2 — адресу не вказано чи вона некоректна.
-import { readdirSync } from "node:fs";
+import { readdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
@@ -44,6 +57,11 @@ const SHA_ATTEMPTS = 6;
 const SCHEMA_ATTEMPTS = 25;
 // SMOKE_PAUSE_MS — лише для перевірки скрипту локально (макет проду без 20-секундних пауз).
 const PAUSE_MS = Number(process.env.SMOKE_PAUSE_MS) || 20_000;
+const BYPASS = process.env.VERCEL_AUTOMATION_BYPASS_SECRET ?? "";
+const TARGET = process.env.SMOKE_TARGET === "deploy" ? "деплой" : "прод";
+const SCHEMA_WARN_ONLY = process.env.SMOKE_SCHEMA === "warn";
+const EXPECT_REF = (process.env.SMOKE_EXPECT_REF ?? "").trim();
+const EXPECT_APP_ENV = (process.env.SMOKE_EXPECT_APP_ENV ?? "").trim();
 
 /** Версія найновішої міграції (мітка часу з імені файлу), "" — теки немає. Тека — SMOKE_MIGRATIONS_DIR (workflow кладе
  *  туди міграції розгорнутого коміту) або supabase/migrations цього checkout. */
@@ -69,7 +87,8 @@ const get = async (path) => {
   try {
     const r = await fetch(base + path, {
       redirect: "manual",
-      headers: { "user-agent": "smoke/1.0 (D0)" },
+      // Заголовок, а не параметр адреси: адреси потрапляють у журнали. Значення секрету не друкуємо.
+      headers: { "user-agent": "smoke/1.0 (D0)", ...(BYPASS ? { "x-vercel-protection-bypass": BYPASS } : {}) },
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
     return {
@@ -85,12 +104,28 @@ const get = async (path) => {
 };
 const vercelWall = (r) =>
   /vercel\.com\/(sso|login)|_vercel_sso/.test(r.location) || ((r.status === 401 || r.status === 403) && /vercel/i.test(r.text));
+/** Адреса редиректу для повідомлення: лише шлях (і схема з хостом, якщо хост чужий) — без облікових даних,
+ *  параметрів і фрагмента: там може бути токен, а причина йде і в журнал, і в Telegram (SMOKE_FAIL_FILE). */
+function safeLocation(location) {
+  try {
+    const target = new URL(location || "/", `${base}/`);
+    return target.origin === new URL(base).origin ? target.pathname : target.origin + target.pathname;
+  } catch {
+    return "(нерозбірна адреса)";
+  }
+}
 
 async function main() {
   const fail = [];
   if (strippedCredentials) console.log("::warning title=smoke::PROD_URL містить облікові дані — їх прибрано з адреси");
   const root = await get("/");
-  if (vercelWall(root)) fail.push(`"/": стіна входу Vercel — Settings → Deployment Protection → вимкніть Vercel Authentication`);
+  if (vercelWall(root)) {
+    fail.push(
+      BYPASS
+        ? `"/": стіна входу Vercel попри заголовок обходу — секрет VERCEL_AUTOMATION_BYPASS_SECRET у GitHub не збігається з Vercel (перегенерували?) чи деплой старший за секрет (Redeploy)`
+        : `"/": стіна входу Vercel — задайте секрет VERCEL_AUTOMATION_BYPASS_SECRET (Vercel → Settings → Deployment Protection → Protection Bypass for Automation)`,
+    );
+  }
   else if (root.status === 0) fail.push(`"/": недоступний (${root.text})`);
   else if (root.status >= 400) {
     const hint = root.vercelError === "MIDDLEWARE_INVOCATION_FAILED" ? " — у Vercel бракує NEXT_PUBLIC_SUPABASE_*?" : "";
@@ -105,8 +140,7 @@ async function main() {
     const allowed = [`${basePath}/welcome`, `${basePath}/login`];
     if (!sameOrigin || !allowed.includes(target.pathname)) {
       // Лише шлях (і хост, якщо чужий), без параметрів: у них може бути токен.
-      const shown = sameOrigin ? target.pathname : target.origin + target.pathname;
-      fail.push(`"/": редирект ${root.status} на ${shown}, а очікувався /welcome або /login`);
+      fail.push(`"/": редирект ${root.status} на ${safeLocation(root.location)}, а очікувався /welcome або /login`);
     }
   } else if (root.status !== 200) {
     fail.push(`"/": HTTP ${root.status}, а очікувався 200 або редирект на /welcome чи /login`);
@@ -129,13 +163,16 @@ async function main() {
       // status — фактичний код HTTP, а не поле з тіла.
       health = { ...JSON.parse(r.text), status: r.status };
     } catch {
-      health = { status: r.status, location: r.location };
+      health = { status: r.status, location: safeLocation(r.location) };
     }
     // sha=local — Vercel не віддає VERCEL_GIT_COMMIT_SHA: чекати марно.
     if (!expectSha || health.sha === "local") break;
+    // Не та база Supabase — чекати міграцію марно: збій видно одразу (друга думка до #105).
+    if (EXPECT_REF && health.supabaseRef && health.supabaseRef !== EXPECT_REF) break;
     const shaPending = health.sha !== expectSha;
     // Код уже новий, а схема ще стара чи без schema_version (db-deploy іде) — це гонка, а не збій: чекаємо.
     const schemaPending =
+      !SCHEMA_WARN_ONLY &&
       !shaPending &&
       Boolean(expectSchema) &&
       health.status === 200 &&
@@ -168,16 +205,28 @@ async function main() {
     // Без sha коміт деплою не перевірено — це збій, а не мовчазний успіх.
     fail.push(`"/api/health": у відповіді немає sha — очікувався ${expectSha.slice(0, 7)}`);
   } else if (expectSha && health?.status === 200 && health.sha !== expectSha) {
-    fail.push(`прод показує ${String(health.sha).slice(0, 7)}, а очікувався ${expectSha.slice(0, 7)} — деплой main не пройшов чи зроблено Instant Rollback?`);
+    fail.push(
+      TARGET === "прод"
+        ? `прод показує ${String(health.sha).slice(0, 7)}, а очікувався ${expectSha.slice(0, 7)} — деплой main не пройшов чи зроблено Instant Rollback?`
+        : `деплой показує ${String(health.sha).slice(0, 7)}, а очікувався ${expectSha.slice(0, 7)} — це не той деплой?`,
+    );
   } else if (expectSchema && health?.status === 200 && health.db === "ok") {
     // Коміт збігся — звіряємо схему бази з міграціями цього коміту.
     if (!isVersion(health.schema)) {
       fail.push(
         `"/api/health": версію схеми не прочитано (${health.reason || "немає поля schema"}), а код ${expectSha.slice(0, 7)} чекає міграцію ${expectSchema} — db-deploy не пройшов? Перевірте job db-deploy у CI main`,
       );
+    } else if (compareVersions(health.schema, expectSchema) < 0 && SCHEMA_WARN_ONLY) {
+      console.log(
+        `::warning title=smoke ${base}::база на міграції ${health.schema}, а код ${expectSha.slice(0, 7)} чекає ${expectSchema} — для PR-preview це очікувано: міграції PR потраплять у базу staging лише після merge`,
+      );
     } else if (compareVersions(health.schema, expectSchema) < 0) {
       fail.push(
         `база на міграції ${health.schema}, а код ${expectSha.slice(0, 7)} чекає ${expectSchema} — новий код на проді зі старою схемою: db-deploy не пройшов чи завис? Перевірте job db-deploy у CI main`,
+      );
+    } else if (compareVersions(health.schema, expectSchema) > 0 && SCHEMA_WARN_ONLY) {
+      console.log(
+        `база staging на міграції ${health.schema}, новіша за гілку ${expectSha.slice(0, 7)} (${expectSchema}) — для PR-preview це нормально: main уже пішов уперед`,
       );
     } else if (compareVersions(health.schema, expectSchema) > 0) {
       console.log(
@@ -186,16 +235,46 @@ async function main() {
     }
   }
 
-  console.log(JSON.stringify({ base, root: root.status, login: login.status, health }));
+  // WS11: деплой ходить у свою базу (ref не секрет — він є в публічній NEXT_PUBLIC_SUPABASE_URL) і має свою змінну.
+  if (!EXPECT_REF && process.env.GITHUB_ACTIONS) {
+    console.log(
+      `::warning title=smoke::Не задано очікуваний ref бази (змінні репо SUPABASE_PROD_REF / SUPABASE_STAGING_REF) — у яку базу ходить ${TARGET}, не перевірено`,
+    );
+  }
+  if (EXPECT_REF && health && (health.status === 200 || health.supabaseRef) && health.supabaseRef !== EXPECT_REF) {
+    fail.push(
+      `"/api/health": supabaseRef=${health.supabaseRef ?? "немає"}, а очікувався ${EXPECT_REF} — ${TARGET} ходить не в ту базу Supabase: звірте NEXT_PUBLIC_SUPABASE_URL у Vercel (Production — прод, Preview — staging) і зробіть Redeploy`,
+    );
+  }
+  if (EXPECT_APP_ENV && health?.status === 200 && health.appEnv !== EXPECT_APP_ENV) {
+    fail.push(
+      `"/api/health": appEnv=${health.appEnv ?? "немає"}, а очікувався ${EXPECT_APP_ENV} — у Vercel немає змінної APP_ENV для цієї гілки чи деплой зібрано до неї (Redeploy)`,
+    );
+  }
+
+  console.log(JSON.stringify({ base, bypass: Boolean(BYPASS), root: root.status, login: login.status, health }));
   for (const f of fail) console.log(`::error title=smoke ${base}::${f}`);
-  if (!fail.length) console.log("OK — прод живий, сторінка входу відкривається, база відповідає.");
+  writeFailures(fail);
+  if (!fail.length) console.log(`OK — ${TARGET} живий, сторінка входу відкривається, база відповідає.`);
   return fail.length ? 1 : 0;
+}
+
+/** Причини збою для алерту (SMOKE_FAIL_FILE): ті самі рядки, що в ::error, по одному. Немає змінної — нічого. */
+function writeFailures(lines) {
+  const file = process.env.SMOKE_FAIL_FILE;
+  if (!file || !lines.length) return;
+  try {
+    writeFileSync(file, `${lines.join("\n")}\n`);
+  } catch {
+    // Алерт однаково піде — лише без причини.
+  }
 }
 
 // process.exitCode, а не process.exit(): на Windows exit() після fetch падає з assertion libuv.
 if (baseError) {
   // Саму адресу не друкуємо: у ній можуть бути облікові дані чи токен.
   console.error(`::error title=smoke::${baseError}`);
+  writeFailures([baseError]);
   process.exitCode = 2;
 } else if (!base) {
   console.error("Використання: node scripts/smoke.mjs <base-url> [expected-sha]  (або змінна PROD_URL)");

@@ -40,3 +40,24 @@ export function classifySchemaProbe({ data, status, error }: SchemaProbe, aborte
   if (typeof data !== "string" || !/^\d+$/.test(data)) return { schema: null, reason: "schema-empty" };
   return { schema: data, reason: "" };
 }
+
+/** WS11: ref проєкту Supabase з NEXT_PUBLIC_SUPABASE_URL (`https://<ref>.supabase.co`) для поля supabaseRef у
+ *  /api/health — щоб smoke і перевірка курсу бачили, у яку базу ходить деплой (прод чи staging). Ref не секрет: він
+ *  і так є в публічній адресі. Локальний Supabase (127.0.0.1, localhost) — "local"; немає чи нерозбірна — null. */
+export function supabaseRefFromUrl(raw: string | undefined): string | null {
+  if (!raw) return null;
+  try {
+    const { hostname } = new URL(raw);
+    if (hostname === "127.0.0.1" || hostname === "localhost") return "local";
+    const match = /^([a-z0-9]{20})\.supabase\.co$/.exec(hostname);
+    return match ? match[1] : null;
+  } catch {
+    return null;
+  }
+}
+
+/** WS11: значення змінної APP_ENV (у Vercel — лише для гілки staging) для поля appEnv: коротке слово або null. */
+export function appEnvFrom(raw: string | undefined): string | null {
+  const value = raw?.trim() ?? "";
+  return /^[a-z][a-z0-9-]{0,31}$/.test(value) ? value : null;
+}
