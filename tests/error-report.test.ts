@@ -2,7 +2,7 @@
 // деплой і ≤5 рядків стеку «at …» — і НІКОЛИ текст помилки, заголовки, cookie, тіло чи рядок запиту.
 // Назви тестів без AC ID: це інструмент експлуатації, а не поведінка за AC PM (інакше ac:coverage покаже ORPHAN).
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { errorDigest, errorName, escapeHtml, formatErrorReport, reportKey, stackFrames, STACK_FRAMES } from "@/lib/error-report";
+import { errorDigest, errorName, escapeHtml, formatErrorReport, reportKey, stackFrames, STACK_FRAMES, toPlainText } from "@/lib/error-report";
 
 // Вигаданий «текст користувача» з персональними даними: жодна його частина не має опинитися в повідомленні.
 const USER_TEXT = "Прошу відпустку 12-16 травня, діагноз у довідці, пишіть на olena.test@example.test";
@@ -118,6 +118,30 @@ describe("HTML in the report", () => {
     expect(text).toContain("<pre>at &lt;evil&gt; (.next/server/a&amp;b.js:1:2)</pre>");
     expect(escapeHtml('"&<>')).toBe("&quot;&amp;&lt;&gt;");
   });
+
+  it("leaves no raw <, > or bare & from ANY field: only our own b, code and pre tags", () => {
+    const evil = "<x>&y";
+    const text = formatErrorReport({
+      error: errorWithStack("x", [`at ${evil} (.next/server/${evil}.js:1:2)`]),
+      method: "GET",
+      routePath: evil,
+      routeType: evil,
+      routerKind: evil,
+      env: evil,
+      branch: evil,
+      deploymentId: evil,
+      commitSha: evil,
+    });
+    const withoutOurTags = text.replace(/<\/?(b|code|pre)>/g, "");
+    expect(withoutOurTags).not.toMatch(/[<>]/);
+    expect(withoutOurTags.replace(/&(amp|lt|gt|quot);/g, "")).not.toContain("&");
+    expect(toPlainText(text)).toContain("<x>&y");
+  });
+
+  it("does not render empty code tags for an empty commit or deployment", () => {
+    const text = formatErrorReport({ ...base, error: "x", commitSha: "", deploymentId: "" });
+    expect(text).toContain("<b>Коміт:</b> <code>local</code> · деплой <code>?</code>");
+  });
 });
 
 describe("errorName, errorDigest, reportKey", () => {
@@ -176,6 +200,7 @@ describe("onRequestError", () => {
     expect(body.text).toContain("<b>Маршрут:</b> <code>GET /app/api/ops/server-error/route</code> (route, App Router)");
     expect(body.text).toContain("<b>Помилка сервера</b> · staging");
     expect((body as { parse_mode?: string }).parse_mode).toBe("HTML");
+    expect((body as { link_preview_options?: unknown }).link_preview_options).toEqual({ is_disabled: true });
     for (const marker of SECRET_MARKERS) expect(body.text).not.toContain(marker);
   });
 
@@ -200,6 +225,22 @@ describe("onRequestError", () => {
     await onRequestError(new RangeError("y"), request, context);
     expect(fetchMock).toHaveBeenCalledTimes(4);
     vi.restoreAllMocks();
+  });
+
+  it("Telegram rejected the HTML (400) — sends the same text once more as plain text, without markup", async () => {
+    vi.stubEnv("TELEGRAM_BOT_TOKEN", "test-token");
+    vi.stubEnv("TELEGRAM_CHAT_ID", "-100");
+    fetchMock.mockResolvedValueOnce(new Response("{}", { status: 400 }));
+    const { onRequestError } = await import("@/instrumentation");
+    await onRequestError(new TypeError("z"), request, context);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const plain = JSON.parse(String((fetchMock.mock.calls[1] as [string, RequestInit])[1].body)) as {
+      text: string;
+      parse_mode?: string;
+    };
+    expect(plain.parse_mode).toBeUndefined();
+    expect(plain.text).toContain("Маршрут: GET /app/api/ops/server-error/route (route, App Router)");
+    expect(plain.text).not.toMatch(/<\/?(b|code|pre)>/);
   });
 
   it("надсилає з таймаутом: у запиті є AbortSignal", async () => {

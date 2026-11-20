@@ -84,7 +84,17 @@ export function formatErrorReport(input: ErrorReportInput): string {
     `🟠 <b>Помилка сервера</b> · ${escapeHtml(env)}`,
     `<b>Маршрут:</b> <code>${escapeHtml(`${method} ${input.routePath}`)}</code> (${escapeHtml(`${input.routeType}, ${input.routerKind}`)})`,
     `<b>Помилка:</b> ${escapeHtml(name)}${digest ? `, digest <code>${escapeHtml(digest)}</code>` : ""}`,
-    `<b>Коміт:</b> <code>${escapeHtml((input.commitSha ?? "local").slice(0, 7))}</code> · деплой <code>${escapeHtml(input.deploymentId ?? "?")}</code>`,
+    `<b>Коміт:</b> <code>${escapeHtml((input.commitSha || "local").slice(0, 7))}</code> · деплой <code>${escapeHtml(input.deploymentId || "?")}</code>`,
     ...(frames.length ? ["<b>Стек:</b>", `<pre>${escapeHtml(frames.join("\n"))}</pre>`] : []),
   ].join("\n");
+}
+
+/** Той самий текст без HTML — запасний варіант, якщо Telegram відхилив розмітку (HTTP 400): алерт не губиться. */
+export function toPlainText(html: string): string {
+  return html
+    .replace(/<\/?(b|code|pre)>/g, "")
+    .replaceAll("&lt;", "<")
+    .replaceAll("&gt;", ">")
+    .replaceAll("&quot;", '"')
+    .replaceAll("&amp;", "&");
 }
