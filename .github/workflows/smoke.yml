@@ -7,7 +7,7 @@
 #          staging ходять лише в базу staging); гілка staging — ще й appEnv=staging і схема = міграції коміту
 #          (db-deploy-staging застосовує їх на злитті в main); PR-preview — схема лише попередженням (міграції PR
 #          потраплять у базу staging тільки після merge).
-#   Обидва jobs при збої шлють алерт людині в Telegram (scripts/telegram-alert.sh).
+#   Обидва jobs при збої шлють алерт людині в Telegram (scripts/telegram-alert.mjs).
 # Налаштування (Settings → Secrets and variables → Actions; у файлах і журналах — лише назви):
 #   змінні репо (не секрети): PROD_URL, SUPABASE_PROD_REF, SUPABASE_STAGING_REF;
 #   секрети репо: VERCEL_AUTOMATION_BYPASS_SECRET (Vercel → Deployment Protection → Protection Bypass for Automation),
@@ -94,12 +94,13 @@ jobs:
         run: node scripts/smoke.mjs "$PROD_URL" "$EXPECT_SHA"
         env:
           SMOKE_MIGRATIONS_DIR: deployed/supabase/migrations
+          SMOKE_FAIL_FILE: ${{ runner.temp }}/smoke-fail.txt
           SMOKE_EXPECT_REF: ${{ vars.SUPABASE_PROD_REF }}
           # Прод відкритий (Standard Protection), але заголовок не шкодить, якщо колись увімкнуть All Deployments.
           VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
       - name: Алерт людині в Telegram (лише якщо щось червоне)
         if: failure()
-        run: bash scripts/telegram-alert.sh
+        run: node scripts/telegram-alert.mjs
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
@@ -108,6 +109,7 @@ jobs:
           ALERT_JOB: ${{ github.job }}
           ALERT_SHA: ${{ env.EXPECT_SHA }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          SMOKE_FAIL_FILE: ${{ runner.temp }}/smoke-fail.txt
 
   deploy:
     # WS11: кожен НЕпродовий деплой (preview з PR і гілка staging) — за адресою саме цього деплою, а не фіксованою
@@ -159,6 +161,7 @@ jobs:
         env:
           SMOKE_TARGET: deploy
           SMOKE_MIGRATIONS_DIR: deployed/supabase/migrations
+          SMOKE_FAIL_FILE: ${{ runner.temp }}/smoke-fail.txt
           SMOKE_EXPECT_REF: ${{ vars.SUPABASE_STAGING_REF }}
           # Гілка staging: своя змінна і схема = міграції коміту; PR-preview: схема лише попередженням.
           SMOKE_EXPECT_APP_ENV: ${{ github.event.client_payload.git.ref == 'staging' && 'staging' || '' }}
@@ -167,7 +170,7 @@ jobs:
           VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
       - name: Алерт людині в Telegram (лише якщо щось червоне)
         if: failure()
-        run: bash scripts/telegram-alert.sh
+        run: node scripts/telegram-alert.mjs
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
@@ -177,3 +180,4 @@ jobs:
           ALERT_JOB: ${{ github.job }}
           ALERT_SHA: ${{ env.EXPECT_SHA }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          SMOKE_FAIL_FILE: ${{ runner.temp }}/smoke-fail.txt

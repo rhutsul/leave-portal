@@ -2,7 +2,7 @@
 // Макет — HTTP-сервер у цьому ж процесі, тож скрипт запускаємо асинхронно (spawnSync заблокував би сервер).
 // SMOKE_PAUSE_MS=1 — без 20-секундних пауз; SMOKE_MIGRATIONS_DIR — тимчасова тека з «міграціями розгорнутого коміту».
 import { spawn } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import os from "node:os";
@@ -41,7 +41,9 @@ beforeAll(async () => {
       res.writeHead(200).end('<input type="password">');
     } else if (req.url === "/api/health") {
       const body = answers[Math.min(calls++, answers.length - 1)];
-      res.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify(body));
+      // __redirect — макет редиректу /api/health (напр. на вхід із токеном у параметрах).
+      if (typeof body.__redirect === "string") res.writeHead(307, { location: body.__redirect }).end();
+      else res.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify(body));
     } else {
       res.writeHead(404).end();
     }
@@ -73,7 +75,7 @@ function smokeWith(extraEnv: Record<string, string>, ...responses: Array<Record<
   calls = 0;
   const env: NodeJS.ProcessEnv = { ...process.env, SMOKE_PAUSE_MS: "1", SMOKE_MIGRATIONS_DIR: migrations, ...extraEnv };
   // Змінні WS11 з оточення розробника не мають впливати на тести.
-  for (const k of ["VERCEL_AUTOMATION_BYPASS_SECRET", "SMOKE_TARGET", "SMOKE_SCHEMA", "SMOKE_EXPECT_REF", "SMOKE_EXPECT_APP_ENV"]) {
+  for (const k of ["VERCEL_AUTOMATION_BYPASS_SECRET", "SMOKE_TARGET", "SMOKE_SCHEMA", "SMOKE_EXPECT_REF", "SMOKE_EXPECT_APP_ENV", "SMOKE_FAIL_FILE"]) {
     if (!(k in extraEnv)) delete env[k];
   }
   return new Promise<{ code: number | null; out: string }>((resolve) => {
@@ -200,5 +202,37 @@ describe("smoke of every deployment (WS11): bypass header, database ref, app env
     expect(calls).toBe(1);
     expect(out).toContain("::warning");
     expect(out).toContain("міграції PR потраплять у базу staging лише після merge");
+  });
+});
+
+describe("smoke: reasons for the Telegram alert (SMOKE_FAIL_FILE)", () => {
+  it("writes the same reasons as ::error, one per line, and nothing when green", async () => {
+    const file = path.join(migrations, "smoke-fail.txt");
+    const red = await smokeWith({ SMOKE_FAIL_FILE: file, SMOKE_EXPECT_REF: "stagingref0000000000" }, { ...health(NEWEST), supabaseRef: "prodref000000000000" });
+    expect(red.code).toBe(1);
+    const reasons = readFileSync(file, "utf8").trim().split("\n");
+    expect(reasons).toHaveLength(1);
+    expect(reasons[0]).toContain("supabaseRef=prodref000000000000, а очікувався stagingref0000000000");
+    rmSync(file);
+
+    const green = await smokeWith({ SMOKE_FAIL_FILE: file }, health(NEWEST));
+    expect(green.code).toBe(0);
+    expect(existsSync(file)).toBe(false);
+  });
+});
+
+describe("smoke: no token from a redirect address reaches the alert", () => {
+  it("keeps only the path of the /api/health redirect in the reason", async () => {
+    const file = path.join(migrations, "smoke-fail-redirect.txt");
+    const { code, out } = await smokeWith(
+      { SMOKE_FAIL_FILE: file },
+      { __redirect: "/login?next=%2Fapi%2Fhealth&token=supersecret123#frag" },
+    );
+    expect(code).toBe(1);
+    const reasons = readFileSync(file, "utf8");
+    expect(reasons).toContain('"/api/health": 307 → /login');
+    expect(reasons).not.toContain("supersecret123");
+    expect(out).not.toContain("supersecret123");
+    rmSync(file);
   });
 });

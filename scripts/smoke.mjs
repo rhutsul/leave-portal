@@ -22,9 +22,12 @@
 //                      PR ще не в базі staging, вони потраплять туди лише після merge — тож лише попередження);
 //   SMOKE_EXPECT_REF — ref проєкту Supabase, у який має ходити деплой (поле supabaseRef у health): прод — ref
 //                      проду, preview і staging — ref staging. Інший ref — збій: preview у прод-базі чи навпаки;
-//   SMOKE_EXPECT_APP_ENV — значення appEnv (змінна APP_ENV лише для гілки staging у Vercel), напр. staging.
+//   SMOKE_EXPECT_APP_ENV — значення appEnv (змінна APP_ENV лише для гілки staging у Vercel), напр. staging;
+//   SMOKE_FAIL_FILE  — файл, куди скрипт пише причини збою (рядок на причину) для алерту в Telegram
+//                      (scripts/telegram-alert.mjs). Там лише те, що вже є в ::error: шлях, код HTTP, назва змінної чи
+//                      ref, — без значень секретів, тіл відповідей і даних користувачів.
 // Код виходу: 0 — усе гаразд, 1 — є збій (рядки ::error:: видно в GitHub Actions), 2 — адресу не вказано чи вона некоректна.
-import { readdirSync } from "node:fs";
+import { readdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
@@ -101,6 +104,16 @@ const get = async (path) => {
 };
 const vercelWall = (r) =>
   /vercel\.com\/(sso|login)|_vercel_sso/.test(r.location) || ((r.status === 401 || r.status === 403) && /vercel/i.test(r.text));
+/** Адреса редиректу для повідомлення: лише шлях (і схема з хостом, якщо хост чужий) — без облікових даних,
+ *  параметрів і фрагмента: там може бути токен, а причина йде і в журнал, і в Telegram (SMOKE_FAIL_FILE). */
+function safeLocation(location) {
+  try {
+    const target = new URL(location || "/", `${base}/`);
+    return target.origin === new URL(base).origin ? target.pathname : target.origin + target.pathname;
+  } catch {
+    return "(нерозбірна адреса)";
+  }
+}
 
 async function main() {
   const fail = [];
@@ -127,8 +140,7 @@ async function main() {
     const allowed = [`${basePath}/welcome`, `${basePath}/login`];
     if (!sameOrigin || !allowed.includes(target.pathname)) {
       // Лише шлях (і хост, якщо чужий), без параметрів: у них може бути токен.
-      const shown = sameOrigin ? target.pathname : target.origin + target.pathname;
-      fail.push(`"/": редирект ${root.status} на ${shown}, а очікувався /welcome або /login`);
+      fail.push(`"/": редирект ${root.status} на ${safeLocation(root.location)}, а очікувався /welcome або /login`);
     }
   } else if (root.status !== 200) {
     fail.push(`"/": HTTP ${root.status}, а очікувався 200 або редирект на /welcome чи /login`);
@@ -151,7 +163,7 @@ async function main() {
       // status — фактичний код HTTP, а не поле з тіла.
       health = { ...JSON.parse(r.text), status: r.status };
     } catch {
-      health = { status: r.status, location: r.location };
+      health = { status: r.status, location: safeLocation(r.location) };
     }
     // sha=local — Vercel не віддає VERCEL_GIT_COMMIT_SHA: чекати марно.
     if (!expectSha || health.sha === "local") break;
@@ -242,14 +254,27 @@ async function main() {
 
   console.log(JSON.stringify({ base, bypass: Boolean(BYPASS), root: root.status, login: login.status, health }));
   for (const f of fail) console.log(`::error title=smoke ${base}::${f}`);
+  writeFailures(fail);
   if (!fail.length) console.log(`OK — ${TARGET} живий, сторінка входу відкривається, база відповідає.`);
   return fail.length ? 1 : 0;
+}
+
+/** Причини збою для алерту (SMOKE_FAIL_FILE): ті самі рядки, що в ::error, по одному. Немає змінної — нічого. */
+function writeFailures(lines) {
+  const file = process.env.SMOKE_FAIL_FILE;
+  if (!file || !lines.length) return;
+  try {
+    writeFileSync(file, `${lines.join("\n")}\n`);
+  } catch {
+    // Алерт однаково піде — лише без причини.
+  }
 }
 
 // process.exitCode, а не process.exit(): на Windows exit() після fetch падає з assertion libuv.
 if (baseError) {
   // Саму адресу не друкуємо: у ній можуть бути облікові дані чи токен.
   console.error(`::error title=smoke::${baseError}`);
+  writeFailures([baseError]);
   process.exitCode = 2;
 } else if (!base) {
   console.error("Використання: node scripts/smoke.mjs <base-url> [expected-sha]  (або змінна PROD_URL)");
