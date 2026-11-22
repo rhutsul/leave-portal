@@ -120,7 +120,7 @@ staging.
 
 | Дія | Власник | Перевірка, якою вона стала | Посилання |
 |---|---|---|---|
-| `/api/health` і smoke **називають змінну**, яка веде не в ту базу (`NEXT_PUBLIC_SUPABASE_URL`, лише назва, без значення), а smoke падає з цією назвою | розробник | тест health + тест smoke; крок smoke в CI на кожен деплой | окремий PR з посиланням на цей postmortem |
+| `/api/health` і smoke **називають змінну**, яка веде не в ту базу (`NEXT_PUBLIC_SUPABASE_URL`, лише назва, без значення), а smoke падає з цією назвою | розробник | тест health + тест smoke; крок smoke в CI на кожен деплой | rhutsul/leave-portal#116 |
 | Перевірка ref бази **під час збірки** (пропозиція агента): якщо `APP_ENV=staging`, а ref із `NEXT_PUBLIC_SUPABASE_URL` ≠ ref staging — збірка падає, і зламаний деплой не стає живим | розробник | крок збірки (`npm run build`) | розглянути разом з першою дією |
 | `mcp__vercel__web_fetch_vercel_url` — з `allow` в `ask` у профілі розбору й у постійних правилах | розробник | `.claude/settings.incident.json`, `.claude/settings.json` | цей PR |
 | `/api/health` пише причину збою бази одним рядком у журнал (без значень змінних), щоб Runtime Logs не мовчали | розробник | тест health | після першої дії (необов'язково) |
