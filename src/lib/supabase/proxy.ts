@@ -6,7 +6,8 @@ import { NextResponse, type NextRequest } from "next/server";
 import type { Database } from "./database.types";
 
 // Шляхи, доступні без входу: сторінки входу й публічна перевірка здоров'я проду (D0).
-const PUBLIC_PATHS = ["/login", "/auth", "/api/health"];
+// /status (WS11) — публічна сторінка стану: лише «чи працює» й історія збоїв, без даних (src/app/status/page.tsx).
+const PUBLIC_PATHS = ["/login", "/auth", "/api/health", "/status"];
 // Landing для відвідувача (ADR 0007) — лише точний шлях: `/welcome-anything` за входом, як і решта.
 const WELCOME_PATH = "/welcome";
 

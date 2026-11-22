@@ -35,10 +35,12 @@ describe("guestRedirect", () => {
     expect(guestRedirect("/authors")).toBe("/login");
   });
 
-  it("keeps sign-in, auth callbacks and the health check public", () => {
-    for (const path of ["/login", "/auth/callback", "/api/health"]) {
+  it("keeps sign-in, auth callbacks, the health check and the status page public", () => {
+    for (const path of ["/login", "/auth/callback", "/api/health", "/status"]) {
       expect(guestRedirect(path)).toBeNull();
     }
+    // Лише точний /status і його підшляхи: /statuses — уже за входом.
+    expect(guestRedirect("/statuses")).toBe("/login");
   });
 });
 

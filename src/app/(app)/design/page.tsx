@@ -49,6 +49,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { DotMonth } from "@/components/ui/dot-month";
 import { ShowcaseCount } from "@/components/ui/motion";
 import { StatStrip } from "@/components/ui/stat-strip";
+import { UptimeBar } from "@/components/ui/uptime-bar";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { WeekTimeline, type WeekTimelineRecord } from "@/components/ui/week-timeline";
 import { dayClosures, monthClosures, timelineDays, twoWeeks, type BlockingStatus } from "@/lib/leave/overview";
@@ -398,6 +399,17 @@ export default async function DesignPage() {
           <Info className="size-3.5" aria-hidden="true" />
           Balances are in working days: 1 day is all the employee&apos;s working hours on that date.
         </p>
+      </Section>
+
+      {/* Сторінка стану /status (WS11): смуга доступності за дні — синтетичні дні, без мережі. */}
+      <Section title="Status page">
+        <UptimeBar
+          days={Array.from({ length: 30 }, (_, i) => {
+            const state = i < 4 ? "none" : i === 17 ? "issues" : "ok";
+            const label = `Day ${i + 1} — ${state === "none" ? "no checks" : state === "ok" ? "no issues" : "1 failed check, resolved in 12 min"}`;
+            return { date: `2026-11-${String(i + 1).padStart(2, "0")}`, state, label } as const;
+          })}
+        />
       </Section>
 
       {/* Overview v3 (ADR 0007): смуга чисел, діаграма на два тижні і місяць із точок — на синтетичних даних. */}
