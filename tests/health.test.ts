@@ -1,6 +1,13 @@
 // D0: /api/health відрізняє «база відповіла» від «база недоступна, призупинена чи ключ хибний».
 import { describe, expect, it } from "vitest";
-import { appEnvFrom, classifyDbProbe, classifySchemaProbe, supabaseRefFromUrl } from "@/lib/health";
+import {
+  appEnvFrom,
+  classifyDbProbe,
+  classifySchemaProbe,
+  configProblemFromDbReason,
+  supabaseConfigProblem,
+  supabaseRefFromUrl,
+} from "@/lib/health";
 
 describe("classifyDbProbe (/api/health)", () => {
   it("рахує базу живою, коли запит пройшов або Postgres відмовив у правах (42501)", () => {
@@ -104,5 +111,40 @@ describe("supabaseRefFromUrl і appEnvFrom (/api/health, поля supabaseRef і
     expect(appEnvFrom("")).toBeNull();
     expect(appEnvFrom("Staging with spaces")).toBeNull();
     expect(appEnvFrom("x".repeat(40))).toBeNull();
+  });
+});
+
+describe("supabaseConfigProblem і configProblemFromDbReason (/api/health, поле config, WS11)", () => {
+  it("називає змінну, якої бракує чи яка не схожа на адресу Supabase; придатні — null", () => {
+    expect(supabaseConfigProblem(undefined, "k")).toEqual({ variable: "NEXT_PUBLIC_SUPABASE_URL", problem: "missing" });
+    expect(supabaseConfigProblem("  ", "k")).toEqual({ variable: "NEXT_PUBLIC_SUPABASE_URL", problem: "missing" });
+    expect(supabaseConfigProblem("not a url", "k")).toEqual({ variable: "NEXT_PUBLIC_SUPABASE_URL", problem: "invalid" });
+    expect(supabaseConfigProblem("ftp://abcdefghijklmnopqrst.supabase.co", "k")).toEqual({
+      variable: "NEXT_PUBLIC_SUPABASE_URL",
+      problem: "invalid",
+    });
+    // Власний домен Supabase чи інший хост — не invalid: health перевірить його запитом.
+    expect(supabaseConfigProblem("https://db.example.com", "k")).toBeNull();
+    expect(supabaseConfigProblem("https://abcdefghijklmnopqrst.supabase.co", "")).toEqual({
+      variable: "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
+      problem: "missing",
+    });
+    expect(supabaseConfigProblem("https://abcdefghijklmnopqrst.supabase.co", "k")).toBeNull();
+    expect(supabaseConfigProblem("http://127.0.0.1:54321", "k")).toBeNull();
+  });
+
+  it("за причиною збою бази: мережа й таймаут — адреса, відхилений ключ — ключ, пауза й 5xx — не налаштування", () => {
+    const url = { variable: "NEXT_PUBLIC_SUPABASE_URL", problem: "unreachable" };
+    expect(configProblemFromDbReason("timeout")).toEqual(url);
+    expect(configProblemFromDbReason("exception")).toEqual(url);
+    expect(configProblemFromDbReason("status-0")).toEqual(url);
+    expect(configProblemFromDbReason("status-0-ECONNREFUSED")).toEqual(url);
+    expect(configProblemFromDbReason("invalid-api-key")).toEqual({
+      variable: "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
+      problem: "rejected",
+    });
+    expect(configProblemFromDbReason("paused")).toBeNull();
+    expect(configProblemFromDbReason("status-503-53300")).toBeNull();
+    expect(configProblemFromDbReason("status-00")).toBeNull();
   });
 });

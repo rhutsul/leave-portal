@@ -80,6 +80,19 @@ function newestMigration() {
 const compareVersions = (a, b) => (BigInt(a) < BigInt(b) ? -1 : BigInt(a) > BigInt(b) ? 1 : 0);
 const isVersion = (v) => typeof v === "string" && /^\d+$/.test(v);
 
+/** health.config ({ variable, problem }) — лише відомі назви й слова, інакше null: у причину йде тільки перевірене. */
+const CONFIG_VARIABLES = new Set(["NEXT_PUBLIC_SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"]);
+const CONFIG_WORDS = {
+  missing: "не задана",
+  invalid: "не схожа на адресу Supabase",
+  unreachable: "веде туди, де база не відповідає (хибний ref?)",
+  rejected: "не приймається Supabase",
+};
+function configProblem(health) {
+  const c = health?.config;
+  return c && CONFIG_VARIABLES.has(c.variable) && Object.hasOwn(CONFIG_WORDS, c.problem) ? c : null;
+}
+
 /** Межа на кожен запит разом із читанням тіла: завислий прод має дати збій, а не тримати прогін. */
 const REQUEST_TIMEOUT_MS = 10_000;
 
@@ -184,6 +197,7 @@ async function main() {
     }
     await new Promise((res) => setTimeout(res, PAUSE_MS));
   }
+  const config = configProblem(health);
   if (!health) {
     // прод не відкрився — причина вже у fail
   } else if (health.status === 404) {
@@ -192,6 +206,10 @@ async function main() {
     fail.push(`"/api/health": ${health.status} → ${health.location} — додайте "/api/health" у PUBLIC_PATHS (src/lib/supabase/proxy.ts)`);
   } else if (health.reason === "paused") {
     fail.push(`"/api/health": Supabase призупинено — Dashboard → Resume project (безкоштовний проєкт засинає після тижня без активності)`);
+  } else if (config && (health.status !== 200 || health.db !== "ok")) {
+    // WS11, дія з postmortem 2026-11-20: health сам називає змінну — у причині (і в алерті) лише її назва.
+    const { variable, problem } = config;
+    fail.push(`"/api/health": HTTP ${health.status} — змінна ${variable} ${CONFIG_WORDS[problem]} — Vercel → Settings → Environment Variables (Production — прод, Preview — staging; перевизначення для гілки б'є загальну), потім новий деплой`);
   } else if (health.reason === "invalid-api-key") {
     fail.push(`"/api/health": ключ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY у Vercel не приймається — звірте змінні Production і зробіть Redeploy`);
   } else if (health.status !== 200 || health.db !== "ok") {

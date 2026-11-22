@@ -61,3 +61,44 @@ export function appEnvFrom(raw: string | undefined): string | null {
   const value = raw?.trim() ?? "";
   return /^[a-z][a-z0-9-]{0,31}$/.test(value) ? value : null;
 }
+
+/**
+ * WS11, дія з postmortem 2026-11-20 (docs/incidents/2026-11-20-staging-bad-supabase-url.md): /api/health НАЗИВАЄ
+ * змінну середовища, через яку застосунок не дістає до бази, — лише назву і що з нею, ніколи значення. На дрілі
+ * smoke бачив лише «db=down (timeout)», а яка змінна винна — треба було здогадуватися.
+ *   missing     — змінної немає (порожня);
+ *   invalid     — значення не розбирається як адреса http(s) (власний домен Supabase чи інший хост — не invalid:
+ *                 його просто перевіряємо запитом);
+ *   unreachable — адреса правильна за формою, але база за нею не відповіла (таймаут, мережа) — найчастіше хибний ref;
+ *   rejected    — Supabase відхилив ключ.
+ */
+export type ConfigVariable = "NEXT_PUBLIC_SUPABASE_URL" | "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY";
+export type ConfigProblem = { variable: ConfigVariable; problem: "missing" | "invalid" | "unreachable" | "rejected" };
+
+/** Чи змінні Supabase взагалі придатні, ще до запиту в базу. null — так. */
+export function supabaseConfigProblem(url: string | undefined, key: string | undefined): ConfigProblem | null {
+  if (!url?.trim()) return { variable: "NEXT_PUBLIC_SUPABASE_URL", problem: "missing" };
+  if (!isHttpUrl(url.trim())) return { variable: "NEXT_PUBLIC_SUPABASE_URL", problem: "invalid" };
+  if (!key?.trim()) return { variable: "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", problem: "missing" };
+  return null;
+}
+
+function isHttpUrl(raw: string): boolean {
+  try {
+    const { protocol } = new URL(raw);
+    return protocol === "https:" || protocol === "http:";
+  } catch {
+    return false;
+  }
+}
+
+/** Яка змінна найімовірніше винна за причиною збою бази (поле reason). null — збій не про налаштування. */
+export function configProblemFromDbReason(reason: string): ConfigProblem | null {
+  if (reason === "invalid-api-key") return { variable: "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", problem: "rejected" };
+  // Таймаут, мережа (status 0) чи виняток клієнта: до бази за цією адресою не дісталися. Пауза (540) і 5xx — ні:
+  // там Supabase відповів, отже адреса правильна.
+  if (reason === "timeout" || reason === "exception" || /^status-0(-|$)/.test(reason)) {
+    return { variable: "NEXT_PUBLIC_SUPABASE_URL", problem: "unreachable" };
+  }
+  return null;
+}

@@ -236,3 +236,36 @@ describe("smoke: no token from a redirect address reaches the alert", () => {
     rmSync(file);
   });
 });
+
+describe("smoke: names the misconfigured variable from health.config (postmortem 2026-11-20)", () => {
+  const down = (config: unknown) => ({ ...health(null), ok: false, db: "down", reason: "timeout", config });
+
+  it("puts the variable name into the reason, not the guess", async () => {
+    const file = path.join(migrations, "smoke-fail-config.txt");
+    const { code } = await smokeWith(
+      { SMOKE_FAIL_FILE: file },
+      down({ variable: "NEXT_PUBLIC_SUPABASE_URL", problem: "unreachable" }),
+    );
+    expect(code).toBe(1);
+    const reasons = readFileSync(file, "utf8");
+    expect(reasons).toContain("змінна NEXT_PUBLIC_SUPABASE_URL веде туди, де база не відповідає (хибний ref?)");
+    rmSync(file);
+  });
+
+  it("ignores an unknown variable or problem in config: only the general reason reaches ::error and the alert", async () => {
+    const file = path.join(migrations, "smoke-fail-unknown.txt");
+    const { code, out } = await smokeWith(
+      { SMOKE_FAIL_FILE: file },
+      down({ variable: "SUPABASE_SECRET_KEY", problem: "leaked<script>" }),
+    );
+    expect(code).toBe(1);
+    const reasons = readFileSync(file, "utf8");
+    const errors = out.split("\n").filter((l) => l.startsWith("::error"));
+    for (const text of [reasons, ...errors]) {
+      expect(text).not.toContain("SUPABASE_SECRET_KEY");
+      expect(text).not.toContain("leaked");
+    }
+    expect(reasons).toContain("Supabase недоступний чи NEXT_PUBLIC_SUPABASE_URL у Vercel не той?");
+    rmSync(file);
+  });
+});
