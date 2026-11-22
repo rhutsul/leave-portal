@@ -34,8 +34,11 @@ export function prodRuns(runs: SmokeRun[]): SmokeRun[] {
 export function buildHistory(runs: SmokeRun[], now: Date, days = 30): DayStatus[] {
   const checks = prodRuns(runs);
   const out = new Map<string, DayStatus>();
+  // Календарні дні від сьогоднішньої дати за Києвом, а не «мінус 24 год»: у день переходу на зимовий час доба
+  // довша, і крок у 24 год пропустив би дату.
+  const today = Date.parse(`${kyivDate(now)}T00:00:00Z`);
   for (let i = days - 1; i >= 0; i--) {
-    const date = kyivDate(new Date(now.getTime() - i * DAY_MS));
+    const date = new Date(today - i * DAY_MS).toISOString().slice(0, 10);
     out.set(date, { date, state: "none", failures: 0, longestMinutes: null, ongoing: false });
   }
   checks.forEach((run, index) => {
@@ -47,12 +50,16 @@ export function buildHistory(runs: SmokeRun[], now: Date, days = 30): DayStatus[
     }
     day.state = "issues";
     day.failures += 1;
-    const recovered = checks.slice(index + 1).find((r) => r.conclusion === "success");
+    // Відновлення — зелена перевірка, що й завершилась після червоної (почати пізніше могла, а закінчити — раніше).
+    const failedAt = Date.parse(run.updatedAt);
+    const recovered = checks
+      .slice(index + 1)
+      .find((r) => r.conclusion === "success" && Date.parse(r.updatedAt) >= failedAt);
     if (!recovered) {
       day.ongoing = true;
       return;
     }
-    const minutes = Math.max(1, Math.round((Date.parse(recovered.updatedAt) - Date.parse(run.updatedAt)) / 60_000));
+    const minutes = Math.max(1, Math.round((Date.parse(recovered.updatedAt) - failedAt) / 60_000));
     day.longestMinutes = Math.max(day.longestMinutes ?? 0, minutes);
   });
   return [...out.values()];

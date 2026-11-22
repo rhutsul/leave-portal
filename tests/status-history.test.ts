@@ -46,6 +46,25 @@ describe("status history", () => {
     expect(history.at(-2)?.state).toBe("none");
   });
 
+  it("keeps 30 consecutive calendar days across the switch to winter time (25 Oct 2026)", () => {
+    const history = buildHistory([], new Date("2026-11-22T21:30:00Z"));
+    const dates = history.map((d) => d.date);
+    expect(new Set(dates).size).toBe(30);
+    expect(dates[0]).toBe("2026-10-24");
+    expect(dates.at(-1)).toBe("2026-11-22");
+  });
+
+  it("does not count a green check that finished before the failure as its recovery", () => {
+    const history = buildHistory(
+      [
+        run("status", "failure", "2026-11-22T09:00:00Z", "2026-11-22T09:10:00Z"),
+        run("schedule", "success", "2026-11-22T09:05:00Z", "2026-11-22T09:08:00Z"),
+      ],
+      NOW,
+    );
+    expect(history.at(-1)).toMatchObject({ state: "issues", ongoing: true, longestMinutes: null });
+  });
+
   it("marks a failure with no green check after it as not resolved yet", () => {
     const history = buildHistory([run("status", "failure", "2026-11-22T09:00:00Z")], NOW);
     expect(history.at(-1)).toMatchObject({ state: "issues", ongoing: true, longestMinutes: null });

@@ -49,7 +49,12 @@ export async function fetchSmokeRuns(now: Date, days = 31, repo = smokeRepo()): 
           next: { revalidate: REVALIDATE_SECONDS },
           signal: AbortSignal.timeout(TIMEOUT_MS),
         });
-        return res.ok ? parseRuns(await res.json()) : null;
+        if (!res.ok) return null;
+        const json: unknown = await res.json();
+        const runs = parseRuns(json);
+        // Більше за одну сторінку (100) — історія неповна: краще «тимчасово недоступна», ніж хибні старі дні.
+        const total = (json as { total_count?: unknown }).total_count;
+        return runs && typeof total === "number" && total > runs.length ? null : runs;
       }),
     );
     return pages.some((p) => p === null) ? null : pages.flat() as SmokeRun[];

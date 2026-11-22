@@ -47,6 +47,19 @@ describe("status: GitHub smoke runs", () => {
     expect(init.next?.revalidate).toBe(600);
   });
 
+  it("returns null when GitHub has more runs than one page holds, instead of a silently cut history", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        new Response(
+          JSON.stringify({ total_count: 101, workflow_runs: [{ event: "schedule", conclusion: "success", created_at: "t", updated_at: "t" }] }),
+          { status: 200 },
+        ),
+      ),
+    );
+    expect(await fetchSmokeRuns(NOW, 31, "rhutsul/leave-portal")).toBeNull();
+  });
+
   it("returns null (history unavailable) on rate limit, network error or a missing repo", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => new Response("{}", { status: 403 })));
     expect(await fetchSmokeRuns(NOW, 31, "rhutsul/leave-portal")).toBeNull();
