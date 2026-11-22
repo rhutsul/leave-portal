@@ -67,7 +67,8 @@ export function appEnvFrom(raw: string | undefined): string | null {
  * змінну середовища, через яку застосунок не дістає до бази, — лише назву і що з нею, ніколи значення. На дрілі
  * smoke бачив лише «db=down (timeout)», а яка змінна винна — треба було здогадуватися.
  *   missing     — змінної немає (порожня);
- *   invalid     — значення не схоже на адресу Supabase (`https://<ref>.supabase.co`) чи локальний Supabase;
+ *   invalid     — значення не розбирається як адреса http(s) (власний домен Supabase чи інший хост — не invalid:
+ *                 його просто перевіряємо запитом);
  *   unreachable — адреса правильна за формою, але база за нею не відповіла (таймаут, мережа) — найчастіше хибний ref;
  *   rejected    — Supabase відхилив ключ.
  */
@@ -77,9 +78,18 @@ export type ConfigProblem = { variable: ConfigVariable; problem: "missing" | "in
 /** Чи змінні Supabase взагалі придатні, ще до запиту в базу. null — так. */
 export function supabaseConfigProblem(url: string | undefined, key: string | undefined): ConfigProblem | null {
   if (!url?.trim()) return { variable: "NEXT_PUBLIC_SUPABASE_URL", problem: "missing" };
-  if (supabaseRefFromUrl(url.trim()) === null) return { variable: "NEXT_PUBLIC_SUPABASE_URL", problem: "invalid" };
+  if (!isHttpUrl(url.trim())) return { variable: "NEXT_PUBLIC_SUPABASE_URL", problem: "invalid" };
   if (!key?.trim()) return { variable: "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", problem: "missing" };
   return null;
+}
+
+function isHttpUrl(raw: string): boolean {
+  try {
+    const { protocol } = new URL(raw);
+    return protocol === "https:" || protocol === "http:";
+  } catch {
+    return false;
+  }
 }
 
 /** Яка змінна найімовірніше винна за причиною збою бази (поле reason). null — збій не про налаштування. */

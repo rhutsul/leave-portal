@@ -118,7 +118,13 @@ describe("supabaseConfigProblem і configProblemFromDbReason (/api/health, по�
   it("називає змінну, якої бракує чи яка не схожа на адресу Supabase; придатні — null", () => {
     expect(supabaseConfigProblem(undefined, "k")).toEqual({ variable: "NEXT_PUBLIC_SUPABASE_URL", problem: "missing" });
     expect(supabaseConfigProblem("  ", "k")).toEqual({ variable: "NEXT_PUBLIC_SUPABASE_URL", problem: "missing" });
-    expect(supabaseConfigProblem("https://example.com", "k")).toEqual({ variable: "NEXT_PUBLIC_SUPABASE_URL", problem: "invalid" });
+    expect(supabaseConfigProblem("not a url", "k")).toEqual({ variable: "NEXT_PUBLIC_SUPABASE_URL", problem: "invalid" });
+    expect(supabaseConfigProblem("ftp://abcdefghijklmnopqrst.supabase.co", "k")).toEqual({
+      variable: "NEXT_PUBLIC_SUPABASE_URL",
+      problem: "invalid",
+    });
+    // Власний домен Supabase чи інший хост — не invalid: health перевірить його запитом.
+    expect(supabaseConfigProblem("https://db.example.com", "k")).toBeNull();
     expect(supabaseConfigProblem("https://abcdefghijklmnopqrst.supabase.co", "")).toEqual({
       variable: "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
       problem: "missing",

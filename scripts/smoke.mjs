@@ -197,6 +197,7 @@ async function main() {
     }
     await new Promise((res) => setTimeout(res, PAUSE_MS));
   }
+  const config = configProblem(health);
   if (!health) {
     // прод не відкрився — причина вже у fail
   } else if (health.status === 404) {
@@ -205,9 +206,9 @@ async function main() {
     fail.push(`"/api/health": ${health.status} → ${health.location} — додайте "/api/health" у PUBLIC_PATHS (src/lib/supabase/proxy.ts)`);
   } else if (health.reason === "paused") {
     fail.push(`"/api/health": Supabase призупинено — Dashboard → Resume project (безкоштовний проєкт засинає після тижня без активності)`);
-  } else if (configProblem(health)) {
+  } else if (config && (health.status !== 200 || health.db !== "ok")) {
     // WS11, дія з postmortem 2026-11-20: health сам називає змінну — у причині (і в алерті) лише її назва.
-    const { variable, problem } = configProblem(health);
+    const { variable, problem } = config;
     fail.push(`"/api/health": HTTP ${health.status} — змінна ${variable} ${CONFIG_WORDS[problem]} — Vercel → Settings → Environment Variables (Production — прод, Preview — staging; перевизначення для гілки б'є загальну), потім новий деплой`);
   } else if (health.reason === "invalid-api-key") {
     fail.push(`"/api/health": ключ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY у Vercel не приймається — звірте змінні Production і зробіть Redeploy`);

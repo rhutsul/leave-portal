@@ -154,20 +154,38 @@ describe("GET /api/health — config: яка змінна винна (дія з 
     expect(answer).not.toHaveBeenCalled();
   });
 
-  it("адреса не схожа на Supabase — «invalid», значення в відповіді немає", async () => {
-    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://example.com/secret-path");
+  it("значення не розбирається як адреса — 503 «invalid», до бази не йде, значення в відповіді немає", async () => {
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "not a url secret-path");
+    const answer = vi.fn(probe.answer);
+    probe.answer = answer;
     const res = await GET();
     const text = await res.text();
-    expect(JSON.parse(text)).toMatchObject({ config: { variable: "NEXT_PUBLIC_SUPABASE_URL", problem: "invalid" } });
-    expect(text).not.toContain("example.com");
+    expect(res.status).toBe(503);
+    expect(JSON.parse(text)).toMatchObject({
+      reason: "config",
+      config: { variable: "NEXT_PUBLIC_SUPABASE_URL", problem: "invalid" },
+    });
     expect(text).not.toContain("secret-path");
+    expect(answer).not.toHaveBeenCalled();
   });
 
-  it("немає публічного ключа — «missing» для NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", async () => {
+  it("власний домен Supabase — не помилка налаштувань: health перевіряє його запитом", async () => {
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://db.example.com");
+    const answer = vi.fn(probe.answer);
+    probe.answer = answer;
+    expect(await (await GET()).json()).toMatchObject({ db: "ok", config: null });
+    expect(answer).toHaveBeenCalledTimes(1);
+  });
+
+  it("немає публічного ключа — «missing» для NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY, до бази не йде", async () => {
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "");
+    const answer = vi.fn(probe.answer);
+    probe.answer = answer;
     expect(await (await GET()).json()).toMatchObject({
+      reason: "config",
       config: { variable: "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", problem: "missing" },
     });
+    expect(answer).not.toHaveBeenCalled();
   });
 
   it("база за адресою не відповіла (як на дрілі) — «unreachable» для NEXT_PUBLIC_SUPABASE_URL", async () => {
@@ -195,5 +213,7 @@ describe("GET /api/health — config: яка змінна винна (дія з 
   it("база на паузі чи 5xx — config null: адреса правильна, Supabase відповів", async () => {
     probe.answer = () => Promise.resolve({ error: null, status: 540 });
     expect(await (await GET()).json()).toMatchObject({ reason: "paused", config: null });
+    probe.answer = () => Promise.resolve({ error: { code: "PGRST001" }, status: 503 });
+    expect(await (await GET()).json()).toMatchObject({ db: "down", config: null });
   });
 });
