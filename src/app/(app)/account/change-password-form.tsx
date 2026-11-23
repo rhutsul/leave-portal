@@ -38,7 +38,8 @@ const FIELDS: { field: PasswordField; name: string; label: string; autoComplete:
  */
 export function ChangePasswordForm() {
   const ids = useId();
-  const [state, action] = useActionState(changePassword, INITIAL_CHANGE_PASSWORD);
+  // Поки дія виконується, поля вимкнено: інакше відповідь сервера описала б значення, яке вже змінили (рев'ю #120).
+  const [state, action, pending] = useActionState(changePassword, INITIAL_CHANGE_PASSWORD);
   const [fields, setFields] = useState<PasswordFields>(EMPTY);
   const [tried, setTried] = useState(false);
   // Поля, змінені після останньої відповіді дії: їхню помилку з сервера вже не показуємо (поле виправляють), а
@@ -101,6 +102,7 @@ export function ChangePasswordForm() {
               aria-invalid={error ? true : undefined}
               aria-describedby={describedBy}
               value={fields[field]}
+              disabled={pending}
               onChange={(event) => change(field, event.target.value)}
             />
             <FieldError id={`${id}-error`} message={error} />

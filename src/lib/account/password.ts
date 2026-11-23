@@ -18,7 +18,7 @@ export const PASSWORD_MESSAGES = {
   currentWrong: "Current password is incorrect.",
   nextMissing: "Enter a new password.",
   nextShort: `Use at least ${MIN_PASSWORD_LENGTH} characters.`,
-  nextLong: `Use at most ${MAX_PASSWORD_BYTES} characters.`,
+  nextLong: `This password is too long: at most ${MAX_PASSWORD_BYTES} bytes, where a Latin letter, digit or symbol takes 1 and other letters take 2–4.`,
   nextSame: "The new password must be different from the current one.",
   nextWeak: "This password is too easy to guess. Choose a longer or less common one.",
   confirmMissing: "Repeat the new password.",

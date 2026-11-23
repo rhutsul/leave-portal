@@ -2,6 +2,7 @@
 // фокус переходить на заголовок сторінки. Лише читання; без AC ID — вимог PM до фічі ще немає. Знімок для docs/img/
 // (390 px) — у test-results/, звідки його бере артефакт CI.
 import { expect, test } from "@playwright/test";
+import { cleanScreenshot } from "./support/uat";
 
 test.use({ storageState: "playwright/.auth/teacher1.json", viewport: { width: 390, height: 844 } });
 
@@ -19,5 +20,5 @@ test("account opens from the mobile menu and fits the phone width", async ({ pag
   // Поля пароля на дотику — 44 px заввишки (ADR 0008).
   const box = await page.getByLabel("Current password").boundingBox();
   expect(box?.height).toBeGreaterThanOrEqual(44);
-  await page.screenshot({ path: test.info().outputPath("account-390-light.png"), fullPage: true });
+  await cleanScreenshot(page, test.info().outputPath("account-390-light.png"), true);
 });

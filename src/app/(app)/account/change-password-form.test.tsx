@@ -4,13 +4,13 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { INITIAL_CHANGE_PASSWORD, NO_PASSWORD_ERRORS, PASSWORD_MESSAGES as M, type ChangePasswordState } from "@/lib/account/password";
 
-const h = vi.hoisted(() => ({ state: null as unknown }));
+const h = vi.hoisted(() => ({ state: null as unknown, pending: false }));
 
 vi.mock("react", async (importOriginal) => {
   const actual = await importOriginal<typeof import("react")>();
   return {
     ...actual,
-    useActionState: (action: unknown, initial: unknown) => [h.state ?? initial, action, false],
+    useActionState: (action: unknown, initial: unknown) => [h.state ?? initial, action, h.pending],
   };
 });
 vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn() }));
@@ -30,6 +30,7 @@ function input(html: string, name: string): string {
 
 beforeEach(() => {
   h.state = null;
+  h.pending = false;
 });
 
 describe("ChangePasswordForm", () => {
@@ -65,5 +66,15 @@ describe("ChangePasswordForm", () => {
     const html = render({ ...INITIAL_CHANGE_PASSWORD, done: true });
     expect(html).toContain("Password changed");
     expect(html).toContain('role="status"');
+  });
+});
+
+describe("ChangePasswordForm while the change is in progress", () => {
+  it("disables the fields, so the answer describes what was sent", () => {
+    h.pending = true;
+    const html = render(null);
+    for (const name of ["current_password", "new_password", "confirm_password"]) {
+      expect(input(html, name)).toMatch(/\sdisabled=""/);
+    }
   });
 });

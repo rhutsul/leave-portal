@@ -8,6 +8,7 @@
 // — у test-results/, звідки їх бере артефакт CI.
 import { expect, test, type Page } from "@playwright/test";
 import { cleanupRemembered, createUatAccount } from "./support/admin";
+import { cleanScreenshot } from "./support/uat";
 
 test.use({ trace: "off" });
 
@@ -45,7 +46,7 @@ for (const { role, email, label } of ROLES) {
       // Ім'я й email лише для читання: полів, крім трьох паролів, на сторінці немає.
       await expect(page.locator("main input:not([type=hidden])")).toHaveCount(3);
       await expect(page.getByRole("button", { name: "Change password" })).toBeVisible();
-      await page.screenshot({ path: test.info().outputPath(`account-1280-${role}.png`) });
+      await cleanScreenshot(page, test.info().outputPath(`account-1280-${role}.png`));
     });
   });
 }
