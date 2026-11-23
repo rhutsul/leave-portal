@@ -73,7 +73,7 @@
    [зразком](incidents/2026-11-20-staging-bad-supabase-url.md).
 
 Приклад: [2026-11-20, staging, хибна `NEXT_PUBLIC_SUPABASE_URL`](incidents/2026-11-20-staging-bad-supabase-url.md) —
-алерт через 20 с після деплою, «Що впало: `supabaseRef=…skix, а очікувався …skio`».
+алерт через 17 с після деплою, «Що впало: `supabaseRef=…skix, а очікувався …skio`».
 
 ## 2. Відкат проду і Promote
 
