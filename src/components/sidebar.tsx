@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { LogOut, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { signOut } from "@/app/login/actions";
@@ -113,26 +115,7 @@ export function Sidebar({
           collapsed ? "flex-col items-center gap-2" : "items-center gap-2.5 pr-3 pl-4",
         )}
       >
-        <Tooltip disabled={!collapsed}>
-          <TooltipTrigger
-            render={
-              <span className="grid size-8 shrink-0 place-items-center rounded-full bg-accent text-xs font-semibold text-accent-foreground" />
-            }
-          >
-            <span aria-hidden="true">{initials(name)}</span>
-          </TooltipTrigger>
-          <TooltipContent side="right">
-            {name} · {email}
-          </TooltipContent>
-        </Tooltip>
-        <div className={cn("min-w-0 flex-1", collapsed && "sr-only")}>
-          <div data-testid="user-name" className="truncate text-[13px] font-medium text-foreground">
-            {name}
-          </div>
-          <div data-testid="user-email" className="truncate text-xs text-muted-foreground">
-            {email}
-          </div>
-        </div>
+        <AccountLink name={name} email={email} collapsed={collapsed} />
         <form action={signOut}>
           <Button type="submit" variant="ghost" size="icon-sm" aria-label="Sign out" title="Sign out">
             <LogOut />
@@ -140,5 +123,49 @@ export function Sidebar({
         </form>
       </div>
     </aside>
+  );
+}
+
+/**
+ * Акаунт унизу панелі: ініціали, ім'я й email — посилання на /account (ADR 0011). Згорнута панель — лише ініціали з
+ * підказкою; назва посилання «Account: …» — для зчитувача екрана й Tab.
+ */
+function AccountLink({ name, email, collapsed }: { name: string; email: string; collapsed: boolean }) {
+  const current = usePathname() === "/account";
+  return (
+    <Tooltip disabled={!collapsed}>
+      <TooltipTrigger
+        render={
+          <Link
+            href="/account"
+            aria-label={`Account: ${name}`}
+            aria-current={current ? "page" : undefined}
+            className={cn(
+              "flex min-w-0 items-center gap-2.5 rounded-md transition-colors duration-(--duration-fast) ease-out hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+              collapsed ? "p-0.5" : "-my-1 -ml-1.5 flex-1 px-1.5 py-1",
+              current && "bg-sidebar-accent",
+            )}
+          />
+        }
+      >
+        <span
+          aria-hidden="true"
+          className="grid size-8 shrink-0 place-items-center rounded-full bg-accent text-xs font-semibold text-accent-foreground"
+        >
+          {initials(name)}
+        </span>
+        <span className={cn("min-w-0 flex-1", collapsed && "sr-only")}>
+          <span data-testid="user-name" className="block truncate text-[13px] font-medium text-foreground">
+            {name}
+          </span>
+          <span data-testid="user-email" className="block truncate text-xs text-muted-foreground">
+            {email}
+          </span>
+        </span>
+      </TooltipTrigger>
+      <TooltipContent side="right">
+        Account · {name} · {email}
+      </TooltipContent>
+    </Tooltip>
   );
 }

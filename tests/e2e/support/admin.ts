@@ -185,6 +185,29 @@ export async function createUatEmployee(schedule: UatSchedule): Promise<UatEmplo
   return { id, email, fullName, session: await signInCookies(email, password) };
 }
 
+/**
+ * Одноразовий користувач для тесту зміни пароля (ADR 0011): uat-<run>-acct-<n>@example.test, роль employee, без
+ * посад. Пароль тест сам вводить у форму, тож функція його повертає (на відміну від createUatEmployee); тому файл
+ * тесту вимикає trace. Паролі демо-акаунтів, на яких тримаються інші тести, не чіпаємо. Прибирання — як у
+ * createUatEmployee: журнал uat_users → cleanupRemembered видаляє користувача за id, teardown назве залишок.
+ */
+export async function createUatAccount(): Promise<{ id: string; email: string; password: string }> {
+  const supabase = adminClient();
+  const suffix = randomBytes(3).toString("hex");
+  const email = `uat-${runLabel()}-acct-${suffix}@example.test`;
+  const password = randomBytes(18).toString("base64url");
+  const { data, error } = await supabase.auth.admin.createUser({
+    email,
+    password,
+    email_confirm: true,
+    user_metadata: { full_name: `UAT account ${suffix}` },
+  });
+  if (error) throw error;
+  const id = data.user.id;
+  remember({ table: "uat_users", id, what: `акаунт ${email}` });
+  return { id, email, password };
+}
+
 /** Закриття для «Дано» (AC каже, що його вже додав адміністратор). */
 export async function addClosure(name: string, start: string, end: string, closesAt: number | null = null) {
   const supabase = adminClient();
