@@ -38,7 +38,7 @@ const FIELDS: { field: PasswordField; name: string; label: string; autoComplete:
  */
 export function ChangePasswordForm() {
   const ids = useId();
-  // Поки дія виконується, поля вимкнено: інакше відповідь сервера описала б значення, яке вже змінили (рев'ю #120).
+  // Поки дія виконується, поля вимкнено: інакше відповідь сервера описала б значення, яке вже змінили (рев'ю CodeRabbit, PR 120).
   const [state, action, pending] = useActionState(changePassword, INITIAL_CHANGE_PASSWORD);
   const [fields, setFields] = useState<PasswordFields>(EMPTY);
   const [tried, setTried] = useState(false);
