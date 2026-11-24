@@ -2,8 +2,9 @@
 // не подаємо, тож на проді нічого не створюється. AC-LEAVE-22 подає заявку (тег @writes) — лише в job e2e на
 // одноразовому Supabase: playwright.config.ts не бере @writes на проді (UAT_BASE_URL) і поза CI (.env.local — спільна база). Повідомлення — дослівно з AC; точне коротке тире
 // «–» у годинах кадр не доводить, тому воно лише в твердженні й у hidden.
-import { expect, test } from "@playwright/test";
-import { showNovember2026 } from "./support/calendar";
+import { expect, test, type Browser } from "@playwright/test";
+import { cleanupRemembered, createUatEmployee, hasAdminKey, type UatEmployee } from "./support/admin";
+import { showMonth, showNovember2026 } from "./support/calendar";
 import { attachRuntimeErrors, given, thenStep, when } from "./support/uat";
 
 const NO_WORKING_HOURS = "You have no working hours on this day";
@@ -161,6 +162,149 @@ test.describe("teacher2@example.test", () => {
           await expect(record).toContainText("Awaiting decision");
         },
       );
+    },
+  );
+});
+
+// AC-LEAVE-23 і AC-LEAVE-24 не називають акаунта («an employee with the schedule Mon–Fri 08:30–15:30»): у teacher1@ є
+// ще додаткова посада в понеділок, тож беремо синтетичного працівника uat-<run>-…@example.test з рівно цим розкладом
+// (createUatEmployee). Він сам створює дані «Дано», а прибирання видаляє його разом із записами — тому @prod-writes.
+const REMINDER = "Personal leave of 2 days or more: please talk to the administrator before you go";
+const MON_FRI_WHOLE_DAY: [number, number][] = [[8 * 60 + 30, 15 * 60 + 30]];
+
+/** Браузерний контекст синтетичного працівника: лише куки сесії, пароль у браузер і trace.zip не потрапляє. */
+async function signedInAs(browser: Browser, employee: UatEmployee) {
+  const baseURL = test.info().project.use.baseURL;
+  if (!baseURL) throw new Error("немає baseURL у playwright.config.ts");
+  const context = await browser.newContext({ storageState: { cookies: [], origins: [] } });
+  const now = Math.floor(Date.now() / 1000);
+  await context.addCookies(
+    employee.session.map(({ name, value, maxAge }) => ({
+      name,
+      value,
+      url: baseURL,
+      sameSite: "Lax" as const,
+      expires: maxAge ? now + maxAge : -1,
+    })),
+  );
+  const page = await context.newPage();
+  await page.goto("/requests/new");
+  await expect(page.getByTestId("user-email")).toHaveText(employee.email);
+  return { context, page };
+}
+
+test.describe("an employee with the schedule Mon–Fri 08:30–15:30", () => {
+  test.afterEach(async () => {
+    if (hasAdminKey()) await cleanupRemembered();
+  });
+
+  test(
+    "AC-LEAVE-23: Personal leave for the whole days 2026-12-07 and 2026-12-08 (2.00 days) — the reminder, then 2 records",
+    { tag: ["@uat", "@prod-writes"], annotation: { type: "ac", description: "AC-LEAVE-23" } },
+    async ({ browser }) => {
+      const employee = await createUatEmployee({
+        mon: MON_FRI_WHOLE_DAY,
+        tue: MON_FRI_WHOLE_DAY,
+        wed: MON_FRI_WHOLE_DAY,
+        thu: MON_FRI_WHOLE_DAY,
+        fri: MON_FRI_WHOLE_DAY,
+      });
+      const { context, page } = await signedInAs(browser, employee);
+      try {
+        await given("an employee with the schedule Mon–Fri 08:30–15:30", async () => {
+          await expect(page.getByText("Your weekly schedule")).toBeVisible();
+          await showMonth(page, 2026, 12);
+        });
+
+        await when(
+          'the employee requests "Personal leave" for the whole days Monday 2026-12-07 and Tuesday 2026-12-08 (2.00 days) and opens the summary',
+          async () => {
+            await page.getByRole("button", { name: /^Mon, 7 Dec 2026/ }).click();
+            await page.getByRole("button", { name: /^Tue, 8 Dec 2026/ }).click();
+            await page.getByRole("button", { name: "Continue" }).click();
+            await expect(page.getByRole("region", { name: "Mon, 7 Dec 2026" })).toBeVisible();
+            await page.getByRole("button", { name: "Continue" }).click();
+            await page.getByText("Personal leave", { exact: true }).click();
+            await page.getByRole("button", { name: "Continue" }).click();
+          },
+        );
+
+        await thenStep(
+          page,
+          {
+            clause:
+              'the employee sees the reminder "Personal leave of 2 days or more: please talk to the administrator before you go", and after confirming, the request is created with 2 records.',
+            visible: ["the reminder in the summary before Submit request"],
+            hidden: ["after Submit request: «Request submitted» and two records 7 and 8 Dec in My requests"],
+          },
+          async () => {
+            const main = page.getByRole("main");
+            await expect(main.getByTestId("personal-leave-reminder")).toHaveText(REMINDER);
+            await expect(main.getByRole("button", { name: "Submit request" })).toBeEnabled();
+            await main.getByRole("button", { name: "Submit request" }).click();
+            await expect(main.getByText("Request submitted")).toBeVisible();
+            const records = main.getByTestId("leave-record").filter({ hasText: "Personal leave" });
+            await expect(records).toHaveCount(2);
+          },
+        );
+      } finally {
+        await context.close();
+      }
+    },
+  );
+
+  test(
+    "AC-LEAVE-24: Personal leave for the whole day 2026-12-07 and 08:30–12:00 on 2026-12-08 (1.50 days) — no reminder",
+    { tag: ["@uat", "@prod-writes"], annotation: { type: "ac", description: "AC-LEAVE-24" } },
+    async ({ browser }) => {
+      const employee = await createUatEmployee({
+        mon: MON_FRI_WHOLE_DAY,
+        tue: MON_FRI_WHOLE_DAY,
+        wed: MON_FRI_WHOLE_DAY,
+        thu: MON_FRI_WHOLE_DAY,
+        fri: MON_FRI_WHOLE_DAY,
+      });
+      const { context, page } = await signedInAs(browser, employee);
+      try {
+        await given("an employee with the schedule Mon–Fri 08:30–15:30", async () => {
+          await expect(page.getByText("Your weekly schedule")).toBeVisible();
+          await showMonth(page, 2026, 12);
+        });
+
+        await when(
+          'the employee requests "Personal leave" for the whole day 2026-12-07 and for 2026-12-08 from 08:30 to 12:00 in one request (1.50 days in total) and opens the summary',
+          async () => {
+            await page.getByRole("button", { name: /^Mon, 7 Dec 2026/ }).click();
+            await page.getByRole("button", { name: /^Tue, 8 Dec 2026/ }).click();
+            await page.getByRole("button", { name: "Continue" }).click();
+            const tuesday = page.getByRole("region", { name: "Tue, 8 Dec 2026" }).getByRole("listitem");
+            await tuesday.getByRole("button", { name: "Specific hours" }).click();
+            await tuesday.getByLabel("From").fill("08:30");
+            await tuesday.getByLabel("to", { exact: true }).fill("12:00");
+            await page.getByRole("button", { name: "Continue" }).click();
+            await page.getByText("Personal leave", { exact: true }).click();
+            await page.getByRole("button", { name: "Continue" }).click();
+          },
+        );
+
+        await thenStep(
+          page,
+          {
+            clause: "the employee does not see the reminder about Personal leave of 2 days or more.",
+            visible: ["the summary with 2 records (7 Dec whole day, 8 Dec 08:30–12:00) and no reminder"],
+            hidden: ["the reminder text is nowhere on the page"],
+          },
+          async () => {
+            const main = page.getByRole("main");
+            await expect(main.getByRole("row").filter({ hasText: "08:30–12:00" })).toHaveCount(1);
+            await expect(main.getByRole("button", { name: "Submit request" })).toBeVisible();
+            await expect(main.getByTestId("personal-leave-reminder")).toHaveCount(0);
+            await expect(main.getByText(REMINDER)).toHaveCount(0);
+          },
+        );
+      } finally {
+        await context.close();
+      }
     },
   );
 });
