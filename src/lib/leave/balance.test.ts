@@ -362,4 +362,28 @@ describe("the reminder about long Personal leave", () => {
     const acrossYears = ["2027-08-31", "2027-09-01"].map((date) => ({ date, minutes: 420 }));
     expect(personalLeaveReminder("personal", acrossYears, MON_FRI)).toBe(PERSONAL_LEAVE_REMINDER);
   });
+
+  it("an early dismissal shortens the day: all open minutes of a shortened day count as a whole day", () => {
+    // 2026-12-08 закрито з 12:00: незакриті 08:30–12:00 (210 хв) — увесь день, тож разом із 2026-12-07 — 2.00.
+    const closures = [{ id: 1, name: "Staff meeting", startDate: "2026-12-08", endDate: "2026-12-08", closesAt: 720 }];
+    const records = [
+      { date: "2026-12-07", minutes: 420 },
+      { date: "2026-12-08", minutes: 210 },
+    ];
+    expect(personalLeaveReminder("personal", records, MON_FRI, closures)).toBe(PERSONAL_LEAVE_REMINDER);
+    expect(personalLeaveReminder("personal", records, MON_FRI)).toBeNull();
+  });
+
+  it("two positions on one date share the day: both whole positions on two dates make 2.00", () => {
+    // Друга посада в понеділок 15:45–17:00: день — усі хвилини обох посад (420 + 75).
+    const blocks = [...MON_FRI, { weekday: 1, start: 945, end: 1020 }];
+    const bothPositions = [
+      { date: "2026-12-07", minutes: 420 },
+      { date: "2026-12-07", minutes: 75 },
+      { date: "2026-12-08", minutes: 420 },
+    ];
+    expect(personalLeaveReminder("personal", bothPositions, blocks)).toBe(PERSONAL_LEAVE_REMINDER);
+    // Лише основна посада в понеділок — менше за цілий день, разом менше за 2.00.
+    expect(personalLeaveReminder("personal", [bothPositions[0], bothPositions[2]], blocks)).toBeNull();
+  });
 });

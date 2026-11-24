@@ -450,8 +450,6 @@ export function NewRequestForm({
                     </TableBody>
                   </Table>
                 </div>
-                {/* Попередження не зупиняє заявку — виглядає як попередження, не помилка (рішення PM,
-                    mkozlovskyi-ops/course-staff-management-spec#16); текст дослівно з AC. */}
                 {/* Нагадування, а не попередження й не помилка: довідка «info» (DESIGN.md, розділ 2); текст дослівно з AC-LEAVE-23. */}
                 {reminder && (
                   <Alert variant="info" role="note" data-testid="personal-leave-reminder">
@@ -459,6 +457,8 @@ export function NewRequestForm({
                     <AlertDescription>{reminder}</AlertDescription>
                   </Alert>
                 )}
+                {/* Попередження не зупиняє заявку — виглядає як попередження, не помилка (рішення PM,
+                    mkozlovskyi-ops/course-staff-management-spec#16); текст дослівно з AC. */}
                 {warnings.map((w) => (
                   <Alert key={w.key} variant="warning" role="note">
                     <TriangleAlert />

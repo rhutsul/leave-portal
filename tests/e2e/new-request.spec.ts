@@ -298,6 +298,9 @@ test.describe("an employee with the schedule Mon–Fri 08:30–15:30", () => {
             const main = page.getByRole("main");
             await expect(main.getByRole("row").filter({ hasText: "08:30–12:00" })).toHaveCount(1);
             await expect(main.getByRole("button", { name: "Submit request" })).toBeVisible();
+            // Вартові: це саме підсумок «Personal leave» на 1.50 дні (10 h 30 min), тож відсутність нагадування — не випадкова.
+            await expect(main.getByRole("definition").filter({ hasText: "Personal leave" })).toHaveCount(1);
+            await expect(main.getByRole("definition").filter({ hasText: "10 h 30 min" })).toHaveCount(1);
             await expect(main.getByTestId("personal-leave-reminder")).toHaveCount(0);
             await expect(main.getByText(REMINDER)).toHaveCount(0);
           },
