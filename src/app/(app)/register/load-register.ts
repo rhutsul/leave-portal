@@ -93,6 +93,6 @@ export function registerExport(
   return {
     ok: true,
     fileName: exportFileName(result.division.code, result.month),
-    csv: registerCsv(result.rows, `${result.division.name} · ${result.monthLabel}`),
+    csv: registerCsv(result.rows),
   };
 }

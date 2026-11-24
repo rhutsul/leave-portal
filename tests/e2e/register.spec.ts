@@ -37,15 +37,16 @@ async function checkRegister(page: Page, fx: RegisterFixture) {
   const csv = await readFile((await download.path())!, "utf8");
   expect(csv.codePointAt(0)).toBe(0xfeff);
   const lines = csv.slice(1).split("\r\n");
-  expect(lines[0]).toBe(`${fx.divisionName} · ${monthLabel(fx.month)}`);
-  expect(lines[1]).toBe(
+  // Чиста таблиця: перший рядок — шапка, без заголовка над нею й без рядка «Total».
+  expect(lines[0]).toBe(
     "Employee,Email,Position,Position type,Date,Hours,From,To,Duration (h),Leave type,Paid days,Unpaid days,Approved by,Approved on",
   );
   const mine = lines.filter((l) => l.includes(fx.employee.email));
   expect(mine).toHaveLength(2);
   expect(mine[0]).toMatch(new RegExp(`^${fx.employee.fullName},${fx.employee.email},UAT teacher,Main,\\d{4}-\\d{2}-\\d{2},Whole day,08:30,15:30,7\\.00,Sick leave,1\\.00,0\\.00,`));
   expect(mine[1]).toMatch(/,08:30–12:00,08:30,12:00,3\.50,Unpaid leave,0\.00,0\.50,/);
-  expect(lines.some((l) => /^Total,\d+ records?,/.test(l))).toBe(true);
+  expect(lines.some((l) => l.startsWith("Total"))).toBe(false);
+  expect(lines.at(-1)).toBe("");
 }
 
 test.describe("register for a manager", { tag: "@prod-writes" }, () => {

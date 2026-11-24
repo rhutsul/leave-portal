@@ -1,6 +1,7 @@
 // Завантаження реєстру для /register і CSV (ADR 0012) — ініціатива розробника до вимог PM, тож без AC ID у назвах.
 // Хто що бачить, вирішує база (tests/db/approved-register.test.ts); тут — лише стик: вибір підрозділу й місяця, помилки.
 import { describe, expect, it, vi } from "vitest";
+import { CSV_HEADER } from "@/lib/register/csv";
 import { loadRegister, registerExport, type RegisterLoad } from "./load-register";
 
 type Rpc = { data: unknown; error: { code: string } | null };
@@ -118,10 +119,10 @@ describe("the CSV response", () => {
     rows: [],
   };
 
-  it("names the file and titles it with the division and month", () => {
+  it("names the file after the division and month; the file itself is a clean table", () => {
     const result = registerExport(loaded);
     expect(result.ok && result.fileName).toBe("register-high-2026-11.csv");
-    expect(result.ok && result.csv.split("\r\n")[0]).toBe(String.fromCharCode(0xfeff) + "High school · November 2026");
+    expect(result.ok && result.csv.split("\r\n")[0]).toBe(String.fromCharCode(0xfeff) + CSV_HEADER.join(","));
   });
 
   it("maps each failure to a status and a plain message", () => {

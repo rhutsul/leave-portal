@@ -60,14 +60,14 @@ describe("CSV cells", () => {
 });
 
 describe("register CSV", () => {
-  it("starts with a BOM, a title and the header, ends every line with CRLF", () => {
-    const csv = registerCsv([row()], "Elementary school · November 2026");
+  it("is a clean table: a BOM, the header first, CRLF after every line", () => {
+    const csv = registerCsv([row()]);
     expect(csv.startsWith(CSV_BOM)).toBe(true);
     expect(CSV_BOM.codePointAt(0)).toBe(0xfeff);
     expect(csv.endsWith("\r\n")).toBe(true);
-    const [title, header] = lines(csv);
-    expect(title).toBe("Elementary school · November 2026");
-    expect(header).toBe(CSV_HEADER.join(","));
+    const all = lines(csv);
+    expect(all[0]).toBe(CSV_HEADER.join(","));
+    expect(all).toHaveLength(2);
   });
 
   it("writes one line per record with every column", () => {
@@ -90,9 +90,8 @@ describe("register CSV", () => {
           approved_by_name: null,
         }),
       ],
-      "High school · November 2026",
     );
-    const [, , first, second, blank, total] = lines(csv);
+    const [, first, second, ...rest] = lines(csv);
     expect(first).toBe(
       "Андрій Демо-Вчитель-Перший,teacher1@example.test,Teacher,Main,2026-11-03,Whole day,08:30,15:30,7.00," +
         "Personal leave,1.00,0.00,Ірина Демо-Менеджер-Перша,2026-11-02 12:15",
@@ -101,24 +100,21 @@ describe("register CSV", () => {
       '"Doe, Jane",teacher1@example.test,Math teacher,Additional,2026-11-03,15:45–17:00,15:45,17:00,1.25,' +
         "Unpaid leave,0.00,0.15,,",
     );
-    expect(blank).toBe("");
-    expect(total).toBe("Total,2 records,,,,,,,8.25,,1.00,0.15,,");
+    // Без порожнього рядка й рядка «Total»: підсумок — лише на сторінці.
+    expect(rest).toEqual([]);
   });
 
-  it("writes only the title, header and a zero total for an empty month", () => {
-    const all = lines(registerCsv([], "High school · December 2026"));
-    expect(all).toHaveLength(4);
-    expect(all[3]).toBe("Total,0 records,,,,,,,0.00,,0.00,0.00,,");
+  it("writes only the header for an empty month", () => {
+    expect(lines(registerCsv([]))).toEqual([CSV_HEADER.join(",")]);
   });
 
-  it("speaks of one record in the singular and treats missing days as zero", () => {
-    const all = lines(registerCsv([row({ paid_days: null, unpaid_days: null })], "x"));
-    expect(all[2]).toContain(",Personal leave,0.00,0.00,");
-    expect(all[4]).toBe("Total,1 record,,,,,,,7.00,,0.00,0.00,,");
+  it("treats missing days as zero", () => {
+    const all = lines(registerCsv([row({ paid_days: null, unpaid_days: null })]));
+    expect(all[1]).toContain(",Personal leave,0.00,0.00,");
   });
 
   it("protects names that look like formulas", () => {
-    const all = lines(registerCsv([row({ employee_name: "=cmd|' /C calc'!A0" })], "x"));
-    expect(all[2].startsWith("'=cmd|' /C calc'!A0,")).toBe(true);
+    const all = lines(registerCsv([row({ employee_name: "=cmd|' /C calc'!A0" })]));
+    expect(all[1].startsWith("'=cmd|' /C calc'!A0,")).toBe(true);
   });
 });

@@ -1,7 +1,6 @@
 // CSV реєстру погоджених відсутностей (ADR 0012): UTF-8 з BOM, щоб Excel відкрив кирилицю в іменах, роздільник —
 // кома, рядки — CRLF (RFC 4180). Без залежностей.
-import { formatDays } from "@/lib/leave/balance";
-import { hoursDecimal, recordsLabel, registerCells, registerTotals, type RegisterRow } from "./register";
+import { registerCells, type RegisterRow } from "./register";
 
 export const CSV_BOM = String.fromCharCode(0xfeff);
 
@@ -38,13 +37,11 @@ export const CSV_HEADER = [
 ] as const;
 
 /**
- * Файл реєстру: шапка, рядок на запис, порожній рядок і підсумок (записи, години, оплачувані й неоплачувані дні).
- * `title` — перший рядок над шапкою: підрозділ і місяць, щоб файл читався й без назви.
+ * Файл реєстру — чиста таблиця для імпорту в бухгалтерію (ADR 0012): шапка й рядок на запис, без заголовка над шапкою
+ * і без рядка підсумку. Підрозділ і місяць — у назві файлу (exportFileName), підсумок — на сторінці /register.
  */
-export function registerCsv(rows: readonly RegisterRow[], title: string): string {
-  const totals = registerTotals(rows);
+export function registerCsv(rows: readonly RegisterRow[]): string {
   const lines = [
-    csvLine([title]),
     csvLine(CSV_HEADER),
     ...rows.map((r) => {
       const c = registerCells(r);
@@ -65,23 +62,6 @@ export function registerCsv(rows: readonly RegisterRow[], title: string): string
         c.approvedOn,
       ]);
     }),
-    "",
-    csvLine([
-      "Total",
-      recordsLabel(totals.records),
-      "",
-      "",
-      "",
-      "",
-      "",
-      "",
-      hoursDecimal(totals.minutes),
-      "",
-      formatDays(totals.paid),
-      formatDays(totals.unpaid),
-      "",
-      "",
-    ]),
   ];
   return `${CSV_BOM}${lines.join("\r\n")}\r\n`;
 }
