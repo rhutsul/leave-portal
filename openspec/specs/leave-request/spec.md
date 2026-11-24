@@ -216,3 +216,19 @@ WHEN працівник просить години, початок яких п�
 - **WHEN** працівник просить «Personal leave» на 2026-11-03 з 09:00 до 12:30
 - **THEN** створено 1 запис 2026-11-03 09:00–12:30 тривалістю 3 h
 - **AND** перерву 12:00–12:30 не враховано
+
+### Requirement: Нагадування про довгу Personal leave
+
+WHEN працівник відкриває підсумок заявки, у якій «Personal leave» разом за правилом частки дня дає 2.00 дні або більше, the system SHALL показати нагадування "Personal leave of 2 days or more: please talk to the administrator before you go", не зупиняючи заявку, а коли менше за 2.00 дні — не показувати його.
+
+#### Scenario: AC-LEAVE-23 Personal leave на 2.00 дні — нагадування
+
+- **GIVEN** an employee with the schedule Mon–Fri 08:30–15:30
+- **WHEN** the employee requests "Personal leave" for the whole days Monday 2026-12-07 and Tuesday 2026-12-08 (2.00 days) and opens the summary
+- **THEN** the employee sees the reminder "Personal leave of 2 days or more: please talk to the administrator before you go", and after confirming, the request is created with 2 records.
+
+#### Scenario: AC-LEAVE-24 Personal leave на 1.50 дні — без нагадування
+
+- **GIVEN** an employee with the schedule Mon–Fri 08:30–15:30
+- **WHEN** the employee requests "Personal leave" for the whole day 2026-12-07 and for 2026-12-08 from 08:30 to 12:00 in one request (1.50 days in total) and opens the summary
+- **THEN** the employee does not see the reminder about Personal leave of 2 days or more.

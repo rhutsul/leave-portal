@@ -54,6 +54,8 @@
 | AC-LEAVE-16 | Перетин в одній із дат | `src/lib/leave/request.ts` (buildRequestRecords, findOverlap), `src/app/(app)/requests/new/actions.ts`, `supabase/migrations/20261020190045_leave_requests_schema.sql` (submit_leave_request) | `src/lib/leave/request.test.ts`, `tests/db/multi-date-request.test.ts` | реалізовано |
 | AC-LEAVE-21 | Субота в заявці разом із п'ятницею | `src/lib/leave/request.ts` (buildRequestRecords), `supabase/migrations/20261021171135_leave_record_edit.sql` (submit_leave_request), `src/app/(app)/requests/new/actions.ts`, `src/app/(app)/requests/new/submit-redirect.ts` (submitRedirect), `src/app/(app)/requests/page.tsx` | `src/app/(app)/requests/new/submit-redirect.test.ts`, `src/lib/leave/request.test.ts`, `tests/db/leave-record-edit.test.ts` | реалізовано |
 | AC-LEAVE-22 | Кінець о початку другого блоку | `src/lib/leave/time.ts` (checkHours), `supabase/migrations/20261104165058_end_at_next_block.sql` (check_record_hours: submit_leave_request, update_leave_record_hours) | `src/lib/leave/time.test.ts`, `tests/db/submit-leave-request.test.ts`, `tests/db/leave-record-edit.test.ts`, `tests/e2e/new-request.spec.ts` | реалізовано |
+| AC-LEAVE-23 | Personal leave на 2.00 дні — нагадування | — | — | відкладено (чекає реалізації) |
+| AC-LEAVE-24 | Personal leave на 1.50 дні — без нагадування | — | — | відкладено (чекає реалізації) |
 | AC-LEAVE-14 | Лише власні записи | `supabase/migrations/20261020190045_leave_requests_schema.sql` (RLS, my_leave_records), `src/app/(app)/requests/page.tsx` | `tests/db/my-requests.test.ts`, `tests/db/submit-leave-request.test.ts` | реалізовано |
 | AC-LEAVE-18 | Коментар із 501 символу | `src/lib/leave/request.ts` (checkComment), `supabase/migrations/20261020190045_leave_requests_schema.sql` (submit_leave_request), `src/app/(app)/requests/new/new-request-form.tsx` | `src/lib/leave/request.test.ts`, `tests/db/multi-date-request.test.ts` | реалізовано |
 | AC-DECIDE-01 | Лише записи своїх посад | `supabase/migrations/20261021133002_leave_decisions.sql` (decision_records), `supabase/migrations/20261020190045_leave_requests_schema.sql` (RLS leave_records_select_own_managed_or_admin), `src/app/(app)/decisions/page.tsx` | `tests/db/leave-decisions.test.ts` | реалізовано |
@@ -133,3 +135,65 @@
 | AC-ASSIST-09 | Таймаут або вичерпаний ліміт | `src/lib/ai/suggestions.ts` (runAssistant), `src/lib/ai/draft.ts` (classifyError, timeout 30 s), `src/lib/ai/openrouter.ts` (productModel), `src/app/(app)/calendar/assistant/actions.ts` (requestSuggestions: take_ai_quota, saveSuggestions), `supabase/migrations/20261118083501_ai_quota.sql` (private.take_ai_quota, 20 запитів на добу), `src/app/(app)/calendar/assistant/assistant-form.tsx` (StateAlert) | `tests/golden.test.ts`, `tests/calendar-assistant-actions.test.ts`, `src/lib/ai/suggestions.test.ts`, `tests/db/ai-quota.test.ts` | реалізовано |
 | AC-ASSIST-10 | Текст 2001 знак | `src/lib/ai/suggestions.ts` (assistantTextLength), `src/lib/ai/prompts/draft.ts` (wrapDocument), `src/app/(app)/calendar/assistant/actions.ts` (requestSuggestions, saveSuggestions), `src/app/(app)/calendar/assistant/assistant-form.tsx` | `src/lib/ai/suggestions.test.ts`, `tests/calendar-assistant-actions.test.ts`, `tests/e2e/calendar-assistant.spec.ts` (UAT на проді 16.11, `docs/qa/uat/2026-11-16/`) | реалізовано |
 | AC-ASSIST-11 | Працівник за прямим посиланням | `src/app/(app)/calendar/admin-session.ts` (adminSession), `src/app/(app)/calendar/manage/access.ts`, `src/app/(app)/calendar/page.tsx` (manageAccess → `AssistantSheet`), `src/app/(app)/calendar/assistant/assistant-sheet.tsx`, `src/app/(app)/calendar/assistant/actions.ts` (requestSuggestions, saveSuggestions) | `tests/calendar-assistant-actions.test.ts`, `tests/e2e/calendar-assistant.spec.ts` (UAT на проді 16.11, `docs/qa/uat/2026-11-16/`) | реалізовано |
+| AC-SUBST-01 | Менеджер додає дві заміни | — | — | відкладено (чекає реалізації) |
+| AC-SUBST-02 | Запис із заміною | — | — | відкладено (чекає реалізації) |
+| AC-SUBST-03 | Без вибору заміни | — | — | відкладено (чекає реалізації) |
+| AC-SUBST-04 | Пропонуються лише люди зі списку | — | — | відкладено (чекає реалізації) |
+| AC-SUBST-05 | Заміна має власний запис | — | — | відкладено (чекає реалізації) |
+| AC-SUBST-06 | Заміна вже замінює іншого | — | — | відкладено (чекає реалізації) |
+| AC-SUBST-07 | Відхилений запис заміну не займає | — | — | відкладено (чекає реалізації) |
+| AC-SUBST-08 | Асистент замінює вчителя | — | — | відкладено (чекає реалізації) |
+| AC-SUBST-09 | Вчитель замінює вчителя | — | — | відкладено (чекає реалізації) |
+| AC-SUBST-10 | Один запис у «My substitutions» | — | — | відкладено (чекає реалізації) |
+| AC-SUBST-11 | Порожній список замін | — | — | відкладено (чекає реалізації) |
+| AC-SUBST-12 | Працівник за прямим посиланням | — | — | відкладено (чекає реалізації) |
+| AC-SUBST-13 | Менеджер чужих посад в обхід сторінок | — | — | відкладено (чекає реалізації) |
+| AC-SUBST-14 | Гість за прямим посиланням | — | — | відкладено (чекає реалізації) |
+| AC-SUBST-15 | Немає замін | — | — | відкладено (чекає реалізації) |
+| AC-STAFF-01 | Новий працівник і посилання | — | — | відкладено (чекає реалізації) |
+| AC-STAFF-02 | Пароль за дійсним посиланням | — | — | відкладено (чекає реалізації) |
+| AC-STAFF-03 | Прострочене посилання | — | — | відкладено (чекає реалізації) |
+| AC-STAFF-04 | Основна посада нового працівника | — | — | відкладено (чекає реалізації) |
+| AC-STAFF-05 | Друга основна посада | — | — | відкладено (чекає реалізації) |
+| AC-STAFF-06 | Перетин розкладів | — | — | відкладено (чекає реалізації) |
+| AC-STAFF-07 | Новий розклад не змінює погодженого запису | — | — | відкладено (чекає реалізації) |
+| AC-STAFF-08 | Деактивований працівник | — | — | відкладено (чекає реалізації) |
+| AC-STAFF-09 | Заступник бачить і вирішує запис | — | — | відкладено (чекає реалізації) |
+| AC-STAFF-10 | Поза періодом заступництва | — | — | відкладено (чекає реалізації) |
+| AC-STAFF-11 | Нові ім'я й email | — | — | відкладено (чекає реалізації) |
+| AC-STAFF-12 | Працівник змінює собі ім'я чи email | — | — | відкладено (чекає реалізації) |
+| AC-STAFF-13 | Менеджер за прямим посиланням | — | — | відкладено (чекає реалізації) |
+| AC-STAFF-14 | Менеджер призначає себе заступником в обхід сторінок | — | — | відкладено (чекає реалізації) |
+| AC-STAFF-15 | Гість за прямим посиланням | — | — | відкладено (чекає реалізації) |
+| AC-STAFF-16 | Правильний поточний пароль | — | — | відкладено (чекає реалізації: поведінку й тексти вже реалізовано в #120, AC ID у назвах тестів — у PR реалізації зрізу staff-management) |
+| AC-STAFF-17 | Неправильний поточний пароль | — | — | відкладено (чекає реалізації: поведінку й тексти вже реалізовано в #120, AC ID у назвах тестів — у PR реалізації зрізу staff-management) |
+| AC-STAFF-18 | Єдиний адміністратор знімає собі роль | — | — | відкладено (чекає реалізації) |
+| AC-STAFF-19 | Немає заступників | — | — | відкладено (чекає реалізації) |
+| AC-BEHALF-01 | Лікарняний від імені працівника | — | — | відкладено (чекає реалізації) |
+| AC-BEHALF-02 | Посада іншого менеджера чекає рішення | — | — | відкладено (чекає реалізації) |
+| AC-BEHALF-03 | Адміністратор подає на дві посади | — | — | відкладено (чекає реалізації) |
+| AC-BEHALF-04 | Залишок після лікарняного від імені | — | — | відкладено (чекає реалізації) |
+| AC-BEHALF-05 | Субота без розкладу | — | — | відкладено (чекає реалізації) |
+| AC-BEHALF-06 | Зміна дати | — | — | відкладено (чекає реалізації) |
+| AC-BEHALF-07 | Зміна типу відпустки | — | — | відкладено (чекає реалізації) |
+| AC-BEHALF-08 | Додавання заміни | — | — | відкладено (чекає реалізації) |
+| AC-BEHALF-09 | Години поза розкладом | — | — | відкладено (чекає реалізації) |
+| AC-BEHALF-10 | Зміна погодженого запису | — | — | відкладено (чекає реалізації) |
+| AC-BEHALF-11 | Працівник чужих посад | — | — | відкладено (чекає реалізації) |
+| AC-BEHALF-12 | Працівник за прямим посиланням | — | — | відкладено (чекає реалізації) |
+| AC-BEHALF-13 | Менеджер чужої посади в обхід сторінок | — | — | відкладено (чекає реалізації) |
+| AC-BEHALF-14 | Гість за прямим посиланням | — | — | відкладено (чекає реалізації) |
+| AC-BEHALF-15 | Немає працівників для заявки | — | — | відкладено (чекає реалізації) |
+| AC-CANCEL-01 | Прохання скасувати погоджений запис | — | — | відкладено (чекає реалізації) |
+| AC-CANCEL-02 | Підтвердження повертає дні в залишок | — | — | відкладено (чекає реалізації) |
+| AC-CANCEL-03 | Відхилення з коментарем | — | — | відкладено (чекає реалізації) |
+| AC-CANCEL-04 | Відхилення без коментаря | — | — | відкладено (чекає реалізації) |
+| AC-CANCEL-05 | Прохання для запису в минулому | — | — | відкладено (чекає реалізації) |
+| AC-CANCEL-06 | Повторне прохання | — | — | відкладено (чекає реалізації) |
+| AC-CANCEL-07 | Скасування розділеного запису | — | — | відкладено (чекає реалізації) |
+| AC-CANCEL-08 | Скасування з приміткою | — | — | відкладено (чекає реалізації) |
+| AC-CANCEL-09 | Скасування без примітки | — | — | відкладено (чекає реалізації) |
+| AC-CANCEL-10 | Чужий запис за прямим посиланням | — | — | відкладено (чекає реалізації) |
+| AC-CANCEL-11 | Менеджер чужої посади в обхід сторінок | — | — | відкладено (чекає реалізації) |
+| AC-CANCEL-12 | Гість за прямим посиланням | — | — | відкладено (чекає реалізації) |
+| AC-CANCEL-13 | Закриття дня скасованого запису | — | — | відкладено (чекає реалізації) |
