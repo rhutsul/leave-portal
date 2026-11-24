@@ -21,7 +21,7 @@ import {
   managerWarning,
   schoolYearOf,
 } from "@/lib/leave/balance";
-import { canCancelWithNote, type CancellationMark } from "@/lib/leave/cancellation";
+import { canCancelWithNote, cancellationRequestLine, type CancellationMark } from "@/lib/leave/cancellation";
 import { DECISION_MESSAGES, reviewedHours } from "@/lib/leave/decision";
 import {
   isLeaveType,
@@ -44,6 +44,7 @@ import {
   dayBar,
   decidedNotice,
   decisionsTab,
+  historyRecords,
   neighbours,
   pickRecord,
   recordHref,
@@ -59,9 +60,6 @@ const TABS: { id: DecisionsTab; label: string; href: string }[] = [
   { id: "awaiting", label: "Awaiting decision", href: "/decisions" },
   { id: "history", label: "History", href: "/decisions?tab=history" },
 ];
-
-/** Статуси, з якими запис потрапляє в «History» менеджера: рішення ухвалено (AC-DECIDE-11). */
-const DECIDED: RecordStatus[] = ["approved", "rejected", "returned"];
 
 const first = (value: string | string[] | undefined) => (Array.isArray(value) ? value[0] : value);
 
@@ -110,18 +108,10 @@ export default async function DecisionsPage({ searchParams }: PageProps<"/decisi
 
   // Роль і записи — одночасно: decision_records сам повертає лише записи посад, якими користувач керує (адміністратору —
   // усі), а без ролі manager чи admin рядки нижче не використовуються. Сторінка чекає бази один раз замість двох.
-  // Прохання про скасування погоджених записів (D11): окремим запитом, бо тип результату decision_records не змінюємо
-  // (expand → contract, AGENTS.md). RLS — ті самі записи (посади менеджера, адміністратору — усі); збій — без прохань.
-  const [{ data: profile }, { data: rows, error }, requests] = await Promise.all([
+  const [{ data: profile }, { data: rows, error }, { requests, cancelEvents }] = await Promise.all([
     supabase.from("profiles").select("role").eq("id", claims.sub).maybeSingle(),
     supabase.rpc("decision_records"),
-    supabase
-      .from("leave_records")
-      .select("id, cancel_reason, cancel_request_id")
-      .not("cancel_reason", "is", null)
-      .then(({ data: found, error: requestsError }) =>
-        requestsError ? new Map<number, CancelRequest>() : new Map((found ?? []).map((c) => [c.id, c as CancelRequest])),
-      ),
+    loadCancellations(supabase),
   ]);
   if (profile?.role !== "manager" && profile?.role !== "admin") {
     // Відмова в доступі — пояснення й посилання на головну, без даних (DESIGN.md, розділ 6).
@@ -152,9 +142,7 @@ export default async function DecisionsPage({ searchParams }: PageProps<"/decisi
   // Черга «Awaiting decision» (AC-DECIDE-01, AC-DECIDE-14 у редакції 09): записи, що чекають рішення, і погоджені з
   // відкритим проханням про скасування (AC-CANCEL-01) — у тому самому порядку (дата, час).
   const awaiting = records.filter((r) => r.status === "awaiting" || (r.status === "approved" && requests.has(r.id)));
-  const history = records
-    .filter((r) => DECIDED.includes(r.status as RecordStatus))
-    .sort((a, b) => (b.decided_at ?? "").localeCompare(a.decided_at ?? ""));
+  const history = historyRecords(records, cancelEvents);
   const shown = tab === "awaiting" ? awaiting : history;
   const { record: selected, denied } = pickRecord(records, first(params.record));
   const listHref = TABS.find((t) => t.id === tab)!.href;
@@ -317,6 +305,20 @@ function recordMeta(r: DecisionRow): string {
 
 /** Відкрите прохання про скасування погодженого запису (D11). */
 type CancelRequest = { id: number; cancel_reason: string; cancel_request_id: number };
+
+/**
+ * Прохання про скасування погоджених записів (D11) — окремим запитом, бо тип результату decision_records не змінюємо
+ * (expand → contract, AGENTS.md); RLS — ті самі записи (посади менеджера, адміністратору — усі). Події «cancelled» —
+ * щоб записи, скасовані менеджером, лишались у «History» (historyRecords). Збій будь-якого — без них, сторінка працює.
+ */
+async function loadCancellations(supabase: Supabase) {
+  const [{ data: found, error }, { data: events }] = await Promise.all([
+    supabase.from("leave_records").select("id, cancel_reason, cancel_request_id").not("cancel_reason", "is", null),
+    supabase.from("leave_record_events").select("record_id, actor_id, created_at").eq("action", "cancelled"),
+  ]);
+  const requests = new Map<number, CancelRequest>(error ? [] : (found ?? []).map((c) => [c.id, c as CancelRequest]));
+  return { requests, cancelEvents: events ?? [] };
+}
 
 /** Позначка «Cancellation requested» для рядка й шапки панелі (D12). */
 function requestMark(r: DecisionRow, requests: ReadonlyMap<number, CancelRequest>): CancellationMark | null {
@@ -578,7 +580,7 @@ function RecordPanel({
   // Прохання про скасування (AC-CANCEL-01): причина дослівно — «Cancellation requested: <причина>».
   const requestSection = request && (
     <section aria-label="Cancellation request" className="flex flex-col gap-2.5">
-      <Detail label="Cancellation requested">{request.cancel_reason}</Detail>
+      <p className="text-[13px] break-words whitespace-pre-line">{cancellationRequestLine(request.cancel_reason)}</p>
       <CommentLines record={r} />
       {!r.can_decide && (
         <Alert variant="info" role="note">

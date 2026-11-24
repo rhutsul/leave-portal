@@ -66,6 +66,30 @@ export function afterDecision(queue: readonly number[], decidedId: number, statu
   return next === undefined ? `/decisions?decided=${status}` : `/decisions?record=${next}&decided=${status}`;
 }
 
+/** Статуси, з якими запис потрапляє в «History» менеджера: рішення ухвалено (AC-DECIDE-11). */
+const DECIDED_STATUSES: readonly string[] = ["approved", "rejected", "returned"];
+
+/**
+ * Записи вкладки «History», новіші рішення згори: вирішені (AC-DECIDE-11) і скасовані менеджером — підтвердженням
+ * прохання чи з приміткою (AC-CANCEL-02, AC-CANCEL-08): їхня подія «cancelled» — не від власника запису. Запис, який
+ * працівник скасував сам до рішення, рішенням менеджера не є — у «History» його немає, як і раніше.
+ */
+export function historyRecords<T extends { id: number; status: string; employee_id: string; decided_at: string | null }>(
+  records: readonly T[],
+  cancelEvents: readonly { record_id: number; actor_id: string | null; created_at: string }[],
+): T[] {
+  const ownerOf = new Map(records.map((r) => [r.id, r.employee_id]));
+  const cancelledAt = new Map(
+    cancelEvents
+      .filter((e) => e.actor_id !== null && e.actor_id !== ownerOf.get(e.record_id))
+      .map((e) => [e.record_id, e.created_at]),
+  );
+  const at = (r: T) => cancelledAt.get(r.id) ?? r.decided_at ?? "";
+  return records
+    .filter((r) => DECIDED_STATUSES.includes(r.status) || (r.status === "cancelled" && cancelledAt.has(r.id)))
+    .sort((a, b) => at(b).localeCompare(at(a)));
+}
+
 /**
  * Куди після рішення щодо прохання про скасування (D11): той самий наступний запис черги, а повідомлення над списком —
  * «The record is now Cancelled» після підтвердження чи «Cancellation declined» після відхилення (запис лишається

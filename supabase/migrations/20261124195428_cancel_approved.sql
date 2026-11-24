@@ -69,7 +69,9 @@ security definer
 set search_path = ''
 as $$
 declare
-  v_role text := private.current_app_role();
+  -- Без рядка в profiles current_app_role() — null, і обидві умови нижче стали б null, а IF їх пропустив би:
+  -- тож немає ролі — порожній рядок, і доступу немає.
+  v_role text := coalesce(private.current_app_role(), '');
 begin
   if p_record.id is null
      or not (v_role = 'admin' or (v_role = 'manager' and private.manages_position(p_record.position_id))) then

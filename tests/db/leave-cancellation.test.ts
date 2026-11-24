@@ -267,7 +267,7 @@ describe("decide_record_cancellation: confirm", () => {
     expect(await balancesOf(teacher1)).toEqual(before);
   });
 
-  it("AC-CANCEL-11: a manager never decides a request for their own record; the administrator does", async () => {
+  it("a manager never decides a request for their own record; the administrator does (Assumptions 09)", async () => {
     const [id] = await approved(manager1, manager1Main, [weekday(7)]);
     await request(manager1, id, "Plans changed");
     await expect(decide(manager1, id, "confirm")).rejects.toMatchObject({
@@ -275,6 +275,15 @@ describe("decide_record_cancellation: confirm", () => {
     });
     expect((await stateOf(id)).status).toBe("approved");
     expect(await decide(admin, id, "confirm")).toBe("cancelled");
+  });
+
+  it("AC-CANCEL-11: a signed-in user without a profile row (no role) cannot confirm or cancel with a note", async () => {
+    const [id] = await approved(teacher1, teacher1Main, [weekday(7)]);
+    await request(teacher1, id, "Plans changed");
+    const nobody = "b0000000-0000-0000-0000-000000000001";
+    await expect(decide(nobody, id, "confirm")).rejects.toMatchObject({ code: "42501" });
+    await expect(cancelWithNote(nobody, id, "x")).rejects.toMatchObject({ code: "42501" });
+    expect(await stateOf(id)).toMatchObject({ status: "approved", cancel_reason: "Plans changed" });
   });
 
   it("confirm or decline without an open request — an awaiting record or an approved one without it — changes nothing", async () => {
@@ -393,6 +402,21 @@ describe("cancel_approved_record: the manager cancels with a note", () => {
     await expect(cancelWithNote(manager2, id, "x")).rejects.toMatchObject({ code: "42501" });
     await expect(cancelWithNote(teacher1, id, "x")).rejects.toMatchObject({ code: "42501" });
     expect((await stateOf(id)).status).toBe("approved");
+  });
+
+  it("AC-CANCEL-05: a record dated today (Kyiv) can still be asked to cancel and cancelled with a note — today is not the past", async () => {
+    const [asked, noted] = await approved(teacher1, teacher1Main, [weekday(7), weekday(8)]);
+    // Дата «сьогодні» — напряму (service_role): сьогодні може бути вихідний без розкладу, а правило — лише про дату.
+    // По черзі: два записи тих самих годин на одну дату не дає обмеження leave_records_no_overlap.
+    const moveTo = (id: number, date: string) =>
+      t.asService("update public.leave_records set date = $1 where id = $2", [date, id]);
+    await moveTo(asked, kyivDate(new Date()));
+    await request(teacher1, asked, "Plans changed");
+    expect((await stateOf(asked)).cancel_reason).toBe("Plans changed");
+    await moveTo(asked, weekday(7));
+    await moveTo(noted, kyivDate(new Date()));
+    await cancelWithNote(manager1, noted, "Event moved to January");
+    expect((await stateOf(noted)).status).toBe("cancelled");
   });
 
   it("a record in the past or not approved cannot be cancelled with a note", async () => {

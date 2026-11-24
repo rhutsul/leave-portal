@@ -355,6 +355,27 @@ export const mutants = [
     replace: "  if false then\n    raise exception 'Tell the employee why the record is cancelled';",
   },
   {
+    // Правило з Assumptions 09 (не з окремого AC): менеджер ніколи не вирішує прохання щодо власного запису.
+    id: "S48", kind: "sql", ac: "AC-CANCEL-11", file: CANCEL, tests: [CANCEL_DB],
+    what: "check_cancellation_actor: менеджер вирішує прохання щодо власного запису",
+    find: "  if v_role <> 'admin' and p_record.employee_id = (select auth.uid()) then",
+    replace: "  if false then",
+  },
+  {
+    id: "S49", kind: "sql", ac: "AC-CANCEL-05", file: CANCEL, tests: [CANCEL_DB],
+    what: "cancel_approved_record: менеджер скасовує з приміткою й запис у минулому",
+    find:
+      "  if v_record.date < private.kyiv_day(now()) then\n    raise exception 'Records in the past cannot be cancelled';\n" +
+      "  end if;\n  if v_note is null then",
+    replace: "  if v_note is null then",
+  },
+  {
+    id: "S50", kind: "sql", ac: "AC-CANCEL-11", file: CANCEL, tests: [CANCEL_DB],
+    what: "check_cancellation_actor: без рядка в profiles (роль null) перевірку права пропущено",
+    find: "  v_role text := coalesce(private.current_app_role(), '');",
+    replace: "  v_role text := private.current_app_role();",
+  },
+  {
     // Правило AC-CAL-15 живе в TS, а не в SQL: рік на /calendar — це closuresInSchoolYear над рядками бази.
     id: "T1", kind: "ts", ac: "AC-CAL-15", file: "src/lib/leave/calendar.ts", tests: ["src/lib/leave/calendar.test.ts"],
     what: "closuresInSchoolYear: закриття наступних років теж потрапляють у рік (немає межі 31 серпня)",
