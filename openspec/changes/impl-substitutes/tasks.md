@@ -47,7 +47,7 @@
 - [ ] 4.1 База: `private.substitute_conflict` і lock `busy:` (D4), перевірка в `submit_leave_request` і нове тіло
       `private.update_leave_record_hours` (D5). Код: P0001 бази — дослівно в `Alert` підсумку заявки (наявний шлях
       `submitLeaveRequest`) і в формі зміни годин «My requests». Тести: PGlite (власний запис заміни `awaiting`, заміна в
-      `approved` записі іншого, перший за часом із двох, `rejected` і `cancelled` не займають, межа `[start, end)`, зміна
+      `approved` записі іншого, перший за часом із двох, `rejected` і `cancelled` не займають, межа `[start, end)`, запис заміни лише в перерві між блоками — не займає, зміна
       годин у зайнятий час), SQL-мутанти D4 і `npm run mutation:sql`, e2e (`Alert` з текстом AC, запису в «My requests»
       немає).
       Done when: AC-SUBST-05, AC-SUBST-06, AC-SUBST-07
@@ -65,8 +65,8 @@
       темі, 390 і 1280 px — `tests/e2e/substitutes-screenshots.spec.ts` → `docs/img/`; прибирання e2e у порядку з ризиків
       design.md (спершу записи з синтетичною заміною, потім профілі).
       Done when: AC-SUBST-01, AC-SUBST-02, AC-SUBST-10, AC-SUBST-11, AC-SUBST-15
-- [ ] 6.2 Рядки AC-SUBST-01…15 у `docs/conformance.md` (`/conformance`); кандидати в питання PM (перерва всередині
-      запису, зміна годин, власна заявка зайнятої заміни) — у `docs/spec-reading.md`; `database.types.ts` із Summary
+- [ ] 6.2 Рядки AC-SUBST-01…15 у `docs/conformance.md` (`/conformance`); кандидати в питання PM (зміна годин,
+      власна заявка зайнятої заміни) — у `docs/spec-reading.md`; `database.types.ts` із Summary
       `db-check`; `npm run check:design`, `npm run check:ui`, `npm run ac:coverage`, `npm run gates`, `npm test`.
       Done when: AC-SUBST-01, AC-SUBST-02, AC-SUBST-03, AC-SUBST-04, AC-SUBST-05, AC-SUBST-06, AC-SUBST-07, AC-SUBST-08, AC-SUBST-09, AC-SUBST-10, AC-SUBST-11, AC-SUBST-12, AC-SUBST-13, AC-SUBST-14, AC-SUBST-15
 - [ ] 6.3 `npx openspec archive impl-substitutes -y`.

@@ -86,20 +86,25 @@ upgrade mark is set automatically»): пізніша зміна назви по�
 teacher» у заміни — не «Assistant», позначки немає.
 
 **D4 — зайнятість заміни — в одній транзакції з поданням (AC-SUBST-05, AC-SUBST-06, AC-SUBST-07).** Внутрішня
-`private.substitute_conflict(p_person uuid, p_date date, p_start integer, p_end integer, p_exclude_record bigint default
-null) returns table (date date, start_min integer, end_min integer)` (`stable`, `set search_path = ''`, без прав для
-`authenticated`) повертає перший за часом (`order by start_min, end_min, id`) запис дати, де людина
-`employee_id = p_person` (власний запис будь-якої посади) **або** `substitute_id = p_person` (замінює іншого), зі
-статусом у тому самому явному списку, що `leave_records_no_overlap` — `('awaiting', 'returned', 'approved')`
-(`BLOCKING_STATUSES`, AGENTS.md: змінюються лише разом), і `int4range(start_min, end_min) && int4range(p_start, p_end)`
-— «at any minute of the record», межі `[start, end)` як у всіх перетинах порталу (запис, що закінчується о 10:00, і
-запис від 10:00 не перетинаються). «Rejected» і «Cancelled» не займають (AC-SUBST-07). `p_exclude_record` — щоб зміна
-годин (D5) і майбутня зміна заміни менеджером (вимога 08, AC-BEHALF-08) не порівнювали запис із самим собою: ту саму
-функцію вони використають без змін.
+`private.substitute_conflict(p_person uuid, p_position_id bigint, p_date date, p_start integer, p_end integer,
+p_exclude_record bigint default null) returns table (date date, start_min integer, end_min integer)` (`stable`,
+`set search_path = ''`, без прав для `authenticated`) повертає перший за часом (`order by start_min, end_min, id`)
+запис дати, де людина `employee_id = p_person` (власний запис будь-якої посади) **або** `substitute_id = p_person`
+(замінює іншого), зі статусом у тому самому явному списку, що `leave_records_no_overlap` — `('awaiting', 'returned',
+'approved')` (`BLOCKING_STATUSES`, AGENTS.md: змінюються лише разом), і хвилини якого перетинаються з хвилинами нового
+запису. «Rejected» і «Cancelled» не займають (AC-SUBST-07). `p_exclude_record` — щоб зміна годин (D5) і майбутня
+зміна заміни менеджером (вимога 08, AC-BEHALF-08) не порівнювали запис із самим собою: ту саму функцію вони
+використають без змін.
 
-Порівнюємо весь проміжок `[start, end)` запису, разом із перервою між блоками розкладу всередині нього: заміна, що в
-перерву має власний запис, теж зайнята (власне припущення — PM каже «any minute of the record», а хвилини перерви в
-межах запису; кандидат у питання PM, `docs/spec-reading.md` у PR реалізації).
+«At any minute of the record» — лише хвилини запису, тобто хвилини всередині блоків розкладу його посади: перерва між
+блоками до запису не входить (AC-LEAVE-15, AC-LEAVE-22; так само рахується `leave_records.minutes`). Тому
+порівнюємо не проміжки `[start, end)`, а множини хвилин: внутрішня `private.record_minute_ranges(p_position_id bigint,
+p_date date, p_start integer, p_end integer) returns setof int4range` (без прав для `authenticated`) дає перетин
+`int4range(p_start, p_end)` з кожним блоком `schedule_blocks` посади на `extract(isodow from p_date)`; конфлікт —
+коли хоча б один такий відрізок нового запису `&&` хоча б один відрізок іншого запису (його посада, дата й години,
+межі `[start, end)` як у всіх перетинах порталу: запис, що закінчується о 10:00, і запис від 10:00 не
+перетинаються). Отже, власний запис заміни, що лежить лише в перерві нового запису, заміну не займає. Повідомлення
+називає години іншого запису такими, як вони збережені (`start_min`–`end_min`), — перший за часом, як і раніше.
 
 Гонка: двоє одночасно вибирають ту саму заміну, або заміна саме подає власну заявку. Exclusion-обмеження тут не
 допоможе (різні працівники й посади), тому функції, що створюють чи змінюють зайнятість людини, беруть
@@ -118,7 +123,7 @@ AC-SUBST-11).** Кожен елемент `p_records` отримує необо�
 2. для кожного прийнятого запису з заміною, після `private.check_record_hours`: заміни немає в
    `substitute_lists (employee_id = v_uid)` → P0001 «This substitute is no longer on your substitute list» (власний
    текст: AC PM немає; так буває, коли менеджер прибрав людину, поки форма була відкрита; email людини поза списком не
-   розкриваємо); `private.substitute_conflict(...)` знайшов запис → P0001
+   розкриваємо); `private.substitute_conflict(<заміна>, <посада запису>, <дата>, <години>)` знайшов запис (лише хвилини в блоках розкладу, D4) → P0001
    `'<email заміни> is not available at this time: YYYY-MM-DD HH:MM–HH:MM'` (AC-SUBST-05, AC-SUBST-06; формат дати й
    годин — `to_char` і `private.format_minutes`, як у «You already have a request for this time»). Виняток відкочує всю
    заявку — «no request is created»; якщо зайнятими є заміни кількох записів, повідомлення — про перший запис у порядку
@@ -126,7 +131,7 @@ AC-SUBST-11).** Кожен елемент `p_records` отримує необо�
 3. `insert` запису з `substitute_id` і `upgrade_minutes = case when private.upgrade_applies(...) then v_minutes end`.
 
 `private.update_leave_record_hours` (зміна годин працівником до рішення, AC-DECIDE-21): після нових годин — lock
-`busy:` власника й заміни, `private.substitute_conflict(..., p_exclude_record => запис)` для заміни (той самий текст) і
+`busy:` власника й заміни, `private.substitute_conflict(<заміна>, <посада запису>, <дата>, <нові години>, p_exclude_record => запис)` для заміни (той самий текст) і
 `upgrade_minutes = case when upgrade_minutes is not null then <нові хвилини> end` — інакше обмеження D2 відкине зміну.
 Цього правила PM прямо не формулює («any minute of the record» стосується й нових годин) — власне припущення, у
 `docs/spec-reading.md`. Повторне подання (`resubmit_leave_record`) зайнятості не змінює: «Returned for revision» уже
@@ -231,7 +236,7 @@ PGlite у своїй підготовці приводять дані до «Giv
 | AC-SUBST-04 | PGlite — `my_substitute_options()` = рівно assistant1@, teacher2@; `submit_leave_request` із teacher3@ → текст D5. e2e — пункти `Select` | PGlite + e2e |
 | AC-SUBST-05 | PGlite — власний запис assistant1@ 09:00–11:00 `awaiting` → P0001 з текстом AC, `leave_requests` без нового рядка. e2e — `Alert` у підсумку з текстом AC, у «My requests» запису немає | PGlite + e2e |
 | AC-SUBST-06 | PGlite — assistant1@ заміна в `approved` записі teacher2@ 10:00–12:00 → текст AC; ще — перший за часом із двох; зміна годин (D5) | PGlite |
-| AC-SUBST-07 | PGlite — єдиний запис assistant1@ `rejected` (і окремо `cancelled`) → запис створено із заміною; межа `[start, end)` | PGlite |
+| AC-SUBST-07 | PGlite — єдиний запис assistant1@ `rejected` (і окремо `cancelled`) → запис створено із заміною; межа `[start, end)`; власний `awaiting` запис assistant1@ лише в перерві між блоками нового запису (розклад 08:30–12:00 і 12:30–15:30, запис assistant1@ 12:00–12:30) → не зайнята, запис створено із заміною | PGlite |
 | AC-SUBST-08 | PGlite — `upgrade_minutes = 210`; unit `upgradeApplies` / `upgradeMinutes` (регістр, «Math teacher», « Assistant »); e2e — «With upgrade: 210 min» | PGlite + unit + e2e |
 | AC-SUBST-09 | PGlite — заміна з основною «Math teacher» → `upgrade_minutes is null`; unit | PGlite + unit |
 | AC-SUBST-10 | PGlite — `my_substitutions()` assistant1@ = 1 рядок (дата, години, email teacher1@, `awaiting`), без типу. e2e — один рядок на `/substitutions` | PGlite + e2e |
