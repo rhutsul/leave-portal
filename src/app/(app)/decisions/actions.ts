@@ -11,29 +11,40 @@ import {
   reviewedHours,
   type Role,
 } from "@/lib/leave/decision";
+import {
+  CANCELLATION_MESSAGES,
+  cancellationDecisionCheck,
+  isCancellationDecision,
+  managerCancelCheck,
+} from "@/lib/leave/cancellation";
 import type { RecordStatus } from "@/lib/leave/request";
+import { kyivDate } from "@/lib/leave/time";
 import { createClient } from "@/lib/supabase/server";
-import { afterDecision } from "./decisions-view";
+import { afterCancellationDecision, afterDecision } from "./decisions-view";
 
 export interface DecideState {
   message: string;
   /** Рішення збережено: панель програє печатку й відкриває наступний запис черги (ADR 0007). */
-  done?: { status: RecordStatus; href: string };
+  done?: { status: RecordStatus; href: string; stamp?: boolean };
 }
 
 const FAILED = "The decision could not be saved. Please try again.";
+
+/** Хто діє (getClaims; без входу — на /login) і запис із форми: лише додатне ціле, інше — null (як запис без доступу). */
+async function signedInFor(formData: FormData) {
+  const supabase = await createClient();
+  const { data } = await supabase.auth.getClaims();
+  const claims = data?.claims;
+  if (!claims) redirect("/login");
+  return { supabase, claims, recordId: parseRecordId(formData.get("record_id")) };
+}
 const ROLES: readonly string[] = ["employee", "manager", "admin"] satisfies Role[];
 
 // Рішення щодо запису (/decisions). Спершу ті самі правила, що й decide_leave_record, чистими функціями
 // (src/lib/leave/decision.ts) — для повідомлення; потім rpc, де база перевіряє все ще раз, сама рахує розподіл понад
 // залишок і ухвалює лише перше рішення. Розподіл із форми не приходить — лише прапорець «з розподілом».
 export async function decideRecord(_prev: DecideState, formData: FormData): Promise<DecideState> {
-  const supabase = await createClient();
-  const { data } = await supabase.auth.getClaims();
-  const claims = data?.claims;
-  if (!claims) redirect("/login");
-
-  const recordId = parseRecordId(formData.get("record_id"));
+  const { supabase, claims, recordId } = await signedInFor(formData);
   const decision = formData.get("decision");
   const comment = formData.get("comment") ?? "";
   if (recordId === null) return { message: DECISION_MESSAGES.noAccess };
@@ -96,4 +107,119 @@ export async function decideRecord(_prev: DecideState, formData: FormData): Prom
   // і форма зникла б раніше, ніж почнеться рух рішення (на проді так і було). Панель спершу показує печатку, а тоді
   // клієнт сам переходить на наступний запис і оновлює сторінку з лічильниками (useDecisionMotion).
   return { message: "", done: { status: check.status, href: afterDecision((queue ?? []).map((r) => r.id), recordId, check.status) } };
+}
+
+/** Відповідь на рішення щодо прохання чи скасування з приміткою: field — помилка під полем коментаря чи примітки. */
+export interface CancellationState extends DecideState {
+  field?: boolean;
+}
+
+type Supabase = Awaited<ReturnType<typeof createClient>>;
+
+/**
+ * Запис для рішення щодо скасування: decision_records (лише записи посад користувача, адміністратору — усі; немає
+ * рядка — немає доступу) і стан прохання з leave_records (D11). Черга «Awaiting decision» — записи, що чекають рішення,
+ * і прохання, у порядку списку — щоб після рішення відкрити наступний.
+ */
+async function loadCancellationTarget(supabase: Supabase, userId: string, recordId: number) {
+  const [profileResult, rowResult, queueResult, cancelResult, requestsResult] = await Promise.all([
+    supabase.from("profiles").select("role").eq("id", userId).maybeSingle(),
+    supabase.rpc("decision_records").eq("id", recordId).maybeSingle(),
+    supabase.rpc("decision_records").select("id, status"),
+    supabase.from("leave_records").select("cancel_reason, cancel_request_id").eq("id", recordId).maybeSingle(),
+    supabase.from("leave_records").select("id").not("cancel_reason", "is", null),
+  ]);
+  const profile = profileResult.data;
+  if (profileResult.error || rowResult.error || cancelResult.error || !profile || !ROLES.includes(profile.role)) return null;
+  const row = rowResult.data;
+  const cancel = cancelResult.data;
+  const requested = new Set((requestsResult.data ?? []).map((r) => r.id));
+  const target =
+    row && isRecordStatus(row.status)
+      ? {
+          employeeId: row.employee_id,
+          status: row.status,
+          managerIds: profile.role === "manager" ? [userId] : [],
+          date: row.date,
+          cancelReason: cancel?.cancel_reason ?? null,
+          cancelRequestId: cancel?.cancel_request_id ?? null,
+        }
+      : null;
+  return {
+    actor: { id: userId, role: profile.role as Role },
+    target,
+    queue: (queueResult.data ?? []).filter((r) => r.status === "awaiting" || requested.has(r.id)).map((r) => r.id),
+  };
+}
+
+/** Помилка rpc скасування: P0001 — тексти з функції бази (другий рубіж); 42501 — без доступу; решту не показуємо. */
+function cancellationRpcMessage(error: { code: string; message: string }): CancellationState {
+  if (error.code === "P0001") {
+    const field =
+      error.message === CANCELLATION_MESSAGES.declineComment ||
+      error.message === CANCELLATION_MESSAGES.cancelNote ||
+      error.message === CANCELLATION_MESSAGES.commentTooLong;
+    return { message: error.message, field };
+  }
+  if (error.code === "42501") return { message: DECISION_MESSAGES.noAccess };
+  return { message: FAILED };
+}
+
+// Рішення щодо прохання про скасування (D4, D11): підтвердити чи відхилити з коментарем. Спершу ті самі правила, що й
+// decide_record_cancellation, чистою функцією — для повідомлення; потім rpc, де база перевіряє все ще раз під
+// блокуванням рядка, зокрема що прохання те саме, яке бачив менеджер (request_id зі схованого поля форми).
+export async function decideCancellation(_prev: CancellationState, formData: FormData): Promise<CancellationState> {
+  const { supabase, claims, recordId } = await signedInFor(formData);
+  const requestId = parseRecordId(formData.get("request_id"));
+  const decision = formData.get("decision");
+  const comment = formData.get("comment") ?? "";
+  if (recordId === null) return { message: DECISION_MESSAGES.noAccess };
+  if (!isCancellationDecision(decision) || typeof comment !== "string") return { message: FAILED };
+
+  const loaded = await loadCancellationTarget(supabase, claims.sub, recordId);
+  if (!loaded) return { message: FAILED };
+  const check = cancellationDecisionCheck(loaded.actor, loaded.target, decision, comment, requestId);
+  if (!check.ok) {
+    // Прохання вже вирішив інший менеджер чи працівник подав нове: сторінка оновлюється разом із відповіддю.
+    if (!check.field) revalidatePath("/decisions");
+    return { message: check.message, field: check.field };
+  }
+
+  const { data: status, error } = await supabase.rpc("decide_record_cancellation", {
+    p_record_id: recordId,
+    p_request_id: requestId!,
+    p_decision: decision,
+    p_comment: check.comment ?? undefined,
+  });
+  if (error || typeof status !== "string" || !isRecordStatus(status)) {
+    revalidatePath("/decisions");
+    return error ? cancellationRpcMessage(error) : { message: FAILED };
+  }
+  // Як decideRecord: без revalidatePath — клієнт сам переходить на наступний запис і оновлює сторінку (useDecisionMotion).
+  return {
+    message: "",
+    done: { status, href: afterCancellationDecision(loaded.queue, recordId, decision), stamp: false },
+  };
+}
+
+// Скасування погодженого запису менеджером з приміткою (D5, D11). Ті самі правила, що й cancel_approved_record.
+export async function cancelApprovedRecord(_prev: CancellationState, formData: FormData): Promise<CancellationState> {
+  const { supabase, claims, recordId } = await signedInFor(formData);
+  const note = formData.get("note") ?? "";
+  if (recordId === null) return { message: DECISION_MESSAGES.noAccess };
+  if (typeof note !== "string") return { message: FAILED };
+
+  const loaded = await loadCancellationTarget(supabase, claims.sub, recordId);
+  if (!loaded) return { message: FAILED };
+  const check = managerCancelCheck(loaded.actor, loaded.target, kyivDate(new Date()), note);
+  if (!check.ok) return { message: check.message, field: check.field };
+
+  const { error } = await supabase.rpc("cancel_approved_record", { p_record_id: recordId, p_note: check.comment ?? "" });
+  if (error) {
+    revalidatePath("/decisions");
+    return cancellationRpcMessage(error);
+  }
+  revalidatePath("/decisions");
+  revalidatePath("/requests");
+  redirect(`/decisions?tab=history&record=${recordId}&decided=cancelled`);
 }

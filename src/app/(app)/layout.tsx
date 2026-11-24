@@ -19,17 +19,21 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
   // RLS: користувач бачить лише власний профіль; my_leave_records — лише власні записи. Лічильник «Decisions» —
   // записи, які користувач може вирішити (decision_records: посади менеджера, адміністратору — усі); працівнику
   // can_decide завжди false, тож запит іде разом з іншими, а не після профілю — на одну подорож до бази менше.
-  const [{ data: profile }, { count: awaiting }, { count: decidable }] = await Promise.all([
+  // Прохання про скасування погоджених записів (D11) — теж чекають рішення: RLS показує менеджеру записи його посад
+  // (і власні — їх вирішує адміністратор, тож не рахуємо), адміністратору — усі. Збій — без них.
+  const [{ data: profile }, { count: awaiting }, { count: decidable }, { data: requests }] = await Promise.all([
     supabase.from("profiles").select("email, full_name, role").eq("id", claims.sub).maybeSingle(),
     supabase.from("my_leave_records").select("id", { count: "exact", head: true }).eq("status", "awaiting"),
     supabase
       .rpc("decision_records", undefined, { count: "exact", head: true })
       .eq("status", "awaiting")
       .eq("can_decide", true),
+    supabase.from("leave_records").select("employee_id").not("cancel_reason", "is", null),
   ]);
   // Пункт «Decisions» — лише manager і admin.
   const canDecide = profile?.role === "manager" || profile?.role === "admin";
-  const toDecide = canDecide ? decidable : 0;
+  const cancellations = (requests ?? []).filter((r) => profile?.role === "admin" || r.employee_id !== claims.sub).length;
+  const toDecide = canDecide ? (decidable ?? 0) + cancellations : 0;
   const email = profile?.email ?? claims.email ?? "";
   // Тема й згорнута панель — з cookie (ADR 0005), щоб перша відповідь сервера вже була в потрібному вигляді.
   const cookieStore = await cookies();

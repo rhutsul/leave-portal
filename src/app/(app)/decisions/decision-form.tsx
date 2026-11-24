@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useId, useState, type MouseEvent, type ReactNode } from "react";
-import { CircleAlert, Plus } from "lucide-react";
+import { CircleAlert } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,15 +13,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { FieldError } from "@/components/ui/field-error";
-import { Label } from "@/components/ui/label";
 import { RecordSummary } from "@/components/ui/record-summary";
 import { SubmitButton } from "@/components/ui/submit-button";
-import { Textarea } from "@/components/ui/textarea";
 import { DECISION_MESSAGES } from "@/lib/leave/decision";
-import { COMMENT_MAX, commentLength } from "@/lib/leave/request";
-import { cn } from "@/lib/utils";
 import { decideRecord, type DecideState } from "./actions";
+import { CommentToggle } from "./comment-toggle";
 import { decisionErrorPlacement } from "./decisions-view";
 import { useDecisionMotion } from "./use-decision-motion";
 
@@ -29,49 +25,6 @@ const INITIAL: DecideState = { message: "" };
 
 /** Рішення, які не скасувати: спершу підтвердження — наш вибір (PM лишив його розробнику, mkozlovskyi-ops/course-staff-management-spec#17). */
 type FinalDecision = "approve" | "reject";
-
-/** Поле коментаря менеджера з лічильником; помилка — текст AC під полем (AC-DECIDE-04, AC-DECIDE-24). */
-function CommentField({
-  value,
-  error,
-  onChange,
-}: {
-  value: string;
-  error: string | null;
-  onChange: (value: string) => void;
-}) {
-  const ids = useId();
-  const chars = commentLength(value);
-  return (
-    <div className="flex flex-col gap-1.5">
-      <div className="flex items-baseline justify-between gap-3">
-        <Label htmlFor={`${ids}-comment`}>Your comment</Label>
-        <span
-          id={`${ids}-count`}
-          className={cn("text-xs tabular-nums", chars > COMMENT_MAX ? "font-medium text-destructive" : "text-muted-foreground")}
-        >
-          Optional · {chars}/{COMMENT_MAX}
-        </span>
-      </div>
-      <Textarea
-        id={`${ids}-comment`}
-        name="comment"
-        rows={3}
-        placeholder="Shown to the employee"
-        // Поле щойно відкрили кнопкою чи «Return for revision» — одразу можна писати.
-        autoFocus
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        aria-invalid={error !== null || undefined}
-        aria-describedby={cn(`${ids}-hint`, `${ids}-count`, error !== null && `${ids}-error`)}
-      />
-      <p id={`${ids}-hint`} className="text-xs text-muted-foreground">
-        Required to return the record for revision.
-      </p>
-      <FieldError id={`${ids}-error`} message={error} />
-    </div>
-  );
-}
 
 /**
  * Смуга дій унизу панелі за будь-якої ширини (v2): тіло прокручується над нею. Основна Approve — праворуч; Reject і
@@ -244,30 +197,19 @@ export function DecisionForm({
       <section aria-label="Comments" className="flex flex-col gap-2.5">
         {employeeComment}
         {/* Відповідь сервера про коментар теж відкриває поле: помилка має стояти під ним. */}
-        {opened || fieldError !== null ? (
-          <CommentField
-            value={comment}
-            error={fieldError}
-            onChange={(value) => {
-              setComment(value);
-              setNeedsComment(false);
-            }}
-          />
-        ) : (
-          <>
-            <input type="hidden" name="comment" value="" />
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="-ml-3 self-start text-primary hover:text-primary pointer-coarse:h-11"
-              onClick={() => setOpened(true)}
-            >
-              <Plus />
-              Add a comment for the employee
-            </Button>
-          </>
-        )}
+        <CommentToggle
+          open={opened}
+          error={fieldError}
+          value={comment}
+          label="Your comment"
+          hint="Required to return the record for revision."
+          optional
+          onOpen={() => setOpened(true)}
+          onChange={(value) => {
+            setComment(value);
+            setNeedsComment(false);
+          }}
+        />
       </section>
 
       {children}

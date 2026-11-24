@@ -37,6 +37,9 @@ const RECORD_EDIT_DB = "tests/db/leave-record-edit.test.ts";
 // Денний ліміт запитів до моделі (рев'ю WS10, п. 1): лічильник private.ai_quota і private.take_ai_quota.
 const AI_QUOTA = "supabase/migrations/20261118083501_ai_quota.sql";
 const AI_QUOTA_DB = "tests/db/ai-quota.test.ts";
+// Скасування погодженого запису через менеджера (impl-cancel-approved, D3–D5).
+const CANCEL = "supabase/migrations/20261124195428_cancel_approved.sql";
+const CANCEL_DB = "tests/db/leave-cancellation.test.ts";
 const START_INSIDE = "p_start >= b.start_min and p_start < b.end_min\n  ) or not exists";
 
 export const mutants = [
@@ -292,6 +295,85 @@ export const mutants = [
     what: "kyiv_day: доба за часовим поясом сесії (UTC), а не за Києвом — з 22:00 UTC лічильник учорашній",
     find: "  select (p_at at time zone 'Europe/Kyiv')::date;",
     replace: "  select p_at::date;",
+  },
+  // Скасування погодженого запису (requirements/09-cancel-approved.md): функції з 20261124195428_cancel_approved.sql.
+  {
+    id: "S39", kind: "sql", ac: "AC-CANCEL-10", file: CANCEL, tests: [CANCEL_DB],
+    what: "request_record_cancellation: прохання щодо будь-якого запису, а не лише власного",
+    find: "   where r.id = p_record_id and r.employee_id = v_uid\n     for update;",
+    replace: "   where r.id = p_record_id\n     for update;",
+  },
+  {
+    id: "S40", kind: "sql", ac: "AC-CANCEL-05", file: CANCEL, tests: [CANCEL_DB],
+    what: "request_record_cancellation: запис у минулому теж можна попросити скасувати",
+    find:
+      "  if v_record.date < private.kyiv_day(now()) then\n    raise exception 'Records in the past cannot be cancelled';\n" +
+      "  end if;\n  if v_record.cancel_reason is not null then",
+    replace: "  if v_record.cancel_reason is not null then",
+  },
+  {
+    // Не «if false»: тоді update з умовою cancel_reason is null (запобіжник) відповів би тим самим текстом.
+    id: "S41", kind: "sql", ac: "AC-CANCEL-06", file: CANCEL, tests: [CANCEL_DB],
+    what: "request_record_cancellation: повторне прохання мовчки «приймається» без повідомлення",
+    find: "  if v_record.cancel_reason is not null then\n    raise exception 'Cancellation has already been requested';\n  end if;",
+    replace: "  if v_record.cancel_reason is not null then\n    return;\n  end if;",
+  },
+  {
+    id: "S42", kind: "sql", ac: "AC-CANCEL-11", file: CANCEL, tests: [CANCEL_DB],
+    what: "check_cancellation_actor: менеджер будь-якої посади вирішує прохання (немає перевірки посади)",
+    find: "(v_role = 'manager' and private.manages_position(p_record.position_id))",
+    replace: "(v_role = 'manager')",
+  },
+  {
+    id: "S43", kind: "sql", ac: "AC-CANCEL-02", file: CANCEL, tests: [CANCEL_DB],
+    what: "decide_record_cancellation: підтвердження лишає запис «Approved» — дні не повертаються",
+    find: "       set status = 'cancelled', cancel_reason = null, cancel_request_id = null, cancel_declined_comment = null,",
+    replace: "       set status = 'approved', cancel_reason = null, cancel_request_id = null, cancel_declined_comment = null,",
+  },
+  {
+    id: "S44", kind: "sql", ac: "AC-CANCEL-02", file: CANCEL, tests: [CANCEL_DB],
+    what: "decide_record_cancellation: рішення не прив'язане до прохання — застарілий request_id вирішує нове",
+    find: "  if v_record.cancel_request_id is distinct from p_request_id then",
+    replace: "  if false then",
+  },
+  {
+    id: "S45", kind: "sql", ac: "AC-CANCEL-03", file: CANCEL, tests: [CANCEL_DB],
+    what: "decide_record_cancellation: коментар відхилення не зберігається — працівник не бачить «Cancellation declined»",
+    find: "cancel_declined_comment = v_comment, updated_at = now()",
+    replace: "cancel_declined_comment = 'Declined', updated_at = now()",
+  },
+  {
+    id: "S46", kind: "sql", ac: "AC-CANCEL-04", file: CANCEL, tests: [CANCEL_DB],
+    what: "decide_record_cancellation: відхилення без коментаря приймається",
+    find: "    if v_comment is null then\n      raise exception 'Tell the employee why the cancellation is declined';",
+    replace: "    if false then\n      raise exception 'Tell the employee why the cancellation is declined';",
+  },
+  {
+    id: "S47", kind: "sql", ac: "AC-CANCEL-09", file: CANCEL, tests: [CANCEL_DB],
+    what: "cancel_approved_record: скасування без примітки приймається",
+    find: "  if v_note is null then\n    raise exception 'Tell the employee why the record is cancelled';",
+    replace: "  if false then\n    raise exception 'Tell the employee why the record is cancelled';",
+  },
+  {
+    // Правило з Assumptions 09 (не з окремого AC): менеджер ніколи не вирішує прохання щодо власного запису.
+    id: "S48", kind: "sql", ac: "AC-CANCEL-11", file: CANCEL, tests: [CANCEL_DB],
+    what: "check_cancellation_actor: менеджер вирішує прохання щодо власного запису",
+    find: "  if v_role <> 'admin' and p_record.employee_id = (select auth.uid()) then",
+    replace: "  if false then",
+  },
+  {
+    id: "S49", kind: "sql", ac: "AC-CANCEL-05", file: CANCEL, tests: [CANCEL_DB],
+    what: "cancel_approved_record: менеджер скасовує з приміткою й запис у минулому",
+    find:
+      "  if v_record.date < private.kyiv_day(now()) then\n    raise exception 'Records in the past cannot be cancelled';\n" +
+      "  end if;\n  if v_note is null then",
+    replace: "  if v_note is null then",
+  },
+  {
+    id: "S50", kind: "sql", ac: "AC-CANCEL-11", file: CANCEL, tests: [CANCEL_DB],
+    what: "check_cancellation_actor: без рядка в profiles (роль null) перевірку права пропущено",
+    find: "  v_role text := coalesce(private.current_app_role(), '');",
+    replace: "  v_role text := private.current_app_role();",
   },
   {
     // Правило AC-CAL-15 живе в TS, а не в SQL: рік на /calendar — це closuresInSchoolYear над рядками бази.

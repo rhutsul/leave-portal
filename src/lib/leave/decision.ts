@@ -64,6 +64,9 @@ export const HISTORY_ACTIONS: Record<string, string> = {
   resubmitted: "Resubmitted",
   hours_changed: "Hours changed",
   cancelled: RECORD_STATUSES.cancelled,
+  // Скасування погодженого запису (requirements/09-cancel-approved.md, Assumptions: хто й коли, до хвилини).
+  cancellation_requested: "Cancellation requested",
+  cancellation_declined: "Cancellation declined",
 };
 
 export interface HistoryEvent {

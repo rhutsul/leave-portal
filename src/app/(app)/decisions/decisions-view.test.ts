@@ -1,12 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { DECISION_MESSAGES } from "@/lib/leave/decision";
 import {
+  afterCancellationDecision,
   afterDecision,
   balanceShift,
   dayBar,
   decidedNotice,
   decisionErrorPlacement,
   decisionsTab,
+  historyRecords,
   neighbours,
   pickRecord,
   recordHref,
@@ -78,6 +80,33 @@ describe("afterDecision (ADR 0007)", () => {
 
   it("a record outside the queue goes to its first record", () => {
     expect(afterDecision([4, 9], 7, "approved")).toBe("/decisions?record=4&decided=approved");
+  });
+
+  it("AC-CANCEL-02: after confirming a cancellation request — the next record and «The record is now Cancelled»", () => {
+    expect(afterCancellationDecision([4, 7, 9], 7, "confirm")).toBe("/decisions?record=9&decided=cancelled");
+    expect(afterCancellationDecision([7], 7, "confirm")).toBe("/decisions?decided=cancelled");
+  });
+
+  it("AC-CANCEL-08: a record the manager cancelled stays in History (newest first); one the employee cancelled before a decision does not", () => {
+    const rec = (id: number, status: string, decided_at: string | null) => ({ id, status, employee_id: "teacher1", decided_at });
+    const records = [
+      rec(1, "approved", "2026-12-01T09:00:00Z"),
+      rec(2, "cancelled", "2026-12-01T08:00:00Z"),
+      rec(3, "cancelled", null),
+      rec(4, "awaiting", null),
+      rec(5, "rejected", "2026-12-01T10:00:00Z"),
+    ];
+    const events = [
+      { record_id: 2, actor_id: "manager1", created_at: "2026-12-02T09:00:00Z" },
+      { record_id: 3, actor_id: "teacher1", created_at: "2026-12-02T10:00:00Z" },
+    ];
+    expect(historyRecords(records, events).map((r) => r.id)).toEqual([2, 5, 1]);
+    expect(historyRecords(records, []).map((r) => r.id)).toEqual([5, 1]);
+  });
+
+  it("AC-CANCEL-03: after declining a cancellation request — the next record and «Cancellation declined»", () => {
+    expect(afterCancellationDecision([4, 7, 9], 7, "decline")).toBe("/decisions?record=9&cancellation=declined");
+    expect(afterCancellationDecision([7], 7, "decline")).toBe("/decisions?cancellation=declined");
   });
 });
 
