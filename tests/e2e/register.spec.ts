@@ -27,6 +27,11 @@ async function checkRegister(page: Page, fx: RegisterFixture) {
   await expect(rows.first()).toContainText("Sick leave");
   await expect(rows.nth(1)).toContainText("08:30–12:00");
   await expect(rows.nth(1)).toContainText("Unpaid leave");
+  await expect(rows.nth(1)).toContainText("3 h 30 min");
+  // 1280 px із бічною панеллю: уся таблиця вміщається в картку, «Approved» не ховається за правим краєм.
+  const table = page.locator('[data-slot="table-container"]');
+  const fit = await table.evaluate((el) => el.scrollWidth - el.clientWidth);
+  expect(fit, "the register table scrolls sideways at 1280 px").toBeLessThanOrEqual(0);
   await expect(page.getByTestId("register-totals")).toContainText(/\d+ records? · /);
 
   const [download] = await Promise.all([

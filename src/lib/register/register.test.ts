@@ -126,12 +126,11 @@ describe("register cells", () => {
       position: "Teacher",
       kind: "Main",
       date: "2026-11-03",
-      dateLong: "Tue, 3 Nov 2026",
+      dateShort: "Tue 3 Nov",
       hours: "Whole day",
       from: "08:30",
       to: "15:30",
-      hoursDetail: "08:30–15:30",
-      duration: "7 h",
+      hoursNote: "08:30–15:30 · 7 h",
       durationHours: "7.00",
       type: "Personal leave",
       paid: "1.00",
@@ -155,7 +154,7 @@ describe("register cells", () => {
         approved_at: null,
       }),
     );
-    expect([c.email, c.hours, c.hoursDetail, c.duration, c.durationHours]).toEqual(["", "15:45–17:00", "", "1 h 15 min", "1.25"]);
+    expect([c.email, c.hours, c.hoursNote, c.durationHours]).toEqual(["", "15:45–17:00", "1 h 15 min", "1.25"]);
     expect([c.paid, c.unpaid, c.approvedBy, c.approvedOn]).toEqual(["0.00", "0.15", "", ""]);
     expect(registerCells(row({ approved_by_name: "  " })).approvedBy).toBe("");
     expect(recordsLabel(1)).toBe("1 record");

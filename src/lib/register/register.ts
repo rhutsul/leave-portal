@@ -1,7 +1,7 @@
 // Реєстр погоджених відсутностей (ADR 0012, ініціатива розробника до вимог PM): параметри сторінки, рядки для таблиці
 // й CSV, підсумок. Доступ і набір записів вирішує база (public.approved_register); тут лише форма показу.
 import { daysToHundredths, formatDays } from "@/lib/leave/balance";
-import { formatDateLong, formatDuration, formatKyivDateTime, formatRange, formatTime } from "@/lib/leave/time";
+import { formatDateShort, formatDuration, formatKyivDateTime, formatRange, formatTime } from "@/lib/leave/time";
 import { isLeaveType, LEAVE_TYPES } from "@/lib/leave/request";
 
 /** Рядок public.approved_register, як його повертає supabase.rpc. */
@@ -153,14 +153,13 @@ export interface RegisterCells {
   kind: string;
   /** "2026-11-03" — для CSV і сортування в таблиці бухгалтерії. */
   date: string;
-  /** "Tue, 3 Nov 2026". */
-  dateLong: string;
+  /** "Tue 3 Nov" — таблиця й так за один місяць (DESIGN.md, розділ 1). */
+  dateShort: string;
   hours: string;
   from: string;
   to: string;
-  /** Час під «Whole day» у таблиці; для частини дня — порожньо (час уже в hours). */
-  hoursDetail: string;
-  duration: string;
+  /** Другий рядок клітинки годин: час і тривалість під «Whole day», для частини дня — лише тривалість. */
+  hoursNote: string;
   durationHours: string;
   type: string;
   paid: string;
@@ -171,7 +170,7 @@ export interface RegisterCells {
 }
 
 export function registerCells(row: RegisterRow): RegisterCells {
-  const range = formatRange(row.start_min, row.end_min);
+  const duration = formatDuration(row.minutes);
   const approvedBy = row.approved_by_name?.trim() ?? "";
   return {
     employee: employeeLabel(row),
@@ -179,12 +178,11 @@ export function registerCells(row: RegisterRow): RegisterCells {
     position: row.position_title,
     kind: positionKindLabel(row.position_kind),
     date: row.date,
-    dateLong: formatDateLong(row.date),
+    dateShort: formatDateShort(row.date),
     hours: hoursLabel(row),
     from: formatTime(row.start_min),
     to: formatTime(row.end_min),
-    hoursDetail: row.whole_day ? range : "",
-    duration: formatDuration(row.minutes),
+    hoursNote: row.whole_day ? `${formatRange(row.start_min, row.end_min)} · ${duration}` : duration,
     durationHours: hoursDecimal(row.minutes),
     type: leaveTypeLabel(row.leave_type),
     paid: formatDays(daysToHundredths(row.paid_days ?? 0)),
