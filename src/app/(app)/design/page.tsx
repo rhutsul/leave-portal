@@ -48,6 +48,8 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { DotMonth } from "@/components/ui/dot-month";
 import { ShowcaseCount } from "@/components/ui/motion";
+import { MonthSwitcher } from "@/components/ui/month-switcher";
+import { RegisterTable } from "@/components/ui/register-table";
 import { StatStrip } from "@/components/ui/stat-strip";
 import { UptimeBar } from "@/components/ui/uptime-bar";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -409,6 +411,52 @@ export default async function DesignPage() {
             const label = `Day ${i + 1} — ${state === "none" ? "no checks" : state === "ok" ? "no issues" : "1 failed check, resolved in 12 min"}`;
             return { date: `2026-11-${String(i + 1).padStart(2, "0")}`, state, label } as const;
           })}
+        />
+      </Section>
+
+      {/* Реєстр погоджених відсутностей (ADR 0012): місяць посиланнями і таблиця з підсумком — синтетичні записи. */}
+      <Section title="Register">
+        <div className="flex flex-wrap items-center justify-end gap-3 rounded-lg border border-border bg-card px-4 py-2.5">
+          <MonthSwitcher month="2026-10" current="2026-11" min="2025-11" max="2027-11" href={() => "/design"} />
+        </div>
+        <RegisterTable
+          caption="Elementary school · October 2026"
+          rows={[
+            {
+              record_id: 1,
+              employee_name: "Teacher One",
+              employee_email: "teacher1@example.test",
+              position_title: "Teacher",
+              position_kind: "main",
+              date: "2026-10-06",
+              start_min: 510,
+              end_min: 930,
+              minutes: 420,
+              whole_day: true,
+              leave_type: "sick",
+              paid_days: 1,
+              unpaid_days: 0,
+              approved_at: "2026-10-05T07:40:00Z",
+              approved_by_name: "Manager One",
+            },
+            {
+              record_id: 2,
+              employee_name: "Teacher Two",
+              employee_email: "teacher2@example.test",
+              position_title: "Assistant",
+              position_kind: "additional",
+              date: "2026-10-14",
+              start_min: 510,
+              end_min: 720,
+              minutes: 210,
+              whole_day: false,
+              leave_type: "unpaid",
+              paid_days: 0,
+              unpaid_days: 0.5,
+              approved_at: "2026-10-12T12:05:00Z",
+              approved_by_name: "Manager One",
+            },
+          ]}
         />
       </Section>
 
