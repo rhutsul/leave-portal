@@ -105,3 +105,14 @@ export async function signIn(page: Page, email: string, password: string) {
   await page.getByRole("button", { name: "Sign in" }).click();
   await page.waitForURL((url) => url.pathname !== "/login");
 }
+
+/**
+ * Знімок сторінки для docs/img/ без накладок відео (назва тесту, підказки дій, курсор): вони вбудовані в сторінку й
+ * потрапили б у page.screenshot(). Після знімка накладки повертаються.
+ */
+export async function cleanScreenshot(page: Page, path: string, fullPage = false) {
+  await page.screencast.hideOverlays().catch(() => {});
+  await page.screencast.hideActions().catch(() => {});
+  await page.screenshot({ path, fullPage });
+  await page.screencast.showOverlays().catch(() => {});
+}

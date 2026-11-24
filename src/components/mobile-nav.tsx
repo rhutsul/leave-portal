@@ -6,7 +6,7 @@ import { useEffect, useRef, useState, type MouseEvent } from "react";
 import { LogOut, Menu, XIcon } from "lucide-react";
 import { signOut } from "@/app/login/actions";
 import type { Theme } from "@/lib/preferences";
-import { initials } from "@/lib/utils";
+import { cn, initials } from "@/lib/utils";
 import { Button } from "./ui/button";
 import { Logo } from "./ui/logo";
 import { Sheet, SheetClose, SheetContent, SheetTitle } from "./ui/sheet";
@@ -123,17 +123,31 @@ export function MobileNav({
           <div className="flex-1 overflow-y-auto px-3 py-4" onClick={onNavClick}>
             <SidebarNav awaiting={awaiting} toDecide={toDecide} canDecide={canDecide} collapsed={false} />
           </div>
-          <div className="flex items-center gap-2.5 border-t border-border py-3 pr-2 pl-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
-            <span
-              aria-hidden="true"
-              className="grid size-8 shrink-0 place-items-center rounded-full bg-accent text-xs font-semibold text-accent-foreground"
+          {/* Акаунт — посилання на /account (ADR 0011): як пункт меню, закриває меню й веде фокус на заголовок. */}
+          <div
+            className="flex items-center gap-1.5 border-t border-border py-2 pr-2 pl-2.5 pb-[calc(0.5rem+env(safe-area-inset-bottom))]"
+            onClick={onNavClick}
+          >
+            <Link
+              href="/account"
+              aria-label={`Account: ${name}`}
+              aria-current={pathname === "/account" ? "page" : undefined}
+              className={cn(
+                "flex min-h-11 min-w-0 flex-1 items-center gap-2.5 rounded-md px-1.5 transition-colors duration-(--duration-fast) ease-out hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+                pathname === "/account" && "bg-sidebar-accent",
+              )}
             >
-              {initials(name)}
-            </span>
-            <span className="min-w-0 flex-1">
-              <span className="block truncate text-[13px] font-medium text-foreground">{name}</span>
-              <span className="block truncate text-xs text-muted-foreground">{email}</span>
-            </span>
+              <span
+                aria-hidden="true"
+                className="grid size-8 shrink-0 place-items-center rounded-full bg-accent text-xs font-semibold text-accent-foreground"
+              >
+                {initials(name)}
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-[13px] font-medium text-foreground">{name}</span>
+                <span className="block truncate text-xs text-muted-foreground">{email}</span>
+              </span>
+            </Link>
             <form action={signOut}>
               <Button type="submit" variant="ghost" size="icon" className="size-11" aria-label="Sign out" title="Sign out">
                 <LogOut />
