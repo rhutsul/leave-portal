@@ -31,6 +31,7 @@
 | Колонка | Що | Обмеження |
 |---|---|---|
 | `cancel_reason text` | причина відкритого прохання працівника; `not null` ⇔ позначка «Cancellation requested» | `char_length ≤ 500`; `cancel_reason is null or status = 'approved'` |
+| `cancel_request_id bigint` | id події `cancellation_requested` відкритого прохання (`references leave_record_events (id)`) — до якого саме прохання рішення (D4) | `(cancel_request_id is null) = (cancel_reason is null)` |
 | `cancel_declined_comment text` | коментар останнього відхилення — «Cancellation declined: …» | `≤ 500`; `is null or status = 'approved'` |
 | `cancel_note text` | примітка менеджера, що скасував запис сам | `≤ 500`; `is null or status = 'cancelled'` |
 
@@ -67,10 +68,15 @@ public, anon`, `grant execute … to authenticated` (як `decide_leave_record`)
    текст: PM у головному сценарії каже «gives a reason», а AC без причини немає — кандидат у питання PM записуємо в
    `docs/spec-reading.md` у PR реалізації); > 500 → «The comment can be at most 500 characters» (наявний текст);
 7. `update … set cancel_reason = v_reason, cancel_declined_comment = null where id = … and status = 'approved' and
-   cancel_reason is null` (запис уже заблоковано рядком, умова — запобіжник) і подія `cancellation_requested`.
+   cancel_reason is null` (запис уже заблоковано рядком, умова — запобіжник); подія `cancellation_requested`
+   (`insert … returning id`) і її id — у `cancel_request_id` того самого рядка.
 
-**D4 — `decide_record_cancellation(p_record_id bigint, p_decision text, p_comment text default null) returns text`
-(AC-CANCEL-02, -03, -04, -07, -11).** Ті самі правила оформлення, що в D3. `p_decision` — `'confirm' | 'decline'`.
+**D4 — `decide_record_cancellation(p_record_id bigint, p_request_id bigint, p_decision text, p_comment text default
+null) returns text` (AC-CANCEL-02, -03, -04, -07, -11).** Ті самі правила оформлення, що в D3. `p_decision` —
+`'confirm' | 'decline'`. `p_request_id` — `cancel_request_id`, який бачив менеджер (схована форма панелі): рішення
+стосується саме того прохання, яке він переглянув. Інакше пізнє «confirm» першого менеджера після того, як інший
+відхилив прохання A, а працівник подав прохання B, скасувало б запис за B, якого він не бачив (як звірка годин
+`p_start_min` / `p_end_min` у `decide_leave_record`).
 
 1. немає `auth.uid()` → 42501;
 2. право — внутрішня `private.cancellation_actor_error(r leave_records)` (спільна для D4 і D5; без прав для
@@ -78,16 +84,23 @@ public, anon`, `grant execute … to authenticated` (як `decide_leave_record`)
    «You can't decide on this record» (той самий текст і код, що AC-DECIDE-08; AC-CANCEL-11 вимагає лише, щоб нічого не
    змінилось); менеджер і власний запис → «Your own record is decided by an administrator» (Assumptions PM,
    AC-DECIDE-18);
-3. невідоме рішення → 22023;
+3. невідоме рішення чи `p_request_id is null` → 22023 (форма завжди їх надсилає);
 4. `pg_advisory_xact_lock` працівника (той самий ключ і порядок, що `decide_leave_record`: погодження з розподілом
-   іншого запису не порахує залишок, поки цей запис скасовують), потім `select … for update` рядка;
-5. статус `cancelled` → «This record is already cancelled»; `approved` без `cancel_reason` → «There is no cancellation
-   request for this record» (власні тексти; так само відповідає другий менеджер, що вирішує одночасно);
-6. відхилення: коментар порожній → "Tell the employee why the cancellation is declined" (AC-CANCEL-04); > 500 —
+   іншого запису не порахує залишок, поки цей запис скасовують), потім `select … for update` рядка — далі всі
+   перевірки читають заблокований рядок;
+5. статус `cancelled` → «This record is already cancelled»; будь-який інший стан без відкритого прохання — статус не
+   `approved` (зокрема `awaiting`, `returned`, `rejected`) або `cancel_reason is null` → «There is no cancellation
+   request for this record» (власні тексти): рішення можливе лише коли водночас `status = 'approved'` і
+   `cancel_reason is not null`; так само відповідає другий менеджер, що вирішує вже вирішене прохання;
+6. `cancel_request_id is distinct from p_request_id` → «The employee has changed the cancellation request. Check it
+   again before deciding» (власний текст, як `hoursChanged`): відкрите прохання вже інше;
+7. відхилення: коментар порожній → "Tell the employee why the cancellation is declined" (AC-CANCEL-04); > 500 —
    наявний текст;
-7. підтвердження: `status = 'cancelled'`, `cancel_reason = null`, `cancel_declined_comment = null`, `paid_days = null`,
-   `unpaid_days = null` (тригер обнулить `day_share`), подія `cancelled`; відхилення: `cancel_reason = null`,
-   `cancel_declined_comment = коментар`, статус лишається `approved`, подія `cancellation_declined`.
+8. підтвердження: `status = 'cancelled'`, `cancel_reason = null`, `cancel_request_id = null`,
+   `cancel_declined_comment = null`, `paid_days = null`, `unpaid_days = null` (тригер обнулить `day_share`), подія
+   `cancelled`; відхилення: `cancel_reason = null`, `cancel_request_id = null`, `cancel_declined_comment = коментар`,
+   статус лишається `approved`, подія `cancellation_declined`. `update` ще раз має в `where` умову
+   `status = 'approved' and cancel_request_id = p_request_id` — запобіжник поверх блокування рядка.
 
 Дата запису для підтвердження не перевіряється: прохання подано вчасно (D3, крок 4), а відмова лише через те, що
 менеджер не встиг, лишила б працівнику списані дні — власне припущення, у `docs/spec-reading.md` кандидатом у питання.
@@ -98,6 +111,7 @@ public, anon`, `grant execute … to authenticated` (як `decide_leave_record`)
 note» (власний текст); `date < kyiv_day(now())` → "Records in the past cannot be cancelled" (Out of scope PM: минуле
 виправляє адміністратор поза зрізом); примітка порожня → "Tell the employee why the record is cancelled" (AC-CANCEL-09);
 > 500 — наявний текст. Запис: `status = 'cancelled'`, `cancel_note = примітка`, `cancel_reason = null`,
+`cancel_request_id = null`,
 `cancel_declined_comment = null`, `paid_days = null`, `unpaid_days = null`; подія `cancelled` з приміткою. Відкрите
 прохання цим теж закривається (менеджер скасовує з приміткою замість підтвердження).
 
@@ -110,9 +124,11 @@ requested» лишається `approved` і далі списаний (Assumpti
 **D7 — шкільний календар (AC-CANCEL-13; AC-CAL-07, AC-CAL-08).** `add_school_closure` не змінюється: «Cancelled» не
 блокує закриття, `approved` із позначкою — блокує. Тести PGlite перевіряють обидва боки.
 
-**D8 — доменні функції TS (усі AC зрізу).** Новий `src/lib/leave/cancellation.ts`: `CANCELLATION_MESSAGES` (тексти AC
-і власні тексти D3–D5 — ті самі рядки, що в базі), `cancellationRequestCheck(record, today, reason)`,
-`cancellationDecisionCheck(actor, target, decision, comment)`, `managerCancelCheck(actor, target, today, note)` — та
+**D8 — доменні функції TS (AC-CANCEL-01, -03, -04, -05, -06, -08, -09, -10).** Новий `src/lib/leave/cancellation.ts`,
+його частини додає задача свого сценарію (`tasks.md`, задачі 1–4): `CANCELLATION_MESSAGES` (тексти AC і власні
+тексти D3–D5 — ті самі рядки, що в базі), `cancellationRequestCheck(record, today, reason)` (AC-CANCEL-05, -06, -10),
+`cancellationDecisionCheck(actor, target, decision, comment)` (AC-CANCEL-04; target — статус, `cancel_reason` і
+`cancel_request_id`, черга як у D4), `managerCancelCheck(actor, target, today, note)` (AC-CANCEL-09) — та
 сама черга перевірок, що в D3–D5, для повідомлень і кнопок; `canRequestCancellation(record, today)` — пункт меню;
 `cancellationMark(record)` → `{ kind: "requested" | "declined" | "note"; text }` для показу. База — другий рубіж.
 
@@ -132,7 +148,7 @@ P0001 показує дослівно, 42501 — текст AC-CANCEL-10; піс
 
 **D11 — «Decisions» (AC-CANCEL-01…04, -08, -09; AC-DECIDE-01, -14).** `decision_records()` не змінюємо (AGENTS.md,
 expand → contract: тип результату RPC, яку кличе код, не міняємо): окремий запит
-`leave_records.select("id, cancel_reason").not("cancel_reason", "is", null)` (RLS — посади менеджера, адміністратору —
+`leave_records.select("id, cancel_reason, cancel_request_id").not("cancel_reason", "is", null)` (RLS — посади менеджера, адміністратору —
 усі) і злиття за `id`. Черга «Awaiting decision» = рядки `awaiting` ∪ рядки `approved` з відкритим проханням, у тому
 самому порядку (дата, час); порожньо лише коли немає ні тих, ні других (AC-DECIDE-14). Лічильник меню в
 `src/app/(app)/layout.tsx` додає прохання, які користувач може вирішити (менеджеру — без власних записів). Server
@@ -170,7 +186,7 @@ P0001 дослівно, 42501 — «You can't decide on this record». Післ�
 дві дії історії й три нові функції; жодна наявна сигнатура RPC і жоден наявний view не змінюються, тож expand →
 contract не потрібен. Код, що вийде до `db-deploy`: окремі запити нових колонок падають (колонки ще немає) — сторінки
 показують записи без позначок; дії скасування відповідають «The change could not be saved. Please try again.». Тому
-один PR реалізації з міграцією першим комітом. `database.types.ts` — з Summary `db-check`.
+один PR реалізації; міграція — один файл `cancel_approved`, кожна задача сценарію (`tasks.md`) дописує в нього свою частину до злиття (до merge файл ще не застосовано ніде, тож це не редагування застосованої міграції). `database.types.ts` — з Summary `db-check`.
 
 ## Тести
 
@@ -178,7 +194,7 @@ contract не потрібен. Код, що вийде до `db-deploy`: окр
 |---|---|---|
 | AC-CANCEL-01 | PGlite `tests/db/leave-cancellation.test.ts` | власний `approved` запис на `kyiv_day(now()) + 9` → `cancel_reason = 'Plans changed'`, статус `approved`, подія `cancellation_requested` з actor; менеджер бачить рядок через `decision_records` і `cancel_reason` |
 | AC-CANCEL-01 | unit `src/lib/leave/cancellation.test.ts`, e2e `tests/e2e/cancel-approved.spec.ts` | `cancellationMark`; працівник через меню «⋯» → форма → позначка в «My requests»; менеджер бачить «Cancellation requested: Plans changed» у «Awaiting decision» |
-| AC-CANCEL-02 | PGlite + e2e | підтвердження → `cancelled`; `get_balance_inputs` → `computeBalances`: used 3.00 → 2.00, remaining 15.00 → 16.00; e2e — картка «Personal leave» на /balances |
+| AC-CANCEL-02 | PGlite + e2e | підтвердження → `cancelled`; `get_balance_inputs` → `computeBalances`: used 3.00 → 2.00, remaining 15.00 → 16.00; e2e — картка «Personal leave» на /balances; ще (без AC ID — захист D4): `confirm` для запису `awaiting` чи `approved` без прохання → «There is no cancellation request for this record», статус не змінено; застарілий `p_request_id` (прохання A відхилено, подано B) → текст D4, B лишається відкритим |
 | AC-CANCEL-03 | PGlite + e2e | відхилення «Exam week» → `approved`, `cancel_reason` null, `cancel_declined_comment`; у «My requests» «Cancellation declined: Exam week» |
 | AC-CANCEL-04 | PGlite + unit + e2e | без коментаря → P0001 з текстом AC, `cancel_reason` не змінено; у панелі `FieldError` |
 | AC-CANCEL-05 | PGlite + unit + e2e | запис на `kyiv_day(now()) - 4` → текст AC, без `cancel_reason`; сторінка показує `Alert` |
