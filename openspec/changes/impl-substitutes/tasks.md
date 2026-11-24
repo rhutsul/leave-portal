@@ -14,7 +14,7 @@
       тестові `assistant1@` і `teacher3@` (D9, `supabase/demo-users.json`). Вітрина `/design`: таблиця списку з «⋯»,
       форма додавання, відмова (D8). Сторінки `/substitutes` і `/substitutes/[employeeId]` з `loading.tsx`, server
       actions `addSubstitute` / `removeSubstitute`, пункт меню «Substitutes» (лише manager і admin) у
-      `src/components/sidebar-nav.tsx`. Тести: PGlite `tests/db/substitutes.test.ts` (додавання двох, власний email,
+      `src/components/sidebar-nav.tsx`. Тести: PGlite `tests/db/substitutes.test.ts` (додавання двох, власний email, `insert` → 42501 і `delete` → 0 рядків,
       працівник і менеджер чужих посад напряму), `tests/db/table-visibility.test.ts` (`anon`, `update`, `added_by`); e2e
       `tests/e2e/substitutes.spec.ts` (менеджер додає двох; працівник за прямим посиланням бачить текст AC без email),
       `tests/e2e/negative-controls.spec.ts` (`insert` PostgREST сесією менеджера чужих посад).
@@ -63,7 +63,7 @@
 
 - [ ] 6.1 `tests/e2e/substitutes.mobile.spec.ts` (проєкт `mobile`, 360 і 390 px) і знімки станів D8 у світлій і темній
       темі, 390 і 1280 px — `tests/e2e/substitutes-screenshots.spec.ts` → `docs/img/`; прибирання e2e у порядку з ризиків
-      design.md.
+      design.md (спершу записи з синтетичною заміною, потім профілі).
       Done when: AC-SUBST-01, AC-SUBST-02, AC-SUBST-10, AC-SUBST-11, AC-SUBST-15
 - [ ] 6.2 Рядки AC-SUBST-01…15 у `docs/conformance.md` (`/conformance`); кандидати в питання PM (перерва всередині
       запису, зміна годин, власна заявка зайнятої заміни) — у `docs/spec-reading.md`; `database.types.ts` із Summary

@@ -162,8 +162,9 @@ contract для типу результату, який читає код): за
 - `/substitutes/[employeeId]` — редактор списку: `substitute_list` + `substitute_candidates`; 42501 → лише `EmptyState`
   з текстом AC-SUBST-12, без імен і без форми (AC-SUBST-12). Server actions `addSubstitute` / `removeSubstitute` у
   `src/app/(app)/substitutes/actions.ts`: `getClaims()`, `insert` / `delete` у `substitute_lists` під RLS (одна
-  операція — одна транзакція, RPC не потрібен); 42501 від RLS → той самий текст AC-SUBST-12, список не змінено
-  (AC-SUBST-13 — та сама база); дубль (23505) — «This person is already on the list» (власний текст);
+  операція — одна транзакція, RPC не потрібен); `insert` без права — 42501 від RLS, а `delete` без права RLS не
+  відкидає помилкою, лише видаляє 0 рядків (`using` не пропускає рядок), тож дія видаляє з `.select()` і 0 рядків теж
+  вважає відмовою — в обох випадках той самий текст AC-SUBST-12, список не змінено (AC-SUBST-13 — та сама база); дубль (23505) — «This person is already on the list» (власний текст);
   `revalidatePath`.
 - Нова заявка (`src/app/(app)/requests/new/**`): `page.tsx` читає `my_substitute_options()`; крок «Positions & hours» —
   поле «Substitute» на кожній картці посади й дати (`PositionChoice.substituteId` у `src/lib/leave/draft.ts`, «No
@@ -234,7 +235,7 @@ PGlite у своїй підготовці приводять дані до «Giv
 | AC-SUBST-09 | PGlite — заміна з основною «Math teacher» → `upgrade_minutes is null`; unit | PGlite + unit |
 | AC-SUBST-10 | PGlite — `my_substitutions()` assistant1@ = 1 рядок (дата, години, email teacher1@, `awaiting`), без типу. e2e — один рядок на `/substitutions` | PGlite + e2e |
 | AC-SUBST-11 | unit (`src/lib/leave/substitutes.ts`, вибір стану поля) + e2e — `Alert` з текстом AC і подання з «No substitute» | unit + e2e |
-| AC-SUBST-12 | PGlite — teacher1@ `insert` / `delete` у список teacher2@ → 42501, `substitute_list(teacher2)` → 42501 з текстом; e2e — `/substitutes/<id>` показує текст AC, без email | PGlite + e2e |
+| AC-SUBST-12 | PGlite — teacher1@ `insert` у список teacher2@ → 42501; `delete` зі списку teacher2@ → без помилки, 0 видалених рядків; список teacher2@ після обох — без змін; `substitute_list(teacher2)` → 42501 з текстом; e2e — `/substitutes/<id>` показує текст AC, без email | PGlite + e2e |
 | AC-SUBST-13 | PGlite — manager2@ (не менеджер жодної посади teacher1@) `insert` teacher3@ напряму → 42501, список = рівно двоє; e2e `tests/e2e/negative-controls.spec.ts` — запит PostgREST з сесією manager2@ | PGlite + e2e |
 | AC-SUBST-14 | e2e — гість на `/substitutions` → сторінка входу, у DOM немає email і дат | e2e |
 | AC-SUBST-15 | PGlite — лише `rejected` / `cancelled` → `my_substitutions()` порожньо; e2e — `EmptyState` з текстом AC | PGlite + e2e |
@@ -263,8 +264,9 @@ D3 (`ilike '%teacher%'`), `npm run mutation:sql`.
 
 ## Ризики
 
-- Прибирання e2e: `leave_records.substitute_id` без `on delete`, тож синтетичну заміну видаляємо після записів, де вона
-  заміна (спершу відсутній працівник — його записи йдуть каскадом). `cleanupRemembered` отримує цей порядок.
+- Прибирання e2e: `leave_records.substitute_id` без `on delete`, тож `cleanupRemembered` спершу явно видаляє всі
+  записи, у яких `substitute_id` — один зі створених синтетичних профілів (secret-ключем, `adminClient()`), і лише потім
+  видаляє самі профілі; на порядок видалення профілів чи каскад записів відсутнього працівника не покладаємось.
 - Підсумок «Your request» з десятками записів і полем на кожному — довгий; якщо це заважатиме, наступний крок — «Same
   substitute for all records» (не в цьому плані: AC про нього немає).
 - Реєстр погоджених `/register` (ініціатива розробника, ADR 0012) — природне місце для бухгалтерії; колонки «Substitute» і
