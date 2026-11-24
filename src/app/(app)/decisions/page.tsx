@@ -8,6 +8,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { LeaveTypeTag } from "@/components/ui/leave-type-tag";
 import { PageHeader } from "@/components/ui/page-header";
 import { BalanceShift } from "@/components/ui/balance-shift";
+import { CancellationMarkView } from "@/components/ui/cancellation-mark";
 import { RecordDay } from "@/components/ui/record-summary";
 import { isRecordStatus, StatusBadge } from "@/components/ui/status-badge";
 import { Tick } from "@/components/ui/motion";
@@ -20,6 +21,7 @@ import {
   managerWarning,
   schoolYearOf,
 } from "@/lib/leave/balance";
+import { canCancelWithNote, type CancellationMark } from "@/lib/leave/cancellation";
 import { DECISION_MESSAGES, reviewedHours } from "@/lib/leave/decision";
 import {
   isLeaveType,
@@ -30,11 +32,12 @@ import {
   RELATIONSHIP_LABELS,
   type RecordStatus,
 } from "@/lib/leave/request";
-import { formatDateLong, formatDuration, formatKyivDateTime, formatRange } from "@/lib/leave/time";
+import { formatDateLong, formatDuration, formatKyivDateTime, formatRange, kyivDate } from "@/lib/leave/time";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/server";
 import type { Database } from "@/lib/supabase/database.types";
 import { loadBalances } from "../balances/load-balances";
+import { CancellationForm, CancelWithNote } from "./cancellation-form";
 import { DecisionForm } from "./decision-form";
 import {
   balanceShift,
@@ -107,9 +110,18 @@ export default async function DecisionsPage({ searchParams }: PageProps<"/decisi
 
   // Роль і записи — одночасно: decision_records сам повертає лише записи посад, якими користувач керує (адміністратору —
   // усі), а без ролі manager чи admin рядки нижче не використовуються. Сторінка чекає бази один раз замість двох.
-  const [{ data: profile }, { data: rows, error }] = await Promise.all([
+  // Прохання про скасування погоджених записів (D11): окремим запитом, бо тип результату decision_records не змінюємо
+  // (expand → contract, AGENTS.md). RLS — ті самі записи (посади менеджера, адміністратору — усі); збій — без прохань.
+  const [{ data: profile }, { data: rows, error }, requests] = await Promise.all([
     supabase.from("profiles").select("role").eq("id", claims.sub).maybeSingle(),
     supabase.rpc("decision_records"),
+    supabase
+      .from("leave_records")
+      .select("id, cancel_reason, cancel_request_id")
+      .not("cancel_reason", "is", null)
+      .then(({ data: found, error: requestsError }) =>
+        requestsError ? new Map<number, CancelRequest>() : new Map((found ?? []).map((c) => [c.id, c as CancelRequest])),
+      ),
   ]);
   if (profile?.role !== "manager" && profile?.role !== "admin") {
     // Відмова в доступі — пояснення й посилання на головну, без даних (DESIGN.md, розділ 6).
@@ -133,9 +145,13 @@ export default async function DecisionsPage({ searchParams }: PageProps<"/decisi
   const params = await searchParams;
   const tab = decisionsTab(first(params.tab));
   const decided = first(params.decided);
+  const declined = first(params.cancellation) === "declined";
+  const today = kyivDate(new Date());
 
   const records = (rows ?? []).filter((r) => isRecordStatus(r.status));
-  const awaiting = records.filter((r) => r.status === "awaiting");
+  // Черга «Awaiting decision» (AC-DECIDE-01, AC-DECIDE-14 у редакції 09): записи, що чекають рішення, і погоджені з
+  // відкритим проханням про скасування (AC-CANCEL-01) — у тому самому порядку (дата, час).
+  const awaiting = records.filter((r) => r.status === "awaiting" || (r.status === "approved" && requests.has(r.id)));
   const history = records
     .filter((r) => DECIDED.includes(r.status as RecordStatus))
     .sort((a, b) => (b.decided_at ?? "").localeCompare(a.decided_at ?? ""));
@@ -186,6 +202,19 @@ export default async function DecisionsPage({ searchParams }: PageProps<"/decisi
         </Alert>
       )}
 
+      {declined && (
+        <Alert variant="info" role="status">
+          <CircleCheck />
+          <AlertTitle>Cancellation declined</AlertTitle>
+          <AlertDescription>The record stays Approved. The employee sees your comment.</AlertDescription>
+          <AlertAction>
+            <Link href="/decisions" aria-label="Dismiss" className={buttonVariants({ variant: "ghost", size: "icon-sm" })}>
+              <X />
+            </Link>
+          </AlertAction>
+        </Alert>
+      )}
+
       <nav aria-label="Decision lists" className="flex flex-wrap gap-1.5">
         {TABS.map((t) => {
           const active = t.id === tab;
@@ -228,14 +257,19 @@ export default async function DecisionsPage({ searchParams }: PageProps<"/decisi
               <EmptyState title="No decisions yet" text="Records you or another manager decided will appear here." />
             )
           ) : (
-            <RecordTable tab={tab} records={shown} selectedId={selected?.id ?? null} />
+            <RecordTable tab={tab} records={shown} selectedId={selected?.id ?? null} requests={requests} />
           )}
 
           {selected && (
             <RecordSheet
               title={selected.employee_name || selected.employee_email}
               description={[selected.employee_email, positionLabel(selected.division_name, selected.position_title)].filter(Boolean).join(" · ")}
-              badge={<StatusBadge status={selected.status as RecordStatus} />}
+              badge={
+                <span className="flex flex-wrap items-center gap-x-2">
+                  <StatusBadge status={selected.status as RecordStatus} />
+                  <CancellationMarkView mark={requestMark(selected, requests)} className="mt-0" />
+                </span>
+              }
               position={around && around.index >= 0 ? `${around.index + 1} of ${shown.length}` : null}
               closeHref={listHref}
               prevHref={around?.prev ? recordHref(tab, around.prev.id) : null}
@@ -247,6 +281,8 @@ export default async function DecisionsPage({ searchParams }: PageProps<"/decisi
                 history={selectedHistory}
                 balance={balance}
                 day={day}
+                request={selected.status === "approved" ? (requests.get(selected.id) ?? null) : null}
+                today={today}
                 notice={first(params.notice) === "decided" ? decidedNotice(selected.status as RecordStatus) : null}
               />
             </RecordSheet>
@@ -279,14 +315,24 @@ function recordMeta(r: DecisionRow): string {
   return `${positionLabel(r.division_name, r.position_title)} · ${type} · ${formatDuration(r.minutes)}`;
 }
 
+/** Відкрите прохання про скасування погодженого запису (D11). */
+type CancelRequest = { id: number; cancel_reason: string; cancel_request_id: number };
+
+/** Позначка «Cancellation requested» для рядка й шапки панелі (D12). */
+function requestMark(r: DecisionRow, requests: ReadonlyMap<number, CancelRequest>): CancellationMark | null {
+  return r.status === "approved" && requests.has(r.id) ? { kind: "requested", text: "Cancellation requested" } : null;
+}
+
 function RecordTable({
   tab,
   records,
   selectedId,
+  requests,
 }: {
   tab: DecisionsTab;
   records: readonly DecisionRow[];
   selectedId: number | null;
+  requests: ReadonlyMap<number, CancelRequest>;
 }) {
   return (
     <div className="overflow-x-auto rounded-lg border border-border bg-card max-md:overflow-visible max-md:border-0 max-md:bg-transparent">
@@ -342,6 +388,7 @@ function RecordTable({
                 </TableCell>
                 <TableCell>
                   <LeaveTypeTag type={r.leave_type} variant="inline" />
+                  <CancellationMarkView mark={requestMark(r, requests)} />
                 </TableCell>
                 {tab === "history" ? (
                   <TableCell data-cell="end">
@@ -477,6 +524,8 @@ function RecordPanel({
   history,
   balance,
   day,
+  request,
+  today,
   notice,
 }: {
   record: DecisionRow;
@@ -484,10 +533,15 @@ function RecordPanel({
   balance: Balance;
   /** Робочий день посади на дату запису — для смуги годин; null — без розкладу. */
   day: PositionDay | null;
+  /** Відкрите прохання про скасування погодженого запису (D11); null — немає. */
+  request: CancelRequest | null;
+  /** Сьогодні за Києвом — чи можна скасувати з приміткою (D5). */
+  today: string;
   /** Рішення не збережено, бо запис уже вирішив інший менеджер чи скасував працівник (AC-DECIDE-07). */
   notice: string | null;
 }) {
   const awaiting = r.status === "awaiting";
+  const summary = { date: formatDateLong(r.date), hours: formatRange(r.start_min, r.end_min), meta: recordMeta(r) };
   // Ім'я, email, посада й статус — у шапці панелі (RecordSheet); тут — сам запис, залишок, коментарі й історія.
   // Розділи тримає відступ, без меж і ліній (v2).
   const before = (
@@ -512,7 +566,7 @@ function RecordPanel({
         recordId={r.id}
         hours={reviewedHours(r.start_min, r.end_min)}
         split={Boolean(balance && balance !== "error" && balance.warning)}
-        summary={{ date: formatDateLong(r.date), hours: formatRange(r.start_min, r.end_min), meta: recordMeta(r) }}
+        summary={summary}
         before={before}
         employeeComment={<CommentLines record={r} />}
       >
@@ -521,19 +575,60 @@ function RecordPanel({
     );
   }
 
+  // Прохання про скасування (AC-CANCEL-01): причина дослівно — «Cancellation requested: <причина>».
+  const requestSection = request && (
+    <section aria-label="Cancellation request" className="flex flex-col gap-2.5">
+      <Detail label="Cancellation requested">{request.cancel_reason}</Detail>
+      <CommentLines record={r} />
+      {!r.can_decide && (
+        <Alert variant="info" role="note">
+          <Info />
+          <AlertDescription>{DECISION_MESSAGES.ownRecord}</AlertDescription>
+        </Alert>
+      )}
+    </section>
+  );
+
+  if (request && r.can_decide) {
+    return (
+      <CancellationForm
+        key={`${r.id}-${request.cancel_request_id}`}
+        recordId={r.id}
+        requestId={request.cancel_request_id}
+        summary={summary}
+        before={
+          <>
+            {before}
+            {requestSection}
+          </>
+        }
+      >
+        <HistorySection history={history} />
+      </CancellationForm>
+    );
+  }
+
+  const cancellable =
+    !request &&
+    r.can_decide &&
+    canCancelWithNote({ date: r.date, status: r.status as RecordStatus, cancelReason: null, cancelRequestId: null }, today);
+
   return (
-    <div className="flex flex-col gap-6.5">
+    <div className="flex flex-1 flex-col gap-6.5">
       {before}
-      <section aria-label="Comments" className="flex flex-col gap-2.5">
-        <CommentLines record={r} />
-        {awaiting && (
-          <Alert variant="info" role="note">
-            <Info />
-            <AlertDescription>{DECISION_MESSAGES.ownRecord}</AlertDescription>
-          </Alert>
-        )}
-      </section>
+      {requestSection || (
+        <section aria-label="Comments" className="flex flex-col gap-2.5">
+          <CommentLines record={r} />
+          {awaiting && (
+            <Alert variant="info" role="note">
+              <Info />
+              <AlertDescription>{DECISION_MESSAGES.ownRecord}</AlertDescription>
+            </Alert>
+          )}
+        </section>
+      )}
       <HistorySection history={history} />
+      {cancellable && <CancelWithNote key={r.id} recordId={r.id} summary={summary} />}
     </div>
   );
 }

@@ -22,6 +22,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { CancellationMarkView } from "@/components/ui/cancellation-mark";
 import { EmptyState } from "@/components/ui/empty-state";
 import { HoursBar } from "@/components/ui/hours-bar";
 import { Input } from "@/components/ui/input";
@@ -296,6 +297,35 @@ export default async function DesignPage() {
           <LeaveTypeTag type="personal" variant="inline" />
           <LeaveTypeTag type="unpaid" variant="inline" />
           <LeaveTypeTag type="family" variant="inline" />
+        </div>
+      </Section>
+
+      <Section title="Cancelling an approved record">
+        {/* D12 openspec/changes/impl-cancel-approved/design.md: позначка — тег поруч зі статусом, а не новий статус;
+            відхилення й примітка — рядком під статусом. */}
+        <div className="flex flex-wrap gap-x-10 gap-y-4" data-testid="design-cancellation">
+          <div>
+            <StatusBadge status="approved" />
+            <CancellationMarkView mark={{ kind: "requested", text: "Cancellation requested" }} />
+          </div>
+          <div>
+            <StatusBadge status="approved" />
+            <CancellationMarkView mark={{ kind: "declined", text: "Cancellation declined: Exam week" }} />
+          </div>
+          <div>
+            <StatusBadge status="cancelled" />
+            <CancellationMarkView mark={{ kind: "note", text: "Event moved to January" }} />
+          </div>
+        </div>
+        <div className="flex max-w-xl flex-col gap-3">
+          <Alert variant="destructive">
+            <AlertDescription>Records in the past cannot be cancelled</AlertDescription>
+          </Alert>
+          <RecordSummary date="Thu, 10 Dec 2026" hours="08:30–15:30" meta="Elementary school · Teacher · Personal leave" />
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="design-cancel-reason">Reason</Label>
+            <Textarea id="design-cancel-reason" rows={2} defaultValue="Plans changed" />
+          </div>
         </div>
       </Section>
 

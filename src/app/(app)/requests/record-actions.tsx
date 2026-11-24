@@ -1,10 +1,12 @@
 "use client";
 
 import { startTransition, useActionState, useEffect, useId, useRef, useState } from "react";
-import { CircleAlert, Clock, Eye, RotateCcw, X } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { CircleAlert, Clock, Eye, RotateCcw, Undo2, X } from "lucide-react";
 import { RecordHistory, type HistoryRow } from "@/components/record-history";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { CancellationMarkView } from "@/components/ui/cancellation-mark";
 import {
   Dialog,
   DialogClose,
@@ -20,6 +22,7 @@ import { RecordSummary } from "@/components/ui/record-summary";
 import { RowMenu, type RowMenuItem } from "@/components/ui/row-menu";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { SubmitButton } from "@/components/ui/submit-button";
+import type { CancellationMark } from "@/lib/leave/cancellation";
 import type { EmployeeAction } from "@/lib/leave/decision";
 import type { RecordStatus } from "@/lib/leave/request";
 import { formatTime } from "@/lib/leave/time";
@@ -42,6 +45,8 @@ export interface RecordDetails {
   managerComment: string | null;
   /** Розподіл погодженого запису (AC-BALANCE-18). */
   split: string | null;
+  /** Прохання про скасування, його відхилення чи примітка менеджера (AC-CANCEL-01, -03, -08). */
+  cancellation: CancellationMark | null;
 }
 
 /**
@@ -54,6 +59,7 @@ export function RecordActions({
   recordId,
   label,
   actions,
+  canRequestCancel = false,
   start,
   end,
   schedule,
@@ -65,6 +71,8 @@ export function RecordActions({
   /** "2026-11-03 08:30–15:30" — у доступних назвах, щоб розрізняти записи однієї дати. */
   label: string;
   actions: EmployeeAction[];
+  /** Погоджений запис сьогодні чи пізніше без прохання: пункт «Request cancellation» (AC-CANCEL-01, D10). */
+  canRequestCancel?: boolean;
   start: number;
   end: number;
   /** Блоки розкладу посади на дату запису ("08:30–12:00, 12:30–15:30"); failed — розклад не завантажився. */
@@ -75,6 +83,7 @@ export function RecordActions({
   initialDetails?: boolean;
 }) {
   const ids = useId();
+  const router = useRouter();
   const statusRef = useRef<HTMLParagraphElement>(null);
   const [open, setOpen] = useState<Panel | null>(initialDetails ? "details" : null);
   // Контрольовані поля: React скидає неконтрольовану форму після дії, а після помилки введене має лишитися.
@@ -137,6 +146,13 @@ export function RecordActions({
   if (actions.includes("resubmit"))
     items.push({ label: "Resubmit", icon: <RotateCcw />, onSelect: resubmit, disabled: resubmitPending });
   items.push({ label: "View details", icon: <Eye />, onSelect: () => show("details") });
+  // Прохання не незворотне (вирішує менеджер), тож не «небезпечний» пункт: окрема сторінка з причиною (D9).
+  if (canRequestCancel)
+    items.push({
+      label: "Request cancellation",
+      icon: <Undo2 />,
+      onSelect: () => router.push(`/requests/${recordId}/cancel`),
+    });
   if (actions.includes("cancel"))
     items.push({ label: "Cancel record", icon: <X />, onSelect: () => show("cancel"), destructive: true });
 
@@ -178,6 +194,7 @@ export function RecordActions({
             <dt className="text-muted-foreground">Status</dt>
             <dd>
               <StatusBadge status={details.status} />
+              <CancellationMarkView mark={details.cancellation} />
             </dd>
             {details.split && (
               <>
@@ -191,7 +208,7 @@ export function RecordActions({
                 <dd className="break-words whitespace-pre-line">{details.employeeComment}</dd>
               </>
             )}
-            {details.managerComment && (
+            {details.managerComment && details.cancellation?.kind !== "note" && (
               <>
                 <dt className="text-muted-foreground">Manager</dt>
                 <dd className="break-words whitespace-pre-line">“{details.managerComment}”</dd>

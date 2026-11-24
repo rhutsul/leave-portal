@@ -12,6 +12,8 @@ import { isRecordStatus, StatusBadge } from "@/components/ui/status-badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { daysToHundredths, formatSplit, isLimitedType, overBalanceWarnings } from "@/lib/leave/balance";
 import { CALENDAR_MESSAGES, clipBlocks, closureOn, toClosure } from "@/lib/leave/calendar";
+import { CancellationMarkView } from "@/components/ui/cancellation-mark";
+import { cancellationMark, canRequestCancellation } from "@/lib/leave/cancellation";
 import { employeeActions } from "@/lib/leave/decision";
 import {
   closedDayName,
@@ -28,6 +30,7 @@ import {
   formatRange,
   isCalendarDate,
   isoWeekday,
+  kyivDate,
   TIME_MESSAGES,
   WEEKDAY_SHORT,
 } from "@/lib/leave/time";
@@ -58,15 +61,18 @@ export default async function MyRequestsPage({ searchParams }: PageProps<"/reque
   const { data } = await supabase.auth.getClaims();
   if (!data?.claims) redirect("/login");
 
-  const { submitted, status, skipped, over, balance, record } = await searchParams;
+  const { submitted, status, skipped, over, balance, record, cancellation } = await searchParams;
   const openId = openRecordId(record);
+  // Щойно попрошене скасування (D9): /requests/<id>/cancel повертає сюди з id запису — повідомлення й спалах рядка.
+  const requestedId = openRecordId(cancellation);
+  const today = kyivDate(new Date());
   const tab = TABS.find((t) => t.id === status) ?? TABS[0];
   // Дати заявки без робочих годин, які не прийнято (AC-LEAVE-21) — з redirect після подання.
   const skippedDates = typeof skipped === "string" ? skipped.split(",").filter(isCalendarDate) : [];
   // Перевищення залишку на момент подання (AC-BALANCE-08, AC-BALANCE-15, AC-BALANCE-17): "тип:частка:залишок" у сотих.
   const balanceWarnings = typeof over === "string" ? overBalanceWarnings(over) : [];
 
-  const [{ data: rows, error }, positions, closures] = await Promise.all([
+  const [{ data: rows, error }, positions, closures, cancellations] = await Promise.all([
     supabase
       .from("my_leave_records")
       .select(
@@ -84,6 +90,7 @@ export default async function MyRequestsPage({ searchParams }: PageProps<"/reque
       .from("school_closures")
       .select("id, name, start_date, end_date, closes_at")
       .then(({ data: rows, error: closuresError }) => (closuresError ? [] : (rows ?? []).map(toClosure))),
+    loadCancellations(supabase, data.claims.sub),
   ]);
   const blocksOf = (positionId: number, date: string) =>
     clipBlocks(
@@ -160,6 +167,8 @@ export default async function MyRequestsPage({ searchParams }: PageProps<"/reque
           </AlertAction>
         </Alert>
       )}
+
+      <CancellationRequestedAlert show={requestedId !== null} />
 
       {submitted === "1" &&
         balanceWarnings.map((w, i) => (
@@ -238,11 +247,14 @@ export default async function MyRequestsPage({ searchParams }: PageProps<"/reque
                       const split = splitOf(r);
                       const type = r.leave_type && isLeaveType(r.leave_type) ? LEAVE_TYPES[r.leave_type] : "";
                       const position = positionLabel(r.division_name ?? "", r.position_title ?? "");
+                      const recordStatus = r.status as RecordStatus;
+                      const { mark, canRequest, managerComment } = cancellationView(r, cancellations?.get(r.id!), today);
                       return (
                         <TableRow
                           key={r.id}
                           data-testid="leave-record"
-                          className={cn(r.request_id === newest && "animate-row-flash")}
+                          data-record-row={r.id}
+                          className={cn(flashes(r, newest, requestedId) && "animate-row-flash")}
                         >
                           <TableCell className="whitespace-nowrap tabular-nums">{dayLabel(r.date!)}</TableCell>
                           <TableCell className="whitespace-nowrap">{position}</TableCell>
@@ -260,13 +272,15 @@ export default async function MyRequestsPage({ searchParams }: PageProps<"/reque
                             {split && <span className="mt-1 block text-xs tabular-nums text-muted-foreground">{split}</span>}
                           </TableCell>
                           <TableCell>
-                            <StatusBadge status={r.status as RecordStatus} />
-                            {r.manager_comment && (
+                            <StatusBadge status={recordStatus} />
+                            <CancellationMarkView mark={mark} />
+                            {/* Скасований менеджером — його примітка замість коментаря погодження (той — в історії). */}
+                            {managerComment && (
                               <span
                                 data-testid="manager-comment"
                                 className="mt-1 block max-w-64 break-words whitespace-pre-line text-xs text-muted-foreground"
                               >
-                                Manager: “{r.manager_comment}”
+                                Manager: “{managerComment}”
                               </span>
                             )}
                           </TableCell>
@@ -274,7 +288,8 @@ export default async function MyRequestsPage({ searchParams }: PageProps<"/reque
                             <RecordActions
                               recordId={r.id!}
                               label={`${r.date} ${range}`}
-                              actions={employeeActions(r.status as RecordStatus)}
+                              actions={employeeActions(recordStatus)}
+                              canRequestCancel={canRequest}
                               start={r.start_min!}
                               end={r.end_min!}
                               schedule={scheduleOf(r.position_id!, r.date!)}
@@ -286,6 +301,7 @@ export default async function MyRequestsPage({ searchParams }: PageProps<"/reque
                                 employeeComment: r.employee_comment,
                                 managerComment: r.manager_comment,
                                 split,
+                                cancellation: mark,
                               }}
                               history={histories ? (histories.get(r.id!) ?? []) : null}
                               initialDetails={r.id === openId}
@@ -302,6 +318,74 @@ export default async function MyRequestsPage({ searchParams }: PageProps<"/reque
         </>
       )}
     </>
+  );
+}
+
+type Supabase = Awaited<ReturnType<typeof createClient>>;
+
+type CancelColumns = {
+  id: number;
+  cancel_reason: string | null;
+  cancel_request_id: number | null;
+  cancel_declined_comment: string | null;
+  cancel_note: string | null;
+};
+
+/**
+ * Скасування погоджених записів (D10): окремим запитом, бо view my_leave_records не змінюємо (D13). Збій — null: без
+ * позначок і без пункту «Request cancellation», решта сторінки працює.
+ */
+async function loadCancellations(supabase: Supabase, userId: string): Promise<Map<number, CancelColumns> | null> {
+  const { data, error } = await supabase
+    .from("leave_records")
+    .select("id, cancel_reason, cancel_request_id, cancel_declined_comment, cancel_note")
+    .eq("employee_id", userId);
+  return error ? null : new Map((data ?? []).map((c) => [c.id, c]));
+}
+
+/**
+ * Що показати на записі (позначка, відхилення, примітка) і чи можна попросити скасування (AC-CANCEL-01, -03, -05, -08).
+ * Скасований менеджером — його примітка замість коментаря погодження (той лишається в історії).
+ */
+function cancellationView(
+  r: { date: string | null; status: string | null; manager_comment: string | null },
+  cancel: CancelColumns | undefined,
+  today: string,
+) {
+  const status = r.status as RecordStatus;
+  const record = {
+    date: r.date ?? "",
+    status,
+    cancelReason: cancel?.cancel_reason ?? null,
+    cancelRequestId: cancel?.cancel_request_id ?? null,
+  };
+  const mark = cancellationMark(status, cancel);
+  return {
+    mark,
+    canRequest: cancel !== undefined && canRequestCancellation(record, today),
+    managerComment: mark?.kind === "note" ? null : r.manager_comment,
+  };
+}
+
+/** Рядок спалахує один раз: записи щойно поданої заявки чи запис, щодо якого щойно попросили скасування. */
+function flashes(r: { request_id: number | null; id: number | null }, newest: number | null, requestedId: number | null) {
+  return r.request_id === newest || r.id === requestedId;
+}
+
+/** Щойно попрошене скасування (D9, D12): Alert info з галочкою над списком. */
+function CancellationRequestedAlert({ show }: { show: boolean }) {
+  if (!show) return null;
+  return (
+    <Alert variant="info" role="status">
+      <CircleCheck />
+      <AlertTitle>Cancellation requested</AlertTitle>
+      <AlertDescription>The record stays Approved until your manager confirms the cancellation.</AlertDescription>
+      <AlertAction>
+        <Link href="/requests?status=approved" aria-label="Dismiss" className={buttonVariants({ variant: "ghost", size: "icon-sm" })}>
+          <X />
+        </Link>
+      </AlertAction>
+    </Alert>
   );
 }
 

@@ -66,6 +66,16 @@ export function afterDecision(queue: readonly number[], decidedId: number, statu
   return next === undefined ? `/decisions?decided=${status}` : `/decisions?record=${next}&decided=${status}`;
 }
 
+/**
+ * Куди після рішення щодо прохання про скасування (D11): той самий наступний запис черги, а повідомлення над списком —
+ * «The record is now Cancelled» після підтвердження чи «Cancellation declined» після відхилення (запис лишається
+ * «Approved»).
+ */
+export function afterCancellationDecision(queue: readonly number[], decidedId: number, decision: "confirm" | "decline"): string {
+  const href = afterDecision(queue, decidedId, "cancelled");
+  return decision === "confirm" ? href : href.replace("decided=cancelled", "cancellation=declined");
+}
+
 /** Робочий день посади на дату запису: від початку першого блоку до кінця останнього, хвилини — лише в блоках. */
 export interface PositionDay {
   start: number;

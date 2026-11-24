@@ -28,7 +28,10 @@ export function useDecisionMotion(done: DecideState["done"], recordId: number) {
       next();
       return;
     }
-    if (done.status === "approved" || done.status === "rejected" || done.status === "returned") motion.stamp(done.status);
+    // Рішення щодо прохання про скасування — без печатки (DecisionStamp — лише рішення щодо запису): лише рядок і панель.
+    if (done.stamp !== false && (done.status === "approved" || done.status === "rejected" || done.status === "returned")) {
+      motion.stamp(done.status);
+    }
     document.querySelector(`[data-record-row="${recordId}"]`)?.setAttribute("data-leaving", "");
     let moved = false;
     const leave = setTimeout(motion.leave, STAMP_MS);

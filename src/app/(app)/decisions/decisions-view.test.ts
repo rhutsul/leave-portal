@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { DECISION_MESSAGES } from "@/lib/leave/decision";
 import {
+  afterCancellationDecision,
   afterDecision,
   balanceShift,
   dayBar,
@@ -78,6 +79,16 @@ describe("afterDecision (ADR 0007)", () => {
 
   it("a record outside the queue goes to its first record", () => {
     expect(afterDecision([4, 9], 7, "approved")).toBe("/decisions?record=4&decided=approved");
+  });
+
+  it("AC-CANCEL-02: after confirming a cancellation request — the next record and «The record is now Cancelled»", () => {
+    expect(afterCancellationDecision([4, 7, 9], 7, "confirm")).toBe("/decisions?record=9&decided=cancelled");
+    expect(afterCancellationDecision([7], 7, "confirm")).toBe("/decisions?decided=cancelled");
+  });
+
+  it("AC-CANCEL-03: after declining a cancellation request — the next record and «Cancellation declined»", () => {
+    expect(afterCancellationDecision([4, 7, 9], 7, "decline")).toBe("/decisions?record=9&cancellation=declined");
+    expect(afterCancellationDecision([7], 7, "decline")).toBe("/decisions?cancellation=declined");
   });
 });
 
