@@ -191,6 +191,13 @@ AC-BEHALF-13 («directly, bypassing the portal's pages») — це виклик 
 кроці 1. Статус лишається «Awaiting decision» (AC-BEHALF-06); тригер частки при цьому не рахує нічого, бо статус не
 змінюється.
 
+Зайнятість самого власника як заміни в чужих записах правка не перевіряє — так само, як нова заявка: план
+`impl-substitutes` (D5, «Чого не перевіряємо») приймає власну заявку людини, що комусь замінює, бо PM перевіряє лише
+вибір заміни (Out of scope `06-substitutes.md`), а AC-BEHALF правки вимагають «the same checks as a new record».
+Якщо PM вирішить інакше (кандидат у питання PM зрізу `substitutes`), перевірка `private.substitute_conflict(власник,
+…, p_exclude_record => запис)` під уже взятим lock `busy:` власника додається одночасно в ядро подання (D3) і в
+крок 7 правки — одним правилом.
+
 **D8 — читання для форми від імені — функції з мінімумом полів (AC-BEHALF-01, AC-BEHALF-02, AC-BEHALF-05,
 AC-BEHALF-11, AC-BEHALF-15).** Кожна — `private` + `security definer` + `set search_path = ''`, обгортка `public` —
 `security invoker`; `revoke execute … from public, anon`, `grant execute … to authenticated`; на вході — перевірки D1
@@ -212,15 +219,24 @@ AC-BEHALF-11, AC-BEHALF-15).** Кожна — `private` + `security definer` + `
 `(p_record_id, p_decision, p_comment, p_split, p_start_min, p_end_min, p_date date, p_leave_type text, p_substitute_id
 uuid)`; розбіжність дати, типу чи заміни → P0001 `This record has been changed. Check it again before deciding`
 **(розробник)**, за зразком наявного тексту AC-DECIDE-22. Це зміна сигнатури RPC, яку кличе код, тож — три PR за
-AGENTS.md:
+AGENTS.md. Поки клієнт рішення кличе стару сигнатуру (вона перевіряє лише години), правка не мусить бути доступна
+ніде — ні в інтерфейсі, ні в базі, — інакше рішення, підготовлене до чужої правки, погодило б нову дату. Тому кроки:
 
 1. **expand** (PR реалізації зрізу, з міграцією): нова 9-параметрова функція (`private` + обгортка `public`), а стара
    6-параметрова лишається тонкою обгорткою, що кличе нову з `p_date => null` тощо (`null` — «не перевіряти»); код
-   ще кличе стару;
+   ще кличе стару. `private.edit_leave_record` і `public.edit_leave_record` у цій міграції створено, але **без**
+   `grant execute … to authenticated` (`revoke … from public, anon, authenticated`): виклик сесією будь-кого — 42501,
+   кнопки «Edit record» в інтерфейсі ще немає. PGlite-тести правки кличуть функцію від ролі з правом (як тести
+   внутрішніх `private`-функцій) — логіку D7 перевірено вже тут;
 2. коли `/api/health` показує схему цієї міграції чи новішу — PR, що перемикає `decideRecord` на нову сигнатуру
-   (дата й тип — з `decision_records()`, заміна — з `record_substitutes`);
-3. **contract** — коли код кроку 2 на проді (`sha` = `main`): `drop` 6-параметрових `private` і `public`; тест
-   старого виклику прибирається в тому самому PR.
+   (дата й тип — з `decision_records()`, заміна — з `record_substitutes`); правка все ще закрита;
+3. коли код кроку 2 на проді (`sha` = `main`) — PR з міграцією `grant execute on function public.edit_leave_record(…)
+   to authenticated` (і на `private`-функцію, яку кличе обгортка `security invoker`) разом із кнопкою «Edit record»,
+   формою й `editRecord`. Код і грант виходять не разом: поки `db-deploy` не застосував грант, «Save changes» отримує
+   42501 і показує «The change could not be saved. Please try again.» — даних це не зачіпає; smoke чекає `db-deploy`.
+   На всіх етапах рішення без правки працюють: стара сигнатура до кроку 2, нова після;
+4. **contract** — окремий PR після кроку 3 на проді: `drop` 6-параметрових `private` і `public`
+   `decide_leave_record`; тест старого виклику прибирається в тому самому PR.
 
 Правка сама захищена `updated_at`? Ні: форма шле повні значення, а база перевіряє кожне правило заново, тож дві
 правки поспіль просто дають два набори рядків історії — останнє слово за другою, і обидві видно працівнику.
@@ -248,7 +264,7 @@ AGENTS.md:
   і, як у «My requests», текстом про неприйняті дати (AC-LEAVE-21) у формі D6.
 - Гість на `/on-behalf/**` — `src/proxy.ts` веде на `/login` до рендеру, сторінка ще раз перевіряє `getClaims()`
   (AC-BEHALF-14).
-- «Decisions»: у розділі «Record» панелі запису для `status = 'awaiting'` і `can_decide` (не власний) — кнопка «Edit
+- «Decisions» (крок 3 D9, не в першому PR): у розділі «Record» панелі запису для `status = 'awaiting'` і `can_decide` (не власний) — кнопка «Edit
   record». Форма правки `src/app/(app)/decisions/edit-record-form.tsx`, server action `editRecord` у
   `src/app/(app)/decisions/actions.ts`: `getClaims()`, `parseRecordId`, перевірка полів тими самими чистими функціями
   (`checkHours`, `checkLeaveType`), `rpc("edit_leave_record")`; P0001 і 42501 — дослівно в `Alert` над формою, введене
@@ -328,11 +344,12 @@ SQL-мутанти `scripts/mutants.mjs`: `decides_for_position` (`manages_posit
 перестворює `leave_record_events_action_check`; додає хелпери D1, D2, D6, `approval_split`; переносить тіло подання в
 ядро без зміни сигнатури `submit_leave_request`; додає `submit_leave_request_on_behalf`, `edit_leave_record`, функції
 D8 і 9-параметрову `decide_leave_record` зі старою як обгорткою (expand, D9). Нових таблиць немає; на кожну нову
-`public`-функцію — `revoke execute … from public, anon` і `grant execute … to authenticated`, усі `private`-хелпери —
-без прав для `authenticated`, крім тих, що кличуть обгортки. Тестові дані: `manager3@example.test` (роль `manager`,
+`public`-функцію — `revoke execute … from public, anon` і `grant execute … to authenticated`, крім `edit_leave_record`
+(грант — окремою міграцією кроку 3 D9); усі `private`-хелпери — без прав для `authenticated`, крім тих, що кличуть
+обгортки. Тестові дані: `manager3@example.test` (роль `manager`,
 жодної посади) — у `supabase/demo-users.json`; посади teacher3@ додає зріз `substitutes`. Код, що вийде до
-`db-deploy`: нові RPC ще не існують → `/on-behalf/**` показують «The page could not be loaded. Please try again.»,
-кнопка «Edit record» дає `Alert` з тим самим текстом; власна заявка й рішення працюють (сигнатури ті самі). Smoke
+`db-deploy`: нові RPC ще не існують → `/on-behalf/**` показують «The page could not be loaded. Please try again.»;
+кнопки «Edit record» в цьому PR ще немає (D9); власна заявка й рішення працюють (сигнатури ті самі). Smoke
 (`scripts/smoke.mjs`) чекає `db-deploy`. `database.types.ts` — із Summary `db-check`.
 
 Кандидати в питання PM (у `docs/spec-reading.md` у PR реалізації): текст нагадування AC-LEAVE-23 для менеджера;
@@ -343,8 +360,9 @@ D8 і 9-параметрову `decide_leave_record` зі старою як об
 - Перенос тіла подання в ядро (D3) — найризиковіша частина: тіло велике й щойно змінене зрізом `substitutes`.
   Пом'якшення — копія тіла з трьома точковими змінами, наявні PGlite-тести власної заявки як регресія, SQL-мутанти;
   рецензія міграції — CodeRabbit або друга думка лише для читання до злиття (AGENTS.md).
-- Expand → contract для `decide_leave_record` (D9) тягне ще два PR після реалізації; до кроку 2 гонку «рішення після
-  чужої правки» не закрито — двоє менеджерів однієї посади мусять одночасно працювати з тим самим записом.
+- Expand → contract для `decide_leave_record` (D9) тягне ще три PR після реалізації, і правка (AC-BEHALF-06…10,
+  AC-BEHALF-13 в інтерфейсі) з'являється для людей лише на кроці 3 — зате вікна «рішення після чужої правки» немає:
+  до перемикання клієнта рішення правку закрито і в базі (без гранту), і в інтерфейсі.
 - Список `/on-behalf` адміністратора — усі профілі; фільтр на клієнті достатній для шкільного масштабу, пагінації не
   робимо.
 - Email у рядках історії — знімок (D4); якщо PM захоче поточні email, це зміна `record_histories` за expand → contract.

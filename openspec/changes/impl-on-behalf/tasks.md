@@ -1,6 +1,6 @@
 # Tasks
 
-Гілка `task/on-behalf` і PR «Реалізація» (expand, D9 і D13), потім два малі PR кроків 2 і 3 expand → contract. Починаємо
+Гілка `task/on-behalf` і PR «Реалізація» (задачі 1–5: expand, D9 і D13), потім три малі PR кроків 2–4 D9 (задачі 6, 7, 9). Починаємо
 після злиття реалізацій `cancel-approved` і `substitutes` від свіжого `main`; міграція `npx supabase migration new
 on_behalf_and_edit` — першим комітом (мітка пізніша за міграцію `substitutes`, `node scripts/check-migration-order.mjs`;
 перед нею — перевірити, що інша відкрита гілка не змінює схему); кожна задача доповнює той самий файл своєю частиною.
@@ -45,45 +45,55 @@ on_behalf_and_edit` — першим комітом (мітка пізніша �
       → сторінка входу без імен і дат).
       Done when: AC-BEHALF-11, AC-BEHALF-12, AC-BEHALF-14, AC-BEHALF-15
 
-## 5. Менеджер змінює дату, тип і заміну запису до рішення
+## 5. Правка в базі, закрита до перемикання рішення (крок 1 D9, той самий PR)
 
-- [ ] 5.1 База: `edit_leave_record` з обгорткою (D7), дія `record_changed` (D4). Код: кнопка «Edit record» і
-      `edit-record-form.tsx` у `Sheet` «Decisions», server action `editRecord`, смуга «Cancel» / «Save changes»,
-      рядки історії в `RecordHistory`; приклади на `/design`. Тести: PGlite (дата, тип, заміна — по рядку на поле,
-      дослівно; кілька полів разом — кілька рядків у порядку D7; нічого не змінилось — жодного рядка; перетин сам із
-      собою — ні, з іншим записом — текст D6; людина поза списком і зайнята заміна — відмова); e2e
-      `tests/e2e/on-behalf-edit.spec.ts` (правка в «Decisions», працівник бачить рядок у «My requests»).
+- [ ] 5.1 База: `edit_leave_record` з обгорткою (D7) **без** `grant execute` для `authenticated`, дія `record_changed`
+      (D4), 9-параметрова `decide_leave_record` і стара як обгортка (D9). Код: `HISTORY_ACTIONS` і `RecordHistory` для
+      `record_changed`; кнопки «Edit record» ще немає. Тести: PGlite від ролі з правом (дата, тип, заміна — по рядку на
+      поле дослівно; кілька полів — у порядку D7; нічого не змінилось — жодного рядка; перетин сам із собою — ні, з
+      іншим записом — текст D6; людина поза списком і зайнята заміна — відмова; години поза розкладом; «Approved»,
+      «Rejected», «Returned for revision», «Cancelled» — текст AC-BEHALF-10; manager2@ — відмова); від
+      `authenticated` — 42501 у кожного (немає гранту), `update leave_records` напряму — 42501, запис і кількість подій
+      без змін; старий 6-параметровий виклик рішення працює; SQL-мутанти D12, `npm run mutation:sql`.
+      Done when: AC-BEHALF-13
+
+## 6. Рішення бачить чужу правку (крок 2 D9)
+
+- [ ] 6.1 Окремий PR «Реалізація», коли `/api/health` показує схему міграції зрізу чи новішу: `decideRecord` кличе
+      9-параметрову `decide_leave_record` (дата й тип — з `decision_records()`, заміна — з `record_substitutes`).
+      Тести: PGlite — правка дати від ролі з правом, рішення зі старою датою → текст D9, запис лишається «Awaiting
+      decision»; наявні e2e рішень зелені.
       Done when: AC-BEHALF-06, AC-BEHALF-07, AC-BEHALF-08
 
-## 6. Правку, що порушує правило, не збережено
+## 7. Менеджер змінює запис у «Decisions» (крок 3 D9)
 
-- [ ] 6.1 База: кроки 1, 3 і 6 `edit_leave_record` (D7). Код: `Alert` з текстом бази над формою правки, межа поля
-      годин. Тести: PGlite (години поза розкладом → текст AC; «Approved», «Rejected», «Returned for revision»,
-      «Cancelled» → текст AC-BEHALF-10; manager2@ через RPC і `update` напряму → відмова, запис і кількість подій без
-      змін), SQL-мутанти D12, `npm run mutation:sql`; e2e (години поза розкладом; запис погоджено у фоні → текст AC;
-      `tests/e2e/negative-controls.spec.ts` — RPC сесією manager2@).
+- [ ] 7.1 Окремий PR «Реалізація», коли код 6.1 на проді (`sha` = `main`): міграція з `grant execute` на
+      `edit_leave_record` для `authenticated`; кнопка «Edit record» і `edit-record-form.tsx` у `Sheet` «Decisions»,
+      server action `editRecord`, смуга «Cancel» / «Save changes»; приклади на `/design`. Тести: PGlite від
+      `authenticated` (manager1@ змінює дату, тип, заміну — рядки дослівно); e2e `tests/e2e/on-behalf-edit.spec.ts`
+      (правка в «Decisions», працівник бачить рядок у «My requests»).
+      Done when: AC-BEHALF-06, AC-BEHALF-07, AC-BEHALF-08
+- [ ] 7.2 Той самий PR: `Alert` з текстом бази над формою правки, межа поля годин. Тести: e2e (години поза розкладом →
+      текст AC; запис погоджено `adminClient()` у фоні → текст AC-BEHALF-10;
+      `tests/e2e/negative-controls.spec.ts` — RPC `edit_leave_record` сесією manager2@ → відмова, запис без змін).
       Done when: AC-BEHALF-09, AC-BEHALF-10, AC-BEHALF-13
 
-## 7. Телефон, знімки, матриця
+## 8. Телефон, знімки, матриця
 
-- [ ] 7.1 `tests/e2e/on-behalf.mobile.spec.ts` (проєкт `mobile`, 360 і 390 px: список, форма, панель правки на весь
-      екран) і знімки станів D11 у світлій і темній темі, 390 і 1280 px — `tests/e2e/on-behalf-screenshots.spec.ts` →
-      `docs/img/`.
+- [ ] 8.1 `tests/e2e/on-behalf.mobile.spec.ts` (проєкт `mobile`, 360 і 390 px: список і форма — у PR задач 1–5; панель
+      правки на весь екран — у PR 7.1) і знімки станів D11 у світлій і темній темі, 390 і 1280 px —
+      `tests/e2e/on-behalf-screenshots.spec.ts` → `docs/img/`.
       Done when: AC-BEHALF-01, AC-BEHALF-02, AC-BEHALF-06, AC-BEHALF-11, AC-BEHALF-15
-- [ ] 7.2 Рядки AC-BEHALF-01…15 у `docs/conformance.md` (`/conformance`); кандидати в питання PM (D13) — у
-      `docs/spec-reading.md`; `database.types.ts` із Summary `db-check`; `npm run check:design`, `npm run check:ui`,
-      `npm run ac:coverage`, `npm run gates`, `npm test`. PR з міграцією й функціями `security definer` — рев'ю
-      CodeRabbit або звіт другої думки до злиття.
+- [ ] 8.2 Рядки `docs/conformance.md` (`/conformance`) — у PR, що доводить AC: AC-BEHALF-01…05, -11, -12, -14, -15 і
+      -13 (база) у першому PR; AC-BEHALF-06…10 — у PR 7.1. Кандидати в питання PM (D13) — у `docs/spec-reading.md`;
+      `database.types.ts` із Summary `db-check`; `npm run check:design`, `npm run check:ui`, `npm run ac:coverage`,
+      `npm run gates`, `npm test`. PR з міграцією й функціями `security definer` — рев'ю CodeRabbit або звіт другої
+      думки до злиття.
       Done when: AC-BEHALF-01, AC-BEHALF-02, AC-BEHALF-03, AC-BEHALF-04, AC-BEHALF-05, AC-BEHALF-06, AC-BEHALF-07, AC-BEHALF-08, AC-BEHALF-09, AC-BEHALF-10, AC-BEHALF-11, AC-BEHALF-12, AC-BEHALF-13, AC-BEHALF-14, AC-BEHALF-15
 
-## 8. Рішення бачить чужу правку (expand → contract, D9)
+## 9. Contract (крок 4 D9)
 
-- [ ] 8.1 Окремий PR «Реалізація», коли `/api/health` показує схему міграції зрізу чи новішу: `decideRecord` кличе
-      9-параметрову `decide_leave_record` (дата й тип — з `decision_records()`, заміна — з `record_substitutes`);
-      PGlite — правка дати іншим менеджером, рішення зі старою датою → текст D9, запис лишається «Awaiting decision»;
-      e2e — `Alert` з текстом D9 у панелі.
-      Done when: AC-BEHALF-06, AC-BEHALF-07, AC-BEHALF-08
-- [ ] 8.2 Contract — окремий PR, коли код 8.1 на проді (`sha` = `main`): міграція `drop` 6-параметрових
-      `private.decide_leave_record` і `public.decide_leave_record`, тест старого виклику прибрано в тому самому PR;
+- [ ] 9.1 Окремий PR, коли код 7.1 на проді: міграція `drop` 6-параметрових `private.decide_leave_record` і
+      `public.decide_leave_record`, тест старого виклику прибрано в тому самому PR;
       `npx openspec archive impl-on-behalf -y`.
       Done when: AC-BEHALF-01, AC-BEHALF-02, AC-BEHALF-03, AC-BEHALF-04, AC-BEHALF-05, AC-BEHALF-06, AC-BEHALF-07, AC-BEHALF-08, AC-BEHALF-09, AC-BEHALF-10, AC-BEHALF-11, AC-BEHALF-12, AC-BEHALF-13, AC-BEHALF-14, AC-BEHALF-15
