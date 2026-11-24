@@ -1,4 +1,4 @@
-> Джерело: https://github.com/mkozlovskyi-ops/course-staff-management-spec/blob/a0de666958e035ec67807b13e0264e1dea3ccec4/docs/requirements/04-school-calendar.md · коміт a0de666 · 2026-11-13
+> Джерело: https://github.com/mkozlovskyi-ops/course-staff-management-spec/blob/2064613c0adf34b8c08ee72cfa048e1871a99e50/docs/requirements/04-school-calendar.md · коміт 2064613 · 2026-11-24
 
 # Requirement: the administrator closes days and hours in the school calendar, and they cannot be taken as leave
 

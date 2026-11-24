@@ -282,6 +282,11 @@ isOneToOne: false
             "add_school_closure":
 { Args: { "p_closes_at"?: number,"p_end"?: string,"p_kind": string,"p_name": string,"p_start": string }; Returns: number
                            },
+"approved_register":
+{ Args: { "p_division_id": number,"p_month": string }; Returns: {
+              "approved_at": string,"approved_by_name": string,"date": string,"employee_email": string,"employee_id": string,"employee_name": string,"end_min": number,"leave_type": string,"minutes": number,"paid_days": number,"position_kind": string,"position_title": string,"record_id": number,"start_min": number,"unpaid_days": number,"whole_day": boolean
+            }[]
+                           },
 "balance_employees":
 { Args: Record<PropertyKey, never>; Returns: {
               "email": string,"full_name": string,"id": string
@@ -312,6 +317,11 @@ isOneToOne: false
 "record_history":
 { Args: { "p_record_id": number }; Returns: {
               "action": string,"actor_name": string,"comment": string,"created_at": string
+            }[]
+                           },
+"register_divisions":
+{ Args: Record<PropertyKey, never>; Returns: {
+              "code": string,"id": number,"name": string
             }[]
                            },
 "remove_school_closure":
