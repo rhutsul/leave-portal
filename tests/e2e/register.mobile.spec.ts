@@ -19,8 +19,9 @@ test("on a 390 px phone register rows are cards and the page does not scroll sid
 
   const rows = page.getByTestId("register-row").filter({ hasText: fx.employee.email });
   await expect(rows).toHaveCount(2);
-  // Картка: шапку таблиці сховано, тож числа мають власні підписи.
-  await expect(rows.first().getByText("Paid days", { exact: false })).toBeVisible();
+  // Картка: шапку таблиці сховано, тож числа мають власні підписи. Точний збіг: підрядок «Paid days» є і в «Unpaid days».
+  await expect(rows.first().getByText("Paid days", { exact: true })).toBeVisible();
+  await expect(rows.first().getByText("Unpaid days", { exact: true })).toBeVisible();
   await expect(page.getByRole("link", { name: "Download CSV" })).toBeVisible();
 
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
