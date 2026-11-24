@@ -91,17 +91,23 @@ isOneToOne: false
                   ]
                 },"leave_records": {
                   Row: {
-                    "created_at": string,"date": string,"day_share": number | null,"employee_comment": string | null,"employee_id": string,"end_min": number,"id": number,"leave_type": string,"manager_comment": string | null,"minutes": number,"paid_days": number | null,"position_id": number,"relationship": string | null,"request_id": number,"start_min": number,"status": string,"unpaid_days": number | null,"updated_at": string
+                    "cancel_declined_comment": string | null,"cancel_note": string | null,"cancel_reason": string | null,"cancel_request_id": number | null,"created_at": string,"date": string,"day_share": number | null,"employee_comment": string | null,"employee_id": string,"end_min": number,"id": number,"leave_type": string,"manager_comment": string | null,"minutes": number,"paid_days": number | null,"position_id": number,"relationship": string | null,"request_id": number,"start_min": number,"status": string,"unpaid_days": number | null,"updated_at": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "created_at"?: string,"date": string,"day_share"?: number | null,"employee_comment"?: string | null,"employee_id": string,"end_min": number,"id"?: never,"leave_type": string,"manager_comment"?: string | null,"minutes": number,"paid_days"?: number | null,"position_id": number,"relationship"?: string | null,"request_id": number,"start_min": number,"status"?: string,"unpaid_days"?: number | null,"updated_at"?: string
+                    "cancel_declined_comment"?: string | null,"cancel_note"?: string | null,"cancel_reason"?: string | null,"cancel_request_id"?: number | null,"created_at"?: string,"date": string,"day_share"?: number | null,"employee_comment"?: string | null,"employee_id": string,"end_min": number,"id"?: never,"leave_type": string,"manager_comment"?: string | null,"minutes": number,"paid_days"?: number | null,"position_id": number,"relationship"?: string | null,"request_id": number,"start_min": number,"status"?: string,"unpaid_days"?: number | null,"updated_at"?: string
                   }
                   Update: {
-                    "created_at"?: string,"date"?: string,"day_share"?: number | null,"employee_comment"?: string | null,"employee_id"?: string,"end_min"?: number,"id"?: never,"leave_type"?: string,"manager_comment"?: string | null,"minutes"?: number,"paid_days"?: number | null,"position_id"?: number,"relationship"?: string | null,"request_id"?: number,"start_min"?: number,"status"?: string,"unpaid_days"?: number | null,"updated_at"?: string
+                    "cancel_declined_comment"?: string | null,"cancel_note"?: string | null,"cancel_reason"?: string | null,"cancel_request_id"?: number | null,"created_at"?: string,"date"?: string,"day_share"?: number | null,"employee_comment"?: string | null,"employee_id"?: string,"end_min"?: number,"id"?: never,"leave_type"?: string,"manager_comment"?: string | null,"minutes"?: number,"paid_days"?: number | null,"position_id"?: number,"relationship"?: string | null,"request_id"?: number,"start_min"?: number,"status"?: string,"unpaid_days"?: number | null,"updated_at"?: string
                   }
                   Relationships: [
                     {
+      foreignKeyName: "leave_records_cancel_request_id_fkey"
+      columns: ["cancel_request_id"]
+isOneToOne: false
+      referencedRelation: "leave_record_events"
+      referencedColumns: ["id"]
+    },{
       foreignKeyName: "leave_records_employee_id_fkey"
       columns: ["employee_id"]
 isOneToOne: false
@@ -292,11 +298,17 @@ isOneToOne: false
               "email": string,"full_name": string,"id": string
             }[]
                            },
+"cancel_approved_record":
+{ Args: { "p_note": string,"p_record_id": number }; Returns: undefined
+                           },
 "cancel_leave_record":
 { Args: { "p_record_id": number }; Returns: undefined
                            },
 "decide_leave_record":
 { Args: { "p_comment"?: string,"p_decision": string,"p_end_min": number,"p_record_id": number,"p_split"?: boolean,"p_start_min": number }; Returns: Json
+                           },
+"decide_record_cancellation":
+{ Args: { "p_comment"?: string,"p_decision": string,"p_record_id": number,"p_request_id": number }; Returns: string
                            },
 "decision_balance":
 { Args: { "p_record_id": number }; Returns: Json
@@ -326,6 +338,9 @@ isOneToOne: false
                            },
 "remove_school_closure":
 { Args: { "p_id": number }; Returns: undefined
+                           },
+"request_record_cancellation":
+{ Args: { "p_reason": string,"p_record_id": number }; Returns: undefined
                            },
 "resubmit_leave_record":
 { Args: { "p_record_id": number }; Returns: undefined
