@@ -11,6 +11,8 @@ import {
   managerWarning,
   overBalanceWarnings,
   parseBalanceInputs,
+  PERSONAL_LEAVE_REMINDER,
+  personalLeaveReminder,
   requestOverBalance,
   requestShares,
   schoolYearOf,
@@ -320,5 +322,68 @@ describe("the employee's warning about exceeding the balance", () => {
       { schoolYear: 2026, share: 100, remaining: 50 },
     ]);
     expect(uncheckedYears(records, remainingOf)).toEqual([2027]);
+  });
+});
+
+describe("the reminder about long Personal leave", () => {
+  // Працівник з розкладом Mon–Fri 08:30–15:30 (420 хв на день), як у AC-LEAVE-23 і AC-LEAVE-24.
+  const MON_FRI = [1, 2, 3, 4, 5].map((weekday) => ({ weekday, start: 510, end: 930 }));
+
+  it("AC-LEAVE-23: Personal leave for the whole days 2026-12-07 and 2026-12-08 (2.00 days) shows the reminder", () => {
+    const records = ["2026-12-07", "2026-12-08"].map((date) => ({ date, minutes: 420 }));
+    expect(personalLeaveReminder("personal", records, MON_FRI)).toBe(
+      "Personal leave of 2 days or more: please talk to the administrator before you go",
+    );
+    expect(PERSONAL_LEAVE_REMINDER).toBe("Personal leave of 2 days or more: please talk to the administrator before you go");
+  });
+
+  it("AC-LEAVE-24: Personal leave for the whole day 2026-12-07 and 08:30–12:00 on 2026-12-08 (1.50 days) has no reminder", () => {
+    const records = [
+      { date: "2026-12-07", minutes: 420 },
+      { date: "2026-12-08", minutes: 210 },
+    ];
+    expect(personalLeaveReminder("personal", records, MON_FRI)).toBeNull();
+  });
+
+  it("the limit is inclusive and counts day shares, not records; other leave types never remind", () => {
+    // Чотири половини дня — 2.00 дні з чотирьох записів: нагадування є.
+    const halves = ["2026-12-07", "2026-12-08", "2026-12-09", "2026-12-10"].map((date) => ({ date, minutes: 210 }));
+    expect(personalLeaveReminder("personal", halves, MON_FRI)).toBe(PERSONAL_LEAVE_REMINDER);
+    // 1.99 дні — ще ні.
+    const almost = [
+      { date: "2026-12-07", minutes: 420 },
+      { date: "2026-12-08", minutes: 416 },
+    ];
+    expect(personalLeaveReminder("personal", almost, MON_FRI)).toBeNull();
+    const twoDays = ["2026-12-07", "2026-12-08"].map((date) => ({ date, minutes: 420 }));
+    expect(personalLeaveReminder("sick", twoDays, MON_FRI)).toBeNull();
+    expect(personalLeaveReminder(null, twoDays, MON_FRI)).toBeNull();
+    // Дати двох навчальних років сумуються: 2027-08-31 і 2027-09-01 — разом 2.00.
+    const acrossYears = ["2027-08-31", "2027-09-01"].map((date) => ({ date, minutes: 420 }));
+    expect(personalLeaveReminder("personal", acrossYears, MON_FRI)).toBe(PERSONAL_LEAVE_REMINDER);
+  });
+
+  it("an early dismissal shortens the day: all open minutes of a shortened day count as a whole day", () => {
+    // 2026-12-08 закрито з 12:00: незакриті 08:30–12:00 (210 хв) — увесь день, тож разом із 2026-12-07 — 2.00.
+    const closures = [{ id: 1, name: "Staff meeting", startDate: "2026-12-08", endDate: "2026-12-08", closesAt: 720 }];
+    const records = [
+      { date: "2026-12-07", minutes: 420 },
+      { date: "2026-12-08", minutes: 210 },
+    ];
+    expect(personalLeaveReminder("personal", records, MON_FRI, closures)).toBe(PERSONAL_LEAVE_REMINDER);
+    expect(personalLeaveReminder("personal", records, MON_FRI)).toBeNull();
+  });
+
+  it("two positions on one date share the day: both whole positions on two dates make 2.00", () => {
+    // Друга посада в понеділок 15:45–17:00: день — усі хвилини обох посад (420 + 75).
+    const blocks = [...MON_FRI, { weekday: 1, start: 945, end: 1020 }];
+    const bothPositions = [
+      { date: "2026-12-07", minutes: 420 },
+      { date: "2026-12-07", minutes: 75 },
+      { date: "2026-12-08", minutes: 420 },
+    ];
+    expect(personalLeaveReminder("personal", bothPositions, blocks)).toBe(PERSONAL_LEAVE_REMINDER);
+    // Лише основна посада в понеділок — менше за цілий день, разом менше за 2.00.
+    expect(personalLeaveReminder("personal", [bothPositions[0], bothPositions[2]], blocks)).toBeNull();
   });
 });

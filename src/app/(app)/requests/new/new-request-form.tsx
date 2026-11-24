@@ -18,6 +18,7 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   employeeWarning,
   isLimitedType,
+  personalLeaveReminder,
   requestOverBalance,
   uncheckedYears,
   type LimitedType,
@@ -149,6 +150,8 @@ export function NewRequestForm({
   const remainingOf = (year: number) =>
     leaveType && isLimitedType(leaveType) ? (remaining?.[year]?.[leaveType] ?? null) : null;
   const overBalance = leaveType ? requestOverBalance(leaveType, records, allBlocks, remainingOf, closures ?? []) : [];
+  // Нагадування про довгу «Personal leave» (AC-LEAVE-23, AC-LEAVE-24): за тим самим правилом частки дня; не зупиняє заявку.
+  const reminder = personalLeaveReminder(leaveType, records, allBlocks, closures ?? []);
   // Залишок не завантажився або дати поза завантаженими роками — кажемо, що перевірка буде під час подання.
   const balanceUnchecked = leaveType !== null && isLimitedType(leaveType) && uncheckedYears(records, remainingOf).length > 0;
   const labelOf = (id: number) => positions.find((p) => p.id === id)?.label ?? "";
@@ -447,6 +450,13 @@ export function NewRequestForm({
                     </TableBody>
                   </Table>
                 </div>
+                {/* Нагадування, а не попередження й не помилка: довідка «info» (DESIGN.md, розділ 2); текст дослівно з AC-LEAVE-23. */}
+                {reminder && (
+                  <Alert variant="info" role="note" data-testid="personal-leave-reminder">
+                    <Info />
+                    <AlertDescription>{reminder}</AlertDescription>
+                  </Alert>
+                )}
                 {/* Попередження не зупиняє заявку — виглядає як попередження, не помилка (рішення PM,
                     mkozlovskyi-ops/course-staff-management-spec#16); текст дослівно з AC. */}
                 {warnings.map((w) => (

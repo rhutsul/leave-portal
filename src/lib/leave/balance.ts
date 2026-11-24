@@ -317,6 +317,29 @@ export function requestOverBalance(
   return over;
 }
 
+/** Нагадування в підсумку заявки (AC-LEAVE-23), дослівно з AC. */
+export const PERSONAL_LEAVE_REMINDER = "Personal leave of 2 days or more: please talk to the administrator before you go";
+
+/** 2.00 дні в сотих: межа нагадування включна («2.00 days or more», Assumptions 01-leave-request). */
+const REMINDER_FROM = 200;
+
+/**
+ * Нагадування про довгу «Personal leave» (AC-LEAVE-23, AC-LEAVE-24): «Personal leave» заявки разом — за правилом частки
+ * дня (requestShares, усі навчальні роки дат заявки) — 2.00 дні або більше. Лише нагадує: залишку не потребує й заявку
+ * не зупиняє. Інший тип — null.
+ */
+export function personalLeaveReminder(
+  leaveType: string | null,
+  records: readonly { date: string; minutes: number }[],
+  blocks: readonly ScheduleBlock[],
+  closures: readonly Closure[] = [],
+): string | null {
+  if (leaveType !== "personal") return null;
+  let total = 0;
+  for (const share of requestShares(records, blocks, closures).values()) total += share;
+  return total >= REMINDER_FROM ? PERSONAL_LEAVE_REMINDER : null;
+}
+
 /** Навчальні роки дат заявки, для яких залишку немає під рукою: на підсумку їх перевірить лише подання. */
 export function uncheckedYears(
   records: readonly { date: string }[],
