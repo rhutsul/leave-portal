@@ -25,6 +25,8 @@ const FLOORED: string[] = [
   "motion",
   "preferences",
   "particle-field",
+  "register/csv",
+  "register/register",
   "utils",
   "welcome/playground",
 ];
@@ -38,6 +40,7 @@ const FLOORED_APP = [
   "balances/load-balances",
   "requests/new/calendar-view",
   "calendar/manage/access",
+  "register/load-register",
 ];
 const FLOORED_APP_GLOB = `src/app/*/{${FLOORED_APP.join(",")}}.ts`;
 const FLOOR = { statements: 90, branches: 85, functions: 90, lines: 90, perFile: true };
