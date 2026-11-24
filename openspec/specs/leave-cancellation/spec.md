@@ -57,7 +57,7 @@ WHEN відповідальний менеджер посади запису (н
 
 ### Requirement: Відхилення прохання з коментарем
 
-WHEN відповідальний менеджер посади запису або адміністратор відхиляє прохання про скасування з коментарем, the system SHALL залишити запис «Approved» без позначки «Cancellation requested» і показати працівнику на записі "Cancellation declined: <коментар>"; IF коментаря немає, THEN the system SHALL не відхиляти прохання й показати повідомлення "Tell the employee why the cancellation is declined".
+WHEN відповідальний менеджер посади запису (не власного) або адміністратор відхиляє прохання про скасування з коментарем, the system SHALL залишити запис «Approved» без позначки «Cancellation requested» і показати працівнику на записі "Cancellation declined: <коментар>"; IF коментаря немає, THEN the system SHALL не відхиляти прохання й показати повідомлення "Tell the employee why the cancellation is declined".
 
 #### Scenario: AC-CANCEL-03 Відхилення з коментарем
 
