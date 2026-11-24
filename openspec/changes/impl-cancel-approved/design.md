@@ -67,9 +67,16 @@ public, anon`, `grant execute … to authenticated` (як `decide_leave_record`)
 6. причина після обрізання крайових пробілів порожня → «Tell the manager why you want to cancel the record» (власний
    текст: PM у головному сценарії каже «gives a reason», а AC без причини немає — кандидат у питання PM записуємо в
    `docs/spec-reading.md` у PR реалізації); > 500 → «The comment can be at most 500 characters» (наявний текст);
-7. `update … set cancel_reason = v_reason, cancel_declined_comment = null where id = … and status = 'approved' and
-   cancel_reason is null` (запис уже заблоковано рядком, умова — запобіжник); подія `cancellation_requested`
-   (`insert … returning id`) і її id — у `cancel_request_id` того самого рядка.
+7. у тій самій транзакції спершу подія: `insert into leave_record_events (record_id, actor_id, action, comment) values
+   (p_record_id, auth.uid(), 'cancellation_requested', v_reason) returning id into v_request_id`; потім один `update …
+   set cancel_reason = v_reason, cancel_request_id = v_request_id, cancel_declined_comment = null where id =
+   p_record_id and status = 'approved' and cancel_reason is null` — обидві колонки змінюються разом, тож обмеження
+   `(cancel_request_id is null) = (cancel_reason is null)` не порушується ні на мить. Запис уже заблоковано рядком
+   (крок 2), умова `where` — запобіжник: 0 рядків → «Cancellation has already been requested», і виняток відкочує
+   вставлену подію разом із транзакцією.
+
+D4 і D5 узгоджені з тим самим обмеженням: кожен їхній `update` обнуляє `cancel_reason` і `cancel_request_id` разом
+(D4 крок 8, D5), а інших місць, де змінюється одна з цих колонок, немає.
 
 **D4 — `decide_record_cancellation(p_record_id bigint, p_request_id bigint, p_decision text, p_comment text default
 null) returns text` (AC-CANCEL-02, -03, -04, -07, -11).** Ті самі правила оформлення, що в D3. `p_decision` —
