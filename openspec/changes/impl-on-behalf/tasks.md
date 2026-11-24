@@ -1,6 +1,6 @@
 # Tasks
 
-Гілка `task/on-behalf` і PR «Реалізація» (задачі 1–5: expand, D9 і D13), потім три малі PR кроків 2–4 D9 (задачі 6, 7, 9). Починаємо
+Гілка `task/on-behalf` і PR «Реалізація» (задачі 1–5: expand, D9 і D13), потім три малі PR кроків 2–4 D9 (задачі 6, 7, 8). Починаємо
 після злиття реалізацій `cancel-approved` і `substitutes` від свіжого `main`; міграція `npx supabase migration new
 on_behalf_and_edit` — першим комітом (мітка пізніша за міграцію `substitutes`, `node scripts/check-migration-order.mjs`;
 перед нею — перевірити, що інша відкрита гілка не змінює схему); кожна задача доповнює той самий файл своєю частиною.
@@ -48,7 +48,7 @@ on_behalf_and_edit` — першим комітом (мітка пізніша �
 ## 5. Правка в базі, закрита до перемикання рішення (крок 1 D9, той самий PR)
 
 - [ ] 5.1 База: `edit_leave_record` з обгорткою (D7) **без** `grant execute` для `authenticated`, дія `record_changed`
-      (D4), 9-параметрова `decide_leave_record` і стара як обгортка (D9). Код: `HISTORY_ACTIONS` і `RecordHistory` для
+      (D4), 9-параметрова `decide_leave_record` і стара як обгортка над спільним тілом з `p_check_fields => false` (D9). Код: `HISTORY_ACTIONS` і `RecordHistory` для
       `record_changed`; кнопки «Edit record» ще немає. Тести: PGlite від ролі з правом (дата, тип, заміна — по рядку на
       поле дослівно; кілька полів — у порядку D7; нічого не змінилось — жодного рядка; перетин сам із собою — ні, з
       іншим записом — текст D6; людина поза списком і зайнята заміна — відмова; години поза розкладом; «Approved»,
@@ -61,39 +61,42 @@ on_behalf_and_edit` — першим комітом (мітка пізніша �
 
 - [ ] 6.1 Окремий PR «Реалізація», коли `/api/health` показує схему міграції зрізу чи новішу: `decideRecord` кличе
       9-параметрову `decide_leave_record` (дата й тип — з `decision_records()`, заміна — з `record_substitutes`).
-      Тести: PGlite — правка дати від ролі з правом, рішення зі старою датою → текст D9, запис лишається «Awaiting
-      decision»; наявні e2e рішень зелені.
+      Тести: PGlite — правка від ролі з правом (дата, тип, заміна `null` → uuid і uuid → `null`), рішення зі старими
+      значеннями → текст D9, запис лишається «Awaiting decision»; ті самі значення → рішення проходить; наявні e2e
+      рішень зелені.
       Done when: AC-BEHALF-06, AC-BEHALF-07, AC-BEHALF-08
 
-## 7. Менеджер змінює запис у «Decisions» (крок 3 D9)
+## 7. Contract до відкриття правки (крок 3 D9)
 
-- [ ] 7.1 Окремий PR «Реалізація», коли код 6.1 на проді (`sha` = `main`): міграція з `grant execute` на
-      `edit_leave_record` для `authenticated`; кнопка «Edit record» і `edit-record-form.tsx` у `Sheet` «Decisions»,
+- [ ] 7.1 Окремий PR, коли код 6.1 на проді (`sha` = `main`): міграція `drop` 6-параметрових
+      `private.decide_leave_record` і `public.decide_leave_record`; тест старого виклику прибрано в тому самому PR;
+      `edit_leave_record` усе ще без гранту.
+      Done when: AC-BEHALF-06, AC-BEHALF-07, AC-BEHALF-08
+
+## 8. Менеджер змінює запис у «Decisions» (крок 4 D9)
+
+- [ ] 8.1 Окремий PR «Реалізація», коли contract 7.1 застосовано на проді (`/api/health`): міграція з `grant execute`
+      на `edit_leave_record` для `authenticated`; кнопка «Edit record» і `edit-record-form.tsx` у `Sheet` «Decisions»,
       server action `editRecord`, смуга «Cancel» / «Save changes»; приклади на `/design`. Тести: PGlite від
       `authenticated` (manager1@ змінює дату, тип, заміну — рядки дослівно); e2e `tests/e2e/on-behalf-edit.spec.ts`
       (правка в «Decisions», працівник бачить рядок у «My requests»).
       Done when: AC-BEHALF-06, AC-BEHALF-07, AC-BEHALF-08
-- [ ] 7.2 Той самий PR: `Alert` з текстом бази над формою правки, межа поля годин. Тести: e2e (години поза розкладом →
+- [ ] 8.2 Той самий PR: `Alert` з текстом бази над формою правки, межа поля годин. Тести: e2e (години поза розкладом →
       текст AC; запис погоджено `adminClient()` у фоні → текст AC-BEHALF-10;
       `tests/e2e/negative-controls.spec.ts` — RPC `edit_leave_record` сесією manager2@ → відмова, запис без змін).
       Done when: AC-BEHALF-09, AC-BEHALF-10, AC-BEHALF-13
 
-## 8. Телефон, знімки, матриця
+## 9. Телефон, знімки, матриця, archive
 
-- [ ] 8.1 `tests/e2e/on-behalf.mobile.spec.ts` (проєкт `mobile`, 360 і 390 px: список і форма — у PR задач 1–5; панель
-      правки на весь екран — у PR 7.1) і знімки станів D11 у світлій і темній темі, 390 і 1280 px —
+- [ ] 9.1 `tests/e2e/on-behalf.mobile.spec.ts` (проєкт `mobile`, 360 і 390 px: список і форма — у PR задач 1–5; панель
+      правки на весь екран — у PR 8.1) і знімки станів D11 у світлій і темній темі, 390 і 1280 px —
       `tests/e2e/on-behalf-screenshots.spec.ts` → `docs/img/`.
       Done when: AC-BEHALF-01, AC-BEHALF-02, AC-BEHALF-06, AC-BEHALF-11, AC-BEHALF-15
-- [ ] 8.2 Рядки `docs/conformance.md` (`/conformance`) — у PR, що доводить AC: AC-BEHALF-01…05, -11, -12, -14, -15 і
-      -13 (база) у першому PR; AC-BEHALF-06…10 — у PR 7.1. Кандидати в питання PM (D13) — у `docs/spec-reading.md`;
+- [ ] 9.2 Рядки `docs/conformance.md` (`/conformance`) — у PR, що доводить AC: AC-BEHALF-01…05, -11, -12, -14, -15 і
+      -13 (база) у першому PR; AC-BEHALF-06…10 — у PR 8.1. Кандидати в питання PM (D13) — у `docs/spec-reading.md`;
       `database.types.ts` із Summary `db-check`; `npm run check:design`, `npm run check:ui`, `npm run ac:coverage`,
       `npm run gates`, `npm test`. PR з міграцією й функціями `security definer` — рев'ю CodeRabbit або звіт другої
       думки до злиття.
       Done when: AC-BEHALF-01, AC-BEHALF-02, AC-BEHALF-03, AC-BEHALF-04, AC-BEHALF-05, AC-BEHALF-06, AC-BEHALF-07, AC-BEHALF-08, AC-BEHALF-09, AC-BEHALF-10, AC-BEHALF-11, AC-BEHALF-12, AC-BEHALF-13, AC-BEHALF-14, AC-BEHALF-15
-
-## 9. Contract (крок 4 D9)
-
-- [ ] 9.1 Окремий PR, коли код 7.1 на проді: міграція `drop` 6-параметрових `private.decide_leave_record` і
-      `public.decide_leave_record`, тест старого виклику прибрано в тому самому PR;
-      `npx openspec archive impl-on-behalf -y`.
+- [ ] 9.3 У PR 8.1 (останньому PR зрізу): `npx openspec archive impl-on-behalf -y`.
       Done when: AC-BEHALF-01, AC-BEHALF-02, AC-BEHALF-03, AC-BEHALF-04, AC-BEHALF-05, AC-BEHALF-06, AC-BEHALF-07, AC-BEHALF-08, AC-BEHALF-09, AC-BEHALF-10, AC-BEHALF-11, AC-BEHALF-12, AC-BEHALF-13, AC-BEHALF-14, AC-BEHALF-15

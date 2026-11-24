@@ -218,25 +218,32 @@ AC-BEHALF-11, AC-BEHALF-15).** Кожна — `private` + `security definer` + `
 перевірка рішення порівнює лише години. Тому `decide_leave_record` отримує нову сигнатуру з тим, що бачив менеджер:
 `(p_record_id, p_decision, p_comment, p_split, p_start_min, p_end_min, p_date date, p_leave_type text, p_substitute_id
 uuid)`; розбіжність дати, типу чи заміни → P0001 `This record has been changed. Check it again before deciding`
-**(розробник)**, за зразком наявного тексту AC-DECIDE-22. Це зміна сигнатури RPC, яку кличе код, тож — три PR за
-AGENTS.md. Поки клієнт рішення кличе стару сигнатуру (вона перевіряє лише години), правка не мусить бути доступна
-ніде — ні в інтерфейсі, ні в базі, — інакше рішення, підготовлене до чужої правки, погодило б нову дату. Тому кроки:
+**(розробник)**, за зразком наявного тексту AC-DECIDE-22. Нова сигнатура перевіряє **завжди**: дату й тип — `=`,
+заміну — `is distinct from` (`null` у ній означає «No substitute», а не «не перевіряти», тож перехід `null` ↔ uuid в
+обидва боки — розбіжність). Режим сумісності старої обгортки від значень не залежить: обидві сигнатури кличуть
+внутрішнє тіло `private.decide_leave_record_core(…, p_check_fields boolean)`, і лише 6-параметрова передає `false`.
+Це зміна сигнатури RPC, яку кличе код, тож — expand → contract за AGENTS.md. Поки існує стара сигнатура (вона
+перевіряє лише години), правка не мусить бути доступна ніде — ні в інтерфейсі, ні в базі, — інакше рішення через
+стару RPC, підготовлене до чужої правки, погодило б нову дату. Тому contract іде **до** відкриття правки, кроки:
 
-1. **expand** (PR реалізації зрізу, з міграцією): нова 9-параметрова функція (`private` + обгортка `public`), а стара
-   6-параметрова лишається тонкою обгорткою, що кличе нову з `p_date => null` тощо (`null` — «не перевіряти»); код
-   ще кличе стару. `private.edit_leave_record` і `public.edit_leave_record` у цій міграції створено, але **без**
-   `grant execute … to authenticated` (`revoke … from public, anon, authenticated`): виклик сесією будь-кого — 42501,
-   кнопки «Edit record» в інтерфейсі ще немає. PGlite-тести правки кличуть функцію від ролі з правом (як тести
-   внутрішніх `private`-функцій) — логіку D7 перевірено вже тут;
+1. **expand** (PR реалізації зрізу, з міграцією): нова 9-параметрова функція (`private` + обгортка `public`) і стара
+   6-параметрова як тонка обгортка над тим самим тілом з `p_check_fields => false`; код ще кличе стару.
+   `private.edit_leave_record` і `public.edit_leave_record` у цій міграції створено, але **без** `grant execute … to
+   authenticated` (`revoke … from public, anon, authenticated`): виклик сесією будь-кого — 42501, кнопки «Edit
+   record» в інтерфейсі ще немає. PGlite-тести правки кличуть функцію від ролі з правом (як тести внутрішніх
+   `private`-функцій) — логіку D7 перевірено вже тут;
 2. коли `/api/health` показує схему цієї міграції чи новішу — PR, що перемикає `decideRecord` на нову сигнатуру
    (дата й тип — з `decision_records()`, заміна — з `record_substitutes`); правка все ще закрита;
-3. коли код кроку 2 на проді (`sha` = `main`) — PR з міграцією `grant execute on function public.edit_leave_record(…)
-   to authenticated` (і на `private`-функцію, яку кличе обгортка `security invoker`) разом із кнопкою «Edit record»,
-   формою й `editRecord`. Код і грант виходять не разом: поки `db-deploy` не застосував грант, «Save changes» отримує
-   42501 і показує «The change could not be saved. Please try again.» — даних це не зачіпає; smoke чекає `db-deploy`.
-   На всіх етапах рішення без правки працюють: стара сигнатура до кроку 2, нова після;
-4. **contract** — окремий PR після кроку 3 на проді: `drop` 6-параметрових `private` і `public`
-   `decide_leave_record`; тест старого виклику прибирається в тому самому PR.
+3. **contract** — коли код кроку 2 на проді (`sha` = `main`): міграція `drop` 6-параметрових `private` і `public`
+   `decide_leave_record`; тест старого виклику прибирається в тому самому PR; правка все ще закрита;
+4. коли contract застосовано на проді (`/api/health`) — PR з міграцією `grant execute on function
+   public.edit_leave_record(…) to authenticated` (і на `private`-функцію, яку кличе обгортка `security invoker`)
+   разом із кнопкою «Edit record», формою й `editRecord`. Код і грант виходять не разом: поки `db-deploy` не
+   застосував грант, «Save changes» отримує 42501 і показує «The change could not be saved. Please try again.» —
+   даних це не зачіпає; smoke чекає `db-deploy`. Тепер єдина RPC рішення — та, що бачить правку.
+
+На всіх етапах рішення без правки працюють: стара сигнатура до кроку 2, нова після. Тести 9-параметрової: зміна
+дати, типу, заміни `null` → uuid і uuid → `null` після показу → текст D9; ті самі значення → рішення проходить.
 
 Правка сама захищена `updated_at`? Ні: форма шле повні значення, а база перевіряє кожне правило заново, тож дві
 правки поспіль просто дають два набори рядків історії — останнє слово за другою, і обидві видно працівнику.
@@ -264,7 +271,7 @@ AGENTS.md. Поки клієнт рішення кличе стару сигна
   і, як у «My requests», текстом про неприйняті дати (AC-LEAVE-21) у формі D6.
 - Гість на `/on-behalf/**` — `src/proxy.ts` веде на `/login` до рендеру, сторінка ще раз перевіряє `getClaims()`
   (AC-BEHALF-14).
-- «Decisions» (крок 3 D9, не в першому PR): у розділі «Record» панелі запису для `status = 'awaiting'` і `can_decide` (не власний) — кнопка «Edit
+- «Decisions» (крок 4 D9, не в першому PR): у розділі «Record» панелі запису для `status = 'awaiting'` і `can_decide` (не власний) — кнопка «Edit
   record». Форма правки `src/app/(app)/decisions/edit-record-form.tsx`, server action `editRecord` у
   `src/app/(app)/decisions/actions.ts`: `getClaims()`, `parseRecordId`, перевірка полів тими самими чистими функціями
   (`checkHours`, `checkLeaveType`), `rpc("edit_leave_record")`; P0001 і 42501 — дослівно в `Alert` над формою, введене
@@ -345,7 +352,7 @@ SQL-мутанти `scripts/mutants.mjs`: `decides_for_position` (`manages_posit
 ядро без зміни сигнатури `submit_leave_request`; додає `submit_leave_request_on_behalf`, `edit_leave_record`, функції
 D8 і 9-параметрову `decide_leave_record` зі старою як обгорткою (expand, D9). Нових таблиць немає; на кожну нову
 `public`-функцію — `revoke execute … from public, anon` і `grant execute … to authenticated`, крім `edit_leave_record`
-(грант — окремою міграцією кроку 3 D9); усі `private`-хелпери — без прав для `authenticated`, крім тих, що кличуть
+(грант — окремою міграцією кроку 4 D9); усі `private`-хелпери — без прав для `authenticated`, крім тих, що кличуть
 обгортки. Тестові дані: `manager3@example.test` (роль `manager`,
 жодної посади) — у `supabase/demo-users.json`; посади teacher3@ додає зріз `substitutes`. Код, що вийде до
 `db-deploy`: нові RPC ще не існують → `/on-behalf/**` показують «The page could not be loaded. Please try again.»;
@@ -361,8 +368,8 @@ D8 і 9-параметрову `decide_leave_record` зі старою як об
   Пом'якшення — копія тіла з трьома точковими змінами, наявні PGlite-тести власної заявки як регресія, SQL-мутанти;
   рецензія міграції — CodeRabbit або друга думка лише для читання до злиття (AGENTS.md).
 - Expand → contract для `decide_leave_record` (D9) тягне ще три PR після реалізації, і правка (AC-BEHALF-06…10,
-  AC-BEHALF-13 в інтерфейсі) з'являється для людей лише на кроці 3 — зате вікна «рішення після чужої правки» немає:
-  до перемикання клієнта рішення правку закрито і в базі (без гранту), і в інтерфейсі.
+  AC-BEHALF-13 в інтерфейсі) з'являється для людей лише на кроці 4 — зате вікна «рішення після чужої правки» немає:
+  поки існує стара RPC рішення (до contract), правку закрито і в базі (без гранту), і в інтерфейсі.
 - Список `/on-behalf` адміністратора — усі профілі; фільтр на клієнті достатній для шкільного масштабу, пагінації не
   робимо.
 - Email у рядках історії — знімок (D4); якщо PM захоче поточні email, це зміна `record_histories` за expand → contract.
