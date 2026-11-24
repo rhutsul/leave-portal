@@ -19,8 +19,9 @@
 - Профілі інших людей `authenticated` не читає (`profiles_select_own_or_admin`); менеджер бачить імена й email лише
   через `public.decision_records()`; історію — через `public.record_histories(bigint[])`.
 - Гостя на `/login` веде `src/proxy.ts` (`PUBLIC_PATHS`) для будь-якого шляху поза публічними.
-- Зріз `cancel-approved` (план `openspec/changes/impl-cancel-approved/design.md`, реалізується раніше за цей) додає до
-  `leave_records` колонки `cancel_reason`, `cancel_declined_comment`, `cancel_note`, дві дії історії й функції
+- Зріз `cancel-approved` (план `openspec/changes/impl-cancel-approved/design.md` уже в `main`; реалізація — PR із
+  міграцією `20261124195428_cancel_approved.sql`, зливається раніше за цей зріз) додає до `leave_records` колонки
+  `cancel_reason`, `cancel_request_id`, `cancel_declined_comment`, `cancel_note`, дві дії історії й функції
   `request_record_cancellation`, `decide_record_cancellation`, `cancel_approved_record`; `submit_leave_request`,
   `update_leave_record_hours`, `decision_records()` і `my_leave_records` він не змінює.
 
@@ -250,8 +251,8 @@ PGlite у своїй підготовці приводять дані до «Giv
 D3 (`ilike '%teacher%'`), `npm run mutation:sql`.
 
 **D11 — порядок викатки й сумісність (AC-SUBST-02, AC-SUBST-03, AC-SUBST-10; AGENTS.md, «Код і схема виходять на прод не разом»).** Одна міграція
-`npx supabase migration new substitutes`, з міткою, новішою за міграцію `cancel_approved` (реалізується раніше;
-`node scripts/check-migration-order.mjs`). Вона лише додає таблицю, дві колонки, обмеження, функції й тестові дані та
+`npx supabase migration new substitutes` — новий файл із міткою, пізнішою за `20261124195428_cancel_approved.sql`
+(створюємо після злиття реалізації `cancel-approved` від свіжого `main`; `node scripts/check-migration-order.mjs`). Вона лише додає таблицю, дві колонки, обмеження, функції й тестові дані та
 замінює тіла двох функцій без зміни сигнатур; жоден наявний view і тип результату RPC не змінюється — expand → contract
 не потрібен, тож код і міграція — в одному PR, міграція першим комітом. Код, що вийде до `db-deploy`: виклики
 `my_substitute_options` / `record_substitutes` / `my_substitutions` падають (функцій ще немає) → форма не показує
@@ -259,7 +260,9 @@ D3 (`ilike '%teacher%'`), `npm run mutation:sql`.
 показують записи без рядка заміни, нові сторінки — «The page could not be loaded. Please try again.»; smoke
 (`scripts/smoke.mjs`) чекає `db-deploy`. Сумісність із `cancel-approved`: його колонки `cancel_*` і наші
 `substitute_id`, `upgrade_minutes` не перетинаються; він не змінює `submit_leave_request` і
-`update_leave_record_hours`, а ми — `leave_record_events_action_check` і його функції. `database.types.ts` — із Summary
+`update_leave_record_hours`, `decision_records()` і `my_leave_records`, а ми — `leave_record_events_action_check`,
+`private.trimmed_text`, `private.check_cancellation_actor` і його функції скасування. Скасування погодженого запису
+(статус `cancelled`) звільняє заміну без нашого коду: `cancelled` поза набором D4. `database.types.ts` — із Summary
 `db-check`.
 
 ## Ризики
