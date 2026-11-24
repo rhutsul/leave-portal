@@ -1,6 +1,7 @@
 // Зміна власного пароля (ADR 0011): правила перевірки введення й тексти помилок. Чисті функції — їх ділять форма
 // (перевірка до відправки) і server action (та сама перевірка ще раз, бо форму можна обійти).
-// Вимог PM до цієї фічі ще немає (requirements/product.md, «later»), тож правила й тексти — припущення розробника.
+// Вимога PM 07 (requirements/07-staff-management.md): AC-STAFF-16, -17 і припущення «щонайменше 8 знаків, решта правил —
+// за розробником». Тексти AC — дослівно; інші правила й тексти — рішення розробника (ADR 0011).
 
 /** Мінімум — 8 знаків (як DEMO_USER_PASSWORD); Auth сам вимагає ≥ 6. */
 export const MIN_PASSWORD_LENGTH = 8;
@@ -15,7 +16,8 @@ export const NO_PASSWORD_ERRORS: PasswordErrors = { current: null, next: null, c
 
 export const PASSWORD_MESSAGES = {
   currentMissing: "Enter your current password.",
-  currentWrong: "Current password is incorrect.",
+  // Дослівно з AC-STAFF-17 (requirements/07-staff-management.md), без крапки, як в AC.
+  currentWrong: "The current password is incorrect",
   nextMissing: "Enter a new password.",
   nextShort: `Use at least ${MIN_PASSWORD_LENGTH} characters.`,
   nextLong: `This password is too long. Use at most ${MAX_PASSWORD_BYTES} bytes. Letters A–Z and a–z, digits 0–9, and symbols such as ! and @ use 1 byte each. Other characters may use more.`,

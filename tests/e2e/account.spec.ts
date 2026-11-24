@@ -1,11 +1,12 @@
-// Сторінка /account і зміна власного пароля (ADR 0011). Вимог PM до фічі ще немає (requirements/product.md, «later»),
-// тож тести — без AC ID і без кроків «Дано / Тоді» UAT.
+// Сторінка /account і зміна власного пароля (ADR 0011): вимога PM 07, AC-STAFF-16 і AC-STAFF-17
+// (requirements/07-staff-management.md). AC ID у назвах — після PR «Специфікація» на зріз 07; кроків «Дано / Тоді» UAT поки немає.
 //
 // Зміна пароля — на ОДНОРАЗОВОМУ користувачі (createUatAccount, секретний ключ): паролі демо-акаунтів, на яких
 // тримаються інші тести й UAT, не змінюємо. Тест сам вводить паролі у форми, тож trace у цьому файлі вимкнено (у
 // трасі були б значення полів); на відео поля пароля — крапки. Користувача видаляє afterEach, залишок назве teardown.
 // Перегляд сторінки ролями — лише читання, на станах входу з auth.setup.ts; там же знімки для docs/img/ (390 і 1280 px)
 // — у test-results/, звідки їх бере артефакт CI.
+import { randomBytes } from "node:crypto";
 import { expect, test, type Page } from "@playwright/test";
 import { cleanupRemembered, createUatAccount } from "./support/admin";
 import { cleanScreenshot } from "./support/uat";
@@ -51,33 +52,28 @@ for (const { role, email, label } of ROLES) {
   });
 }
 
+// Два сценарії вимоги PM 07: AC-STAFF-16 (правильний поточний і новий пароль на 12 знаків) і AC-STAFF-17 (неправильний
+// поточний). AC називають teacher1@example.test, але його пароль тримає UAT і інші тести, тож та сама поведінка — на
+// одноразовому акаунті. AC ID у назвах з'являться після PR «Специфікація» на зріз 07 (інакше ac:coverage — ORPHAN).
 test.describe("change own password", { tag: "@prod-writes" }, () => {
   test.afterEach(async () => {
     await cleanupRemembered();
   });
 
-  test("wrong current password is refused; after a change only the new password signs in", async ({ page }) => {
+  test("correct current password and a 12-character new one: the change is confirmed, then only the new password signs in", async ({
+    page,
+  }) => {
     const user = await createUatAccount();
-    const next = `${user.password}-new`;
+    const next = randomBytes(6).toString("hex");
+    expect(next).toHaveLength(12);
 
     await submitLogin(page, user.email, user.password);
     await expect(page).not.toHaveURL(/\/login/);
     await page.goto("/account");
 
-    // Поля перевіряє форма до відправки.
-    await fillPasswords(page, user.password, "short", "short");
-    await page.getByRole("button", { name: "Change password" }).click();
-    await expect(page.getByText("Use at least 8 characters.")).toBeVisible();
-
-    // Неправильний поточний пароль — загальний текст під полем, пароль не змінено.
-    await fillPasswords(page, `${user.password}-wrong`, next);
-    await page.getByRole("button", { name: "Change password" }).click();
-    await expect(page.getByText("Current password is incorrect.")).toBeVisible();
-    await expect(page.getByLabel("Current password")).toHaveAttribute("aria-invalid", "true");
-
     await fillPasswords(page, user.password, next);
     await page.getByRole("button", { name: "Change password" }).click();
-    await expect(page.getByText("Password changed")).toBeVisible();
+    await expect(page.getByText("Your password has been changed")).toBeVisible();
     await expect(page.getByLabel("Current password")).toHaveValue("");
     // Ця сесія лишається: сторінка після зміни відкривається без входу.
     await page.reload();
@@ -90,6 +86,32 @@ test.describe("change own password", { tag: "@prod-writes" }, () => {
     await expect(page.getByText("Incorrect email or password.")).toBeVisible();
 
     await submitLogin(page, user.email, next);
+    await expect(page).not.toHaveURL(/\/login/);
+    await expect(page.getByTestId("user-email")).toHaveText(user.email);
+  });
+
+  test("wrong current password: the change is refused and the old password still signs in", async ({ page }) => {
+    const user = await createUatAccount();
+
+    await submitLogin(page, user.email, user.password);
+    await expect(page).not.toHaveURL(/\/login/);
+    await page.goto("/account");
+
+    // Поля перевіряє форма ще до відправки (рішення розробника, ADR 0011).
+    await fillPasswords(page, user.password, "short", "short");
+    await page.getByRole("button", { name: "Change password" }).click();
+    await expect(page.getByText("Use at least 8 characters.")).toBeVisible();
+
+    await fillPasswords(page, `${user.password}-wrong`, `${user.password}-new`);
+    await page.getByRole("button", { name: "Change password" }).click();
+    await expect(page.getByText("The current password is incorrect")).toBeVisible();
+    await expect(page.getByLabel("Current password")).toHaveAttribute("aria-invalid", "true");
+    await expect(page.getByText("Your password has been changed")).toHaveCount(0);
+
+    await page.getByRole("button", { name: "Sign out" }).click();
+    await expect(page).toHaveURL(/\/login/);
+
+    await submitLogin(page, user.email, user.password);
     await expect(page).not.toHaveURL(/\/login/);
     await expect(page.getByTestId("user-email")).toHaveText(user.email);
   });

@@ -1,21 +1,28 @@
 # 0011. Зміна власного пароля: сторінка `/account`, поточний пароль обов'язковий, вихід з інших сесій
 
-- Статус: прийнято — ініціатива розробника, до вимог PM
-- Дата: 2026-11-23
-- AC: немає. У `requirements/product.md` фіча є лише в матриці прав («Change own password — own only» для employee,
-  manager, admin; статус «later») і в дорожній карті («every user changes their own password», «planned»). Вимоги з AC
-  PM ще не написав; питань PM не ставимо (рішення людини). Тести — без AC ID: чужий AC дав би вигадане покриття.
+- Статус: прийнято — реалізує вимогу PM 07 (частково: AC-STAFF-16, -17). Почато 2026-11-23 як ініціатива розробника
+  до вимог PM; 2026-11-24 PM описав фічу в `requirements/07-staff-management.md` (знімок — PR «Оновлення вимог»
+  `sync/2026-11-24`), тексти взято звідти.
+- Дата: 2026-11-23, оновлено 2026-11-24
+- AC: AC-STAFF-16 (правильний поточний пароль і новий на 12 знаків → «Your password has been changed», далі входить
+  лише новий пароль), AC-STAFF-17 (неправильний поточний → «The current password is incorrect», старий пароль і далі
+  входить). Припущення PM: «A password has at least 8 characters; other password rules are the developer's choice.»
+  AC ID у назвах тестів і рядки `docs/conformance.md` — після PR «Специфікація» на зріз 07: доки AC-STAFF-* немає в
+  `openspec/specs/`, `ac:coverage` дав би ORPHAN.
 
 ## Контекст
 
 Пароль кожному акаунту задає адміністратор (`npm run users:demo`, Admin API); змінити свій пароль користувач не міг.
-Людина вирішила реалізувати фічу з дорожньої карти до вимог PM; бали за неї не нараховуються, а PM потім може описати її
-інакше. Обмеження: без міграцій і змін бази (лише Supabase Auth); листів Auth не надсилає — адреси `*@example.test`
-пошти не отримують, а вбудований SMTP шле лише учасникам проєкту (`docs/decisions/README.md`, «Відкрите для WS10»).
+Спершу людина вирішила реалізувати фічу з дорожньої карти до вимог PM (`requirements/product.md`: матриця прав «Change
+own password — own only», статус «later»). Тепер є вимога PM 07: два AC вище й мінімум 8 знаків; решта — за розробником.
+Обмеження: без міграцій і змін бази (лише Supabase Auth); листів Auth не надсилає — адреси `*@example.test` пошти не
+отримують, а вбудований SMTP шле лише учасникам проєкту (`docs/decisions/README.md`, «Відкрите для WS10»).
 
 ## Рішення
 
-Усе нижче — **припущення розробника**, не правила PM.
+Від PM: тексти «Your password has been changed» і «The current password is incorrect» (дослівно, без крапки, як в AC),
+перевірка поточного пароля, мінімум 8 знаків. Усе інше нижче — **рішення розробника** в межах «other password rules are
+the developer's choice».
 
 1. **Окрема сторінка `/account`** у групі `(app)`, однакова для всіх ролей. У головне меню не додаємо: посилання — блок
    акаунта внизу бічної панелі (ініціали, ім'я, email; у згорнутій панелі — ініціали з підказкою, назва «Account: …»
@@ -29,12 +36,13 @@
    його email і поточним паролем окремим тимчасовим клієнтом `@supabase/supabase-js` (публічний ключ,
    `persistSession: false`, `autoRefreshToken: false` — куки користувача він не чіпає), звіряє id з токеном і одразу
    закриває тимчасову сесію (`signOut({ scope: "local" })` відкликає лише її). Неправильний пароль — загальний текст
-   «Current password is incorrect.» без подробиць Auth, як на `/login`.
+   «The current password is incorrect» (AC-STAFF-17) без подробиць Auth, як на `/login`.
 4. **Новий пароль** — `updateUser({ password, current_password })` сесією користувача. `current_password` Auth
    перевіряє, лише якщо в проєкті ввімкнено «Require current password when changing password» (нижче); без цього
    налаштування поле ігнорується, а перевірку робить крок 3.
-5. **Вихід з інших сесій**: `signOut({ scope: "others" })` — поточна сесія лишається, інші пристрої виходять.
-6. Тексти відмов Auth: `weak_password` і `same_password` — під полем нового пароля; ліміт спроб (429,
+5. **Успіх** — `Alert` `info` «Your password has been changed» (AC-STAFF-16), форма очищується.
+6. **Вихід з інших сесій**: `signOut({ scope: "others" })` — поточна сесія лишається, інші пристрої виходять.
+7. Тексти відмов Auth: `weak_password` і `same_password` — під полем нового пароля; ліміт спроб (429,
    `over_*_rate_limit`) — «Too many attempts…»; `reauthentication_needed` — «sign out, sign in again…»; решта —
    загальний текст. Тексту Auth користувачеві не показуємо.
 
@@ -75,7 +83,11 @@
 ## Наслідки
 
 - Без міграцій: схема й RLS не змінились, `profiles` не чіпаємо.
-- Якщо PM опише фічу інакше: інша довжина чи склад пароля — `MIN_PASSWORD_LENGTH` і `passwordFieldErrors`
+- e2e перевіряє обидва AC на одноразовому акаунті, а не на `teacher1@example.test` з тексту AC: пароль teacher1
+  тримають UAT та інші тести (ризик вище).
+- Після PR «Специфікація» на зріз 07 — у PR реалізації: AC ID на початку назв двох e2e-тестів зміни пароля
+  (`tests/e2e/account.spec.ts`) і рядки AC-STAFF-16, -17 у `docs/conformance.md`.
+- Якщо PM змінить вимогу 07: інша довжина чи склад пароля — `MIN_PASSWORD_LENGTH` і `passwordFieldErrors`
   (+ `minimum_password_length` / `password_requirements` Auth у Dashboard і `config.toml`); тексти AC — дослівно в
-  `PASSWORD_MESSAGES`; без поточного пароля — прибрати крок 3 і поле; без виходу з інших сесій — прибрати крок 5;
-  скидання пароля поштою — окрема фіча з SMTP. Тести тоді отримають AC ID після PR «Специфікація».
+  `PASSWORD_MESSAGES` і формі; без поточного пароля — прибрати крок 3 і поле; без виходу з інших сесій — прибрати
+  крок 6; скидання пароля поштою — окрема фіча з SMTP.

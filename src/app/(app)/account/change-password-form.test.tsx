@@ -1,5 +1,5 @@
 // Форма «Change password» (ADR 0011): як показано відповідь server action. DOM-середовища в репо немає, тож рендеримо
-// renderToStaticMarkup, а відповідь дії підставляємо через useActionState. Без AC ID: вимог PM до фічі ще немає.
+// renderToStaticMarkup, а відповідь дії підставляємо через useActionState. Без AC ID: AC-STAFF-16, -17 ще не в openspec/specs.
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { INITIAL_CHANGE_PASSWORD, NO_PASSWORD_ERRORS, PASSWORD_MESSAGES as M, type ChangePasswordState } from "@/lib/account/password";
@@ -64,7 +64,7 @@ describe("ChangePasswordForm", () => {
 
   it("confirms the change", () => {
     const html = render({ ...INITIAL_CHANGE_PASSWORD, done: true });
-    expect(html).toContain("Password changed");
+    expect(html).toContain("Your password has been changed");
     expect(html).toContain('role="status"');
   });
 });

@@ -1,5 +1,5 @@
-// Зміна власного пароля (ADR 0011): правила перевірки й тексти помилок Auth. Без AC ID у назвах: вимог PM до фічі ще
-// немає (requirements/product.md, «later»), а чужий AC дав би вигадане покриття.
+// Зміна власного пароля (ADR 0011, вимога PM 07): правила перевірки й тексти помилок Auth. Без AC ID у назвах: AC-STAFF-16,
+// -17 ще не в openspec/specs (до PR «Специфікація» на зріз 07 ac:coverage дав би ORPHAN).
 import { describe, expect, it } from "vitest";
 import {
   hasPasswordErrors,

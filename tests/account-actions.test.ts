@@ -1,6 +1,6 @@
 // Зміна власного пароля (ADR 0011), server action changePassword: порядок кроків і що НЕ відбувається при відмові.
 // Підмінено лише зовнішнє: серверний клієнт Supabase (сесія користувача), тимчасовий клієнт supabase-js (перевірка
-// поточного пароля) і next/navigation. Без AC ID у назвах: вимог PM до фічі ще немає.
+// поточного пароля) і next/navigation. Без AC ID у назвах: AC-STAFF-16, -17 ще не в openspec/specs.
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 type AuthError = { code?: string; status?: number } | null;

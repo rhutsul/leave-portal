@@ -81,7 +81,8 @@ export function ChangePasswordForm() {
       {state.done && !edited && (
         <Alert variant="info" role="status">
           <CircleCheck />
-          <AlertTitle>Password changed</AlertTitle>
+          {/* Дослівно з AC-STAFF-16 (requirements/07-staff-management.md). */}
+          <AlertTitle>Your password has been changed</AlertTitle>
           <AlertDescription>Use the new password next time you sign in.</AlertDescription>
         </Alert>
       )}
