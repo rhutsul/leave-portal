@@ -30,6 +30,10 @@ PM наприкінці порівнює реалізації розробник
 
 ### Зміна email через Supabase Auth обходить правило «ім'я та email змінює лише адміністратор»
 
+**Розв'язано в ADR 0013** (зріз 07, AC-STAFF-12): тригер `guard_auth_email_change` на `auth.users` відкидає зміну
+email, яку робить GoTrue; email змінює лише функція адміністратора `update_employee` — разом у `profiles`,
+`auth.users` і `auth.identities`. Нижче — знахідка в тому вигляді, як її записали до рішення.
+
 - Рев'ю WS7 (п. 2), питання PM mkozlovskyi-ops/course-staff-management-spec#19 (Q6).
 - **Що є.** Колонкові права (`20261026181152_profiles_name_admin_only.sql`) не дають працівнику змінити
   `public.profiles.email`, тест — `tests/db/profiles.test.ts`. Але логін — `auth.users.email`: працівник, що увійшов

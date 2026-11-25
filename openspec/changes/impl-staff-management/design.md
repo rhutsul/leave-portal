@@ -131,15 +131,17 @@ from public, anon`, `grant execute … to authenticated`) і `public.<назва
 | `update_employee(p_employee_id, p_full_name, p_email)` | D1, зміна email у трьох місцях; записи не змінюються — вони показують поточне ім'я й email із `profiles` (Assumptions PM) | ті самі тексти, що в створенні |
 | `set_employee_role(p_employee_id, p_role)` | лише employee / manager / admin | `p_employee_id = auth.uid()` — P0001 «You cannot change your own role» (AC-STAFF-18); зняти `manager` з того, хто відповідає за посади чи є заступником у поточному або майбутньому призначенні, — P0001 «Remove this person from the managers of positions and deputies first» **(розробник)** |
 | `deactivate_employee(p_employee_id)` / `reactivate_employee(p_employee_id)` | D1; невикористані посилання — `revoked_at`; записи, залишки й посади не змінюються (Assumptions PM: «Awaiting decision» і «Returned for revision» лишаються менеджеру) | себе — P0001 «You cannot deactivate yourself» **(розробник)** |
-| `set_employee_role`, `deactivate_employee` — спільне | серіалізація змін адміністраторів (нижче) | після зміни не лишилось би жодного активного адміністратора — P0001 «At least one active administrator must remain» **(розробник)** |
+| `set_employee_role`, `deactivate_employee` — спільне | серіалізація змін адміністраторів (нижче) | — (перевірка «At least one active administrator must remain» лишається в коді лише про всяк випадок: з правилами нижче вона недосяжна) |
 
 Набір ролей не змінюється, тож порядок `profiles_role_check` → дані → `default` → новий check (`AGENTS.md`) тут не
 потрібен; `set_employee_role` лише оновлює значення в межах чинного check. «Єдиний адміністратор» (AC-STAFF-18) завжди
-лишається, і навіть за одночасних дій: `set_employee_role` і `deactivate_employee` (1) беруть один спільний
-`pg_advisory_xact_lock` «адміністратори» (`private.calendar_lock_key()`-подібний ключ `private.admins_lock_key()`),
-(2) після блокування ще раз перевіряють, що той, хто кличе, — активний адміністратор, (3) рахують активних
-адміністраторів, що лишаться після зміни, і відмовляють, якщо нуль, (4) лише тоді оновлюють. Тож два адміністратори, що
-одночасно знімають роль чи деактивують один одного, не залишать порталу без адміністратора.
+лишається, і навіть за одночасних дій: собі роль не змінити й себе не деактивувати, а `set_employee_role` і
+`deactivate_employee` (1) беруть один спільний `pg_advisory_xact_lock` адміністраторів (`private.lock_admins()`),
+(2) після блокування ще раз перевіряють, що той, хто кличе, — активний адміністратор, (3) лише тоді оновлюють. Тож два
+адміністратори, що одночасно знімають роль чи деактивують один одного, не залишать порталу без адміністратора — другий
+після lock уже не адміністратор. Справжній захист — lock і повторна перевірка. Кожна дія над людиною бере ще й lock
+цієї людини (`private.lock_employee`, для кількох — `private.lock_people` за зростанням uuid): зміна ролі не
+розминеться з призначенням менеджером посади чи заступником, видача й використання посилання — з деактивацією.
 
 **D5 — ім'я й email не змінити в обхід (AC-STAFF-12).** Три шляхи, три замки: (1) Data API — `authenticated` і далі
 без `update` на `profiles` (не змінюємо); (2) Auth — `supabase.auth.updateUser({ email })` публічним ключем: новий
@@ -155,12 +157,15 @@ administrator can change names and emails»; наші функції працю�
 - Вхід: GoTrue відмовляє забаненому з `code = 'user_banned'`; `login()` мапить його на `?error=deactivated`, а
   `ERRORS.deactivated` на `/login` — «Your account is deactivated. Contact the administrator» (`Alert` `destructive`).
 - Уже відкриті сесії: рядки `auth.sessions` видалено (D1), тож оновити токен не вийде; поки чинний access-токен (≤ 1
-  год), доступ закриває база, а не інтерфейс: `private.current_app_role()` для деактивованого повертає `null` (права
+  год), доступ закриває база, а не інтерфейс: `private.current_app_role()` для деактивованого повертає порожній рядок `''`, а не `null`: перевірки виду `not (v_role = 'admin' or …)` з `null` пропустили б IF (права
   ролі менеджера й адміністратора), а `private.acting_manager_ids` (D9) додає `auth.uid()` у набір лише тоді, коли
   профіль не деактивований, — тож `manages_position` і `manages_employee` дають `false`, і RLS записів, черга,
-  рішення, реєстр і залишки закриті одразу. Оболонка `(app)/layout.tsx` додатково робить `signOut()` і веде на
-  `/login?error=deactivated`. Тест AC-STAFF-08: деактивований manager1@ із чинною сесією (PGlite — той самий `sub`) не
-  бачить записів своїх посад і не може погодити.
+  рішення, реєстр і залишки закриті одразу. Власні дії працівника (подання, зміна годин, повторне подання,
+  скасування, прохання про скасування) закриває `private.require_active()` у публічних обгортках цих RPC (42501 «Your
+  account is deactivated. Contact the administrator»). Читання власних даних за RLS лишається до кінця строку токена
+  (≤ 1 год) — свідомо. Оболонка `(app)/layout.tsx` додатково робить `signOut()` і веде на `/login?error=deactivated`.
+  Тест AC-STAFF-08: деактивований manager1@ із чинною сесією (PGlite — той самий `sub`) не бачить записів своїх посад і
+  не може погодити; деактивований працівник не подає й не змінює своїх записів.
 - Ризик **(розробник)**: якщо GoTrue перевіряє бан до пароля, текст AC видно й з неправильним паролем — тобто видно,
   що email колись належав працівнику. Приймаємо: PM вимагає саме цей текст, а альтернатива (власна перевірка пароля в
   базі для гостя) відкрила б перебір паролів повз обмеження Auth.
@@ -375,7 +380,7 @@ D11), прибирає `cleanup.teardown.ts`. Шим PGlite (`tests/db/supabase-
 | AC-STAFF-05 | PGlite: друга основна — текст AC, посад не додалось. e2e: `Alert` з текстом | PGlite + e2e |
 | AC-STAFF-06 | PGlite: Mon 15:00–17:00 проти Mon 08:30–15:30 — текст AC дослівно; межа `[)` 15:30–17:00 проходить; перетин версій на іншу дату — відмова, на неперетинні дати — ні; пряма вставка — `exclusion_violation`. e2e: текст під формою | PGlite + e2e |
 | AC-STAFF-07 | PGlite: запис 08:30–15:30 погоджено, новий розклад 08:30–12:30 з дати перед ним → запис без змін; новий цілий день після — 08:30–12:30 (`check_record_hours`, `working_minutes`); дата до межі — старий розклад. e2e: «My requests» показує обидва запису | PGlite + e2e |
-| AC-STAFF-08 | PGlite: `deactivate_employee` → `banned_until`, сесій немає, `current_app_role()` null, записи й `decision_records` manager1@ з «approved» на місці, `approved_register` теж. unit `src/app/login/login-errors.test.ts`: `user_banned` → `deactivated`. e2e: вхід деактивованого — текст AC, не ввійшов; manager1@ бачить запис у «History» | PGlite + unit + e2e |
+| AC-STAFF-08 | PGlite: `deactivate_employee` → `banned_until`, сесій немає, `current_app_role()` — порожній рядок, записи й `decision_records` manager1@ з «approved» на місці, `approved_register` теж. unit `src/app/login/login-errors.test.ts`: `user_banned` → `deactivated`. e2e: вхід деактивованого — текст AC, не ввійшов; manager1@ бачить запис у «History» | PGlite + unit + e2e |
 | AC-STAFF-09 | PGlite `tests/db/staff-deputies.test.ts`: період із сьогодні — manager2@ бачить запис у `decision_records` (`can_decide`), погоджує, подія з його `actor_id`; manager1@ теж бачить; `acting_manager_ids('2026-12-08')` при періоді 07–11.12 містить manager1@; реєстр, прохання про скасування й залишки — через той самий хелпер. e2e: черга й «Approve» заступника | PGlite + e2e |
 | AC-STAFF-10 | PGlite: період почнеться завтра (і закінчився вчора) — жодного запису teacher1@ у `decision_records`, `leave_records` за RLS; `acting_manager_ids('2026-12-14')` без manager1@. e2e: черга порожня для цього працівника | PGlite + e2e |
 | AC-STAFF-11 | PGlite: `update_employee` — нові ім'я й email у `profiles`, `auth.users`, `auth.identities`, `encrypted_password` той самий; записи без змін. e2e: адмін змінює, людина входить новим email і тим самим паролем | PGlite + e2e |

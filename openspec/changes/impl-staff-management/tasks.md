@@ -11,7 +11,7 @@ PR 1 — з тестом PGlite, у PR 2/3 додаються e2e.
 
 ## PR 1 — база (`task/staff-db`)
 
-- [ ] 1.1 База: працівник і одноразове посилання (D1, D2, D3, D11). Міграція: `private.one_time_links` (RLS,
+- [x] 1.1 База: працівник і одноразове посилання (D1, D2, D3, D11). Міграція: `private.one_time_links` (RLS,
       `revoke`), `profiles` — унікальний індекс `lower(email)`, `private.employee_status`, `create_employee`,
       `issue_one_time_link`, `staff_employees`, `use_one_time_link` (обгортки `public`, гранти: адміністраторські —
       `authenticated`, `use_one_time_link` — ще й `anon`; `grant usage on schema private to anon`),
@@ -24,9 +24,9 @@ PR 1 — з тестом PGlite, у PR 2/3 додаються e2e.
       і рядок у `docs/decisions/README.md`.
       Done when: AC-STAFF-01, AC-STAFF-02, AC-STAFF-03
 
-- [ ] 1.2 База: ім'я, email, роль і деактивація (D4, D5, D6, D12). Міграція: `update_employee`, тригер
+- [x] 1.2 База: ім'я, email, роль і деактивація (D4, D5, D6, D12). Міграція: `update_employee`, тригер
       `guard_auth_email_change` на `auth.users`, `set_employee_role`, `deactivate_employee`, `reactivate_employee`,
-      нове тіло `private.current_app_role()` (null для деактивованого), серіалізація змін адміністраторів (спільне
+      нове тіло `private.current_app_role()` (порожній рядок для деактивованого), серіалізація змін адміністраторів (спільне
       блокування, «At least one active administrator must remain»); `staff-auth.spec.ts` доповнити: вхід новим email і
       тим самим паролем, `user_banned` після деактивації, вхід після реактивації, `auth.updateUser({ email })`
       відмовлено; якщо зріз `substitutes` уже злито — фільтр
@@ -37,7 +37,7 @@ PR 1 — з тестом PGlite, у PR 2/3 додаються e2e.
       менеджер із чинним `sub` не бачить і не вирішує записів своїх посад; реактивація.
       Done when: AC-STAFF-08, AC-STAFF-11, AC-STAFF-12, AC-STAFF-18
 
-- [ ] 1.3 База: посади й розклад «з дати» (D7, D8). Міграція: `schedule_blocks.valid_from` / `valid_to` і check, нове
+- [x] 1.3 База: посади й розклад «з дати» (D7, D8). Міграція: `schedule_blocks.valid_from` / `valid_to` і check, нове
       `schedule_blocks_no_overlap` з `daterange`, `private.blocks_in_effect`, нові тіла `blocks_on_date`,
       `working_minutes`, `closed_day_name`, `approved_register`; `create_position`, `set_position_schedule`,
       `set_position_managers`. Тести `tests/db/staff-positions.test.ts`: посада з розкладом з дати й менеджером
@@ -45,7 +45,7 @@ PR 1 — з тестом PGlite, у PR 2/3 додаються e2e.
       розклад не змінює погодженого запису, а новий запис бере новий; регресія `tests/db/*` (блоки без дат).
       Done when: AC-STAFF-04, AC-STAFF-05, AC-STAFF-06, AC-STAFF-07
 
-- [ ] 1.4 База: заступники (D9). Міграція: `public.deputy_assignments` (RLS, `revoke`, `grant select`, політика
+- [x] 1.4 База: заступники (D9). Міграція: `public.deputy_assignments` (RLS, `revoke`, `grant select`, політика
       адміністратора, обмеження), `private.acting_manager_ids`, нові тіла `manages_position`, `manages_employee`,
       `register_divisions`; `assign_deputy`, `remove_deputy`. Тести `tests/db/staff-deputies.test.ts`: у період —
       черга, рішення, подія з `actor_id` заступника, прохання про скасування, реєстр і залишки; manager1@ теж бачить;
