@@ -92,9 +92,17 @@ test.describe("staff accounts written by database functions @writes", () => {
 
   test("AC-STAFF-12: the employee cannot change their own email through Auth", async () => {
     const person = await signedIn(email, password);
+    // Самостійна зміна: GoTrue спершу шле лист підтвердження і лише потім записує email_change. Лист у стеку CI не
+    // піде («Error sending email change email»), а з поштою запис email_change зупинив би тригер guard_auth_email_change.
+    // Тож тут — лише що відмовлено і нічого не змінилось; точний текст тригера перевіряє
+    // tests/db/staff-employees.test.ts (роль supabase_auth_admin, як у GoTrue).
     const { error } = await person.auth.updateUser({ email: `self-${suffix}@example.test` });
-    // Відмову дає тригер guard_auth_email_change (GoTrue повертає текст помилки бази), а не, скажімо, пошта.
-    expect(error?.message ?? "").toContain("Only an administrator can change names and emails");
+    expect(error).not.toBeNull();
+    // Через GoTrue без листа (Admin API пише email одразу) — тригер на справжньому Supabase відкидає зміну.
+    const { error: direct } = await adminClient().auth.admin.updateUserById(employeeId, {
+      email: `direct-${suffix}@example.test`,
+    });
+    expect(direct).not.toBeNull();
     const { data } = await adminClient().auth.admin.getUserById(employeeId);
     expect(data.user?.email).toBe(email);
     expect(data.user?.new_email ?? "").toBe("");

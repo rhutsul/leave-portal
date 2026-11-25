@@ -932,13 +932,6 @@ declare
   v_position    bigint;
 begin
   perform private.require_admin();
-  select p.deactivated_at into v_deactivated from public.profiles as p where p.id = p_employee_id;
-  if not found then
-    raise exception 'Employee not found';
-  end if;
-  if v_deactivated is not null then
-    raise exception 'Reactivate this employee first';
-  end if;
   if p_kind is null or p_kind not in ('main', 'additional') then
     raise exception 'Unknown position type' using errcode = '22023';
   end if;
@@ -948,9 +941,16 @@ begin
   if v_title = '' or char_length(v_title) > 120 then
     raise exception 'Enter a job title of up to 120 characters';
   end if;
-  -- Lock працівника й кожного менеджера (за зростанням uuid) до перевірки менеджерів: зміна ролі менеджера не
-  -- проскочить між перевіркою й вставкою в position_managers.
+  -- Lock працівника й кожного менеджера (за зростанням uuid) до читання профілю й перевірки менеджерів: ні
+  -- деактивація працівника, ні зміна ролі менеджера не проскочать між перевіркою й вставкою.
   perform private.lock_people(array[p_employee_id] || coalesce(p_manager_ids, '{}'));
+  select p.deactivated_at into v_deactivated from public.profiles as p where p.id = p_employee_id;
+  if not found then
+    raise exception 'Employee not found';
+  end if;
+  if v_deactivated is not null then
+    raise exception 'Reactivate this employee first';
+  end if;
   perform private.check_position_managers(p_manager_ids);
 
   if p_kind = 'main' and exists (
