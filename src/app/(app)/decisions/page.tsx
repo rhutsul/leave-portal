@@ -397,12 +397,13 @@ function RecordTable({
                   <span className="block text-xs text-muted-foreground">
                     {positionLabel(r.division_name, r.position_title)}
                   </span>
+                  {/* Заміна — під працівником: колонка годин не переносить рядки, і довгий email обрізався б. */}
+                  <RecordSubstituteNote substitute={substituteOf(r.id)} className="mt-1" />
                 </TableCell>
                 <TableCell className="whitespace-nowrap tabular-nums">{formatDateLong(r.date)}</TableCell>
                 <TableCell className="whitespace-nowrap tabular-nums">
                   {formatRange(r.start_min, r.end_min)}
                   <span className="block text-xs text-muted-foreground">{formatDuration(r.minutes)}</span>
-                  <RecordSubstituteNote substitute={substituteOf(r.id)} className="mt-1 whitespace-normal" />
                 </TableCell>
                 <TableCell>
                   <LeaveTypeTag type={r.leave_type} variant="inline" />

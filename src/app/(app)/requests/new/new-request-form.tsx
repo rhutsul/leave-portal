@@ -463,7 +463,6 @@ export function NewRequestForm({
                         <TableHead>Date</TableHead>
                         <TableHead>Position</TableHead>
                         <TableHead>Hours</TableHead>
-                        {field.kind !== "hidden" && <TableHead>Substitute</TableHead>}
                         <TableHead className="text-right">Duration</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -471,13 +470,18 @@ export function NewRequestForm({
                       {records.map((r) => (
                         <TableRow key={`${r.date}|${r.positionId}`}>
                           <TableCell className="tabular-nums">{formatDateLong(r.date)}</TableCell>
-                          <TableCell>{labelOf(r.positionId)}</TableCell>
+                          <TableCell className="whitespace-normal">
+                            {labelOf(r.positionId)}
+                            {/* Заміна — другим рядком під посадою: окрема колонка з довгим email не вміщається в картку. */}
+                            {field.kind !== "hidden" && (
+                              <SubstituteNote
+                                email={substituteOf(r.substituteId)?.email}
+                                upgradeMinutes={upgradeOf(r)}
+                                className="mt-1"
+                              />
+                            )}
+                          </TableCell>
                           <TableCell className="tabular-nums">{formatRange(r.start, r.end)}</TableCell>
-                          {field.kind !== "hidden" && (
-                            <TableCell>
-                              <SubstituteNote email={substituteOf(r.substituteId)?.email} upgradeMinutes={upgradeOf(r)} />
-                            </TableCell>
-                          )}
                           <TableCell data-cell="end" className="text-right tabular-nums max-md:px-2 max-md:py-1.5">{formatDuration(r.minutes)}</TableCell>
                         </TableRow>
                       ))}

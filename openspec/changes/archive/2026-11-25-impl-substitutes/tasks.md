@@ -61,7 +61,7 @@
 
 ## 6. Телефон, знімки, матриця
 
-- [ ] 6.1 `tests/e2e/substitutes.mobile.spec.ts` (проєкт `mobile`, 360 і 390 px) і знімки станів D8 у світлій і темній
+- [x] 6.1 `tests/e2e/substitutes.mobile.spec.ts` (проєкт `mobile`, 360 і 390 px) і знімки станів D8 у світлій і темній
       темі, 390 і 1280 px — `tests/e2e/substitutes-screenshots.spec.ts` → `docs/img/`; прибирання e2e у порядку з ризиків
       design.md (спершу записи з синтетичною заміною, потім профілі).
       Done when: AC-SUBST-01, AC-SUBST-02, AC-SUBST-10, AC-SUBST-11, AC-SUBST-15
@@ -69,5 +69,5 @@
       власна заявка зайнятої заміни) — у `docs/spec-reading.md`; `database.types.ts` із Summary
       `db-check`; `npm run check:design`, `npm run check:ui`, `npm run ac:coverage`, `npm run gates`, `npm test`.
       Done when: AC-SUBST-01, AC-SUBST-02, AC-SUBST-03, AC-SUBST-04, AC-SUBST-05, AC-SUBST-06, AC-SUBST-07, AC-SUBST-08, AC-SUBST-09, AC-SUBST-10, AC-SUBST-11, AC-SUBST-12, AC-SUBST-13, AC-SUBST-14, AC-SUBST-15
-- [ ] 6.3 `npx openspec archive impl-substitutes -y`.
+- [x] 6.3 `npx openspec archive impl-substitutes -y`.
       Done when: AC-SUBST-01, AC-SUBST-02, AC-SUBST-03, AC-SUBST-04, AC-SUBST-05, AC-SUBST-06, AC-SUBST-07, AC-SUBST-08, AC-SUBST-09, AC-SUBST-10, AC-SUBST-11, AC-SUBST-12, AC-SUBST-13, AC-SUBST-14, AC-SUBST-15
