@@ -57,7 +57,10 @@ AC-STAFF-11).** Секретного ключа в застосунку нема
 - зміна email: `auth.users.email`, `auth.identities.identity_data.email` і `profiles.email` разом; `encrypted_password`
   не чіпаємо — «the same password» (AC-STAFF-11);
 - деактивація: `profiles.deactivated_at = now()`, `auth.users.banned_until = now() + interval '100 years'` (не
-  `infinity`: Go-сканер GoTrue його не читає), видалення рядків `auth.sessions` людини (каскадом — її refresh-токени).
+  `infinity`: Go-сканер GoTrue його не читає), видалення рядків `auth.sessions` людини (каскадом — її refresh-токени);
+- реактивація — зворотна дія в одній транзакції: `profiles.deactivated_at = null` і `auth.users.banned_until = null`;
+  пароль не змінюється, тож людина знову входить тим самим паролем (тест PGlite і e2e: деактивація → вхід відмовлено →
+  реактивація → вхід тим самим паролем).
 
 Ризик і перевірка: права `postgres` на DML в `auth.*` і поведінку GoTrue з такими рядками доводить job `e2e` (справжній
 Supabase у раннері, вхід паролем після створення за посиланням) ще до злиття, а потім `db-deploy-staging` і UAT на
@@ -77,8 +80,9 @@ staging — до `db-deploy` у прод. Відкинуті варіанти: A
   сторінок адміністратора, ні в базі, ні в журналах.
 - `valid_until = private.kyiv_day(now()) + 7`: створено 2026-12-01 → дійсне до 2026-12-08 включно (Assumptions PM,
   AC-STAFF-01). Те саме правило в TS — `linkValidUntil(day)` у `src/lib/staff/link.ts` (для тексту на екрані й тестів).
-- Видача нового посилання в тій самій транзакції ставить `revoked_at` усім невикористаним посиланням людини — «A new
-  link makes the previous one invalid».
+- Видача нового посилання спершу бере `pg_advisory_xact_lock` на працівника (той самий ключ, що в
+  `set_position_schedule`), а потім у тій самій транзакції ставить `revoked_at` усім невикористаним посиланням людини й
+  вставляє нове — дві одночасні видачі не лишать двох дійсних посилань: «A new link makes the previous one invalid».
 - Адреса — `<origin>/auth/set-password#token=<токен>`: токен у фрагменті, тож браузер не шле його на сервер у запиті
   сторінки, у `Referer` і журнали запитів Vercel. `/auth/**` уже публічний у `src/proxy.ts`. Адресу складає клієнтський
   компонент адміністратора з `window.location.origin` (preview і прод — кожен свою).
@@ -93,7 +97,8 @@ staging — до `db-deploy` у прод. Відкинуті варіанти: A
 - Це другий після `public.schema_version()` виняток із правила «security definer закритий від anon»: виконати його
   `anon` може лише через обгортку з токеном на 256 біт, тож перебір не має сенсу, а без токена функція не відкриває
   нічого. Тест `tests/db/schema-version.test.ts` розширюємо: множина функцій, які `anon` може виконати й які є
-  `security definer` або кличуть такі, — рівно `public.schema_version()` і `private.use_one_time_link` (ADR 0013).
+  `security definer` або кличуть такі, — рівно `public.schema_version()`, обгортка `public.use_one_time_link` і
+  `private.use_one_time_link` (ADR 0013).
 - Сторінка `/auth/set-password` (клієнтський компонент) читає `location.hash`, одразу прибирає фрагмент з історії
   (`history.replaceState`) і кличе server action `checkLink(token)`; форма «Set your password» — `PasswordInput`
   «New password» і «Repeat the new password», правила й тексти — спільні з `/account` (винести `newPasswordError` у
@@ -126,10 +131,15 @@ from public, anon`, `grant execute … to authenticated`) і `public.<назва
 | `update_employee(p_employee_id, p_full_name, p_email)` | D1, зміна email у трьох місцях; записи не змінюються — вони показують поточне ім'я й email із `profiles` (Assumptions PM) | ті самі тексти, що в створенні |
 | `set_employee_role(p_employee_id, p_role)` | лише employee / manager / admin | `p_employee_id = auth.uid()` — P0001 «You cannot change your own role» (AC-STAFF-18); зняти `manager` з того, хто відповідає за посади чи є заступником у поточному або майбутньому призначенні, — P0001 «Remove this person from the managers of positions and deputies first» **(розробник)** |
 | `deactivate_employee(p_employee_id)` / `reactivate_employee(p_employee_id)` | D1; невикористані посилання — `revoked_at`; записи, залишки й посади не змінюються (Assumptions PM: «Awaiting decision» і «Returned for revision» лишаються менеджеру) | себе — P0001 «You cannot deactivate yourself» **(розробник)** |
+| `set_employee_role`, `deactivate_employee` — спільне | серіалізація змін адміністраторів (нижче) | після зміни не лишилось би жодного активного адміністратора — P0001 «At least one active administrator must remain» **(розробник)** |
 
 Набір ролей не змінюється, тож порядок `profiles_role_check` → дані → `default` → новий check (`AGENTS.md`) тут не
 потрібен; `set_employee_role` лише оновлює значення в межах чинного check. «Єдиний адміністратор» (AC-STAFF-18) завжди
-лишається: собі роль не змінити, а іншого адміністратора може змінити лише інший адміністратор.
+лишається, і навіть за одночасних дій: `set_employee_role` і `deactivate_employee` (1) беруть один спільний
+`pg_advisory_xact_lock` «адміністратори» (`private.calendar_lock_key()`-подібний ключ `private.admins_lock_key()`),
+(2) після блокування ще раз перевіряють, що той, хто кличе, — активний адміністратор, (3) рахують активних
+адміністраторів, що лишаться після зміни, і відмовляють, якщо нуль, (4) лише тоді оновлюють. Тож два адміністратори, що
+одночасно знімають роль чи деактивують один одного, не залишать порталу без адміністратора.
 
 **D5 — ім'я й email не змінити в обхід (AC-STAFF-12).** Три шляхи, три замки: (1) Data API — `authenticated` і далі
 без `update` на `profiles` (не змінюємо); (2) Auth — `supabase.auth.updateUser({ email })` публічним ключем: новий
@@ -145,9 +155,12 @@ administrator can change names and emails»; наші функції працю�
 - Вхід: GoTrue відмовляє забаненому з `code = 'user_banned'`; `login()` мапить його на `?error=deactivated`, а
   `ERRORS.deactivated` на `/login` — «Your account is deactivated. Contact the administrator» (`Alert` `destructive`).
 - Уже відкриті сесії: рядки `auth.sessions` видалено (D1), тож оновити токен не вийде; поки чинний access-токен (≤ 1
-  год), оболонка `(app)/layout.tsx` бачить `deactivated_at`, робить `signOut()` і веде на `/login?error=deactivated`,
-  а `private.current_app_role()` для деактивованого повертає `null` — права менеджера й адміністратора зникають одразу
-  в кожній функції й політиці.
+  год), доступ закриває база, а не інтерфейс: `private.current_app_role()` для деактивованого повертає `null` (права
+  ролі менеджера й адміністратора), а `private.acting_manager_ids` (D9) додає `auth.uid()` у набір лише тоді, коли
+  профіль не деактивований, — тож `manages_position` і `manages_employee` дають `false`, і RLS записів, черга,
+  рішення, реєстр і залишки закриті одразу. Оболонка `(app)/layout.tsx` додатково робить `signOut()` і веде на
+  `/login?error=deactivated`. Тест AC-STAFF-08: деактивований manager1@ із чинною сесією (PGlite — той самий `sub`) не
+  бачить записів своїх посад і не може погодити.
 - Ризик **(розробник)**: якщо GoTrue перевіряє бан до пароля, текст AC видно й з неправильним паролем — тобто видно,
   що email колись належав працівнику. Приймаємо: PM вимагає саме цей текст, а альтернатива (власна перевірка пароля в
   базі для гостя) відкрила б перебір паролів повз обмеження Auth.
@@ -214,7 +227,8 @@ p_division_id, p_title, p_valid_from, p_blocks jsonb, p_manager_ids uuid[]) retu
   … from anon, authenticated`; `grant select … to authenticated`; політика `deputy_assignments_select_admin` `for select
   to authenticated using ((select private.current_app_role()) = 'admin')`; `grant select, insert, update, delete … to
   service_role`. Ні `insert`, ні `update`, ні `delete` для `authenticated` — лише функції адміністратора (AC-STAFF-14).
-- `private.acting_manager_ids(p_day date) returns setof uuid` (`security definer`, `stable`): сам `auth.uid()` і
+- `private.acting_manager_ids(p_day date) returns setof uuid` (`security definer`, `stable`): сам `auth.uid()`, якщо
+  його профіль не деактивований (D6), і
   `manager_id` призначень, де `deputy_id = auth.uid()`, `p_day between start_date and end_date` (обидві дати включно,
   Assumptions PM), заступник має роль `manager` і не деактивований. Без ланцюжків (заступник заступника — ні)
   **(розробник)**.
@@ -228,7 +242,8 @@ p_division_id, p_title, p_valid_from, p_blocks jsonb, p_manager_ids uuid[]) retu
   залишки (`can_view_balances`, `balance_employees`), заявка від імені й «погоджено одразу» (`can_act_for_employee`,
   `decides_for_position` плану `impl-on-behalf`). Наявні умови «не власний запис» (`r.employee_id <> auth.uid()`) і
   ролі `manager` лишаються — «never deciding their own records». Коментар «Заступників ще немає: їхні права додадуться
-  тут» у `check_cancellation_actor` уточнює та сама міграція в описі, а не в тілі (тіло не змінюється).
+  тут» біля `check_cancellation_actor` лишається в застосованій міграції (її не редагуємо); заголовок нової міграції
+  пояснює, що заступник приходить через `manages_position`, а тіло `check_cancellation_actor` не змінюється.
 - Рішення заступника — звичайні події `leave_record_events` з `actor_id` заступника: після кінця періоду лишаються, а
   «History» показує його ім'я («Approved by Manager Two») — «the history shows that the deputy decided».
 - Поза періодом (AC-STAFF-10) `acting_manager_ids` не дає `manager_id`, тож заступник не бачить ні запису, ні черги.
@@ -328,7 +343,11 @@ positions») та AC-STAFF-05 зламались би. Нове тіло `privat
 
 1. **PR 1 «База»** — одна міграція `staff_management` (expand): лише нові колонки (nullable), таблиці, функції, тригер і
    нові тіла наявних функцій з тими самими сигнатурами; наявний код її не помічає (усі блоки мають `valid_from` /
-   `valid_to` null, заступників і деактивованих немає). Тести PGlite, SQL-мутанти, ADR 0013. Рев'ю бази обов'язкове
+   `valid_to` null, заступників і деактивованих немає). Тести PGlite, SQL-мутанти, ADR 0013 і інтеграційний тест на
+   справжньому Supabase у job `e2e` без інтерфейсу (`tests/e2e/staff-auth.spec.ts`, supabase-js із публічним ключем):
+   `create_employee` → `use_one_time_link` → `signInWithPassword` успішний; `update_employee` → вхід новим email і тим
+   самим паролем; `deactivate_employee` → `user_banned`; `reactivate_employee` → вхід; `auth.updateUser({ email })`
+   працівника відмовлено. PR 1 не зливаємо, доки цей тест не зелений. Рев'ю бази обов'язкове
    (CodeRabbit або звіт другої думки — коментарем до злиття). Після злиття: `db-deploy-staging` → UAT-перевірка на
    staging (створення працівника функцією й вхід паролем) → `db-deploy`.
 2. **PR 2 «Працівники й вхід»** — лише коли `/api/health` проду показує `schema` ≥ версії міграції PR 1: сторінки й

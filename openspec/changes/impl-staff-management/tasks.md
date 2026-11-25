@@ -11,47 +11,55 @@ PR 1 — з тестом PGlite, у PR 2/3 додаються e2e.
 
 ## PR 1 — база (`task/staff-db`)
 
-- [ ] 1.1 Працівник і одноразове посилання в базі (D1, D2, D3, D11). Міграція: `private.one_time_links` (RLS,
+- [ ] 1.1 База: працівник і одноразове посилання (D1, D2, D3, D11). Міграція: `private.one_time_links` (RLS,
       `revoke`), `profiles` — унікальний індекс `lower(email)`, `private.employee_status`, `create_employee`,
       `issue_one_time_link`, `staff_employees`, `use_one_time_link` (обгортки `public`, гранти: адміністраторські —
       `authenticated`, `use_one_time_link` — ще й `anon`; `grant usage on schema private to anon`),
       `pgcrypto` у `extensions`; нове тіло `on_profile_created_apply_test_assignments` (пропуск за
       `app.skip_test_assignments`). Тести: шим `tests/db/supabase-pglite.ts` (колонки `auth.users`, `auth.identities`,
       `auth.sessions`, `pgcrypto`); `tests/db/staff-employees.test.ts`; розширення `tests/db/schema-version.test.ts`
-      (функції, доступні `anon`). ADR `docs/decisions/0013-staff-accounts-in-database.md` і рядок у
-      `docs/decisions/README.md`.
-      Done when (база): AC-STAFF-01, AC-STAFF-02, AC-STAFF-03
+      (функції, доступні `anon`); інтеграційний тест на справжньому Supabase в job `e2e` без інтерфейсу
+      `tests/e2e/staff-auth.spec.ts` (supabase-js з публічним ключем: `create_employee` → `use_one_time_link` →
+      `signInWithPassword` успішний) — зелений до злиття PR 1. ADR `docs/decisions/0013-staff-accounts-in-database.md`
+      і рядок у `docs/decisions/README.md`.
+      Done when: AC-STAFF-01, AC-STAFF-02, AC-STAFF-03
 
-- [ ] 1.2 Ім'я, email, роль і деактивація в базі (D4, D5, D6, D12). Міграція: `update_employee`, тригер
+- [ ] 1.2 База: ім'я, email, роль і деактивація (D4, D5, D6, D12). Міграція: `update_employee`, тригер
       `guard_auth_email_change` на `auth.users`, `set_employee_role`, `deactivate_employee`, `reactivate_employee`,
-      нове тіло `private.current_app_role()` (null для деактивованого); якщо зріз `substitutes` уже злито — фільтр
+      нове тіло `private.current_app_role()` (null для деактивованого), серіалізація змін адміністраторів (спільне
+      блокування, «At least one active administrator must remain»); `staff-auth.spec.ts` доповнити: вхід новим email і
+      тим самим паролем, `user_banned` після деактивації, вхід після реактивації, `auth.updateUser({ email })`
+      відмовлено; якщо зріз `substitutes` уже злито — фільтр
       `deactivated_at is null` у його функціях вибору заміни. Перевірити, що `tests/e2e/support/admin.ts` і
       `scripts/create-demo-users.mjs` не змінюють email через Auth. Тести PGlite: зміна email у трьох місцях з тим самим
-      паролем; працівник не змінює ім'я й email (Data API і роль `supabase_auth_admin`); власна роль; деактивація —
-      сесії, бан, записи в `decision_records` і `approved_register`.
-      Done when (база): AC-STAFF-08, AC-STAFF-11, AC-STAFF-12, AC-STAFF-18
+      паролем; працівник не змінює ім'я й email (Data API і роль `supabase_auth_admin`); власна роль і останній
+      адміністратор; деактивація — сесії, бан, записи в `decision_records` і `approved_register`, деактивований
+      менеджер із чинним `sub` не бачить і не вирішує записів своїх посад; реактивація.
+      Done when: AC-STAFF-08, AC-STAFF-11, AC-STAFF-12, AC-STAFF-18
 
-- [ ] 1.3 Посади й розклад «з дати» в базі (D7, D8). Міграція: `schedule_blocks.valid_from` / `valid_to` і check, нове
+- [ ] 1.3 База: посади й розклад «з дати» (D7, D8). Міграція: `schedule_blocks.valid_from` / `valid_to` і check, нове
       `schedule_blocks_no_overlap` з `daterange`, `private.blocks_in_effect`, нові тіла `blocks_on_date`,
       `working_minutes`, `closed_day_name`, `approved_register`; `create_position`, `set_position_schedule`,
       `set_position_managers`. Тести `tests/db/staff-positions.test.ts`: посада з розкладом з дати й менеджером
       (видимість за RLS, `balance_employees`), друга основна, перетин (текст AC, межа `[)`, перетин версій), новий
       розклад не змінює погодженого запису, а новий запис бере новий; регресія `tests/db/*` (блоки без дат).
-      Done when (база): AC-STAFF-04, AC-STAFF-05, AC-STAFF-06, AC-STAFF-07
+      Done when: AC-STAFF-04, AC-STAFF-05, AC-STAFF-06, AC-STAFF-07
 
-- [ ] 1.4 Заступники в базі (D9). Міграція: `public.deputy_assignments` (RLS, `revoke`, `grant select`, політика
+- [ ] 1.4 База: заступники (D9). Міграція: `public.deputy_assignments` (RLS, `revoke`, `grant select`, політика
       адміністратора, обмеження), `private.acting_manager_ids`, нові тіла `manages_position`, `manages_employee`,
       `register_divisions`; `assign_deputy`, `remove_deputy`. Тести `tests/db/staff-deputies.test.ts`: у період —
       черга, рішення, подія з `actor_id` заступника, прохання про скасування, реєстр і залишки; manager1@ теж бачить;
       поза періодом (завтра й учора) — нічого; власний запис заступник не вирішує; менеджер не створює призначення ні
       таблицею, ні функцією; `acting_manager_ids` на датах AC.
-      Done when (база): AC-STAFF-09, AC-STAFF-10, AC-STAFF-14
+      Done when: AC-STAFF-09, AC-STAFF-10, AC-STAFF-14
 
 - [ ] 1.5 Мутанти, типи, рев'ю й staging (D14, D15). `scripts/mutants.mjs` — мутанти D15 (`npm run mutation:sql`,
       таблиця в описі PR); `database.types.ts` з Summary `db-check`; рев'ю бази (CodeRabbit або звіт другої думки
       коментарем до злиття); після злиття — `db-deploy-staging`, перевірка на staging (створити працівника, задати
       пароль за посиланням, увійти; деактивувати — вхід відмовлено), потім `db-deploy`; рядки `docs/conformance.md`.
-      Done when: AC-STAFF-01…AC-STAFF-14 і AC-STAFF-18 зелені в PGlite і CI, мутанти вбито, staging перевірено
+      Готово, коли тести бази цих AC зелені в PGlite і CI, `staff-auth.spec.ts` зелений, мутанти вбито, staging
+      перевірено.
+      Done when: AC-STAFF-01…AC-STAFF-14, AC-STAFF-18
 
 ## PR 2 — працівники, вхід і доступ (`task/staff-people`)
 
@@ -111,5 +119,5 @@ PR 1 — з тестом PGlite, у PR 2/3 додаються e2e.
 
 - [ ] 3.4 Завершення зрізу (D13, D14). Знімки світлої й темної теми 390 і 1280 px у `docs/img/` (D13), перевірка
       вигляду проти `DESIGN.md`; `/conformance` — усі рядки AC-STAFF `реалізовано`; `npx openspec archive
-      impl-staff-management -y`.
-      Done when: AC-STAFF-01…AC-STAFF-19 — `реалізовано` в `docs/conformance.md`
+      impl-staff-management -y`. Готово, коли всі рядки AC-STAFF у `docs/conformance.md` — `реалізовано`.
+      Done when: AC-STAFF-01…AC-STAFF-19
