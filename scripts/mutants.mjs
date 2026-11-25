@@ -24,9 +24,6 @@ const CHECK_HOURS = "supabase/migrations/20261108143021_school_calendar.sql";
 const CALENDAR = CHECK_HOURS;
 const CALENDAR_DB = "tests/db/school-calendar.test.ts";
 const CALENDAR_REQUEST_DB = "tests/db/school-calendar-request.test.ts";
-// Уточнення календаря (AC-CAL-16…20): нові версії add_school_closure і submit_leave_request перекривають старі копії
-// у CALENDAR і 20261108165906_school_calendar_requests.sql — мутанти цих функцій мутують чинну версію тут, інакше «вижили» б без жодного тесту.
-const CLARIFY = "supabase/migrations/20261113145925_school_calendar_clarifications.sql";
 // Виправлення за рев'ю WS9: нові версії add_school_closure (вид закриття), fix_day_share і record_share (частка дати не
 // більша за 1.00) перекривають копії в CLARIFY і 20261021133002_leave_decisions.sql — їхні мутанти мутують цей файл.
 const REVIEW_FIXES = "supabase/migrations/20261115122625_day_share_cap_and_closure_kind.sql";
@@ -45,6 +42,16 @@ const CANCEL_DB = "tests/db/leave-cancellation.test.ts";
 // тож мутанти подання (S20, S22) мутують цей файл.
 const SUBST = "supabase/migrations/20261125000321_substitutes.sql";
 const SUBST_DB = "tests/db/substitutes.test.ts";
+// Керування працівниками (impl-staff-management, D1–D11; ADR 0013): функції адміністратора, одноразове посилання,
+// деактивація, розклад «з дати» й заступники — усе в одній міграції. Вона ж перекриває blocks_on_date, working_minutes і
+// closed_day_name, а також record_minute_ranges зрізу substitutes (блоки — через blocks_in_effect), тож S19, S21, S23,
+// S66 і S67 мутують чинні версії тут.
+const STAFF = "supabase/migrations/20261125082128_staff_management.sql";
+const STAFF_EMPLOYEES_DB = "tests/db/staff-employees.test.ts";
+const STAFF_POSITIONS_DB = "tests/db/staff-positions.test.ts";
+const STAFF_DEPUTIES_DB = "tests/db/staff-deputies.test.ts";
+const STAFF_PRIVILEGES_DB = "tests/db/staff-privileges.test.ts";
+const STAFF_SUBSTITUTES_DB = "tests/db/staff-substitutes.test.ts";
 const START_INSIDE = "p_start >= b.start_min and p_start < b.end_min\n  ) or not exists";
 
 export const mutants = [
@@ -176,7 +183,7 @@ export const mutants = [
       "grant select on table public.school_closures to anon;",
   },
   {
-    id: "S19", kind: "sql", ac: "AC-CAL-06", file: CALENDAR, tests: [CALENDAR_DB],
+    id: "S19", kind: "sql", ac: "AC-CAL-06", file: STAFF, tests: [CALENDAR_DB],
     what: "working_minutes: скорочений день не обрізає блоки (знаменник частки знову за днем тижня)",
     find: "  select coalesce(sum(\n    case when c.closes_at is null then b.end_min else least(b.end_min, c.closes_at) end - b.start_min",
     replace: "  select coalesce(sum(\n    b.end_min - b.start_min",
@@ -188,7 +195,7 @@ export const mutants = [
     replace: "                              then 'You have no working hours on this day'",
   },
   {
-    id: "S21", kind: "sql", ac: "AC-CAL-05", file: CALENDAR, tests: [CALENDAR_REQUEST_DB],
+    id: "S21", kind: "sql", ac: "AC-CAL-05", file: STAFF, tests: [CALENDAR_REQUEST_DB],
     what: "blocks_on_date: блок, що триває о часі закриття, не обрізається (13:00–14:00 приймається)",
     find: "  select b.start_min, case when c.closes_at is null then b.end_min else least(b.end_min, c.closes_at) end",
     replace: "  select b.start_min, b.end_min",
@@ -200,7 +207,7 @@ export const mutants = [
     replace: "      if v_date is not null and private.working_minutes(v_uid, v_date) = 0 and v_closed is null then",
   },
   {
-    id: "S23", kind: "sql", ac: "AC-CAL-16", file: CLARIFY, tests: [CALENDAR_REQUEST_DB],
+    id: "S23", kind: "sql", ac: "AC-CAL-16", file: STAFF, tests: [CALENDAR_REQUEST_DB],
     what: "closed_day_name: скорочений день без робочого часу більше не закритий (лише закриття цілими днями)",
     find: "      c.closes_at is null\n      or (",
     replace: "      c.closes_at is null\n      or false and (",
@@ -472,16 +479,170 @@ export const mutants = [
     replace: "",
   },
   {
-    id: "S66", kind: "sql", ac: "AC-SUBST-05", file: SUBST, tests: [SUBST_DB],
+    id: "S66", kind: "sql", ac: "AC-SUBST-05", file: STAFF, tests: [SUBST_DB],
     what: "record_minute_ranges: запис поза чинними блоками розкладу знову рахується всім проміжком",
     find: "  select int4range(p_start, p_end) where not exists (select 1 from blocks);",
     replace: "  select int4range(p_start, p_end) where not exists (select 1 from blocks where not isempty(span));",
   },
   {
-    id: "S67", kind: "sql", ac: "AC-SUBST-05", file: SUBST, tests: [SUBST_DB],
+    id: "S67", kind: "sql", ac: "AC-SUBST-05", file: STAFF, tests: [SUBST_DB],
     what: "record_minute_ranges: без розкладу на цей день запис не має хвилин і нікого не займає",
     find: "  union all\n  select int4range(p_start, p_end) where not exists (select 1 from blocks);",
     replace: "",
+  },
+  {
+    id: "S68", kind: "sql", ac: "AC-STAFF-13", file: STAFF, tests: [STAFF_PRIVILEGES_DB, STAFF_EMPLOYEES_DB],
+    what: "require_admin: роль не перевіряється — менеджер і працівник виконують функції адміністратора",
+    find: "  if (select auth.uid()) is null or private.current_app_role() is distinct from 'admin' then\n" +
+      "    raise exception 'Only an administrator can manage employees' using errcode = '42501';",
+    replace: "  if (select auth.uid()) is null then\n" +
+      "    raise exception 'Only an administrator can manage employees' using errcode = '42501';",
+  },
+  {
+    id: "S69", kind: "sql", ac: "AC-STAFF-03", file: STAFF, tests: [STAFF_EMPLOYEES_DB],
+    what: "use_one_time_link: прострочене посилання ще день працює",
+    find: "  if private.kyiv_day(now()) > v_link.valid_until then",
+    replace: "  if private.kyiv_day(now()) > v_link.valid_until + 1 then",
+  },
+  {
+    id: "S70", kind: "sql", ac: "AC-STAFF-03", file: STAFF, tests: [STAFF_EMPLOYEES_DB],
+    what: "use_one_time_link: останній дійсний день уже вважається простроченим (7 днів не включно)",
+    find: "  if private.kyiv_day(now()) > v_link.valid_until then",
+    replace: "  if private.kyiv_day(now()) >= v_link.valid_until then",
+  },
+  {
+    id: "S71", kind: "sql", ac: "AC-STAFF-02", file: STAFF, tests: [STAFF_EMPLOYEES_DB],
+    what: "use_one_time_link: використане чи замінене посилання працює ще раз",
+    find: "  if not found or v_link.used_at is not null or v_link.revoked_at is not null then",
+    replace: "  if not found then",
+  },
+  {
+    id: "S72", kind: "sql", ac: "AC-STAFF-02", file: STAFF, tests: [STAFF_EMPLOYEES_DB],
+    what: "new_one_time_link: нове посилання не відкликає попереднє",
+    find: "   where l.employee_id = p_employee_id and l.used_at is null and l.revoked_at is null;\n" +
+      "  insert into private.one_time_links",
+    replace: "   where false;\n  insert into private.one_time_links",
+  },
+  {
+    id: "S73", kind: "sql", ac: "AC-STAFF-08", file: STAFF, tests: [STAFF_EMPLOYEES_DB],
+    what: "use_one_time_link: деактивований задає пароль за старим посиланням",
+    find: "  if v_deactivated is not null then\n    return query select 'invalid'::text, null::text;",
+    replace: "  if false then\n    return query select 'invalid'::text, null::text;",
+  },
+  {
+    id: "S74", kind: "sql", ac: "AC-STAFF-18", file: STAFF, tests: [STAFF_EMPLOYEES_DB],
+    what: "set_employee_role: адміністратор знімає роль сам собі",
+    find: "  if p_employee_id = (select auth.uid()) then\n    raise exception 'You cannot change your own role';",
+    replace: "  if false then\n    raise exception 'You cannot change your own role';",
+  },
+  {
+    id: "S75", kind: "sql", ac: "AC-STAFF-12", file: STAFF, tests: [STAFF_EMPLOYEES_DB],
+    what: "guard_auth_email_change: працівник змінює собі email через Auth",
+    find: "  if current_user = 'supabase_auth_admin'",
+    replace: "  if false",
+  },
+  {
+    id: "S76", kind: "sql", ac: "AC-STAFF-08", file: STAFF, tests: [STAFF_EMPLOYEES_DB],
+    what: "deactivate_employee: без бану Auth — деактивований далі входить паролем",
+    find: "set banned_until = now() + interval '100 years', updated_at = now()",
+    replace: "set banned_until = null, updated_at = now()",
+  },
+  {
+    id: "S77", kind: "sql", ac: "AC-STAFF-08", file: STAFF, tests: [STAFF_EMPLOYEES_DB],
+    what: "current_app_role: деактивований з чинним токеном зберігає роль",
+    find: "  select case when p.deactivated_at is null then p.role else '' end",
+    replace: "  select p.role",
+  },
+  {
+    id: "S78", kind: "sql", ac: "AC-STAFF-08", file: STAFF, tests: [STAFF_EMPLOYEES_DB],
+    what: "acting_manager_ids: деактивований менеджер з чинним токеном бачить записи своїх посад",
+    find: "  where p.id = (select auth.uid()) and p.deactivated_at is null\n  union",
+    replace: "  where p.id = (select auth.uid())\n  union",
+  },
+  {
+    id: "S79", kind: "sql", ac: "AC-STAFF-10", file: STAFF, tests: [STAFF_DEPUTIES_DB],
+    what: "acting_manager_ids: перший день періоду не входить",
+    find: "    and p_day between d.start_date and d.end_date",
+    replace: "    and p_day > d.start_date and p_day <= d.end_date",
+  },
+  {
+    id: "S80", kind: "sql", ac: "AC-STAFF-10", file: STAFF, tests: [STAFF_DEPUTIES_DB],
+    what: "acting_manager_ids: заступник має права й поза періодом",
+    find: "    and p_day between d.start_date and d.end_date",
+    replace: "    and true",
+  },
+  {
+    id: "S81", kind: "sql", ac: "AC-STAFF-09", file: STAFF, tests: [STAFF_DEPUTIES_DB],
+    what: "manages_position: заступник не отримує прав відсутнього менеджера (лише власні посади)",
+    find: "    where pm.position_id = p_position_id\n" +
+      "      and pm.manager_id in (select private.acting_manager_ids(private.kyiv_day(now())))",
+    replace: "    where pm.position_id = p_position_id\n      and pm.manager_id = (select auth.uid())",
+  },
+  {
+    id: "S82", kind: "sql", ac: "AC-STAFF-19", file: STAFF, tests: [STAFF_DEPUTIES_DB],
+    what: "RLS deputy_assignments: призначення бачить кожен, хто увійшов",
+    find: "  using ((select auth.uid()) is not null and (select private.current_app_role()) = 'admin');",
+    replace: "  using (true);",
+  },
+  {
+    id: "S83", kind: "sql", ac: "AC-STAFF-06", file: STAFF, tests: [STAFF_POSITIONS_DB],
+    what: "put_position_schedule: перетин перевіряється без дат дії — версії різних дат конфліктують",
+    find: "     and daterange(b.valid_from, b.valid_to, '[)') && daterange(p_valid_from, v_next, '[)')",
+    replace: "     and true",
+  },
+  {
+    id: "S84", kind: "sql", ac: "AC-STAFF-06", file: STAFF, tests: [STAFF_POSITIONS_DB],
+    what: "put_position_schedule: перетин з іншою посадою без тексту AC (лише обмеження бази)",
+    find: "  if found then\n    raise exception 'This schedule overlaps the position % / %: % %–%',",
+    replace: "  if false then\n    raise exception 'This schedule overlaps the position % / %: % %–%',",
+  },
+  {
+    id: "S85", kind: "sql", ac: "AC-STAFF-07", file: STAFF, tests: [STAFF_POSITIONS_DB],
+    what: "blocks_in_effect: розклад діє й до своєї дати — новий розклад змінює дні до неї",
+    find: "    and (b.valid_from is null or b.valid_from <= p_date)",
+    replace: "    and true",
+  },
+  {
+    id: "S86", kind: "sql", ac: "AC-STAFF-07", file: STAFF, tests: [STAFF_POSITIONS_DB],
+    what: "put_position_schedule: попередня версія не обрізається — старий розклад діє разом із новим",
+    find: "     set valid_to = p_valid_from\n",
+    replace: "     set valid_to = b.valid_to\n",
+  },
+  {
+    id: "S87", kind: "sql", ac: "AC-STAFF-04", file: STAFF, tests: [STAFF_EMPLOYEES_DB],
+    what: "on_profile_created_apply_test_assignments: новий працівник адміністратора отримує тестові посади",
+    find: "  if current_setting('app.skip_test_assignments', true) is distinct from 'on' then",
+    replace: "  if true then",
+  },
+  {
+    id: "S88", kind: "sql", ac: "AC-STAFF-05", file: STAFF, tests: [STAFF_POSITIONS_DB],
+    what: "create_position: друга основна посада без перевірки до вставки",
+    find: "  if p_kind = 'main' and exists (",
+    replace: "  if false and exists (",
+  },
+  {
+    id: "S89", kind: "sql", ac: "AC-STAFF-08", file: STAFF, tests: [STAFF_EMPLOYEES_DB],
+    what: "require_active: деактивований із чинним токеном далі подає й змінює свої записи",
+    find: "    select 1 from public.profiles as p where p.id = (select auth.uid()) and p.deactivated_at is not null",
+    replace: "    select 1 where false",
+  },
+  {
+    id: "S90", kind: "sql", ac: "AC-STAFF-08", file: STAFF, tests: [STAFF_SUBSTITUTES_DB],
+    what: "my_substitute_options: деактивований далі пропонується заміною в новій заявці",
+    find: "  where s.employee_id = (select auth.uid())\n    and p.deactivated_at is null\n",
+    replace: "  where s.employee_id = (select auth.uid())\n",
+  },
+  {
+    id: "S91", kind: "sql", ac: "AC-STAFF-08", file: STAFF, tests: [STAFF_SUBSTITUTES_DB],
+    what: "check_substitute_active: деактивованого можна вибрати заміною в поданні",
+    find: "     and exists (select 1 from public.profiles as p where p.id = new.substitute_id and p.deactivated_at is not null) then",
+    replace: "     and false then",
+  },
+  {
+    id: "S92", kind: "sql", ac: "AC-STAFF-08", file: STAFF, tests: [STAFF_SUBSTITUTES_DB],
+    what: "substitute_candidates: деактивований далі серед кандидатів у список замін",
+    find: "    where p.id <> p_employee_id\n      and p.deactivated_at is null\n",
+    replace: "    where p.id <> p_employee_id\n",
   },
   {
     // Правило AC-CAL-15 живе в TS, а не в SQL: рік на /calendar — це closuresInSchoolYear над рядками бази.

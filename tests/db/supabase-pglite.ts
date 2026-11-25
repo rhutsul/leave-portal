@@ -10,6 +10,7 @@
 import { readFileSync, readdirSync } from "node:fs";
 import { PGlite } from "@electric-sql/pglite";
 import { btree_gist } from "@electric-sql/pglite/contrib/btree_gist";
+import { pgcrypto } from "@electric-sql/pglite/contrib/pgcrypto";
 
 const root = new URL("../../", import.meta.url);
 const read = (path: string) => readFileSync(new URL(path, root), "utf8");
@@ -28,18 +29,37 @@ const SUPABASE_SHIM = `
   create role supabase_auth_admin nologin;
   create schema auth;
   create schema extensions;
-  create table auth.users (id uuid primary key, email text, raw_user_meta_data jsonb);
+  -- Колонки auth.users, які пишуть наші функції (20261125082128_staff_management.sql, ADR 0013); справжню схему GoTrue
+  -- перевіряє tests/e2e/staff-auth.spec.ts на Supabase у CI.
+  create table auth.users (
+    instance_id uuid, id uuid primary key, aud text, role text, email text, encrypted_password text,
+    email_confirmed_at timestamptz, banned_until timestamptz, raw_app_meta_data jsonb, raw_user_meta_data jsonb,
+    created_at timestamptz, updated_at timestamptz, confirmation_token text, recovery_token text,
+    email_change_token_new text, email_change text
+  );
+  create table auth.identities (
+    id uuid primary key default gen_random_uuid(), provider_id text not null,
+    user_id uuid not null references auth.users (id) on delete cascade, identity_data jsonb not null,
+    provider text not null, created_at timestamptz, updated_at timestamptz, unique (provider_id, provider)
+  );
+  create table auth.sessions (
+    id uuid primary key default gen_random_uuid(), user_id uuid not null references auth.users (id) on delete cascade
+  );
   create function auth.uid() returns uuid language sql stable as
     $$ select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid $$;
   grant usage on schema auth to anon, authenticated, service_role, supabase_auth_admin;
+  grant usage on schema extensions to anon, authenticated, service_role, supabase_auth_admin;
   grant execute on function auth.uid() to anon, authenticated, service_role;
-  grant select, insert, delete on auth.users to supabase_auth_admin;
+  grant select, insert, update, delete on auth.users to supabase_auth_admin;
   grant usage on schema public to anon, authenticated, service_role;
   -- Журнал застосованих міграцій, як його веде Supabase CLI (supabase db push / db start): без прав для anon і
   -- authenticated. Рядок на кожну міграцію додає createLeaveDb — так само, як CLI після кожного файлу.
   create schema supabase_migrations;
   create table supabase_migrations.schema_migrations (version text primary key, statements text[], name text);
 `;
+
+/** Пароль демокористувачів у тестовій базі (як DEMO_USER_PASSWORD для users:demo). */
+export const DEMO_PASSWORD = "demo-password";
 
 export interface LeaveDb {
   db: PGlite;
@@ -68,7 +88,7 @@ async function inTransaction<T>(db: PGlite, role: string, userId: string | null,
 }
 
 export async function createLeaveDb(): Promise<LeaveDb> {
-  const db = new PGlite({ extensions: { btree_gist } });
+  const db = new PGlite({ extensions: { btree_gist, pgcrypto } });
   await db.exec(SUPABASE_SHIM);
   // Той самий шаблон імені, що в Supabase CLI: <версія>_<назва>.sql (інший файл CLI не застосує).
   const migrations = readdirSync(new URL("supabase/migrations/", root))
@@ -90,11 +110,12 @@ export async function createLeaveDb(): Promise<LeaveDb> {
   }
   await db.exec("begin; set local role supabase_auth_admin;");
   for (const u of demoUsers) {
-    await db.query("insert into auth.users (id, email, raw_user_meta_data) values ($1, $2, $3)", [
-      users[u.email],
-      u.email,
-      { full_name: u.full_name },
-    ]);
+    // Пароль є, як після users:demo (статус «Active», D3 impl-staff-management): bcrypt пароля DEMO_PASSWORD.
+    await db.query(
+      `insert into auth.users (id, email, raw_user_meta_data, encrypted_password)
+       values ($1, $2, $3, extensions.crypt('${DEMO_PASSWORD}', extensions.gen_salt('bf', 4)))`,
+      [users[u.email], u.email, { full_name: u.full_name }],
+    );
   }
   await db.exec("commit; begin; set local role service_role;");
   for (const u of demoUsers) {
