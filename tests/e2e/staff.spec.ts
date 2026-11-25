@@ -136,7 +136,10 @@ test.describe("employees and sign-in @writes", () => {
       await person.getByLabel("Password", { exact: true }).fill(password);
       await person.getByRole("button", { name: "Sign in" }).click();
       await expect(person).toHaveURL(/\/login\?error=deactivated$/);
-      await expect(person.getByRole("alert")).toHaveText("Your account is deactivated. Contact the administrator");
+      // Рядок «role=alert» на сторінці не один (оголошувач маршруту Next) — шукаємо Alert за текстом AC.
+      await expect(
+        person.getByRole("alert").filter({ hasText: "Your account is deactivated. Contact the administrator" }),
+      ).toBeVisible();
       await cleanScreenshot(person, test.info().outputPath("ws11-staff-login-deactivated-1280-light.png"));
     } finally {
       await signIn.close();

@@ -106,7 +106,14 @@ export function uuidOf(raw: unknown): string | null {
 export type IssuedLink = { employeeId: string; email: string; token: string; validUntil: string };
 
 /** Що повертають дії сторінок працівників: помилки полів, помилка всієї дії, успіх і видане посилання. */
-export type StaffActionState = { errors: EmployeeErrors; message: string; done: boolean; link: IssuedLink | null };
+export type StaffActionState = {
+  errors: EmployeeErrors;
+  message: string;
+  done: boolean;
+  link: IssuedLink | null;
+  /** Введене після невдалої спроби: форма показує його знову (DESIGN.md, розділ 6 — «введене лишається»). */
+  values?: EmployeeFields;
+};
 
 export const INITIAL_STAFF_STATE: StaffActionState = {
   errors: { name: null, email: null },

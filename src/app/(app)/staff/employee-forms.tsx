@@ -123,6 +123,9 @@ export function NewEmployeeForm() {
   const [state, action] = useActionState(createEmployee, INITIAL_STAFF_STATE);
   const [role, setRoleValue] = useState<Role>("employee");
   const created = state.done ? state.link : null;
+  // Форма перемонтовується (порожня) лише після успішного створення; після помилки — ні, введене лишається.
+  const [formKey, setFormKey] = useState("new");
+  if (created && created.employeeId !== formKey) setFormKey(created.employeeId);
 
   return (
     <div className="flex flex-col gap-6">
@@ -142,13 +145,17 @@ export function NewEmployeeForm() {
         </>
       )}
       <form
-        key={created?.employeeId ?? "new"}
+        key={formKey}
         action={action}
         noValidate
         className="flex max-w-md flex-col gap-4"
         data-testid="new-employee-form"
       >
-        <NameEmailFields errors={state.done ? { name: null, email: null } : state.errors} />
+        <NameEmailFields
+          errors={state.done ? { name: null, email: null } : state.errors}
+          name={state.values?.name}
+          email={state.values?.email}
+        />
         <RoleSelect value={role} onChange={setRoleValue} />
         <ActionError message={state.done ? "" : state.message} />
         <div className="flex justify-end">
@@ -167,7 +174,7 @@ export function EmployeeDetailsForm({ employeeId, name, email }: { employeeId: s
   return (
     <form action={action} noValidate className="flex flex-col gap-4" data-testid="employee-details-form">
       <input type="hidden" name="employee_id" value={employeeId} />
-      <NameEmailFields errors={state.errors} name={name} email={email} />
+      <NameEmailFields errors={state.errors} name={state.values?.name ?? name} email={state.values?.email ?? email} />
       <ActionError message={state.message} />
       {state.done && (
         <p role="status" className="flex items-center gap-1.5 text-xs text-muted-foreground">

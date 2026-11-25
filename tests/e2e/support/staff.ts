@@ -79,6 +79,7 @@ export async function noSidewaysScroll(page: Page) {
 /** Кількість профілів — секретним ключем, лише де він є (CI); на UAT проду — null (перевіряємо лише відмову). */
 export async function profileCount(): Promise<number | null> {
   if (!hasAdminKey()) return null;
-  const { count } = await adminClient().from("profiles").select("id", { count: "exact", head: true });
+  const { count, error } = await adminClient().from("profiles").select("id", { count: "exact", head: true });
+  if (error) throw error;
   return count;
 }

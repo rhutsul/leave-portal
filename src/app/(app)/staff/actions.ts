@@ -41,9 +41,9 @@ async function signedIn() {
 export async function createEmployee(_prev: StaffActionState, formData: FormData): Promise<StaffActionState> {
   const fields = readEmployeeFields(formData);
   const errors = employeeFieldErrors(fields);
-  if (hasErrors(errors)) return { errors, message: "", done: false, link: null };
+  if (hasErrors(errors)) return { errors, message: "", done: false, link: null, values: fields };
   const role = formData.get("role");
-  if (!isRole(role)) return { errors: NO_ERRORS, message: STAFF_MESSAGES.failed, done: false, link: null };
+  if (!isRole(role)) return { errors: NO_ERRORS, message: STAFF_MESSAGES.failed, done: false, link: null, values: fields };
 
   const supabase = await signedIn();
   const { data, error } = await supabase.rpc("create_employee", {
@@ -52,7 +52,7 @@ export async function createEmployee(_prev: StaffActionState, formData: FormData
     p_role: role,
   });
   const row = data?.[0];
-  if (error || !row) return failure(error ?? {});
+  if (error || !row) return { ...failure(error ?? {}), values: fields };
 
   revalidatePath("/staff");
   return {
@@ -83,7 +83,7 @@ export async function updateEmployee(_prev: StaffActionState, formData: FormData
   if (!employeeId) return { errors: NO_ERRORS, message: STAFF_MESSAGES.notAdmin, done: false, link: null };
   const fields = readEmployeeFields(formData);
   const errors = employeeFieldErrors(fields);
-  if (hasErrors(errors)) return { errors, message: "", done: false, link: null };
+  if (hasErrors(errors)) return { errors, message: "", done: false, link: null, values: fields };
 
   const supabase = await signedIn();
   const { error } = await supabase.rpc("update_employee", {
@@ -91,7 +91,7 @@ export async function updateEmployee(_prev: StaffActionState, formData: FormData
     p_full_name: fields.name,
     p_email: fields.email,
   });
-  if (error) return failure(error);
+  if (error) return { ...failure(error), values: fields };
   revalidatePath("/staff");
   revalidatePath(`/staff/${employeeId}`);
   return { errors: NO_ERRORS, message: "", done: true, link: null };

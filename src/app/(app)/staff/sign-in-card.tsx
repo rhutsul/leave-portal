@@ -40,6 +40,14 @@ export function SignInCard({
   const [linkState, linkAction] = useActionState(issueLink, INITIAL_STAFF_STATE);
   const [activeState, activeAction] = useActionState(setActive, INITIAL_STAFF_STATE);
   const [confirming, setConfirming] = useState(false);
+  // Успішна деактивація відкликає видані посилання: після реактивації картка відкликаного токена не повертається.
+  const [revoked, setRevoked] = useState<string | null>(null);
+  const [seenActive, setSeenActive] = useState(activeState);
+  if (seenActive !== activeState) {
+    setSeenActive(activeState);
+    if (activeState.done && linkState.link) setRevoked(linkState.link.token);
+  }
+  const shownLink = linkState.done && linkState.link && linkState.link.token !== revoked ? linkState.link : null;
   const deactivated = status === "deactivated";
   // Помилка деактивації показується в діалозі; реактивації — під кнопками.
   const activeError = activeState.done ? "" : activeState.message;
@@ -104,12 +112,12 @@ export function SignInCard({
           <AlertDescription>{linkState.message}</AlertDescription>
         </Alert>
       )}
-      {linkState.done && linkState.link && !deactivated && (
+      {shownLink && !deactivated && (
         <>
           <p role="status" className="text-xs text-muted-foreground">
             A new link is ready. Any earlier link for this person no longer works.
           </p>
-          <LinkCard link={linkState.link} />
+          <LinkCard link={shownLink} />
         </>
       )}
 

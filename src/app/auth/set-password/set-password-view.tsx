@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useId, useState } from "react";
+import { useActionState, useEffect, useId, useRef, useState } from "react";
 import Link from "next/link";
 import { CircleAlert } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -35,9 +35,12 @@ export function SetPasswordView() {
   const ids = useId();
   const [view, setView] = useState<View>({ kind: "checking" });
   const [state, action] = useActionState(setPassword, INITIAL);
+  // Токен беремо з адреси один раз і тримаємо тут: фрагмент прибрано, а ефект у StrictMode запускається двічі.
+  const tokenRef = useRef<string | null | undefined>(undefined);
 
   useEffect(() => {
-    const token = takeToken();
+    if (tokenRef.current === undefined) tokenRef.current = takeToken();
+    const token = tokenRef.current;
     let live = true;
     // Без токена — та сама відповідь, що й недійсне посилання; стан ставимо у відповіді, а не просто в ефекті.
     const check: Promise<LinkCheck> = token ? checkLink(token) : Promise.resolve({ state: "invalid", email: null });
