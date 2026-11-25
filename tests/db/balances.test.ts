@@ -228,6 +228,7 @@ describe("balance_employees", () => {
       "assistant1@example.test",
       "manager1@example.test",
       "manager2@example.test",
+      "manager3@example.test",
       "teacher1@example.test",
       "teacher2@example.test",
       "teacher3@example.test",
