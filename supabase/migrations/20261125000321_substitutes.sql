@@ -136,8 +136,9 @@ revoke execute on function private.upgrade_applies(bigint, uuid) from public, an
 
 -- ── D4. Зайнятість заміни ───────────────────────────────────────────────────
 -- Хвилини запису — лише всередині блоків розкладу посади на цей день тижня: перерва між блоками до запису не входить
--- (AC-LEAVE-15, AC-LEAVE-22). Відрізки [start, end). Якщо на цей день у посади блоків немає (розклад змінено після
--- запису), — весь проміжок запису: краще вважати людину зайнятою, ніж загубити запис.
+-- (AC-LEAVE-15, AC-LEAVE-22). Відрізки [start, end). Блоки на цей день є, але запис їх не перетинає (розклад змінено
+-- після запису) — хвилин у розкладі немає, людину запис не займає. Блоків на цей день немає зовсім — весь проміжок
+-- запису: розкладу, з яким порівняти, немає, тож краще вважати людину зайнятою, ніж загубити запис.
 create function private.record_minute_ranges(p_position_id bigint, p_date date, p_start integer, p_end integer)
 returns setof int4range
 language sql
@@ -151,7 +152,7 @@ as $$
   )
   select span from blocks where not isempty(span)
   union all
-  select int4range(p_start, p_end) where not exists (select 1 from blocks where not isempty(span));
+  select int4range(p_start, p_end) where not exists (select 1 from blocks);
 $$;
 
 revoke execute on function private.record_minute_ranges(bigint, date, integer, integer) from public, anon, authenticated;

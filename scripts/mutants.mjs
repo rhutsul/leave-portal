@@ -472,6 +472,18 @@ export const mutants = [
     replace: "",
   },
   {
+    id: "S66", kind: "sql", ac: "AC-SUBST-05", file: SUBST, tests: [SUBST_DB],
+    what: "record_minute_ranges: запис поза чинними блоками розкладу знову рахується всім проміжком",
+    find: "  select int4range(p_start, p_end) where not exists (select 1 from blocks);",
+    replace: "  select int4range(p_start, p_end) where not exists (select 1 from blocks where not isempty(span));",
+  },
+  {
+    id: "S67", kind: "sql", ac: "AC-SUBST-05", file: SUBST, tests: [SUBST_DB],
+    what: "record_minute_ranges: без розкладу на цей день запис не має хвилин і нікого не займає",
+    find: "  union all\n  select int4range(p_start, p_end) where not exists (select 1 from blocks);",
+    replace: "",
+  },
+  {
     // Правило AC-CAL-15 живе в TS, а не в SQL: рік на /calendar — це closuresInSchoolYear над рядками бази.
     id: "T1", kind: "ts", ac: "AC-CAL-15", file: "src/lib/leave/calendar.ts", tests: ["src/lib/leave/calendar.test.ts"],
     what: "closuresInSchoolYear: закриття наступних років теж потрапляють у рік (немає межі 31 серпня)",

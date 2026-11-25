@@ -19,7 +19,8 @@ export async function loadSubstituteList(supabase: Supabase, rawId: string): Pro
   const [list, candidates, employees] = await Promise.all([
     supabase.rpc("substitute_list", { p_employee_id: employeeId }),
     supabase.rpc("substitute_candidates", { p_employee_id: employeeId }),
-    supabase.rpc("manageable_employees"),
+    // Лише цей працівник — фільтр на сервері, до ліміту рядків PostgREST.
+    supabase.rpc("manageable_employees").eq("employee_id", employeeId),
   ]);
   const errors = [list.error, candidates.error, employees.error];
   if (errors.some((e) => e?.code === "42501")) return { kind: "denied" };

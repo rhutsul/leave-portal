@@ -288,6 +288,35 @@ describe("a busy substitute is not accepted", () => {
     await expect(submit(teacher1, [{ date: DAY, ...WHOLE, substitute_id: assistant1 }])).rejects.toThrow(
       "assistant1@example.test is not available at this time: 2026-12-02 11:00–12:00",
     );
+    // Без першого («Approved») лишається «Returned for revision» — і він теж займає заміну.
+    await t.asService("delete from public.leave_requests where employee_id = $1", [assistant1]);
+    await expect(submit(teacher1, [{ date: DAY, ...WHOLE, substitute_id: assistant1 }])).rejects.toThrow(
+      "assistant1@example.test is not available at this time: 2026-12-02 13:00–14:00",
+    );
+  });
+
+  it("AC-SUBST-05: an own record counts by its minutes in the schedule — none after a schedule change, all without a schedule", async () => {
+    // Запис assistant1@ 09:00–11:00 на середу, потім розклад середи стає 12:00–15:30: у розкладі хвилин запису немає.
+    await givenList(teacher1, [assistant1]);
+    await given(assistant1, { date: DAY, start_min: 540, end_min: 660 }, "awaiting");
+    const main = await positionOf("assistant1@example.test");
+    await t.asService("update public.schedule_blocks set start_min = 720 where position_id = $1 and weekday = 3", [main]);
+    try {
+      const [id] = await submit(teacher1, [{ date: DAY, ...WHOLE, substitute_id: assistant1 }]);
+      expect(await recordOf(id)).toMatchObject({ substitute: "assistant1@example.test" });
+      await t.asService("delete from public.leave_requests where employee_id = $1", [teacher1]);
+      // Блоків на середу немає зовсім — порівнюємо весь проміжок запису: заміна зайнята.
+      await t.asService("delete from public.schedule_blocks where position_id = $1 and weekday = 3", [main]);
+      await expect(submit(teacher1, [{ date: DAY, ...WHOLE, substitute_id: assistant1 }])).rejects.toThrow(
+        "assistant1@example.test is not available at this time: 2026-12-02 09:00–11:00",
+      );
+    } finally {
+      await t.asService("delete from public.schedule_blocks where position_id = $1 and weekday = 3", [main]);
+      await t.asService(
+        "insert into public.schedule_blocks (position_id, employee_id, weekday, start_min, end_min) values ($1, $2, 3, 510, 930)",
+        [main, assistant1],
+      );
+    }
   });
 
   it("AC-SUBST-07: a Rejected or Cancelled record does not make them busy", async () => {
