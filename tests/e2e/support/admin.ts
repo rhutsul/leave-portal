@@ -366,7 +366,8 @@ export async function assertCalendarClean() {
     for (const c of closures ?? []) problems.push(`закриття «${c.name}» ${c.start_date}…${c.end_date}`);
     const { data: records, error: recordsError } = await supabase
       .from("leave_records")
-      .select("date, status, profiles(email)")
+      // Зв'язків leave_records → profiles два (працівник і заміна, 06-substitutes): називаємо зовнішній ключ, інакше PGRST201.
+      .select("date, status, profiles!leave_records_employee_id_fkey(email)")
       .gte("date", w.from)
       .lte("date", w.to)
       .in("status", BLOCKING);

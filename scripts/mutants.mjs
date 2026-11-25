@@ -40,7 +40,9 @@ const AI_QUOTA_DB = "tests/db/ai-quota.test.ts";
 // Скасування погодженого запису через менеджера (impl-cancel-approved, D3–D5).
 const CANCEL = "supabase/migrations/20261124195428_cancel_approved.sql";
 const CANCEL_DB = "tests/db/leave-cancellation.test.ts";
-// Заміни для записів і позначка підвищення (impl-substitutes, D1–D6).
+// Заміни для записів і позначка підвищення (impl-substitutes, D1–D6). Нова версія private.submit_leave_request і
+// private.update_leave_record_hours — тут, вона перекриває копії в CLARIFY і 20261108165906_school_calendar_requests.sql,
+// тож мутанти подання (S20, S22) мутують цей файл.
 const SUBST = "supabase/migrations/20261125000321_substitutes.sql";
 const SUBST_DB = "tests/db/substitutes.test.ts";
 const START_INSIDE = "p_start >= b.start_min and p_start < b.end_min\n  ) or not exists";
@@ -180,7 +182,7 @@ export const mutants = [
     replace: "  select coalesce(sum(\n    b.end_min - b.start_min",
   },
   {
-    id: "S20", kind: "sql", ac: "AC-CAL-03", file: CLARIFY, tests: [CALENDAR_REQUEST_DB],
+    id: "S20", kind: "sql", ac: "AC-CAL-03", file: SUBST, tests: [CALENDAR_REQUEST_DB],
     what: "submit_leave_request: закрита дата пояснюється як день без годин (текст AC-CAL-03 зник)",
     find: "                              then 'The school is closed on this day: ' || v_closed",
     replace: "                              then 'You have no working hours on this day'",
@@ -192,7 +194,7 @@ export const mutants = [
     replace: "  select b.start_min, b.end_min",
   },
   {
-    id: "S22", kind: "sql", ac: "AC-CAL-03", file: CLARIFY, tests: [CALENDAR_REQUEST_DB],
+    id: "S22", kind: "sql", ac: "AC-CAL-03", file: SUBST, tests: [CALENDAR_REQUEST_DB],
     what: "submit_leave_request: закрита дата більше не відкидається з заявки на кілька дат (уся заявка падає)",
     find: "      if v_closed is not null or (v_date is not null and private.working_minutes(v_uid, v_date) = 0) then",
     replace: "      if v_date is not null and private.working_minutes(v_uid, v_date) = 0 and v_closed is null then",

@@ -125,7 +125,7 @@ export function AddSubstituteForm({ employeeId, options }: { employeeId: string;
               <Select value={chosen} items={items} onValueChange={(value) => setChosen(value ? String(value) : null)}>
                 <SelectTrigger
                   id={`${ids}-person`}
-                  className="w-full pointer-coarse:h-11"
+                  className="w-full"
                   aria-invalid={state.message ? true : undefined}
                   aria-describedby={state.message ? errorId : undefined}
                 >

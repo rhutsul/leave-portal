@@ -829,7 +829,7 @@ function PositionCard({
               onChange({ substituteId: id === NO_SUBSTITUTE ? undefined : id });
             }}
           >
-            <SelectTrigger id={`${idPrefix}-substitute`} className="w-full pointer-coarse:h-11">
+            <SelectTrigger id={`${idPrefix}-substitute`} className="w-full">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
