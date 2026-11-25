@@ -11,6 +11,7 @@ import { BalanceShift } from "@/components/ui/balance-shift";
 import { CancellationMarkView } from "@/components/ui/cancellation-mark";
 import { RecordDay } from "@/components/ui/record-summary";
 import { isRecordStatus, StatusBadge } from "@/components/ui/status-badge";
+import { RecordSubstituteNote } from "@/components/ui/substitute-note";
 import { Tick } from "@/components/ui/motion";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
@@ -53,6 +54,7 @@ import {
 } from "./decisions-view";
 import { loadRecordDay } from "./load-record-day";
 import { RecordSheet } from "./record-sheet";
+import { loadRecordSubstitutes, substituteLookup, type RecordSubstitute } from "../requests/load-record-substitutes";
 
 type DecisionRow = Database["public"]["Functions"]["decision_records"]["Returns"][number];
 
@@ -151,7 +153,7 @@ export default async function DecisionsPage({ searchParams }: PageProps<"/decisi
   // Історія вибраного запису з іменами (public.record_histories), робочий день посади на його дату (смуга годин) і,
   // якщо запис можна вирішити, залишок на цей момент (public.decision_balance) — той самий, за яким
   // decide_leave_record порахує розподіл (AC-BALANCE-14).
-  const [historyResult, balance, day] = await Promise.all([
+  const [historyResult, balance, day, substitutes] = await Promise.all([
     selected
       ? supabase.rpc("record_histories", { p_record_ids: [selected.id] })
       : Promise.resolve({ data: [], error: null }),
@@ -159,7 +161,10 @@ export default async function DecisionsPage({ searchParams }: PageProps<"/decisi
       ? loadDecisionBalance(supabase, selected)
       : Promise.resolve<Balance>(null),
     selected ? loadRecordDay(supabase, selected.id, selected.date) : Promise.resolve(null),
+    // Заміна й позначка підвищення (AC-SUBST-02, AC-SUBST-03, AC-SUBST-08) показаних записів і вибраного; збій — без них.
+    loadRecordSubstitutes(supabase, recordIds(shown, selected)),
   ]);
+  const substituteOf = substituteLookup(substitutes);
   const selectedHistory = historyResult.error ? null : (groupHistories(historyResult.data ?? []).get(selected?.id ?? -1) ?? []);
 
   return (
@@ -245,7 +250,13 @@ export default async function DecisionsPage({ searchParams }: PageProps<"/decisi
               <EmptyState title="No decisions yet" text="Records you or another manager decided will appear here." />
             )
           ) : (
-            <RecordTable tab={tab} records={shown} selectedId={selected?.id ?? null} requests={requests} />
+            <RecordTable
+              tab={tab}
+              records={shown}
+              selectedId={selected?.id ?? null}
+              requests={requests}
+              substituteOf={substituteOf}
+            />
           )}
 
           {selected && (
@@ -266,6 +277,7 @@ export default async function DecisionsPage({ searchParams }: PageProps<"/decisi
             >
               <RecordPanel
                 record={selected}
+                substitute={substituteOf(selected.id)}
                 history={selectedHistory}
                 balance={balance}
                 day={day}
@@ -330,11 +342,14 @@ function RecordTable({
   records,
   selectedId,
   requests,
+  substituteOf,
 }: {
   tab: DecisionsTab;
   records: readonly DecisionRow[];
   selectedId: number | null;
   requests: ReadonlyMap<number, CancelRequest>;
+  /** null — «No substitute», undefined — заміни не завантажились (рядка немає). */
+  substituteOf: (id: number) => RecordSubstitute | null | undefined;
 }) {
   return (
     <div className="overflow-x-auto rounded-lg border border-border bg-card max-md:overflow-visible max-md:border-0 max-md:bg-transparent">
@@ -387,6 +402,7 @@ function RecordTable({
                 <TableCell className="whitespace-nowrap tabular-nums">
                   {formatRange(r.start_min, r.end_min)}
                   <span className="block text-xs text-muted-foreground">{formatDuration(r.minutes)}</span>
+                  <RecordSubstituteNote substitute={substituteOf(r.id)} className="mt-1 whitespace-normal" />
                 </TableCell>
                 <TableCell>
                   <LeaveTypeTag type={r.leave_type} variant="inline" />
@@ -411,6 +427,11 @@ function RecordTable({
   );
 }
 
+/** Id записів списку й вибраного (він може бути поза вкладкою) — для заміни й позначки одним викликом. */
+function recordIds(shown: readonly DecisionRow[], selected: DecisionRow | null): number[] {
+  return [...new Set([...shown.map((r) => r.id), ...(selected ? [selected.id] : [])])];
+}
+
 /** Рядок деталей запису без рамок: приглушений підпис і значення. */
 function Detail({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -422,7 +443,15 @@ function Detail({ label, children }: { label: string; children: React.ReactNode 
 }
 
 /** Розділ «Record»: дата, тип і години смугою дня; нижче — деталі без рамок. */
-function RecordSection({ record: r, day }: { record: DecisionRow; day: PositionDay | null }) {
+function RecordSection({
+  record: r,
+  day,
+  substitute,
+}: {
+  record: DecisionRow;
+  day: PositionDay | null;
+  substitute: RecordSubstitute | null | undefined;
+}) {
   const status = r.status as RecordStatus;
   const relationship = r.relationship && isRelationship(r.relationship) ? RELATIONSHIP_LABELS[r.relationship] : null;
   const bar = dayBar(r, day);
@@ -437,6 +466,7 @@ function RecordSection({ record: r, day }: { record: DecisionRow; day: PositionD
         left={bar.left}
         width={bar.width}
       />
+      <RecordSubstituteNote substitute={substitute} />
       {relationship && <Detail label="Relationship">{relationship}</Detail>}
       {split && (
         <Detail label="Split">
@@ -523,6 +553,7 @@ function HistorySection({ history }: { history: HistoryRow[] | null }) {
 
 function RecordPanel({
   record: r,
+  substitute,
   history,
   balance,
   day,
@@ -531,6 +562,8 @@ function RecordPanel({
   notice,
 }: {
   record: DecisionRow;
+  /** Заміна запису; null — «No substitute»; undefined — не завантажились. */
+  substitute: RecordSubstitute | null | undefined;
   history: HistoryRow[] | null;
   balance: Balance;
   /** Робочий день посади на дату запису — для смуги годин; null — без розкладу. */
@@ -555,7 +588,7 @@ function RecordPanel({
           <AlertDescription>{notice}</AlertDescription>
         </Alert>
       )}
-      <RecordSection record={r} day={day} />
+      <RecordSection record={r} day={day} substitute={substitute} />
       <BalanceSection type={r.leave_type} balance={balance} />
     </>
   );

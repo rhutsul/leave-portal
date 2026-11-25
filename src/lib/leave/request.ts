@@ -73,6 +73,8 @@ export interface PositionSchedule {
   id: number;
   /** "Elementary school / Teacher" — підрозділ / посада. */
   label: string;
+  /** Назва посади без підрозділу ("Teacher") — для правила підвищення (src/lib/leave/substitutes.ts). */
+  title?: string;
   kind: "main" | "additional";
   blocks: ScheduleBlock[];
 }
@@ -155,6 +157,8 @@ export interface PositionChoice {
   /** "HH:MM", якщо не цілий день. */
   start?: string;
   end?: string;
+  /** Заміна запису (uuid зі списку замін, AC-SUBST-02); немає — «No substitute» (AC-SUBST-03). */
+  substituteId?: string;
 }
 
 export interface DraftRecord {
@@ -163,6 +167,8 @@ export interface DraftRecord {
   start: number;
   end: number;
   minutes: number;
+  /** Заміна запису (AC-SUBST-02); немає — без заміни. */
+  substituteId?: string;
 }
 
 export type RecordsCheck =
@@ -173,12 +179,19 @@ export type RecordCheck = { ok: true; record: DraftRecord } | { ok: false; messa
 
 /** Запис однієї включеної посади: цілий день — усі блоки, інакше години перевіряє checkHours. */
 export function recordForChoice(date: string, position: PositionDay, choice: PositionChoice): RecordCheck {
-  if (choice.wholeDay) return { ok: true, record: { positionId: position.id, date, ...wholeDay(position.blocks) } };
+  // Заміна — лише коли вибрана: запис без неї не має й ключа (toRpcRecords його не надсилає).
+  const substitute = choice.substituteId ? { substituteId: choice.substituteId } : {};
+  if (choice.wholeDay) {
+    return { ok: true, record: { positionId: position.id, date, ...wholeDay(position.blocks), ...substitute } };
+  }
   const start = parseTime(choice.start ?? "");
   const end = parseTime(choice.end ?? "");
   const check = checkHours(position.blocks, start, end);
   if (!check.ok) return check;
-  return { ok: true, record: { positionId: position.id, date, start: start!, end: end!, minutes: check.minutes } };
+  return {
+    ok: true,
+    record: { positionId: position.id, date, start: start!, end: end!, minutes: check.minutes, ...substitute },
+  };
 }
 
 /** Записи однієї дати: по одному на кожну включену посаду (AC-LEAVE-01…03), години — за розкладом (AC-LEAVE-04). */
@@ -325,7 +338,16 @@ export function checkLeaveType(leaveType: string, relationship: string): LeaveTy
   return { ok: true, leaveType, relationship };
 }
 
-/** Параметр p_records функції submit_leave_request. */
+/**
+ * Параметр p_records функції submit_leave_request. substitute_id — лише коли заміну вибрано (D5
+ * openspec/changes/impl-substitutes/design.md): сигнатура функції та сама, ключ необов'язковий.
+ */
 export function toRpcRecords(records: DraftRecord[]) {
-  return records.map((r) => ({ position_id: r.positionId, date: r.date, start_min: r.start, end_min: r.end }));
+  return records.map((r) => ({
+    position_id: r.positionId,
+    date: r.date,
+    start_min: r.start,
+    end_min: r.end,
+    ...(r.substituteId ? { substitute_id: r.substituteId } : {}),
+  }));
 }

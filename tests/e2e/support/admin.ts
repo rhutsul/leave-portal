@@ -133,7 +133,7 @@ async function signInCookies(email: string, password: string): Promise<SessionCo
  * Повертає id для прибирання: журнал створеного (uat_users) — afterEach видаляє користувача за id, а каскад —
  * профіль, посаду, розклад і записи; teardown називає й падає на будь-якому uat-…@example.test, що лишився.
  */
-export async function createUatEmployee(schedule: UatSchedule): Promise<UatEmployee> {
+export async function createUatEmployee(schedule: UatSchedule, options: { title?: string } = {}): Promise<UatEmployee> {
   const supabase = adminClient();
   const suffix = randomBytes(3).toString("hex");
   const email = `uat-${runLabel()}-${suffix}@example.test`;
@@ -162,7 +162,7 @@ export async function createUatEmployee(schedule: UatSchedule): Promise<UatEmplo
   if (divisionError) throw divisionError;
   const { data: position, error: positionError } = await supabase
     .from("positions")
-    .insert({ employee_id: id, division_id: division.id, title: "UAT teacher", kind: "main" })
+    .insert({ employee_id: id, division_id: division.id, title: options.title ?? "UAT teacher", kind: "main" })
     .select("id")
     .single();
   if (positionError) throw positionError;
@@ -227,7 +227,16 @@ export async function addClosure(name: string, start: string, end: string, close
  */
 export async function addRecord(
   email: string,
-  rec: { date: string; start: number; end: number; leaveType: "sick" | "personal"; status: string },
+  rec: {
+    date: string;
+    start: number;
+    end: number;
+    leaveType: "sick" | "personal";
+    status: string;
+    /** Заміна запису (06-substitutes) і хвилини позначки підвищення — як їх пише submit_leave_request. */
+    substituteId?: string;
+    upgradeMinutes?: number;
+  },
 ) {
   const supabase = adminClient();
   const employeeId = await profileId(supabase, email);
@@ -251,6 +260,7 @@ export async function addRecord(
       minutes: rec.end - rec.start,
       leave_type: rec.leaveType,
       status: rec.status,
+      ...(rec.substituteId ? { substitute_id: rec.substituteId, upgrade_minutes: rec.upgradeMinutes ?? null } : {}),
     })
     .select("id")
     .single();
@@ -390,6 +400,14 @@ export async function cleanupRemembered(): Promise<string[]> {
   const unique = remembered().filter(
     (row, i, all) => all.findIndex((r) => r.table === row.table && r.id === row.id) === i,
   );
+  // Записи, де синтетичний працівник — заміна (06-substitutes): leave_records.substitute_id без on delete, тож видаляємо
+  // їх явно до користувачів, не покладаючись на порядок видалення чи каскад записів відсутнього.
+  const users = unique.filter((row) => row.table === "uat_users").map((row) => String(row.id));
+  if (users.length > 0) {
+    const { error } = await supabase.from("leave_records").delete().in("substitute_id", users);
+    // 42703 — колонки ще немає (база до міграції substitutes): тоді й записів із заміною немає.
+    if (error && error.code !== "42703") throw error;
+  }
   for (const row of unique.reverse()) {
     if (row.table === "uat_users") {
       // Каскад: profiles → positions, schedule_blocks, position_managers, leave_requests, leave_records.

@@ -14,7 +14,15 @@ import { LeaveTypeTag } from "@/components/ui/leave-type-tag";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { SubstituteNote } from "@/components/ui/substitute-note";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  NO_SUBSTITUTE,
+  substituteField,
+  upgradeMinutes,
+  type SubstituteField,
+  type SubstituteOption,
+} from "@/lib/leave/substitutes";
 import {
   employeeWarning,
   isLimitedType,
@@ -103,8 +111,11 @@ export function NewRequestForm({
   remaining,
   recordDates,
   closures,
+  substitutes = null,
 }: {
   positions: PositionSchedule[];
+  /** Власний список замін (AC-SUBST-04); [] — список порожній (AC-SUBST-11); null — не завантажився, поля немає. */
+  substitutes?: SubstituteOption[] | null;
   today: string;
   /** Залишки в сотих за навчальним роком на момент відкриття форми; null — не завантажились. */
   remaining: Record<number, Record<LimitedType, number>> | null;
@@ -155,6 +166,15 @@ export function NewRequestForm({
   // Залишок не завантажився або дати поза завантаженими роками — кажемо, що перевірка буде під час подання.
   const balanceUnchecked = leaveType !== null && isLimitedType(leaveType) && uncheckedYears(records, remainingOf).length > 0;
   const labelOf = (id: number) => positions.find((p) => p.id === id)?.label ?? "";
+  // Поле «Substitute» на кожному записі (AC-SUBST-02, AC-SUBST-04, AC-SUBST-11) і попередній перегляд позначки
+  // підвищення в підсумку (AC-SUBST-08); що записано, вирішує база.
+  const field = substituteField(substitutes);
+  const substituteOf = (id: string | undefined) => (id ? substitutes?.find((s) => s.id === id) : undefined);
+  const upgradeOf = (r: DraftRecord) => {
+    const substitute = substituteOf(r.substituteId);
+    const title = positions.find((p) => p.id === r.positionId)?.title ?? "";
+    return substitute ? upgradeMinutes(title, substitute.mainTitle, r.minutes) : null;
+  };
 
   function pickDate(date: string) {
     if (!dates.includes(date)) {
@@ -284,11 +304,19 @@ export function NewRequestForm({
                   title="Positions and hours"
                   hint="For each date, include the positions you will be absent from — for the whole day or for specific hours."
                 />
+                {/* AC-SUBST-11: замість вибору — повідомлення дослівно; заявку подають із «No substitute». */}
+                {field.kind === "empty" && (
+                  <Alert variant="info" role="note" data-testid="substitutes-empty">
+                    <Info />
+                    <AlertDescription>{field.message}</AlertDescription>
+                  </Alert>
+                )}
                 {sections.map((section) => (
                   <DaySectionView
                     key={section.date}
                     idPrefix={`${ids}-${section.date}`}
                     section={section}
+                    field={field}
                     showErrors={showPositionErrors}
                     onChange={(positionId, patch) => {
                       setShowServerError(false);
@@ -435,6 +463,7 @@ export function NewRequestForm({
                         <TableHead>Date</TableHead>
                         <TableHead>Position</TableHead>
                         <TableHead>Hours</TableHead>
+                        {field.kind !== "hidden" && <TableHead>Substitute</TableHead>}
                         <TableHead className="text-right">Duration</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -444,6 +473,11 @@ export function NewRequestForm({
                           <TableCell className="tabular-nums">{formatDateLong(r.date)}</TableCell>
                           <TableCell>{labelOf(r.positionId)}</TableCell>
                           <TableCell className="tabular-nums">{formatRange(r.start, r.end)}</TableCell>
+                          {field.kind !== "hidden" && (
+                            <TableCell>
+                              <SubstituteNote email={substituteOf(r.substituteId)?.email} upgradeMinutes={upgradeOf(r)} />
+                            </TableCell>
+                          )}
                           <TableCell data-cell="end" className="text-right tabular-nums max-md:px-2 max-md:py-1.5">{formatDuration(r.minutes)}</TableCell>
                         </TableRow>
                       ))}
@@ -610,11 +644,13 @@ function DateCalendar({
 function DaySectionView({
   idPrefix,
   section,
+  field,
   showErrors,
   onChange,
 }: {
   idPrefix: string;
   section: DaySection;
+  field: SubstituteField;
   showErrors: boolean;
   onChange: (positionId: number, patch: Partial<PositionChoice>) => void;
 }) {
@@ -637,6 +673,7 @@ function DaySectionView({
             key={e.position.id}
             idPrefix={`${idPrefix}-${e.position.id}`}
             item={e}
+            field={field}
             axis={axis}
             showError={showErrors || Boolean(e.choice.start && e.choice.end)}
             describedBy={noPosition ? `${idPrefix}-positions-error` : undefined}
@@ -652,6 +689,7 @@ function DaySectionView({
 function PositionCard({
   idPrefix,
   item,
+  field,
   axis,
   showError,
   describedBy,
@@ -659,6 +697,7 @@ function PositionCard({
 }: {
   idPrefix: string;
   item: Evaluated;
+  field: SubstituteField;
   axis: { start: number; end: number; ticks: number[] };
   showError: boolean;
   /** Помилка всієї дати («обери посаду») — її id для aria-describedby чекбокса. */
@@ -775,6 +814,33 @@ function PositionCard({
               />
             </div>
           )}
+        </div>
+      )}
+
+      {/* AC-SUBST-02, AC-SUBST-04: заміна запису — лише зі списку працівника; «No substitute» — за замовчуванням. */}
+      {choice.include && field.kind === "choice" && (
+        <div className="mt-3 flex flex-col gap-1.5 md:ml-7 md:max-w-sm">
+          <Label htmlFor={`${idPrefix}-substitute`}>Substitute</Label>
+          <Select
+            value={choice.substituteId ?? NO_SUBSTITUTE}
+            items={field.items}
+            onValueChange={(value) => {
+              const id = String(value ?? NO_SUBSTITUTE);
+              onChange({ substituteId: id === NO_SUBSTITUTE ? undefined : id });
+            }}
+          >
+            <SelectTrigger id={`${idPrefix}-substitute`} className="w-full pointer-coarse:h-11">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {field.items.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                  {option.hint && <span className="text-muted-foreground"> · {option.hint}</span>}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       )}
 

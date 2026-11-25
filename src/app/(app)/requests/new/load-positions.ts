@@ -14,6 +14,7 @@ export async function loadOwnPositions(supabase: Supabase, employeeId: string): 
   return (data ?? []).map((p) => ({
     id: p.id,
     label: positionLabel(p.division.name, p.title),
+    title: p.title,
     kind: p.kind === "main" ? "main" : "additional",
     blocks: p.schedule_blocks.map((b) => ({ weekday: b.weekday, start: b.start_min, end: b.end_min })),
   }));

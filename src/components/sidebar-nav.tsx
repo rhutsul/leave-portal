@@ -3,7 +3,7 @@
 import Link, { useLinkStatus } from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
-import { CalendarDays, ChartColumn, ClipboardCheck, FileSpreadsheet, House, List } from "lucide-react";
+import { CalendarDays, ChartColumn, ClipboardCheck, FileSpreadsheet, House, List, UserRoundCheck, UsersRound } from "lucide-react";
 import { markHydrated, Tick } from "@/components/ui/motion";
 import { highlightTarget, navSection } from "@/lib/motion";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -11,12 +11,15 @@ import { cn } from "@/lib/utils";
 
 // «New request» — не пункт меню, а окрема форма розділу «My requests»: її відкривають кнопки «New request» на Overview
 // і в My requests, а підсвітка на /requests/new стоїть на «My requests» (navSection). `deciders` — лише manager і
-// admin: «Decisions» і «Register» (реєстр погоджених відсутностей, ADR 0012; матриця прав requirements/product.md).
+// admin: «Decisions», «Register» (реєстр погоджених відсутностей, ADR 0012) і «Substitutes» (списки замін, вимога 06);
+// «My substitutions» — усім (матриця прав requirements/product.md).
 const LINKS: { href: string; label: string; icon: ReactNode; deciders?: true }[] = [
   { href: "/", label: "Overview", icon: <House /> },
   { href: "/requests", label: "My requests", icon: <List /> },
+  { href: "/substitutions", label: "My substitutions", icon: <UserRoundCheck /> },
   { href: "/decisions", label: "Decisions", icon: <ClipboardCheck />, deciders: true },
   { href: "/register", label: "Register", icon: <FileSpreadsheet />, deciders: true },
+  { href: "/substitutes", label: "Substitutes", icon: <UsersRound />, deciders: true },
   { href: "/balances", label: "Balances", icon: <ChartColumn /> },
   { href: "/calendar", label: "School calendar", icon: <CalendarDays /> },
 ];

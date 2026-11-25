@@ -144,6 +144,13 @@ describe("substitute list: who keeps it", () => {
     );
     expect(deleted).toEqual([]);
     expect(await listOf(teacher2)).toEqual(["teacher3@example.test"]);
+    // Свій список працівник бачить, але змінити не може й він: веде його лише менеджер посади чи адміністратор.
+    await givenList(teacher1, [assistant1]);
+    expect(
+      await t.asUser(teacher1, "delete from public.substitute_lists where employee_id = $1 returning substitute_id", [teacher1]),
+    ).toEqual([]);
+    await expect(addAs(teacher1, teacher1, teacher3)).rejects.toThrow(/row-level security/);
+    expect(await listOf(teacher1)).toEqual(["assistant1@example.test"]);
     await expect(t.asUser(teacher1, "select * from public.substitute_list($1)", [teacher2])).rejects.toThrow(NOT_MANAGER);
     await expect(t.asUser(teacher1, "select * from public.substitute_candidates($1)", [teacher2])).rejects.toThrow(
       NOT_MANAGER,
@@ -337,6 +344,14 @@ describe("upgrade mark", () => {
     expect(await recordOf(id)).toMatchObject({ substitute: "assistant1@example.test", upgrade_minutes: 210 });
     const [seen] = await t.asUser<{ upgrade_minutes: number }>(teacher1, "select upgrade_minutes from public.record_substitutes($1)", [[id]]);
     expect(seen.upgrade_minutes).toBe(210);
+  });
+
+  it("AC-SUBST-08: any title that contains teacher counts — an assistant replacing a Math teacher", async () => {
+    // Додаткова посада teacher1@ «High school / Math teacher» — понеділок 15:45–17:00 (75 хв); 2026-11-30 — понеділок.
+    await givenList(teacher1, [assistant1]);
+    const additional = await positionOf("teacher1@example.test", "additional");
+    const [id] = await submit(teacher1, [{ date: "2026-11-30", start_min: 945, end_min: 1020, substitute_id: assistant1 }], additional);
+    expect(await recordOf(id)).toMatchObject({ substitute: "assistant1@example.test", upgrade_minutes: 75 });
   });
 
   it("AC-SUBST-08: changing the hours keeps the mark equal to the record's minutes", async () => {

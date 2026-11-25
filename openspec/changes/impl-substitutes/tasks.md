@@ -9,7 +9,7 @@
 
 ## 1. Менеджер веде список замін
 
-- [ ] 1.1 База: таблиця `substitute_lists` з RLS, `revoke`, явними `grant` і політиками D1,
+- [x] 1.1 База: таблиця `substitute_lists` з RLS, `revoke`, явними `grant` і політиками D1,
       `private.can_manage_substitutes`, функції `manageable_employees`, `substitute_list`, `substitute_candidates` (D6),
       тестові `assistant1@` і `teacher3@` (D9, `supabase/demo-users.json`). Вітрина `/design`: таблиця списку з «⋯»,
       форма додавання, відмова (D8). Сторінки `/substitutes` і `/substitutes/[employeeId]` з `loading.tsx`, server
@@ -22,7 +22,7 @@
 
 ## 2. Працівник вибирає заміну в заявці й бачить її на записі
 
-- [ ] 2.1 База: колонки `substitute_id`, `upgrade_minutes`, обмеження й індекс D2, нове тіло
+- [x] 2.1 База: колонки `substitute_id`, `upgrade_minutes`, обмеження й індекс D2, нове тіло
       `private.submit_leave_request` з ключем `substitute_id` і перевіркою списку (D5), `my_substitute_options`,
       `record_substitutes` (D6). Код: `src/lib/leave/substitutes.ts` (`substituteLabel`, стан поля для порожнього
       списку), `SubstituteNote` у `src/components/ui/` і приклади на `/design`; `PositionChoice.substituteId` у
@@ -36,7 +36,7 @@
 
 ## 3. Позначка підвищення
 
-- [ ] 3.1 База: `private.upgrade_applies` (D3) і `upgrade_minutes` у `submit_leave_request`. Код: `upgradeApplies`,
+- [x] 3.1 База: `private.upgrade_applies` (D3) і `upgrade_minutes` у `submit_leave_request`. Код: `upgradeApplies`,
       `upgradeMinutes` у `src/lib/leave/substitutes.ts`; `Badge` «With upgrade: N min» у `SubstituteNote`, у підсумку
       заявки, «My requests» і «Decisions». Тести: PGlite (210 хв; «Math teacher» — без позначки), unit (регістр,
       « Assistant », «Math teacher»), SQL-мутант `ilike '%teacher%'` у `scripts/mutants.mjs`, e2e «With upgrade: 210 min».
@@ -44,7 +44,7 @@
 
 ## 4. Зайнята заміна не приймається
 
-- [ ] 4.1 База: `private.substitute_conflict` і lock `busy:` (D4), перевірка в `submit_leave_request` і нове тіло
+- [x] 4.1 База: `private.substitute_conflict` і lock `busy:` (D4), перевірка в `submit_leave_request` і нове тіло
       `private.update_leave_record_hours` (D5). Код: P0001 бази — дослівно в `Alert` підсумку заявки (наявний шлях
       `submitLeaveRequest`) і в формі зміни годин «My requests». Тести: PGlite (власний запис заміни `awaiting`, заміна в
       `approved` записі іншого, перший за часом із двох, `rejected` і `cancelled` не займають, межа `[start, end)`, запис заміни лише в перерві між блоками — не займає, зміна
@@ -54,7 +54,7 @@
 
 ## 5. «My substitutions»
 
-- [ ] 5.1 База: `my_substitutions` (D6). Код: сторінка `/substitutions` з `loading.tsx`, пункт меню «My substitutions» для
+- [x] 5.1 База: `my_substitutions` (D6). Код: сторінка `/substitutions` з `loading.tsx`, пункт меню «My substitutions» для
       всіх ролей, приклади на `/design`. Тести: PGlite (один рядок без типу відсутності; порожньо для `rejected` /
       `cancelled`), e2e (один рядок, порожній стан, гість → вхід без email і дат).
       Done when: AC-SUBST-10, AC-SUBST-14, AC-SUBST-15
@@ -65,7 +65,7 @@
       темі, 390 і 1280 px — `tests/e2e/substitutes-screenshots.spec.ts` → `docs/img/`; прибирання e2e у порядку з ризиків
       design.md (спершу записи з синтетичною заміною, потім профілі).
       Done when: AC-SUBST-01, AC-SUBST-02, AC-SUBST-10, AC-SUBST-11, AC-SUBST-15
-- [ ] 6.2 Рядки AC-SUBST-01…15 у `docs/conformance.md` (`/conformance`); кандидати в питання PM (зміна годин,
+- [x] 6.2 Рядки AC-SUBST-01…15 у `docs/conformance.md` (`/conformance`); кандидати в питання PM (зміна годин,
       власна заявка зайнятої заміни) — у `docs/spec-reading.md`; `database.types.ts` із Summary
       `db-check`; `npm run check:design`, `npm run check:ui`, `npm run ac:coverage`, `npm run gates`, `npm test`.
       Done when: AC-SUBST-01, AC-SUBST-02, AC-SUBST-03, AC-SUBST-04, AC-SUBST-05, AC-SUBST-06, AC-SUBST-07, AC-SUBST-08, AC-SUBST-09, AC-SUBST-10, AC-SUBST-11, AC-SUBST-12, AC-SUBST-13, AC-SUBST-14, AC-SUBST-15

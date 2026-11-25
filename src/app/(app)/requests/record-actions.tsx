@@ -22,6 +22,7 @@ import { RecordSummary } from "@/components/ui/record-summary";
 import { RowMenu, type RowMenuItem } from "@/components/ui/row-menu";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { SubmitButton } from "@/components/ui/submit-button";
+import { RecordSubstituteNote } from "@/components/ui/substitute-note";
 import type { CancellationMark } from "@/lib/leave/cancellation";
 import type { EmployeeAction } from "@/lib/leave/decision";
 import type { RecordStatus } from "@/lib/leave/request";
@@ -32,6 +33,19 @@ import { recordActionsView, type Panel } from "./record-actions-view";
 const INITIAL: RecordActionState = { message: "", done: false };
 
 const DONE_TEXT = { hours: "Hours changed.", resubmit: "Record resubmitted.", cancel: "Record cancelled." } as const;
+
+/** Рядок «Substitute» у деталях запису (AC-SUBST-02, AC-SUBST-03, AC-SUBST-08); не завантажились — рядка немає. */
+function SubstituteDetail({ substitute }: { substitute: RecordDetails["substitute"] }) {
+  if (substitute === undefined) return null;
+  return (
+    <>
+      <dt className="text-muted-foreground">Substitute</dt>
+      <dd>
+        <RecordSubstituteNote substitute={substitute} />
+      </dd>
+    </>
+  );
+}
 
 export interface RecordDetails {
   /** "Tue, 3 Nov 2026" */
@@ -47,6 +61,8 @@ export interface RecordDetails {
   split: string | null;
   /** Прохання про скасування, його відхилення чи примітка менеджера (AC-CANCEL-01, -03, -08). */
   cancellation: CancellationMark | null;
+  /** Заміна й позначка підвищення (AC-SUBST-02, AC-SUBST-03, AC-SUBST-08); null — «No substitute»; undefined — не завантажились. */
+  substitute?: { email: string; upgradeMinutes: number | null } | null;
 }
 
 /**
@@ -196,6 +212,7 @@ export function RecordActions({
               <StatusBadge status={details.status} />
               <CancellationMarkView mark={details.cancellation} />
             </dd>
+            <SubstituteDetail substitute={details.substitute} />
             {details.split && (
               <>
                 <dt className="text-muted-foreground">Split</dt>

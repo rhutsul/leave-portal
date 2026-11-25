@@ -40,6 +40,9 @@ const AI_QUOTA_DB = "tests/db/ai-quota.test.ts";
 // Скасування погодженого запису через менеджера (impl-cancel-approved, D3–D5).
 const CANCEL = "supabase/migrations/20261124195428_cancel_approved.sql";
 const CANCEL_DB = "tests/db/leave-cancellation.test.ts";
+// Заміни для записів і позначка підвищення (impl-substitutes, D1–D6).
+const SUBST = "supabase/migrations/20261125000321_substitutes.sql";
+const SUBST_DB = "tests/db/substitutes.test.ts";
 const START_INSIDE = "p_start >= b.start_min and p_start < b.end_min\n  ) or not exists";
 
 export const mutants = [
@@ -374,6 +377,97 @@ export const mutants = [
     what: "check_cancellation_actor: без рядка в profiles (роль null) перевірку права пропущено",
     find: "  v_role text := coalesce(private.current_app_role(), '');",
     replace: "  v_role text := private.current_app_role();",
+  },
+  {
+    id: "S51", kind: "sql", ac: "AC-SUBST-07", file: SUBST, tests: [SUBST_DB],
+    what: "substitute_conflict: «Rejected» і «Cancelled» теж займають заміну",
+    find: "    and r.status in ('awaiting', 'returned', 'approved')\n    and r.id is distinct from p_exclude_record",
+    replace:
+      "    and r.status in ('awaiting', 'returned', 'approved', 'rejected', 'cancelled')\n    and r.id is distinct from p_exclude_record",
+  },
+  {
+    id: "S52", kind: "sql", ac: "AC-SUBST-06", file: SUBST, tests: [SUBST_DB],
+    what: "substitute_conflict: заміна в іншому записі не займає людину (лише власні записи)",
+    find: "    and (r.employee_id = p_person or r.substitute_id = p_person)",
+    replace: "    and r.employee_id = p_person",
+  },
+  {
+    id: "S53", kind: "sql", ac: "AC-SUBST-05", file: SUBST, tests: [SUBST_DB],
+    what: "substitute_conflict: власний запис заміни не займає її",
+    find: "    and (r.employee_id = p_person or r.substitute_id = p_person)",
+    replace: "    and r.substitute_id = p_person",
+  },
+  {
+    id: "S54", kind: "sql", ac: "AC-SUBST-07", file: SUBST, tests: [SUBST_DB],
+    what: "substitute_conflict: перерва між блоками розкладу теж рахується хвилинами запису",
+    find: "        on mine.span && theirs.span",
+    replace: "        on true",
+  },
+  {
+    id: "S55", kind: "sql", ac: "AC-SUBST-06", file: SUBST, tests: [SUBST_DB],
+    what: "substitute_conflict: повідомлення називає не перший за часом запис",
+    find: "  order by r.start_min, r.end_min, r.id\n  limit 1;",
+    replace: "  order by r.start_min desc, r.end_min, r.id\n  limit 1;",
+  },
+  {
+    id: "S56", kind: "sql", ac: "AC-SUBST-04", file: SUBST, tests: [SUBST_DB],
+    what: "submit_leave_request: заміна не зі списку працівника приймається",
+    find: "        if not exists (\n          select 1 from public.substitute_lists as s where s.employee_id = v_uid and s.substitute_id = v_substitute\n        ) then",
+    replace: "        if false then",
+  },
+  {
+    id: "S57", kind: "sql", ac: "AC-SUBST-08", file: SUBST, tests: [SUBST_DB],
+    what: "upgrade_applies: лише назва «Teacher», а не будь-яка з «teacher» («Math teacher»)",
+    find: "where p.id = p_position_id and strpos(lower(p.title), 'teacher') > 0",
+    replace: "where p.id = p_position_id and p.title = 'Teacher'",
+  },
+  {
+    id: "S58", kind: "sql", ac: "AC-SUBST-09", file: SUBST, tests: [SUBST_DB],
+    what: "upgrade_applies: позначка для будь-якої основної посади заміни, не лише «Assistant»",
+    find: "and lower(btrim(s.title)) = 'assistant'",
+    replace: "and true",
+  },
+  {
+    id: "S59", kind: "sql", ac: "AC-SUBST-12", file: SUBST, tests: [SUBST_DB],
+    what: "substitute_lists: insert без перевірки права (будь-хто додає до будь-чийого списку)",
+    find: "  with check (added_by = (select auth.uid()) and private.can_manage_substitutes(employee_id));",
+    replace: "  with check (added_by = (select auth.uid()));",
+  },
+  {
+    id: "S60", kind: "sql", ac: "AC-SUBST-12", file: SUBST, tests: [SUBST_DB],
+    what: "substitute_lists: delete без перевірки права",
+    find: "  using ((select auth.uid()) is not null and private.can_manage_substitutes(employee_id));",
+    replace: "  using ((select auth.uid()) is not null);",
+  },
+  {
+    id: "S61", kind: "sql", ac: "AC-SUBST-13", file: SUBST, tests: [SUBST_DB],
+    what: "can_manage_substitutes: менеджер будь-яких посад веде список будь-якого працівника",
+    find: "           when 'manager' then private.manages_employee(p_employee_id)",
+    replace: "           when 'manager' then true",
+  },
+  {
+    id: "S62", kind: "sql", ac: "AC-SUBST-15", file: SUBST, tests: [SUBST_DB],
+    what: "my_substitutions: записи «Rejected» і «Cancelled» теж показуються",
+    find: "  where r.substitute_id = (select auth.uid())\n    and r.status in ('awaiting', 'returned', 'approved')",
+    replace: "  where r.substitute_id = (select auth.uid())",
+  },
+  {
+    id: "S63", kind: "sql", ac: "AC-SUBST-05", file: SUBST, tests: [SUBST_DB],
+    what: "update_leave_record_hours: нові години не перевіряються на зайнятість заміни",
+    find: "    if found then\n      raise exception '%', private.substitute_busy_message(\n        v_record.substitute_id",
+    replace: "    if false then\n      raise exception '%', private.substitute_busy_message(\n        v_record.substitute_id",
+  },
+  {
+    id: "S64", kind: "sql", ac: "AC-SUBST-02", file: SUBST, tests: [SUBST_DB],
+    what: "record_substitutes: заміну запису бачить і той, кому запис не видно",
+    find: "    and private.can_see_record(r.id)",
+    replace: "    and true",
+  },
+  {
+    id: "S65", kind: "sql", ac: "AC-SUBST-08", file: SUBST, tests: [SUBST_DB],
+    what: "update_leave_record_hours: позначка підвищення лишає старі хвилини після зміни годин",
+    find: "           upgrade_minutes = case when r.upgrade_minutes is not null then v_minutes end,\n",
+    replace: "",
   },
   {
     // Правило AC-CAL-15 живе в TS, а не в SQL: рік на /calendar — це closuresInSchoolYear над рядками бази.
