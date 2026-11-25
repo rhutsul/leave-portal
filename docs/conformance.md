@@ -150,25 +150,25 @@
 | AC-SUBST-13 | Менеджер чужих посад в обхід сторінок | `supabase/migrations/20261125000321_substitutes.sql` (substitute_lists_insert_manager_or_admin, can_manage_substitutes) | `tests/db/substitutes.test.ts` | реалізовано |
 | AC-SUBST-14 | Гість за прямим посиланням | `src/app/(app)/substitutions/page.tsx` (getClaims → /login), `src/lib/supabase/proxy.ts` | `tests/e2e/substitutes.spec.ts` | реалізовано |
 | AC-SUBST-15 | Немає замін | `supabase/migrations/20261125000321_substitutes.sql` (my_substitutions), `src/app/(app)/substitutions/page.tsx` | `tests/db/substitutes.test.ts`, `src/lib/leave/substitutes.test.ts`, `tests/e2e/substitutes.spec.ts` | реалізовано |
-| AC-STAFF-01 | Новий працівник і посилання | — | — | відкладено (чекає реалізації) |
-| AC-STAFF-02 | Пароль за дійсним посиланням | — | — | відкладено (чекає реалізації) |
-| AC-STAFF-03 | Прострочене посилання | — | — | відкладено (чекає реалізації) |
-| AC-STAFF-04 | Основна посада нового працівника | — | — | відкладено (чекає реалізації) |
-| AC-STAFF-05 | Друга основна посада | — | — | відкладено (чекає реалізації) |
-| AC-STAFF-06 | Перетин розкладів | — | — | відкладено (чекає реалізації) |
-| AC-STAFF-07 | Новий розклад не змінює погодженого запису | — | — | відкладено (чекає реалізації) |
-| AC-STAFF-08 | Деактивований працівник | — | — | відкладено (чекає реалізації) |
-| AC-STAFF-09 | Заступник бачить і вирішує запис | — | — | відкладено (чекає реалізації) |
-| AC-STAFF-10 | Поза періодом заступництва | — | — | відкладено (чекає реалізації) |
-| AC-STAFF-11 | Нові ім'я й email | — | — | відкладено (чекає реалізації) |
-| AC-STAFF-12 | Працівник змінює собі ім'я чи email | — | — | відкладено (чекає реалізації) |
-| AC-STAFF-13 | Менеджер за прямим посиланням | — | — | відкладено (чекає реалізації) |
-| AC-STAFF-14 | Менеджер призначає себе заступником в обхід сторінок | — | — | відкладено (чекає реалізації) |
+| AC-STAFF-01 | Новий працівник і посилання | `supabase/migrations/20261125082128_staff_management.sql` (create_employee, new_one_time_link, staff_employees) | `tests/db/staff-employees.test.ts`, `tests/e2e/staff-auth.spec.ts` | відкладено (чекає реалізації: база й тести бази — PR 1 зрізу; сторінки — PR 2 `task/staff-people`) |
+| AC-STAFF-02 | Пароль за дійсним посиланням | `supabase/migrations/20261125082128_staff_management.sql` (use_one_time_link) | `tests/db/staff-employees.test.ts`, `tests/e2e/staff-auth.spec.ts` | відкладено (чекає реалізації: база й тести бази — PR 1 зрізу; сторінки — PR 2 `task/staff-people`) |
+| AC-STAFF-03 | Прострочене посилання | `supabase/migrations/20261125082128_staff_management.sql` (use_one_time_link, valid_until) | `tests/db/staff-employees.test.ts` | відкладено (чекає реалізації: база й тести бази — PR 1 зрізу; сторінки — PR 2 `task/staff-people`) |
+| AC-STAFF-04 | Основна посада нового працівника | `supabase/migrations/20261125082128_staff_management.sql` (create_position, put_position_schedule, blocks_in_effect) | `tests/db/staff-positions.test.ts` | відкладено (чекає реалізації: база й тести бази — PR 1 зрізу; сторінки — PR 3 `task/staff-positions`) |
+| AC-STAFF-05 | Друга основна посада | `supabase/migrations/20261125082128_staff_management.sql` (create_position) | `tests/db/staff-positions.test.ts` | відкладено (чекає реалізації: база й тести бази — PR 1 зрізу; сторінки — PR 3 `task/staff-positions`) |
+| AC-STAFF-06 | Перетин розкладів | `supabase/migrations/20261125082128_staff_management.sql` (put_position_schedule, schedule_blocks_no_overlap) | `tests/db/staff-positions.test.ts` | відкладено (чекає реалізації: база й тести бази — PR 1 зрізу; сторінки — PR 3 `task/staff-positions`) |
+| AC-STAFF-07 | Новий розклад не змінює погодженого запису | `supabase/migrations/20261125082128_staff_management.sql` (schedule_blocks.valid_from / valid_to, blocks_in_effect) | `tests/db/staff-positions.test.ts` | відкладено (чекає реалізації: база й тести бази — PR 1 зрізу; сторінки — PR 3 `task/staff-positions`) |
+| AC-STAFF-08 | Деактивований працівник | `supabase/migrations/20261125082128_staff_management.sql` (deactivate_employee, current_app_role, acting_manager_ids) | `tests/db/staff-employees.test.ts`, `tests/db/staff-substitutes.test.ts`, `tests/e2e/staff-auth.spec.ts` | відкладено (чекає реалізації: база й тести бази — PR 1 зрізу; сторінки — PR 2 `task/staff-people`) |
+| AC-STAFF-09 | Заступник бачить і вирішує запис | `supabase/migrations/20261125082128_staff_management.sql` (deputy_assignments, acting_manager_ids, manages_position) | `tests/db/staff-deputies.test.ts` | відкладено (чекає реалізації: база й тести бази — PR 1 зрізу; сторінки — PR 3 `task/staff-positions`) |
+| AC-STAFF-10 | Поза періодом заступництва | `supabase/migrations/20261125082128_staff_management.sql` (acting_manager_ids) | `tests/db/staff-deputies.test.ts` | відкладено (чекає реалізації: база й тести бази — PR 1 зрізу; сторінки — PR 3 `task/staff-positions`) |
+| AC-STAFF-11 | Нові ім'я й email | `supabase/migrations/20261125082128_staff_management.sql` (update_employee) | `tests/db/staff-employees.test.ts`, `tests/e2e/staff-auth.spec.ts` | відкладено (чекає реалізації: база й тести бази — PR 1 зрізу; сторінки — PR 2 `task/staff-people`) |
+| AC-STAFF-12 | Працівник змінює собі ім'я чи email | `supabase/migrations/20261125082128_staff_management.sql` (guard_auth_email_change) | `tests/db/staff-employees.test.ts`, `tests/e2e/staff-auth.spec.ts` | відкладено (чекає реалізації: база й тести бази — PR 1 зрізу; сторінки — PR 2 `task/staff-people`) |
+| AC-STAFF-13 | Менеджер за прямим посиланням | `supabase/migrations/20261125082128_staff_management.sql` (require_admin) | `tests/db/staff-employees.test.ts`, `tests/db/staff-positions.test.ts`, `tests/db/staff-privileges.test.ts` | відкладено (чекає реалізації: база й тести бази — PR 1 зрізу; сторінки — PR 2 `task/staff-people`) |
+| AC-STAFF-14 | Менеджер призначає себе заступником в обхід сторінок | `supabase/migrations/20261125082128_staff_management.sql` (deputy_assignments: RLS і grant лише select, assign_deputy → require_admin) | `tests/db/staff-deputies.test.ts`, `tests/db/staff-privileges.test.ts` | реалізовано |
 | AC-STAFF-15 | Гість за прямим посиланням | — | — | відкладено (чекає реалізації) |
 | AC-STAFF-16 | Правильний поточний пароль | — | — | відкладено (чекає реалізації: поведінку й тексти вже реалізовано в #120, AC ID у назвах тестів — у PR реалізації зрізу staff-management) |
 | AC-STAFF-17 | Неправильний поточний пароль | — | — | відкладено (чекає реалізації: поведінку й тексти вже реалізовано в #120, AC ID у назвах тестів — у PR реалізації зрізу staff-management) |
-| AC-STAFF-18 | Єдиний адміністратор знімає собі роль | — | — | відкладено (чекає реалізації) |
-| AC-STAFF-19 | Немає заступників | — | — | відкладено (чекає реалізації) |
+| AC-STAFF-18 | Єдиний адміністратор знімає собі роль | `supabase/migrations/20261125082128_staff_management.sql` (set_employee_role) | `tests/db/staff-employees.test.ts` | відкладено (чекає реалізації: база й тести бази — PR 1 зрізу; сторінки — PR 2 `task/staff-people`) |
+| AC-STAFF-19 | Немає заступників | `supabase/migrations/20261125082128_staff_management.sql` (deputy_assignments_select_admin) | `tests/db/staff-deputies.test.ts` | відкладено (чекає реалізації: база й тести бази — PR 1 зрізу; сторінки — PR 3 `task/staff-positions`) |
 | AC-BEHALF-01 | Лікарняний від імені працівника | — | — | відкладено (чекає реалізації) |
 | AC-BEHALF-02 | Посада іншого менеджера чекає рішення | — | — | відкладено (чекає реалізації) |
 | AC-BEHALF-03 | Адміністратор подає на дві посади | — | — | відкладено (чекає реалізації) |

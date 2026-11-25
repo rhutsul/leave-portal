@@ -73,7 +73,7 @@ Vercel: у застосунку лише `NEXT_PUBLIC_SUPABASE_URL` і `NEXT_PUB
 ## Наслідки
 
 - Простіше: жодного секретного ключа в застосунку (`check:boundary` не змінюється); усі права — в одному місці, у
-  базі, і їх перевіряють тести PGlite і SQL-мутанти (`scripts/mutants.mjs`, S51–S72).
+  базі, і їх перевіряють тести PGlite і SQL-мутанти (`scripts/mutants.mjs`, S68–S92).
 - Ризик: функції залежать від внутрішньої схеми GoTrue (`auth.users`, `auth.identities`, `auth.sessions`) і прав
   `postgres` на DML у `auth.*`. Захист: `tests/e2e/staff-auth.spec.ts` на справжньому Supabase в job `e2e` (створення →
   пароль за посиланням → вхід; новий email з тим самим паролем; `user_banned` після деактивації; вхід після

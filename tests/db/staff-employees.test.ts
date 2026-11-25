@@ -72,6 +72,9 @@ async function asAuthService(sql: string, params: unknown[] = []) {
 
 beforeAll(async () => {
   t = await createLeaveDb();
+  // «Given … there is no employee teacher3@example.test»: демодані зрізу substitutes його вже мають — прибираємо
+  // (каскад з auth.users: профіль, посади, записи).
+  await t.db.query("delete from auth.users where email = 'teacher3@example.test'");
   admin = t.users["admin@example.test"];
   manager1 = t.users["manager1@example.test"];
   teacher1 = t.users["teacher1@example.test"];

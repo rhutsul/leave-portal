@@ -1453,3 +1453,92 @@ as $$
   select private.require_active();
   select private.request_record_cancellation(p_record_id, p_reason);
 $$;
+
+-- ── D12. Зріз substitutes (20261125000321_substitutes.sql): розклад дати і деактивовані ──
+-- Зайнятість заміни рахує хвилини запису за розкладом, що діє на дату запису (D7), — нове тіло без зміни сигнатури;
+-- решта як у 20261125000321_substitutes.sql.
+create or replace function private.record_minute_ranges(p_position_id bigint, p_date date, p_start integer, p_end integer)
+returns setof int4range
+language sql
+stable
+set search_path = ''
+as $$
+  with blocks as (
+    select int4range(p_start, p_end) * int4range(b.start_min, b.end_min) as span
+    from public.positions as p
+    cross join lateral private.blocks_in_effect(p.employee_id, p_date) as b
+    where p.id = p_position_id and b.position_id = p_position_id
+  )
+  select span from blocks where not isempty(span)
+  union all
+  select int4range(p_start, p_end) where not exists (select 1 from blocks);
+$$;
+
+-- «A deactivated employee … is not offered as a substitute» (Assumptions PM 07): ні у виборі нової заявки, ні серед
+-- кандидатів у список замін. Нові тіла без зміни сигнатур.
+create or replace function private.my_substitute_options()
+returns table (substitute_id uuid, email text, main_title text, division_name text)
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select s.substitute_id, p.email, mp.title, d.name
+  from public.substitute_lists as s
+  join public.profiles as p on p.id = s.substitute_id
+  left join public.positions as mp on mp.employee_id = s.substitute_id and mp.kind = 'main'
+  left join public.divisions as d on d.id = mp.division_id
+  where s.employee_id = (select auth.uid())
+    and p.deactivated_at is null
+  order by p.email;
+$$;
+
+create or replace function private.substitute_candidates(p_employee_id uuid)
+returns table (profile_id uuid, email text, main_title text, division_name text)
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+begin
+  if (select auth.uid()) is null or not private.can_manage_substitutes(p_employee_id) then
+    raise exception 'Only the manager of this employee''s position can change the substitute list' using errcode = '42501';
+  end if;
+  return query
+    select p.id, p.email, mp.title, d.name
+    from public.profiles as p
+    left join public.positions as mp on mp.employee_id = p.id and mp.kind = 'main'
+    left join public.divisions as d on d.id = mp.division_id
+    where p.id <> p_employee_id
+      and p.deactivated_at is null
+      and not exists (
+        select 1 from public.substitute_lists as s where s.employee_id = p_employee_id and s.substitute_id = p.id
+      )
+    order by p.email;
+end;
+$$;
+
+-- Перевірка заміни в поданні (і в будь-якому майбутньому шляху запису, наприклад заявці від імені) — одним тригером,
+-- а не копією тіла submit_leave_request: деактивованого не можна вибрати заміною (розробник: текст). Наявні записи з
+-- ним лишаються як є (Assumptions PM: записи не змінюються) — тригер спрацьовує лише на новий запис чи зміну заміни.
+create function private.check_substitute_active()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  if new.substitute_id is not null
+     and (tg_op = 'INSERT' or new.substitute_id is distinct from old.substitute_id)
+     and exists (select 1 from public.profiles as p where p.id = new.substitute_id and p.deactivated_at is not null) then
+    raise exception 'This substitute is deactivated. Choose another substitute';
+  end if;
+  return new;
+end;
+$$;
+
+revoke execute on function private.check_substitute_active() from public, anon, authenticated;
+
+create trigger leave_records_check_substitute_active
+  before insert or update of substitute_id on public.leave_records
+  for each row execute function private.check_substitute_active();
