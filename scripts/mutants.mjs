@@ -44,8 +44,8 @@ const SUBST = "supabase/migrations/20261125000321_substitutes.sql";
 const SUBST_DB = "tests/db/substitutes.test.ts";
 // Керування працівниками (impl-staff-management, D1–D11; ADR 0013): функції адміністратора, одноразове посилання,
 // деактивація, розклад «з дати» й заступники — усе в одній міграції. Вона ж перекриває blocks_on_date, working_minutes і
-// closed_day_name, а також record_minute_ranges зрізу substitutes (блоки — через blocks_in_effect), тож S19, S21, S23
-// і S67 мутують чинні версії тут.
+// closed_day_name, а також record_minute_ranges зрізу substitutes (блоки — через blocks_in_effect), тож S19, S21, S23,
+// S66 і S67 мутують чинні версії тут.
 const STAFF = "supabase/migrations/20261125082128_staff_management.sql";
 const STAFF_EMPLOYEES_DB = "tests/db/staff-employees.test.ts";
 const STAFF_POSITIONS_DB = "tests/db/staff-positions.test.ts";
@@ -479,7 +479,7 @@ export const mutants = [
     replace: "",
   },
   {
-    id: "S66", kind: "sql", ac: "AC-SUBST-05", file: SUBST, tests: [SUBST_DB],
+    id: "S66", kind: "sql", ac: "AC-SUBST-05", file: STAFF, tests: [SUBST_DB],
     what: "record_minute_ranges: запис поза чинними блоками розкладу знову рахується всім проміжком",
     find: "  select int4range(p_start, p_end) where not exists (select 1 from blocks);",
     replace: "  select int4range(p_start, p_end) where not exists (select 1 from blocks where not isempty(span));",

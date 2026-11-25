@@ -37,16 +37,19 @@ describe("a deactivated employee is not a substitute", () => {
     const offered = async () =>
       (await t.asUser<{ email: string }>(teacher1, "select email from public.my_substitute_options()")).map((r) => r.email);
     expect(await offered()).toContain("teacher2@example.test");
+    // Кандидат у список — той, кого в списку teacher1@ ще немає (teacher2@ уже є і так не пропонується).
+    const assistant1 = t.users["assistant1@example.test"];
+    const candidates = async () =>
+      (
+        await t.asUser<{ email: string }>(manager1, "select email from public.substitute_candidates($1)", [teacher1])
+      ).map((c) => c.email);
+    expect(await candidates()).toContain("assistant1@example.test");
 
     await t.asUser(admin, "select public.deactivate_employee($1)", [teacher2]);
+    await t.asUser(admin, "select public.deactivate_employee($1)", [assistant1]);
 
     expect(await offered()).not.toContain("teacher2@example.test");
-    const candidates = await t.asUser<{ email: string }>(
-      manager1,
-      "select email from public.substitute_candidates($1)",
-      [teacher1],
-    );
-    expect(candidates.map((c) => c.email)).not.toContain("teacher2@example.test");
+    expect(await candidates()).not.toContain("assistant1@example.test");
     await expect(
       t.asUser(teacher1, "select public.submit_leave_request('unpaid', $1::jsonb)", [
         JSON.stringify([
