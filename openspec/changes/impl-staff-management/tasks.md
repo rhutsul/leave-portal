@@ -63,7 +63,7 @@ PR 1 — з тестом PGlite, у PR 2/3 додаються e2e.
 
 ## PR 2 — працівники, вхід і доступ (`task/staff-people`)
 
-- [ ] 2.1 Створення працівника й посилання (D2, D10, D13). `src/lib/staff/link.ts` (`linkValidUntil`, адреса з
+- [x] 2.1 Створення працівника й посилання (D2, D10, D13). `src/lib/staff/link.ts` (`linkValidUntil`, адреса з
       фрагментом), `src/lib/staff/employee.ts` (перевірка імені й email, тексти); `/staff`, `/staff/new` з картою
       посилання й «Copy link», `/staff/[id]` (картка «Sign-in», «Create a sign-in link»); `EmployeeStatus` у
       `src/components/ui` і приклад на `/design`; `/auth/set-password` (`checkLink`, `setPassword`, спільний
@@ -72,25 +72,25 @@ PR 1 — з тестом PGlite, у PR 2/3 додаються e2e.
       пароль за посиланням, вхід, «Active»; прострочене); `.mobile.spec.ts` на 390 px.
       Done when: AC-STAFF-01, AC-STAFF-02, AC-STAFF-03
 
-- [ ] 2.2 Доступ і меню (D10). `src/app/(app)/staff/admin-session.ts` (`requireAdmin`), сторінка відмови, пункти
+- [x] 2.2 Доступ і меню (D10). `src/app/(app)/staff/admin-session.ts` (`requireAdmin`), сторінка відмови, пункти
       «Employees» і «Deputies» з прапорцем `admin` у `sidebar-nav.tsx` і мобільному меню, `navSection`. Тести: e2e
       manager1@ на `/staff/new` — текст AC, список без змін; гість на `/staff` — `/login` без email;
       `proxy.test.ts` — `guestRedirect("/staff")`.
       Done when: AC-STAFF-13, AC-STAFF-15
 
-- [ ] 2.3 Деактивація (D6). «Deactivate» / «Reactivate» у `RowMenu` і картці «Sign-in» з `Dialog`; `login()` мапить
+- [x] 2.3 Деактивація (D6). «Deactivate» / «Reactivate» у `RowMenu` і картці «Sign-in» з `Dialog`; `login()` мапить
       `user_banned` → `?error=deactivated`, текст AC на `/login`; `(app)/layout.tsx` виводить деактивованого. Тести:
       unit мапінгу помилок входу; e2e — деактивований не входить і бачить текст AC, manager1@ бачить його запис у
       «History».
       Done when: AC-STAFF-08
 
-- [ ] 2.4 Ім'я, email і роль (D4, D5, D10). Картки «Details» і «Role» на `/staff/[id]` (для себе — вимкнено з текстом
+- [x] 2.4 Ім'я, email і роль (D4, D5, D10). Картки «Details» і «Role» на `/staff/[id]` (для себе — вимкнено з текстом
       AC); `/account` — поля лише для читання й текст AC-STAFF-12. Тести: e2e — адмін змінює ім'я й email, людина
       входить новим email і тим самим паролем; працівник бачить текст AC, `auth.updateUser({ email })` відмовлено,
       ім'я й email ті самі; адмін не змінює власну роль.
       Done when: AC-STAFF-11, AC-STAFF-12, AC-STAFF-18
 
-- [ ] 2.5 Власний пароль — AC ID (ADR 0011). AC ID у назвах двох тестів `tests/e2e/account.spec.ts` («AC-STAFF-16: …»,
+- [x] 2.5 Власний пароль — AC ID (ADR 0011). AC ID у назвах двох тестів `tests/e2e/account.spec.ts` («AC-STAFF-16: …»,
       «AC-STAFF-17: …»), коментарі «ще не в openspec/specs» у `password.test.ts` і `change-password-form.test.tsx`
       прибрати; рядки AC-STAFF-16, -17 у `docs/conformance.md` — `реалізовано`.
       Done when: AC-STAFF-16, AC-STAFF-17

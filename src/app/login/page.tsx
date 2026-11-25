@@ -11,6 +11,7 @@ import { PasswordInput } from "@/components/ui/password-input";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { ThemeMenu } from "@/components/ui/theme-menu";
 import { parseTheme, THEME_COOKIE } from "@/lib/preferences";
+import { STAFF_MESSAGES } from "@/lib/staff/employee";
 import { login } from "./actions";
 
 // На дотику (ADR 0008): поле 44 px заввишки — ціль для пальця (шрифт 16 px дає сам Input, висоту поля пароля —
@@ -20,6 +21,8 @@ const TOUCH_FIELD = "pointer-coarse:h-11";
 const ERRORS: Record<string, string> = {
   missing: "Enter your email and password.",
   invalid: "Incorrect email or password.",
+  // Дослівно з AC-STAFF-08 (requirements/07-staff-management.md).
+  deactivated: STAFF_MESSAGES.deactivated,
 };
 
 /**

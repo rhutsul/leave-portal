@@ -41,11 +41,10 @@ for (const { role, email, label } of ROLES) {
       await page.getByRole("link", { name: /^Account: / }).click();
       await expect(page).toHaveURL(/\/account$/);
       await expect(page.getByRole("heading", { level: 1, name: "Account" })).toBeVisible();
-      const details = page.getByRole("definition");
-      await expect(details.filter({ hasText: email })).toBeVisible();
-      await expect(details.filter({ hasText: new RegExp(`^${label}$`) })).toBeVisible();
-      // Ім'я й email лише для читання: полів, крім трьох паролів, на сторінці немає.
-      await expect(page.locator("main input:not([type=hidden])")).toHaveCount(3);
+      await expect(page.getByLabel("Email", { exact: true })).toHaveValue(email);
+      await expect(page.getByRole("definition").filter({ hasText: new RegExp(`^${label}$`) })).toBeVisible();
+      // Ім'я й email — лише для читання (AC-STAFF-12): редагуються лише три поля пароля.
+      await expect(page.locator("main input:not([type=hidden]):not([readonly])")).toHaveCount(3);
       await expect(page.getByRole("button", { name: "Change password" })).toBeVisible();
       await cleanScreenshot(page, test.info().outputPath(`account-1280-${role}.png`));
     });
@@ -54,13 +53,13 @@ for (const { role, email, label } of ROLES) {
 
 // Два сценарії вимоги PM 07: AC-STAFF-16 (правильний поточний і новий пароль на 12 знаків) і AC-STAFF-17 (неправильний
 // поточний). AC називають teacher1@example.test, але його пароль тримає UAT і інші тести, тож та сама поведінка — на
-// одноразовому акаунті. AC ID у назвах з'являться після PR «Специфікація» на зріз 07 (інакше ac:coverage — ORPHAN).
+// одноразовому акаунті.
 test.describe("change own password", { tag: "@prod-writes" }, () => {
   test.afterEach(async () => {
     await cleanupRemembered();
   });
 
-  test("correct current password and a 12-character new one: the change is confirmed, then only the new password signs in", async ({
+  test("AC-STAFF-16: correct current password and a 12-character new one: the change is confirmed, then only the new password signs in", async ({
     page,
   }) => {
     const user = await createUatAccount();
@@ -90,7 +89,7 @@ test.describe("change own password", { tag: "@prod-writes" }, () => {
     await expect(page.getByTestId("user-email")).toHaveText(user.email);
   });
 
-  test("wrong current password: the change is refused and the old password still signs in", async ({ page }) => {
+  test("AC-STAFF-17: wrong current password: the change is refused and the old password still signs in", async ({ page }) => {
     const user = await createUatAccount();
 
     await submitLogin(page, user.email, user.password);

@@ -3,7 +3,17 @@
 import Link, { useLinkStatus } from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
-import { CalendarDays, ChartColumn, ClipboardCheck, FileSpreadsheet, House, List, UserRoundCheck, UsersRound } from "lucide-react";
+import {
+  CalendarDays,
+  ChartColumn,
+  ClipboardCheck,
+  FileSpreadsheet,
+  House,
+  IdCard,
+  List,
+  UserRoundCheck,
+  UsersRound,
+} from "lucide-react";
 import { markHydrated, Tick } from "@/components/ui/motion";
 import { highlightTarget, navSection } from "@/lib/motion";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -12,8 +22,9 @@ import { cn } from "@/lib/utils";
 // «New request» — не пункт меню, а окрема форма розділу «My requests»: її відкривають кнопки «New request» на Overview
 // і в My requests, а підсвітка на /requests/new стоїть на «My requests» (navSection). `deciders` — лише manager і
 // admin: «Decisions», «Register» (реєстр погоджених відсутностей, ADR 0012) і «Substitutes» (списки замін, вимога 06);
-// «My substitutions» — усім (матриця прав requirements/product.md).
-const LINKS: { href: string; label: string; icon: ReactNode; deciders?: true }[] = [
+// «My substitutions» — усім (матриця прав requirements/product.md). `admin` — лише адміністратор: «Employees»
+// (керування працівниками, вимога 07, AC-STAFF-13).
+const LINKS: { href: string; label: string; icon: ReactNode; deciders?: true; admin?: true }[] = [
   { href: "/", label: "Overview", icon: <House /> },
   { href: "/requests", label: "My requests", icon: <List /> },
   { href: "/substitutions", label: "My substitutions", icon: <UserRoundCheck /> },
@@ -22,6 +33,7 @@ const LINKS: { href: string; label: string; icon: ReactNode; deciders?: true }[]
   { href: "/substitutes", label: "Substitutes", icon: <UsersRound />, deciders: true },
   { href: "/balances", label: "Balances", icon: <ChartColumn /> },
   { href: "/calendar", label: "School calendar", icon: <CalendarDays /> },
+  { href: "/staff", label: "Employees", icon: <IdCard />, admin: true },
 ];
 
 /**
@@ -74,11 +86,14 @@ export function SidebarNav({
   awaiting,
   toDecide,
   canDecide,
+  isAdmin = false,
   collapsed,
 }: {
   awaiting: number;
   toDecide: number;
   canDecide: boolean;
+  /** Роль admin: пункт «Employees» (AC-STAFF-13). */
+  isAdmin?: boolean;
   collapsed: boolean;
 }) {
   const pathname = usePathname();
@@ -122,7 +137,7 @@ export function SidebarNav({
           style={{ height: box.height, transform: `translateY(${box.top}px)` }}
         />
       )}
-      {LINKS.filter((l) => !l.deciders || canDecide).map(({ href, label, icon }) => {
+      {LINKS.filter((l) => (!l.deciders || canDecide) && (!l.admin || isAdmin)).map(({ href, label, icon }) => {
         const active = target === href;
         return (
           <Tooltip key={href} disabled={!collapsed}>

@@ -39,7 +39,8 @@ export function readPasswordFields(form: FormData): PasswordFields {
   return { current: text("current_password"), next: text("new_password"), confirm: text("confirm_password") };
 }
 
-function newPasswordError(next: string, current: string): string | null {
+/** Новий пароль сам по собі (без підтвердження): спільне для /account і пароля за одноразовим посиланням. */
+export function newPasswordError(next: string, current = ""): string | null {
   if (!next) return PASSWORD_MESSAGES.nextMissing;
   // Довжина — у кодових точках (емодзі — один знак), а не в одиницях UTF-16.
   if ([...next].length < MIN_PASSWORD_LENGTH) return PASSWORD_MESSAGES.nextShort;

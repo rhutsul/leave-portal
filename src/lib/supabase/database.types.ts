@@ -43,6 +43,40 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"deputy_assignments": {
+                  Row: {
+                    "created_at": string,"created_by": string | null,"deputy_id": string,"end_date": string,"id": number,"manager_id": string,"start_date": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string,"created_by"?: string | null,"deputy_id": string,"end_date": string,"id"?: never,"manager_id": string,"start_date": string
+                  }
+                  Update: {
+                    "created_at"?: string,"created_by"?: string | null,"deputy_id"?: string,"end_date"?: string,"id"?: never,"manager_id"?: string,"start_date"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "deputy_assignments_created_by_fkey"
+      columns: ["created_by"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    },
+    {
+      foreignKeyName: "deputy_assignments_deputy_id_fkey"
+      columns: ["deputy_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    },
+    {
+      foreignKeyName: "deputy_assignments_manager_id_fkey"
+      columns: ["manager_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"divisions": {
                   Row: {
                     "code": string,"id": number,"name": string
@@ -207,21 +241,21 @@ isOneToOne: false
                   ]
                 },"profiles": {
                   Row: {
-                    "created_at": string,"email": string | null,"full_name": string | null,"id": string,"role": string
+                    "created_at": string,"deactivated_at": string | null,"email": string | null,"full_name": string | null,"id": string,"role": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "created_at"?: string,"email"?: string | null,"full_name"?: string | null,"id": string,"role"?: string
+                    "created_at"?: string,"deactivated_at"?: string | null,"email"?: string | null,"full_name"?: string | null,"id": string,"role"?: string
                   }
                   Update: {
-                    "created_at"?: string,"email"?: string | null,"full_name"?: string | null,"id"?: string,"role"?: string
+                    "created_at"?: string,"deactivated_at"?: string | null,"email"?: string | null,"full_name"?: string | null,"id"?: string,"role"?: string
                   }
                   Relationships: [
                     
                   ]
                 },"schedule_blocks": {
                   Row: {
-                    "employee_id": string,"end_min": number,"id": number,"position_id": number,"start_min": number,"weekday": number
+                    "employee_id": string,"end_min": number,"id": number,"position_id": number,"start_min": number,"valid_from": string | null,"valid_to": string | null,"weekday": number
                   }
                   ComputedFields: never
                   Insert: {
@@ -323,7 +357,54 @@ isOneToOne: false
                 }
           }
           Functions: {
-            "add_school_closure":
+            "assign_deputy":
+{ Args: { "p_deputy_id": string,"p_end": string,"p_manager_id": string,"p_start": string }; Returns: number
+                           },
+"create_employee":
+{ Args: { "p_email": string,"p_full_name": string,"p_role"?: string }; Returns: {
+              "employee_id": string,"token": string,"valid_until": string
+            }[]
+                           },
+"create_position":
+{ Args: { "p_blocks": Json,"p_division_id": number,"p_employee_id": string,"p_kind": string,"p_manager_ids": (string)[],"p_title": string,"p_valid_from": string }; Returns: number
+                           },
+"deactivate_employee":
+{ Args: { "p_employee_id": string }; Returns: undefined
+                           },
+"issue_one_time_link":
+{ Args: { "p_employee_id": string }; Returns: {
+              "token": string,"valid_until": string
+            }[]
+                           },
+"reactivate_employee":
+{ Args: { "p_employee_id": string }; Returns: undefined
+                           },
+"remove_deputy":
+{ Args: { "p_assignment_id": number }; Returns: undefined
+                           },
+"set_employee_role":
+{ Args: { "p_employee_id": string,"p_role": string }; Returns: undefined
+                           },
+"set_position_managers":
+{ Args: { "p_manager_ids": (string)[],"p_position_id": number }; Returns: undefined
+                           },
+"set_position_schedule":
+{ Args: { "p_blocks": Json,"p_position_id": number,"p_valid_from": string }; Returns: undefined
+                           },
+"staff_employees":
+{ Args: Record<PropertyKey, never>; Returns: {
+              "deactivated_at": string,"email": string,"full_name": string,"id": string,"main_position": string,"role": string,"status": string
+            }[]
+                           },
+"update_employee":
+{ Args: { "p_email": string,"p_employee_id": string,"p_full_name": string }; Returns: undefined
+                           },
+"use_one_time_link":
+{ Args: { "p_password"?: string,"p_token": string }; Returns: {
+              "email": string,"state": string
+            }[]
+                           },
+"add_school_closure":
 { Args: { "p_closes_at"?: number,"p_end"?: string,"p_kind": string,"p_name": string,"p_start": string }; Returns: number
                            },
 "approved_register":

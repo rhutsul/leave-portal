@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { PageHeader } from "@/components/ui/page-header";
+import { STAFF_MESSAGES } from "@/lib/staff/employee";
 import { createClient } from "@/lib/supabase/server";
 import { ChangePasswordForm } from "./change-password-form";
 
@@ -40,12 +43,16 @@ export default async function AccountPage() {
         <Card className="min-w-0 flex-[1_1_280px]">
           <CardHeader>
             <CardTitle>Your details</CardTitle>
-            <CardDescription>Your school administrator changes your name and email.</CardDescription>
+            <CardDescription>Your name, email and role.</CardDescription>
           </CardHeader>
-          <CardContent>
-            <dl className="flex flex-col gap-3.5">
-              <Detail label="Name" value={name} />
-              <Detail label="Email" value={email} />
+          <CardContent className="flex flex-col gap-3.5">
+            {/* AC-STAFF-12: ім'я й email — лише для читання, поруч текст AC; змінити їх в обхід не дає база (D5). */}
+            <ReadOnlyField id="account-name" label="Name" value={name} />
+            <ReadOnlyField id="account-email" label="Email" value={email} />
+            <p id="account-names-note" className="text-xs text-muted-foreground" data-testid="names-note">
+              {STAFF_MESSAGES.adminChangesNames}
+            </p>
+            <dl>
               <Detail label="Role" value={role} />
             </dl>
           </CardContent>
@@ -61,6 +68,15 @@ export default async function AccountPage() {
         </Card>
       </div>
     </>
+  );
+}
+
+function ReadOnlyField({ id, label, value }: { id: string; label: string; value: string }) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <Label htmlFor={id}>{label}</Label>
+      <Input id={id} readOnly value={value} aria-describedby="account-names-note" className="pointer-coarse:h-11" />
+    </div>
   );
 }
 

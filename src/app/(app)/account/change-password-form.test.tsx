@@ -1,5 +1,5 @@
 // Форма «Change password» (ADR 0011): як показано відповідь server action. DOM-середовища в репо немає, тож рендеримо
-// renderToStaticMarkup, а відповідь дії підставляємо через useActionState. Без AC ID: AC-STAFF-16, -17 ще не в openspec/specs.
+// renderToStaticMarkup, а відповідь дії підставляємо через useActionState. AC ID — у тестах текстів AC-STAFF-16 і -17.
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { INITIAL_CHANGE_PASSWORD, NO_PASSWORD_ERRORS, PASSWORD_MESSAGES as M, type ChangePasswordState } from "@/lib/account/password";
@@ -45,7 +45,7 @@ describe("ChangePasswordForm", () => {
     expect(html).not.toContain('role="alert"');
   });
 
-  it("shows a wrong current password under its field, linked by aria-describedby", () => {
+  it("AC-STAFF-17: shows a wrong current password under its field, linked by aria-describedby", () => {
     const html = render({ ...INITIAL_CHANGE_PASSWORD, errors: { ...NO_PASSWORD_ERRORS, current: M.currentWrong } });
     const field = input(html, "current_password");
     expect(field).toContain('aria-invalid="true"');
@@ -62,7 +62,7 @@ describe("ChangePasswordForm", () => {
     expect(html).toContain(M.rateLimited);
   });
 
-  it("confirms the change", () => {
+  it("AC-STAFF-16: confirms the change", () => {
     const html = render({ ...INITIAL_CHANGE_PASSWORD, done: true });
     expect(html).toContain("Your password has been changed");
     expect(html).toContain('role="status"');

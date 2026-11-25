@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { loginErrorOf } from "@/lib/staff/login";
 import { createClient } from "@/lib/supabase/server";
 
 // Вхід email + пароль. Реєстрації в шаблоні немає: користувачів створює
@@ -19,8 +20,9 @@ export async function login(formData: FormData) {
   const { error } = await supabase.auth.signInWithPassword({ email, password });
 
   if (error) {
-    // Не показуємо текст помилки Auth: він може підказати, чи існує email.
-    redirect("/login?error=invalid");
+    // Не показуємо текст помилки Auth: він може підказати, чи існує email. Виняток — деактивований (AC-STAFF-08): Auth
+    // відмовляє йому з кодом user_banned (бан ставить private.deactivate_employee, ADR 0013).
+    redirect(`/login?error=${loginErrorOf(error)}`);
   }
 
   revalidatePath("/", "layout");

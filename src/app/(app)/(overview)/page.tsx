@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Plus } from "lucide-react";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { CircleCheck, Plus } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { buttonVariants } from "@/components/ui/button";
 import { DotMonth } from "@/components/ui/dot-month";
 import { StatStrip } from "@/components/ui/stat-strip";
@@ -33,7 +33,7 @@ export default async function Overview({ searchParams }: PageProps<"/">) {
   const claims = auth?.claims;
   if (!claims) redirect("/login");
 
-  const { day, weeks } = await searchParams;
+  const { day, weeks, notice } = await searchParams;
   const now = new Date();
   const today = kyivDate(now);
   const page = timelinePage(weeks);
@@ -66,6 +66,14 @@ export default async function Overview({ searchParams }: PageProps<"/">) {
 
   return (
     <>
+      {notice === "password-set" && (
+        // Після пароля за одноразовим посиланням (/auth/set-password): дослівно з AC-STAFF-02.
+        <Alert variant="info" role="status" data-testid="password-set">
+          <CircleCheck />
+          <AlertTitle>Your password is set</AlertTitle>
+          <AlertDescription>Sign in with your email and this password next time.</AlertDescription>
+        </Alert>
+      )}
       <header className="flex flex-wrap items-end justify-between gap-x-10 gap-y-6 border-b border-border pb-6">
         <div className="flex min-w-0 flex-[1_1_260px] flex-col gap-2.5">
           <span className="font-mono text-[11px] tracking-wide text-muted-foreground uppercase">{formatDateLong(today)}</span>

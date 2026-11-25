@@ -1,5 +1,5 @@
-// Зміна власного пароля (ADR 0011, вимога PM 07): правила перевірки й тексти помилок Auth. Без AC ID у назвах: AC-STAFF-16,
-// -17 ще не в openspec/specs (до PR «Специфікація» на зріз 07 ac:coverage дав би ORPHAN).
+// Зміна власного пароля (ADR 0011, вимога PM 07): правила перевірки й тексти помилок Auth. AC ID — у тестах, що
+// доводять тексти AC-STAFF-16 і AC-STAFF-17; решта правил — розробника (ADR 0011), без AC ID.
 import { describe, expect, it } from "vitest";
 import {
   hasPasswordErrors,
@@ -65,7 +65,7 @@ describe("readPasswordFields", () => {
 });
 
 describe("verifyFailure", () => {
-  it("shows one general text under Current password, without Auth details", () => {
+  it("AC-STAFF-17: shows one general text under Current password, without Auth details", () => {
     const wrong = verifyFailure({ code: "invalid_credentials", status: 400 });
     expect(wrong).toEqual({ errors: { ...NO_PASSWORD_ERRORS, current: M.currentWrong }, message: "", done: false });
     expect(verifyFailure({ code: "email_not_confirmed", status: 400 }).errors.current).toBe(M.currentWrong);
