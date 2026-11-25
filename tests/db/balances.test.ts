@@ -225,10 +225,12 @@ describe("balance_employees", () => {
     expect(await emails(manager1)).toEqual(["teacher1@example.test"]);
     expect(await emails(manager2)).toEqual(["teacher1@example.test", "teacher2@example.test"]);
     expect(await emails(admin)).toEqual([
+      "assistant1@example.test",
       "manager1@example.test",
       "manager2@example.test",
       "teacher1@example.test",
       "teacher2@example.test",
+      "teacher3@example.test",
     ]);
   });
 
