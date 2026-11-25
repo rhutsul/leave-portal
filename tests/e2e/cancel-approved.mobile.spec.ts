@@ -3,7 +3,7 @@
 // прохання з кнопкою внизу екрана, панель запису менеджера на весь екран із смугою дій. Світла й темна тема — лише
 // токени. Без AC ID: вигляд — за розробником (поведінку доводить cancel-approved.spec.ts). Знімки — у test-results/
 // (артефакт CI). Дані — синтетичний працівник (@prod-writes, прибирання за id).
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import { cleanupRemembered, hasAdminKey } from "./support/admin";
 import {
   approvedRecord,
@@ -17,15 +17,11 @@ import {
   cancelledWithNote,
 } from "./support/cancel";
 import { cleanScreenshot } from "./support/uat";
+import { expectNoSidewaysScroll } from "./support/layout";
 
 test.afterEach(async () => {
   if (hasAdminKey()) await cleanupRemembered();
 });
-
-async function noSidewaysScroll(page: Page) {
-  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
-  expect(overflow).toBeLessThanOrEqual(0);
-}
 
 for (const theme of ["light", "dark"] as const) {
   test(`cancellation states on a 390 px phone, ${theme}`, { tag: ["@prod-writes"] }, async ({ browser }) => {
@@ -50,7 +46,7 @@ for (const theme of ["light", "dark"] as const) {
       await expect(myRecordRow(page, requested).getByTestId("cancellation-mark")).toHaveText("Cancellation requested");
       await expect(myRecordRow(page, declined).getByTestId("cancellation-mark")).toHaveText("Cancellation declined: Exam week");
       await expect(myRecordRow(page, noted).getByTestId("cancellation-mark")).toHaveText("Manager: “Event moved to January”");
-      await noSidewaysScroll(page);
+      await expectNoSidewaysScroll(page);
       await cleanScreenshot(page, test.info().outputPath(`cancel-my-requests-390-${theme}.png`), true);
 
       // Форма прохання: кнопка «Request cancellation» прикріплена внизу екрана.
@@ -62,7 +58,7 @@ for (const theme of ["light", "dark"] as const) {
       const submit = (await page.getByRole("button", { name: "Request cancellation" }).boundingBox())!;
       expect(submit.y + submit.height).toBeGreaterThan(844 - 120);
       expect(submit.height).toBeGreaterThanOrEqual(44);
-      await noSidewaysScroll(page);
+      await expectNoSidewaysScroll(page);
       await cleanScreenshot(page, test.info().outputPath(`cancel-request-form-390-${theme}.png`));
 
       // Панель менеджера на весь екран: прохання, смуга дій унизу, діалог підтвердження.
