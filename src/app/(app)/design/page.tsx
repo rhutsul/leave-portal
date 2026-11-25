@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { Ban, CalendarDays, CircleAlert, Clock, Eye, Info, Plus, RotateCcw, SearchX, ShieldX, TriangleAlert, X } from "lucide-react";
+import { Ban, CalendarDays, CircleAlert, Clock, Eye, Info, Plus, RotateCcw, SearchX, ShieldX, TriangleAlert, UserRound, X } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { BalanceCard } from "@/components/ui/balance-card";
 import { Button } from "@/components/ui/button";
@@ -24,6 +24,8 @@ import {
 } from "@/components/ui/dialog";
 import { CancellationMarkView } from "@/components/ui/cancellation-mark";
 import { EmptyState } from "@/components/ui/empty-state";
+import { SubstituteNote } from "@/components/ui/substitute-note";
+import { SUBSTITUTE_MESSAGES } from "@/lib/leave/substitutes";
 import { HoursBar } from "@/components/ui/hours-bar";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -326,6 +328,37 @@ export default async function DesignPage() {
             <Label htmlFor="design-cancel-reason">Reason</Label>
             <Textarea id="design-cancel-reason" rows={2} defaultValue="Plans changed" />
           </div>
+        </div>
+      </Section>
+
+      <Section title="Substitutes">
+        {/* D8 openspec/changes/impl-substitutes/design.md: заміна — приглушений рядок з іконкою, позначка підвищення —
+            тег secondary; порожній список у заявці — Alert info; відмова й «немає замін» — EmptyState. */}
+        <div className="flex flex-wrap gap-x-10 gap-y-4" data-testid="design-substitutes">
+          <SubstituteNote email="assistant1@example.test" upgradeMinutes={210} />
+          <SubstituteNote email="teacher2@example.test" />
+          <SubstituteNote email={null} />
+        </div>
+        <div className="flex max-w-xl flex-col gap-3">
+          <Alert variant="info" role="note">
+            <Info />
+            <AlertDescription>{SUBSTITUTE_MESSAGES.emptyList}</AlertDescription>
+          </Alert>
+          <Alert variant="destructive">
+            <AlertDescription>assistant1@example.test is not available at this time: 2026-12-02 09:00–11:00</AlertDescription>
+          </Alert>
+        </div>
+        <div className="grid gap-4 md:grid-cols-2">
+          <EmptyState
+            icon={<ShieldX className="size-5" aria-hidden="true" />}
+            title={SUBSTITUTE_MESSAGES.notManager}
+            text="Substitute lists are kept by the managers of the employee's positions and by administrators."
+          />
+          <EmptyState
+            icon={<UserRound className="size-5" aria-hidden="true" />}
+            title={SUBSTITUTE_MESSAGES.notCovering}
+            text="Records where you are chosen as the substitute will appear here."
+          />
         </div>
       </Section>
 

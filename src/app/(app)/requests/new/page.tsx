@@ -9,6 +9,7 @@ import { createClient } from "@/lib/supabase/server";
 import { loadRemaining } from "../../balances/load-balances";
 import { loadClosures } from "../../calendar/load-closures";
 import { loadOwnPositions } from "./load-positions";
+import { loadSubstituteOptions } from "./load-substitutes";
 import { NewRequestForm } from "./new-request-form";
 
 export default async function NewRequestPage() {
@@ -21,7 +22,7 @@ export default async function NewRequestPage() {
   // заявки «заднім числом» і наперед. Дати поза ними перевіряє server action під час подання.
   const today = kyivDate(new Date());
   const year = schoolYearOf(today);
-  const [positions, remaining, { data: active, error: activeError }, closures] = await Promise.all([
+  const [positions, remaining, { data: active, error: activeError }, closures, substitutes] = await Promise.all([
     loadOwnPositions(supabase, claims.sub),
     loadRemaining(supabase, claims.sub, [year - 1, year, year + 1]).catch(() => null),
     // Дати, на які вже є чинні власні записи: календар їх зафарбовує (DESIGN.md, розділ 6). Перетин перевіряє база
@@ -37,6 +38,8 @@ export default async function NewRequestPage() {
     // вантажимо одразу все вікно (AC-CAL-03 … AC-CAL-05). Збій — null: форма не позначить закритих днів, а подання
     // однаково перевірить їх.
     loadClosures(supabase, `${year - 1}-09-01`, `${year + 2}-08-31`).catch(() => null),
+    // Список замін для поля «Substitute» на кожному записі (AC-SUBST-02, AC-SUBST-04, AC-SUBST-11); збій — без поля.
+    loadSubstituteOptions(supabase),
   ]);
   const recordDates = activeError
     ? null
@@ -66,6 +69,7 @@ export default async function NewRequestPage() {
           remaining={remaining && Object.fromEntries(remaining)}
           recordDates={recordDates}
           closures={closures}
+          substitutes={substitutes}
         />
       )}
     </>

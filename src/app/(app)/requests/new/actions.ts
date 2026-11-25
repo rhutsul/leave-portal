@@ -12,12 +12,15 @@ import {
   findOverlap,
   overlapMessage,
   toRpcRecords,
+  type DraftRecord,
 } from "@/lib/leave/request";
+import { checkSubstitutes, substituteIdOf } from "@/lib/leave/substitutes";
 import { isCalendarDate } from "@/lib/leave/time";
 import { createClient } from "@/lib/supabase/server";
 import { loadRemaining } from "../../balances/load-balances";
 import { dateSpan, loadClosures } from "../../calendar/load-closures";
 import { loadOwnPositions } from "./load-positions";
+import { loadSubstituteOptions } from "./load-substitutes";
 import { submitRedirect } from "./submit-redirect";
 
 type Supabase = Awaited<ReturnType<typeof createClient>>;
@@ -47,6 +50,7 @@ function parsePayload(raw: FormDataEntryValue | null): RequestPayload | null {
       wholeDay: c.wholeDay === true,
       start: typeof c.start === "string" ? c.start : undefined,
       end: typeof c.end === "string" ? c.end : undefined,
+      substituteId: substituteIdOf(c.substituteId),
     }));
     return {
       dates: value.dates,
@@ -77,6 +81,36 @@ async function loadRequestContext(supabase: Supabase, employeeId: string, dates:
   }
 }
 
+/**
+ * Заміна — лише зі списку працівника (AC-SUBST-04): текст відмови або null. Зайнятість заміни (AC-SUBST-05,
+ * AC-SUBST-06) перевіряє лише база — чужі записи працівнику не видно; її текст приходить як P0001 з submit_leave_request.
+ */
+async function checkChosenSubstitutes(supabase: Supabase, records: readonly { substituteId?: string }[]) {
+  const chosen = records.map((r) => r.substituteId);
+  if (!chosen.some(Boolean)) return null;
+  const options = await loadSubstituteOptions(supabase);
+  return options ? checkSubstitutes(chosen, options) : FAILED;
+}
+
+/**
+ * Перетин із власними записами тих самих дат (AC-LEAVE-13, AC-LEAVE-16): текст або null. RLS показує менеджеру й
+ * записи його посад — тож фільтр за employee_id. Одночасні заявки ловить exclusion-обмеження в базі.
+ */
+async function overlapWithOwn(supabase: Supabase, employeeId: string, records: DraftRecord[]): Promise<string | null> {
+  const { data: existing, error } = await supabase
+    .from("leave_records")
+    .select("position_id, date, start_min, end_min, status")
+    .eq("employee_id", employeeId)
+    .in("date", [...new Set(records.map((r) => r.date))])
+    .in("status", [...BLOCKING_STATUSES]);
+  if (error) return FAILED;
+  const conflict = findOverlap(
+    records,
+    existing.map((r) => ({ positionId: r.position_id, date: r.date, start: r.start_min, end: r.end_min, status: r.status })),
+  );
+  return conflict ? overlapMessage(conflict) : null;
+}
+
 // Подання заявки після підсумку. Записи будуємо заново з розкладу в базі (клієнту не довіряємо), перевіряємо тими
 // самими чистими функціями, що й форма, а submit_leave_request перевіряє все ще раз і створює записи прийнятих дат
 // цілком або нічого. Дату без робочих годин не приймаємо, інші дати лишаються (AC-LEAVE-21).
@@ -100,20 +134,9 @@ export async function submitLeaveRequest(_prev: SubmitState, formData: FormData)
   const comment = checkComment(payload.comment);
   if (!comment.ok) return { message: comment.message };
 
-  // Перетин із власними записами тих самих дат (AC-LEAVE-13, AC-LEAVE-16). RLS показує менеджеру й записи його
-  // посад — тож фільтр за employee_id. Одночасні заявки ловить exclusion-обмеження в базі.
-  const { data: existing, error: existingError } = await supabase
-    .from("leave_records")
-    .select("position_id, date, start_min, end_min, status")
-    .eq("employee_id", claims.sub)
-    .in("date", [...new Set(records.records.map((r) => r.date))])
-    .in("status", [...BLOCKING_STATUSES]);
-  if (existingError) return { message: FAILED };
-  const conflict = findOverlap(
-    records.records,
-    existing.map((r) => ({ positionId: r.position_id, date: r.date, start: r.start_min, end: r.end_min, status: r.status })),
-  );
-  if (conflict) return { message: overlapMessage(conflict) };
+  const refused =
+    (await checkChosenSubstitutes(supabase, records.records)) ?? (await overlapWithOwn(supabase, claims.sub, records.records));
+  if (refused) return { message: refused };
 
   // Залишок на момент подання — для одного попередження на всю заявку (AC-BALANCE-08, AC-BALANCE-15, AC-BALANCE-17).
   // Попередження не зупиняє подання; якщо залишок не завантажився, «My requests» скаже, що його не перевірено.

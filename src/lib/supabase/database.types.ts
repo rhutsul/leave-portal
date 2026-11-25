@@ -91,14 +91,14 @@ isOneToOne: false
                   ]
                 },"leave_records": {
                   Row: {
-                    "cancel_declined_comment": string | null,"cancel_note": string | null,"cancel_reason": string | null,"cancel_request_id": number | null,"created_at": string,"date": string,"day_share": number | null,"employee_comment": string | null,"employee_id": string,"end_min": number,"id": number,"leave_type": string,"manager_comment": string | null,"minutes": number,"paid_days": number | null,"position_id": number,"relationship": string | null,"request_id": number,"start_min": number,"status": string,"unpaid_days": number | null,"updated_at": string
+                    "cancel_declined_comment": string | null,"cancel_note": string | null,"cancel_reason": string | null,"cancel_request_id": number | null,"created_at": string,"date": string,"day_share": number | null,"employee_comment": string | null,"employee_id": string,"end_min": number,"id": number,"leave_type": string,"manager_comment": string | null,"minutes": number,"paid_days": number | null,"position_id": number,"relationship": string | null,"request_id": number,"start_min": number,"status": string,"substitute_id": string | null,"unpaid_days": number | null,"updated_at": string,"upgrade_minutes": number | null
                   }
                   ComputedFields: never
                   Insert: {
-                    "cancel_declined_comment"?: string | null,"cancel_note"?: string | null,"cancel_reason"?: string | null,"cancel_request_id"?: number | null,"created_at"?: string,"date": string,"day_share"?: number | null,"employee_comment"?: string | null,"employee_id": string,"end_min": number,"id"?: never,"leave_type": string,"manager_comment"?: string | null,"minutes": number,"paid_days"?: number | null,"position_id": number,"relationship"?: string | null,"request_id": number,"start_min": number,"status"?: string,"unpaid_days"?: number | null,"updated_at"?: string
+                    "cancel_declined_comment"?: string | null,"cancel_note"?: string | null,"cancel_reason"?: string | null,"cancel_request_id"?: number | null,"created_at"?: string,"date": string,"day_share"?: number | null,"employee_comment"?: string | null,"employee_id": string,"end_min": number,"id"?: never,"leave_type": string,"manager_comment"?: string | null,"minutes": number,"paid_days"?: number | null,"position_id": number,"relationship"?: string | null,"request_id": number,"start_min": number,"status"?: string,"substitute_id"?: string | null,"unpaid_days"?: number | null,"updated_at"?: string,"upgrade_minutes"?: number | null
                   }
                   Update: {
-                    "cancel_declined_comment"?: string | null,"cancel_note"?: string | null,"cancel_reason"?: string | null,"cancel_request_id"?: number | null,"created_at"?: string,"date"?: string,"day_share"?: number | null,"employee_comment"?: string | null,"employee_id"?: string,"end_min"?: number,"id"?: never,"leave_type"?: string,"manager_comment"?: string | null,"minutes"?: number,"paid_days"?: number | null,"position_id"?: number,"relationship"?: string | null,"request_id"?: number,"start_min"?: number,"status"?: string,"unpaid_days"?: number | null,"updated_at"?: string
+                    "cancel_declined_comment"?: string | null,"cancel_note"?: string | null,"cancel_reason"?: string | null,"cancel_request_id"?: number | null,"created_at"?: string,"date"?: string,"day_share"?: number | null,"employee_comment"?: string | null,"employee_id"?: string,"end_min"?: number,"id"?: never,"leave_type"?: string,"manager_comment"?: string | null,"minutes"?: number,"paid_days"?: number | null,"position_id"?: number,"relationship"?: string | null,"request_id"?: number,"start_min"?: number,"status"?: string,"substitute_id"?: string | null,"unpaid_days"?: number | null,"updated_at"?: string,"upgrade_minutes"?: number | null
                   }
                   Relationships: [
                     {
@@ -124,6 +124,12 @@ isOneToOne: false
       columns: ["request_id"]
 isOneToOne: false
       referencedRelation: "leave_requests"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "leave_records_substitute_id_fkey"
+      columns: ["substitute_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
       referencedColumns: ["id"]
     }
                   ]
@@ -259,6 +265,38 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"substitute_lists": {
+                  Row: {
+                    "added_by": string | null,"created_at": string,"employee_id": string,"substitute_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "added_by"?: string | null,"created_at"?: string,"employee_id": string,"substitute_id": string
+                  }
+                  Update: {
+                    "added_by"?: string | null,"created_at"?: string,"employee_id"?: string,"substitute_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "substitute_lists_added_by_fkey"
+      columns: ["added_by"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "substitute_lists_employee_id_fkey"
+      columns: ["employee_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "substitute_lists_substitute_id_fkey"
+      columns: ["substitute_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
                 }
           }
           Views: {
@@ -321,6 +359,21 @@ isOneToOne: false
 "get_balance_inputs":
 { Args: { "p_employee_id": string,"p_school_year": number }; Returns: Json
                            },
+"manageable_employees":
+{ Args: Record<PropertyKey, never>; Returns: {
+              "division_name": string,"email": string,"employee_id": string,"main_title": string,"substitute_count": number
+            }[]
+                           },
+"my_substitute_options":
+{ Args: Record<PropertyKey, never>; Returns: {
+              "division_name": string,"email": string,"main_title": string,"substitute_id": string
+            }[]
+                           },
+"my_substitutions":
+{ Args: Record<PropertyKey, never>; Returns: {
+              "date": string,"employee_email": string,"end_min": number,"record_id": number,"start_min": number,"status": string,"upgrade_minutes": number
+            }[]
+                           },
 "record_histories":
 { Args: { "p_record_ids": (number)[] }; Returns: {
               "action": string,"actor_name": string,"comment": string,"created_at": string,"record_id": number
@@ -334,6 +387,11 @@ isOneToOne: false
 "register_divisions":
 { Args: Record<PropertyKey, never>; Returns: {
               "code": string,"id": number,"name": string
+            }[]
+                           },
+"record_substitutes":
+{ Args: { "p_record_ids": (number)[] }; Returns: {
+              "record_id": number,"substitute_email": string,"upgrade_minutes": number
             }[]
                            },
 "remove_school_closure":
@@ -350,6 +408,16 @@ isOneToOne: false
                            },
 "submit_leave_request":
 { Args: { "p_comment"?: string,"p_leave_type": string,"p_records": Json,"p_relationship"?: string }; Returns: number
+                           },
+"substitute_candidates":
+{ Args: { "p_employee_id": string }; Returns: {
+              "division_name": string,"email": string,"main_title": string,"profile_id": string
+            }[]
+                           },
+"substitute_list":
+{ Args: { "p_employee_id": string }; Returns: {
+              "division_name": string,"email": string,"main_title": string,"substitute_id": string
+            }[]
                            },
 "take_ai_quota":
 { Args: Record<PropertyKey, never>; Returns: boolean

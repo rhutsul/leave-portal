@@ -6,6 +6,7 @@ import { Alert, AlertAction, AlertDescription, AlertTitle } from "@/components/u
 import { buttonVariants } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { HoursBar } from "@/components/ui/hours-bar";
+import { RecordSubstituteNote } from "@/components/ui/substitute-note";
 import { LeaveTypeTag } from "@/components/ui/leave-type-tag";
 import { PageHeader } from "@/components/ui/page-header";
 import { isRecordStatus, StatusBadge } from "@/components/ui/status-badge";
@@ -37,6 +38,7 @@ import {
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/server";
 import { loadOwnPositions } from "./new/load-positions";
+import { loadRecordSubstitutes, substituteLookup } from "./load-record-substitutes";
 import { RecordActions } from "./record-actions";
 
 const TABS: { id: string; label: string; statuses: RecordStatus[] | null }[] = [
@@ -123,6 +125,8 @@ export default async function MyRequestsPage({ searchParams }: PageProps<"/reque
       ? await supabase.rpc("record_histories", { p_record_ids: shown.map((r) => r.id!) })
       : { data: [], error: null };
   const histories = historyResult.error ? null : groupHistories(historyResult.data ?? []);
+  // Заміна й позначка підвищення показаних записів (AC-SUBST-02, AC-SUBST-03, AC-SUBST-08); збій — без рядка заміни.
+  const substituteOf = substituteLookup(await loadRecordSubstitutes(supabase, shown.map((r) => r.id!)));
 
   const months = new Map<string, typeof shown>();
   for (const r of shown) {
@@ -249,6 +253,7 @@ export default async function MyRequestsPage({ searchParams }: PageProps<"/reque
                       const position = positionLabel(r.division_name ?? "", r.position_title ?? "");
                       const recordStatus = r.status as RecordStatus;
                       const { mark, canRequest, managerComment } = cancellationView(r, cancellations?.get(r.id!), today);
+                      const substitute = substituteOf(r.id!);
                       return (
                         <TableRow
                           key={r.id}
@@ -266,6 +271,7 @@ export default async function MyRequestsPage({ searchParams }: PageProps<"/reque
                               dayEnd={dayEnd}
                               label={wholeDay ? `Whole day · ${range}` : range}
                             />
+                            <RecordSubstituteNote substitute={substitute} className="mt-1.5" />
                           </TableCell>
                           <TableCell>
                             <LeaveTypeTag type={r.leave_type ?? ""} variant="inline" />
@@ -302,6 +308,7 @@ export default async function MyRequestsPage({ searchParams }: PageProps<"/reque
                                 managerComment: r.manager_comment,
                                 split,
                                 cancellation: mark,
+                                substitute,
                               }}
                               history={histories ? (histories.get(r.id!) ?? []) : null}
                               initialDetails={r.id === openId}

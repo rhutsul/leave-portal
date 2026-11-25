@@ -22,6 +22,7 @@ const TABLES: Record<string, { key: string; label: string }> = {
   leave_records: { key: "select position_id as key from public.leave_records", label: "position" },
   leave_record_events: { key: "select distinct record_id as key from public.leave_record_events", label: "record" },
   balance_carryovers: { key: "select employee_id as key from public.balance_carryovers", label: "employee" },
+  substitute_lists: { key: "select employee_id as key from public.substitute_lists", label: "employee" },
 };
 
 const LABELS = {
@@ -47,7 +48,16 @@ const OWN_AND_MANAGED: Record<Role, string[]> = {
   teacher2: ["teacher2:main"],
   manager1: ["manager1:main", "teacher1:main"],
   manager2: ["manager2:main", "teacher1:additional", "teacher2:main"],
-  admin: ["admin:main", "manager1:main", "manager2:main", "teacher1:additional", "teacher1:main", "teacher2:main"],
+  admin: [
+    "admin:main",
+    "assistant1:main",
+    "manager1:main",
+    "manager2:main",
+    "teacher1:additional",
+    "teacher1:main",
+    "teacher2:main",
+    "teacher3:main",
+  ],
 };
 
 // Записи (і їхні події) є лише в teacher1@ (обидві посади) і teacher2@.
@@ -74,6 +84,8 @@ const EXPECTED: Record<string, Record<Role, string[]>> = {
   leave_records: RECORDS,
   leave_record_events: RECORDS,
   balance_carryovers: CARRYOVERS,
+  // Список замін (20261125000321_substitutes.sql, D1): свій; менеджер будь-якої посади працівника; адміністратор.
+  substitute_lists: CARRYOVERS,
 };
 
 const CASES = Object.keys(TABLES).flatMap((table) => ROLES.map((role) => ({ table, role })));
@@ -104,6 +116,16 @@ beforeAll(async () => {
   await t.asService(
     "insert into public.balance_carryovers (employee_id, leave_type, school_year, days) values ($1, 'personal', 2026, 2.00)",
     [t.users["teacher1@example.test"]],
+  );
+  // Списки замін — у teacher1@ і teacher2@, як перенесені дні: та сама межа «свій / менеджер будь-якої посади».
+  await t.asService(
+    "insert into public.substitute_lists (employee_id, substitute_id) values ($1, $2), ($3, $4)",
+    [
+      t.users["teacher1@example.test"],
+      t.users["assistant1@example.test"],
+      t.users["teacher2@example.test"],
+      t.users["teacher3@example.test"],
+    ],
   );
 }, 60_000);
 
