@@ -64,7 +64,7 @@ jobs:
           echo "Supabase CLI $v"
           [ -n "$SUPABASE_DB_URL" ] || { echo "::error title=backup::Немає секрету середовища production SUPABASE_DB_URL"; exit 1; }
           [ -n "$BACKUP_PASSPHRASE" ] || { echo "::error title=backup::Немає секрету середовища production BACKUP_PASSPHRASE — без шифрування копію не робимо"; exit 1; }
-      - name: Дамп (ролі, схема, дані; окремо — дані застосунку: схеми public і private)
+      - name: Дамп (ролі, схема, дані; окремо — дані застосунку, схеми public і private)
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
         run: |
