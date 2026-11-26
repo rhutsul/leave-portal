@@ -288,22 +288,23 @@ describe("the decision is about the hours the manager saw", () => {
   });
 });
 
+// Без AC ID: AC-BEHALF-06…08 (правка запису) ще «відкладено» — тут лише розбір прихованого поля форми рішення.
 describe("what the manager saw before deciding (D9 impl-on-behalf)", () => {
   const SUB = "a0000000-0000-0000-0000-000000000005";
 
-  it("AC-BEHALF-06: the date round-trips, and another date is another value", () => {
+  it("the date round-trips, and another date is another value", () => {
     const seen = reviewedRecord({ date: "2026-12-03", leaveType: "sick", substituteId: null });
     expect(parseReviewedRecord(seen)).toEqual({ date: "2026-12-03", leaveType: "sick", substituteId: null });
     expect(reviewedRecord({ date: "2026-12-04", leaveType: "sick", substituteId: null })).not.toBe(seen);
   });
 
-  it("AC-BEHALF-07: the leave type is part of what was seen", () => {
+  it("the leave type is part of what was seen", () => {
     expect(parseReviewedRecord(reviewedRecord({ date: "2026-12-04", leaveType: "personal", substituteId: null }))?.leaveType).toBe(
       "personal",
     );
   });
 
-  it("AC-BEHALF-08: «No substitute» and a substitute are different values; a forged value is rejected", () => {
+  it("«No substitute» and a substitute are different values; a forged value is rejected", () => {
     expect(parseReviewedRecord(reviewedRecord({ date: "2026-12-04", leaveType: "sick", substituteId: SUB }))?.substituteId).toBe(SUB);
     expect(parseReviewedRecord("2026-12-04|sick|")?.substituteId).toBeNull();
     for (const forged of ["2026-12-04|sick|teacher2", "04.12.2026|sick|", "2026-12-04||", "2026-12-04|sick||x", null]) {

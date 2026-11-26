@@ -12,16 +12,19 @@ export interface Reviewed {
 /**
  * Що бачить менеджер у панелі вибраного запису — години, а також дата, тип і заміна (D9 impl-on-behalf). id заміни —
  * з leave_records (RLS дає менеджеру записи його посад, адміністратору — усі); рішення звіряє все це з базою під lock
- * працівника. Немає вибраного запису — порожньо.
+ * працівника. Немає вибраного запису чи збій читання — порожній record.
  */
 export async function loadReviewed(
   supabase: Supabase,
   selected: { id: number; date: string; leave_type: string; start_min: number; end_min: number } | null | undefined,
 ): Promise<Reviewed> {
   if (!selected) return { hours: "", record: "" };
-  const { data } = await supabase.from("leave_records").select("substitute_id").eq("id", selected.id).maybeSingle();
+  const hours = reviewedHours(selected.start_min, selected.end_min);
+  const { data, error } = await supabase.from("leave_records").select("substitute_id").eq("id", selected.id).maybeSingle();
+  // Збій читання — порожньо: рішення відповість чесним «could not be saved», а не «запис змінено» (друга думка).
+  if (error || !data) return { hours, record: "" };
   return {
-    hours: reviewedHours(selected.start_min, selected.end_min),
-    record: reviewedRecord({ date: selected.date, leaveType: selected.leave_type, substituteId: data?.substitute_id ?? null }),
+    hours,
+    record: reviewedRecord({ date: selected.date, leaveType: selected.leave_type, substituteId: data.substitute_id ?? null }),
   };
 }
