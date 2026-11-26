@@ -32,9 +32,7 @@ function takeToken(): string | null {
  * Чинне посилання — форма пароля; прострочене — текст AC-STAFF-03 без форми; недійсне — текст розробника.
  */
 export function SetPasswordView() {
-  const ids = useId();
   const [view, setView] = useState<View>({ kind: "checking" });
-  const [state, action] = useActionState(setPassword, INITIAL);
   // Токен беремо з адреси один раз і тримаємо тут: фрагмент прибрано, а ефект у StrictMode запускається двічі.
   const tokenRef = useRef<string | null | undefined>(undefined);
 
@@ -80,16 +78,29 @@ export function SetPasswordView() {
     );
   }
 
+  return <PasswordForm token={view.token} email={view.email} />;
+}
+
+/**
+ * Форма пароля для чинного посилання. Поля керовані: після невдалої спроби (не той повтор, правило пароля) React
+ * скидає некеровані поля форми, а людина мала б вводити все знову. Паролі лишаються лише в цьому компоненті — у
+ * стан дії сервера вони не потрапляють.
+ */
+function PasswordForm({ token, email }: { token: string; email: string }) {
+  const ids = useId();
+  const [state, action] = useActionState(setPassword, INITIAL);
+  const [next, setNext] = useState("");
+  const [confirm, setConfirm] = useState("");
   const nextId = `${ids}-next`;
   const confirmId = `${ids}-confirm`;
   return (
     <form action={action} noValidate className="flex flex-col gap-3.5" data-testid="set-password-form">
       <p className="text-[13px] text-muted-foreground">
-        Account: <span className="font-medium break-all text-foreground">{view.email}</span>
+        Account: <span className="font-medium break-all text-foreground">{email}</span>
       </p>
-      <input type="hidden" name="token" value={view.token} />
+      <input type="hidden" name="token" value={token} />
       {/* Для менеджерів паролів: логін поруч із новим паролем. */}
-      <input type="hidden" name="username" autoComplete="username" value={view.email} />
+      <input type="hidden" name="username" autoComplete="username" value={email} />
       <div className="flex flex-col gap-1.5">
         <Label htmlFor={nextId}>New password</Label>
         <PasswordInput
@@ -97,6 +108,8 @@ export function SetPasswordView() {
           name="new_password"
           autoComplete="new-password"
           aria-required="true"
+          value={next}
+          onChange={(event) => setNext(event.target.value)}
           aria-invalid={state.errors.next ? true : undefined}
           aria-describedby={state.errors.next ? `${nextId}-error` : `${nextId}-hint`}
         />
@@ -114,6 +127,8 @@ export function SetPasswordView() {
           name="confirm_password"
           autoComplete="new-password"
           aria-required="true"
+          value={confirm}
+          onChange={(event) => setConfirm(event.target.value)}
           aria-invalid={state.errors.confirm ? true : undefined}
           aria-describedby={state.errors.confirm ? `${confirmId}-error` : undefined}
         />

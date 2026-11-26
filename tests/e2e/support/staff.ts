@@ -51,6 +51,8 @@ export async function setPasswordByLink(browser: Browser, url: string, password:
   await page.getByLabel("New password", { exact: true }).fill(password);
   await page.getByLabel("Repeat the new password").fill(password);
   await page.getByRole("button", { name: "Set password" }).click();
+  // Дія сервера задає пароль, входить і лише тоді веде на Overview: чекаємо саме цього, а не натискання.
+  await expect(page).toHaveURL(/\/\?notice=password-set$/);
   return { context, page };
 }
 

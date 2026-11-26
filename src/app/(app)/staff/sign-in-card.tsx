@@ -46,6 +46,20 @@ function useShownLink(linkState: StaffActionState, activeState: StaffActionState
   return link && link.token !== revoked ? link : null;
 }
 
+/**
+ * Відкритий діалог деактивації: успішна деактивація його закриває (інакше після «Reactivate» він відкрився б знову сам),
+ * а помилка лишає відкритим — з текстом і можливістю повторити.
+ */
+function useConfirming(activeState: StaffActionState) {
+  const [confirming, setConfirming] = useState(false);
+  const [seen, setSeen] = useState(activeState);
+  if (seen !== activeState) {
+    setSeen(activeState);
+    if (activeState.done) setConfirming(false);
+  }
+  return [confirming, setConfirming] as const;
+}
+
 /** Підтвердження деактивації (незворотна для входу дія — DESIGN.md, розділ 2): питання, наслідок, «Deactivate» і «Back». */
 function DeactivateDialog({
   open,
@@ -141,7 +155,7 @@ export function SignInCard({
 }) {
   const [linkState, linkAction] = useActionState(issueLink, INITIAL_STAFF_STATE);
   const [activeState, activeAction] = useActionState(setActive, INITIAL_STAFF_STATE);
-  const [confirming, setConfirming] = useState(false);
+  const [confirming, setConfirming] = useConfirming(activeState);
   const shownLink = useShownLink(linkState, activeState);
   const deactivated = status === "deactivated";
   // Помилка деактивації — у діалозі; реактивації — під кнопками.
