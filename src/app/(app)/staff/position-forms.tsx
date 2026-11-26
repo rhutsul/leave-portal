@@ -18,6 +18,8 @@ import { createPosition, setManagers, setSchedule, type PositionActionState } fr
 
 const INITIAL: PositionActionState = { message: "" };
 const TOUCH = "pointer-coarse:h-11";
+// Поле часу на телефоні: на дотику час вибирає системний список, тож значок годинника ховаємо — інакше «08:30 AM» обрізається.
+const TIME = `${TOUCH} max-sm:px-2 pointer-coarse:[&::-webkit-calendar-picker-indicator]:hidden`;
 
 function ActionError({ message }: { message: string }) {
   if (!message) return null;
@@ -67,7 +69,7 @@ export function ScheduleEditor({ week, onChange }: { week: WeekDraft; onChange: 
                       value={period.start}
                       aria-label={`${DAY_NAMES[day]} period ${i + 1} start`}
                       onChange={(e) => setDay(day, periods.map((p, j) => (j === i ? { ...p, start: e.target.value } : p)))}
-                      className={TOUCH}
+                      className={TIME}
                     />
                   </div>
                   <div className="flex min-w-0 flex-1 flex-col gap-1">
@@ -81,7 +83,7 @@ export function ScheduleEditor({ week, onChange }: { week: WeekDraft; onChange: 
                       value={period.end}
                       aria-label={`${DAY_NAMES[day]} period ${i + 1} end`}
                       onChange={(e) => setDay(day, periods.map((p, j) => (j === i ? { ...p, end: e.target.value } : p)))}
-                      className={TOUCH}
+                      className={TIME}
                     />
                   </div>
                   <Button
