@@ -6,8 +6,9 @@ import { ChevronRight, Search } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
 import { ON_BEHALF_MESSAGES } from "@/lib/leave/on-behalf";
+import { ListTableHeader } from "../substitutes/list-table-header";
 
 export interface OnBehalfEmployee {
   id: string;
@@ -47,14 +48,7 @@ export function EmployeeList({ employees }: { employees: OnBehalfEmployee[] }) {
       ) : (
         <div className="overflow-x-auto rounded-lg border border-border bg-card max-md:overflow-visible max-md:border-0 max-md:bg-transparent">
           <Table stack>
-            <TableHeader className="bg-muted">
-              <TableRow className="hover:bg-transparent">
-                <TableHead>Employee</TableHead>
-                <TableHead className="w-px">
-                  <span className="sr-only">Open</span>
-                </TableHead>
-              </TableRow>
-            </TableHeader>
+            <ListTableHeader columns={["Employee"]} last="Open" />
             <TableBody>
               {shown.map((e) => (
                 // Увесь рядок відкриває форму: посилання в першій клітинці розтягнуто на рядок (after:inset-0).

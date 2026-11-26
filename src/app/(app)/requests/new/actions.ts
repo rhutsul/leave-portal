@@ -10,7 +10,6 @@ import {
   checkLeaveType,
   findOverlap,
   overlapMessage,
-  toRpcRecords,
   type DraftRecord,
 } from "@/lib/leave/request";
 import { checkSubstitutes } from "@/lib/leave/substitutes";
@@ -20,7 +19,7 @@ import { loadRemaining } from "../../balances/load-balances";
 import { dateSpan, loadClosures } from "../../calendar/load-closures";
 import { loadOwnPositions } from "./load-positions";
 import { loadSubstituteOptions } from "./load-substitutes";
-import { parsePayload } from "./request-payload";
+import { parsePayload, requestRpcArgs } from "./request-payload";
 import { submitRedirect } from "./submit-redirect";
 
 type Supabase = Awaited<ReturnType<typeof createClient>>;
@@ -116,12 +115,7 @@ export async function submitLeaveRequest(_prev: SubmitState, formData: FormData)
       ).catch(() => null)
     : null;
 
-  const { error } = await supabase.rpc("submit_leave_request", {
-    p_leave_type: type.leaveType,
-    p_records: toRpcRecords(records.records),
-    p_relationship: type.relationship ?? undefined,
-    p_comment: comment.comment ?? undefined,
-  });
+  const { error } = await supabase.rpc("submit_leave_request", requestRpcArgs(type, records.records, comment.comment));
   if (error) {
     // P0001 — тексти PM з функції бази (той самий другий рубіж); решту працівнику не показуємо.
     return { message: error.code === "P0001" ? error.message : FAILED };

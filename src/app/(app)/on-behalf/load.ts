@@ -11,13 +11,14 @@ export interface OnBehalfPosition extends PositionSchedule {
 
 export type PositionsLoad = { ok: true; positions: OnBehalfPosition[] } | { ok: false; message: string | null };
 
+type RawBlock = { weekday?: unknown; start_min?: unknown; end_min?: unknown };
+
+const isBlock = (b: RawBlock): b is { weekday: number; start_min: number; end_min: number } =>
+  [b?.weekday, b?.start_min, b?.end_min].every((n) => typeof n === "number");
+
 function blocksOf(value: unknown): ScheduleBlock[] {
-  if (!Array.isArray(value)) return [];
-  return value.flatMap((b: { weekday?: unknown; start_min?: unknown; end_min?: unknown }) =>
-    typeof b?.weekday === "number" && typeof b.start_min === "number" && typeof b.end_min === "number"
-      ? [{ weekday: b.weekday, start: b.start_min, end: b.end_min }]
-      : [],
-  );
+  const raw: RawBlock[] = Array.isArray(value) ? value : [];
+  return raw.filter(isBlock).map((b) => ({ weekday: b.weekday, start: b.start_min, end: b.end_min }));
 }
 
 /**

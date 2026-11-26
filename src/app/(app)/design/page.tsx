@@ -27,6 +27,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { SubstituteNote } from "@/components/ui/substitute-note";
 import { SUBSTITUTE_MESSAGES } from "@/lib/leave/substitutes";
 import { ON_BEHALF_MESSAGES } from "@/lib/leave/on-behalf";
+import { ListTableHeader } from "../substitutes/list-table-header";
 import { HoursBar } from "@/components/ui/hours-bar";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -377,14 +378,7 @@ export default async function DesignPage() {
         <div className="grid gap-4 md:grid-cols-2" data-testid="design-on-behalf">
           <div className="overflow-x-auto rounded-lg border border-border bg-card max-md:overflow-visible max-md:border-0 max-md:bg-transparent">
             <Table stack>
-              <TableHeader className="bg-muted">
-                <TableRow className="hover:bg-transparent">
-                  <TableHead>Employee</TableHead>
-                  <TableHead className="w-px">
-                    <span className="sr-only">Open</span>
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
+              <ListTableHeader columns={["Employee"]} last="Open" />
               <TableBody>
                 {["teacher1@example.test", "teacher2@example.test"].map((email) => (
                   <TableRow key={email} className="cursor-pointer">

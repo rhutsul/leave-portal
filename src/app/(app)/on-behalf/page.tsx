@@ -10,39 +10,39 @@ import { OnBehalfRefusal } from "./refusal";
 
 export const metadata: Metadata = { title: "Request on behalf · Leave portal" };
 
-const TITLE = "Request on behalf";
-const DESCRIPTION = "Record leave for an employee of your positions.";
-
 // Заявка від імені (D10 openspec/changes/impl-on-behalf/design.md): менеджер — працівники його посад, адміністратор —
 // усі, крім себе (on_behalf_employees()). Працівник за прямим посиланням — текст AC-BEHALF-12, менеджер без посад —
 // AC-BEHALF-15: обидва тексти дає база, сторінка показує їх дослівно без даних.
+type EmployeeRow = { employee_id: string; email: string; main_title: string | null; division_name: string | null };
+
+const positionOf = (r: EmployeeRow) =>
+  r.main_title ? (r.division_name ? `${r.division_name} / ${r.main_title}` : r.main_title) : "";
+
+/** Вміст сторінки: відмова чи «немає працівників» дослівно, збій — Alert, інакше список. */
+function Content({ rows, error }: { rows: EmployeeRow[] | null; error: { message: string } | null }) {
+  const refusal = error ? refusalOf(error.message) : rows?.length ? null : ON_BEHALF_MESSAGES.noEmployees;
+  if (refusal) return <OnBehalfRefusal message={refusal} />;
+  if (error || !rows) {
+    return (
+      <Alert variant="destructive" role="alert">
+        <CircleAlert />
+        <AlertDescription>The page could not be loaded. Please try again.</AlertDescription>
+      </Alert>
+    );
+  }
+  return <EmployeeList employees={rows.map((r) => ({ id: r.employee_id, email: r.email, position: positionOf(r) }))} />;
+}
+
 export default async function OnBehalfPage() {
   const supabase = await createClient();
   const { data } = await supabase.auth.getClaims();
   if (!data?.claims) redirect("/login");
 
   const { data: rows, error } = await supabase.rpc("on_behalf_employees");
-  const refusal = error ? refusalOf(error.message) : rows?.length === 0 ? ON_BEHALF_MESSAGES.noEmployees : null;
-
   return (
     <>
-      <PageHeader title={TITLE} description={refusal ? undefined : DESCRIPTION} />
-      {refusal ? (
-        <OnBehalfRefusal message={refusal} />
-      ) : error ? (
-        <Alert variant="destructive" role="alert">
-          <CircleAlert />
-          <AlertDescription>The page could not be loaded. Please try again.</AlertDescription>
-        </Alert>
-      ) : (
-        <EmployeeList
-          employees={(rows ?? []).map((r) => ({
-            id: r.employee_id,
-            email: r.email,
-            position: r.main_title ? (r.division_name ? `${r.division_name} / ${r.main_title}` : r.main_title) : "",
-          }))}
-        />
-      )}
+      <PageHeader title="Request on behalf" description={error || !rows?.length ? undefined : "Record leave for an employee of your positions."} />
+      <Content rows={rows} error={error} />
     </>
   );
 }
