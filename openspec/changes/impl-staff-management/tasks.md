@@ -117,7 +117,7 @@ PR 1 — з тестом PGlite, у PR 2/3 додаються e2e.
       із завтра — manager2@ не бачить; `negative-controls.spec.ts` — менеджер REST-ом не створює призначення.
       Done when: AC-STAFF-09, AC-STAFF-10, AC-STAFF-14, AC-STAFF-19
 
-- [ ] 3.4 Завершення зрізу (D13, D14). Знімки світлої й темної теми 390 і 1280 px у `docs/img/` (D13), перевірка
+- [x] 3.4 Завершення зрізу (D13, D14). Знімки світлої й темної теми 390 і 1280 px у `docs/img/` (D13), перевірка
       вигляду проти `DESIGN.md`; `/conformance` — усі рядки AC-STAFF `реалізовано`; `npx openspec archive
       impl-staff-management -y`. Готово, коли всі рядки AC-STAFF у `docs/conformance.md` — `реалізовано`.
       Done when: AC-STAFF-01…AC-STAFF-19
