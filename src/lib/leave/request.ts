@@ -6,7 +6,6 @@ import {
   formatBlocks,
   formatRange,
   isCalendarDate,
-  isoWeekday,
   parseTime,
   sortBlocks,
   TIME_MESSAGES,
@@ -15,6 +14,7 @@ import {
   type TimeBlock,
 } from "./time";
 import { CALENDAR_MESSAGES, clipBlocks, closureOn, type Closure } from "./calendar";
+import { blocksOnDate } from "./schedule";
 
 export const LEAVE_TYPES = {
   sick: "Sick leave",
@@ -66,6 +66,9 @@ export const REQUEST_MESSAGES = {
 } as const;
 
 export interface ScheduleBlock extends TimeBlock {
+  /** Розклад «з дати» (AC-STAFF-07): перший день дії й день, з якого блок уже не діє; null — без межі. */
+  validFrom?: string | null;
+  validTo?: string | null;
   weekday: number;
 }
 
@@ -112,8 +115,7 @@ export function closedDayName(
   const closure = closureOn(closures, date);
   if (!closure) return null;
   if (closure.closesAt == null) return closure.name;
-  const weekday = isoWeekday(date);
-  const blocks = positions.flatMap((p) => p.blocks.filter((b) => b.weekday === weekday));
+  const blocks = positions.flatMap((p) => blocksOnDate(p.blocks, date));
   return blocks.length > 0 && clipBlocks(blocks, closure).length === 0 ? closure.name : null;
 }
 
@@ -130,7 +132,6 @@ export function positionsOnDate(positions: PositionSchedule[], date: string, clo
   const closed = closedDayName(positions, date, closures);
   if (closed != null) return { ok: false, message: CALENDAR_MESSAGES.closedDay(closed) };
   const closure = closureOn(closures, date);
-  const weekday = isoWeekday(date);
   const onDate = positions
     .map((p) => ({
       id: p.id,
@@ -138,7 +139,7 @@ export function positionsOnDate(positions: PositionSchedule[], date: string, clo
       kind: p.kind,
       blocks: sortBlocks(
         clipBlocks(
-          p.blocks.filter((b) => b.weekday === weekday).map(({ start, end }) => ({ start, end })),
+          blocksOnDate(p.blocks, date).map(({ start, end }) => ({ start, end })),
           closure,
         ),
       ),

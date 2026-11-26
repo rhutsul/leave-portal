@@ -147,6 +147,9 @@ export interface PositionBlock {
   weekday: number;
   start: number;
   end: number;
+  /** Розклад «з дати» (AC-STAFF-07). */
+  validFrom?: string | null;
+  validTo?: string | null;
 }
 
 /**
@@ -167,10 +170,17 @@ async function loadTimelineSchedules(
     positionOf = new Map((data ?? []).map((r) => [r.id, r.position_id]));
   }
   const positions = [...new Set(positionOf.values())];
-  const { data, error } = await supabase.from("schedule_blocks").select("position_id, weekday, start_min, end_min").in("position_id", positions);
+  const { data, error } = await supabase
+    .from("schedule_blocks")
+    .select("position_id, weekday, start_min, end_min, valid_from, valid_to")
+    .in("position_id", positions);
   if (error) return null;
+  // Усі версії розкладу (AC-STAFF-07): версію дати клітинки бере positionScale (blocksOnDate).
   const blocks = new Map<number, PositionBlock[]>();
-  for (const b of data ?? []) blocks.set(b.position_id, [...(blocks.get(b.position_id) ?? []), { weekday: b.weekday, start: b.start_min, end: b.end_min }]);
+  for (const b of data ?? []) {
+    const block = { weekday: b.weekday, start: b.start_min, end: b.end_min, validFrom: b.valid_from, validTo: b.valid_to };
+    blocks.set(b.position_id, [...(blocks.get(b.position_id) ?? []), block]);
+  }
   return { positionOf, blocks };
 }
 

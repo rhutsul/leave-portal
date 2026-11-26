@@ -1,4 +1,5 @@
 import { clipBlocks, closureOn } from "@/lib/leave/calendar";
+import { blocksOnDate } from "@/lib/leave/schedule";
 import { isoWeekday, wholeDay } from "@/lib/leave/time";
 import type { createClient } from "@/lib/supabase/server";
 import { loadClosures } from "../calendar/load-closures";
@@ -20,10 +21,15 @@ export async function loadRecordDay(supabase: Supabase, recordId: number, date: 
   if (record.error || !record.data || closures === null) return null;
   const { data: blocks, error } = await supabase
     .from("schedule_blocks")
-    .select("start_min, end_min")
+    .select("weekday, start_min, end_min, valid_from, valid_to")
     .eq("position_id", record.data.position_id)
     .eq("weekday", isoWeekday(date));
   if (error) return null;
-  const day = clipBlocks((blocks ?? []).map((b) => ({ start: b.start_min, end: b.end_min })), closureOn(closures, date));
+  // Розклад, що діє на дату запису (AC-STAFF-07): інші версії того самого дня тижня — не для цього запису.
+  const ofDate = blocksOnDate(
+    (blocks ?? []).map((b) => ({ weekday: b.weekday, start: b.start_min, end: b.end_min, validFrom: b.valid_from, validTo: b.valid_to })),
+    date,
+  );
+  const day = clipBlocks(ofDate.map(({ start, end }) => ({ start, end })), closureOn(closures, date));
   return day.length ? wholeDay(day) : null;
 }
