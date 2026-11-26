@@ -23,7 +23,7 @@ import {
   schoolYearOf,
 } from "@/lib/leave/balance";
 import { canCancelWithNote, cancellationRequestLine, type CancellationMark } from "@/lib/leave/cancellation";
-import { DECISION_MESSAGES, reviewedHours } from "@/lib/leave/decision";
+import { DECISION_MESSAGES, reviewedHours, reviewedRecord } from "@/lib/leave/decision";
 import {
   isLeaveType,
   isRelationship,
@@ -153,7 +153,7 @@ export default async function DecisionsPage({ searchParams }: PageProps<"/decisi
   // Історія вибраного запису з іменами (public.record_histories), робочий день посади на його дату (смуга годин) і,
   // якщо запис можна вирішити, залишок на цей момент (public.decision_balance) — той самий, за яким
   // decide_leave_record порахує розподіл (AC-BALANCE-14).
-  const [historyResult, balance, day, substitutes] = await Promise.all([
+  const [historyResult, balance, day, substitutes, substituteRow] = await Promise.all([
     selected
       ? supabase.rpc("record_histories", { p_record_ids: [selected.id] })
       : Promise.resolve({ data: [], error: null }),
@@ -163,6 +163,11 @@ export default async function DecisionsPage({ searchParams }: PageProps<"/decisi
     selected ? loadRecordDay(supabase, selected.id, selected.date) : Promise.resolve(null),
     // Заміна й позначка підвищення (AC-SUBST-02, AC-SUBST-03, AC-SUBST-08) показаних записів і вибраного; збій — без них.
     loadRecordSubstitutes(supabase, recordIds(shown, selected)),
+    // id заміни вибраного запису — для форми рішення (D9 impl-on-behalf): RLS leave_records дає менеджеру записи його
+    // посад; рішення звіряє його з базою.
+    selected
+      ? supabase.from("leave_records").select("substitute_id").eq("id", selected.id).maybeSingle()
+      : Promise.resolve({ data: null }),
   ]);
   const substituteOf = substituteLookup(substitutes);
   const selectedHistory = historyResult.error ? null : (groupHistories(historyResult.data ?? []).get(selected?.id ?? -1) ?? []);
@@ -278,6 +283,7 @@ export default async function DecisionsPage({ searchParams }: PageProps<"/decisi
               <RecordPanel
                 record={selected}
                 substitute={substituteOf(selected.id)}
+                substituteId={substituteRow.data?.substitute_id ?? null}
                 history={selectedHistory}
                 balance={balance}
                 day={day}
@@ -555,6 +561,7 @@ function HistorySection({ history }: { history: HistoryRow[] | null }) {
 function RecordPanel({
   record: r,
   substitute,
+  substituteId,
   history,
   balance,
   day,
@@ -565,6 +572,8 @@ function RecordPanel({
   record: DecisionRow;
   /** Заміна запису; null — «No substitute»; undefined — не завантажились. */
   substitute: RecordSubstitute | null | undefined;
+  /** id заміни запису (null — «No substitute») — що бачить менеджер для рішення (D9 impl-on-behalf). */
+  substituteId: string | null;
   history: HistoryRow[] | null;
   balance: Balance;
   /** Робочий день посади на дату запису — для смуги годин; null — без розкладу. */
@@ -601,6 +610,7 @@ function RecordPanel({
         key={r.id}
         recordId={r.id}
         hours={reviewedHours(r.start_min, r.end_min)}
+        reviewed={reviewedRecord({ date: r.date, leaveType: r.leave_type, substituteId })}
         split={Boolean(balance && balance !== "error" && balance.warning)}
         summary={summary}
         before={before}

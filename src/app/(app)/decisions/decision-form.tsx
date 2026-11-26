@@ -137,6 +137,7 @@ function ConfirmDialog({
 export function DecisionForm({
   recordId,
   hours,
+  reviewed,
   split = false,
   summary,
   before,
@@ -146,6 +147,8 @@ export function DecisionForm({
   recordId: number;
   /** Години, які бачить менеджер (reviewedHours): рішення стосується саме їх. */
   hours: string;
+  /** Дата, тип і заміна, які бачить менеджер (reviewedRecord, D9 impl-on-behalf): чужа правка — повідомлення, а не рішення. */
+  reviewed: string;
   split?: boolean;
   /** Що показати в діалозі підтвердження (RecordSummary). */
   summary: { date: string; hours: string; meta: string };
@@ -183,6 +186,7 @@ export function DecisionForm({
     <form id={formId} action={action} className="flex flex-1 flex-col gap-6.5">
       <input type="hidden" name="record_id" value={recordId} />
       <input type="hidden" name="hours" value={hours} />
+      <input type="hidden" name="reviewed" value={reviewed} />
       {split && <input type="hidden" name="split" value="1" />}
 
       {placement === "form" && (

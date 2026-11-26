@@ -36,11 +36,37 @@ export const DECISION_MESSAGES = {
   commentTooLong: `The comment can be at most ${COMMENT_MAX} characters`,
   /** Працівник змінив години, поки менеджер дивився запис (зміна годин до рішення — задача 5). */
   hoursChanged: "The employee has changed the hours of this record. Check them again before deciding",
+  /** Розробник (D9 impl-on-behalf): інший менеджер змінив дату, тип чи заміну, поки цей дивився запис. */
+  recordChanged: "This record has been changed. Check it again before deciding",
 } as const;
 
 /** Години запису, які бачив менеджер, — у прихованому полі форми рішення: "540-720". */
 export function reviewedHours(start: number, end: number): string {
   return `${start}-${end}`;
+}
+
+/** Дата, тип і заміна, які бачить менеджер у панелі (D9 impl-on-behalf): рішення стосується саме їх. */
+export interface ReviewedRecord {
+  date: string;
+  leaveType: string;
+  /** null — «No substitute». */
+  substituteId: string | null;
+}
+
+/** Приховане поле форми рішення: «дата|тип|заміна» (порожньо — «No substitute»). */
+export function reviewedRecord(r: ReviewedRecord): string {
+  return [r.date, r.leaveType, r.substituteId ?? ""].join("|");
+}
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Значення з форми → те, що бачив менеджер; підроблене чи неповне — null. */
+export function parseReviewedRecord(raw: unknown): ReviewedRecord | null {
+  if (typeof raw !== "string") return null;
+  const [date, leaveType, substitute, ...rest] = raw.split("|");
+  if (rest.length || !/^\d{4}-\d{2}-\d{2}$/.test(date ?? "") || !leaveType) return null;
+  if (substitute && !UUID.test(substitute)) return null;
+  return { date, leaveType, substituteId: substitute ? substitute.toLowerCase() : null };
 }
 
 export interface Actor {
