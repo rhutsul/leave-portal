@@ -1,12 +1,17 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { CircleCheck } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmployeeStatus } from "@/components/ui/employee-status";
 import { PageHeader } from "@/components/ui/page-header";
+import { kyivDate } from "@/lib/leave/time";
 import { isEmployeeStatus, isRole, roleLabel, uuidOf } from "@/lib/staff/employee";
 import { staffSession } from "../admin-session";
 import { StaffDenied } from "../denied";
 import { EmployeeDetailsForm, RoleForm } from "../employee-forms";
+import { loadStaffPositions } from "../load-staff-positions";
+import { PositionsCard } from "../positions-card";
 import { SignInCard } from "../sign-in-card";
 
 export const metadata: Metadata = { title: "Employee · Leave portal" };
@@ -16,7 +21,13 @@ export const metadata: Metadata = { title: "Employee · Leave portal" };
  * одноразове посилання, деактивація й реактивація (AC-STAFF-01, -08). Посади й розклади — наступним кроком зрізу.
  * Неіснуючий працівник і не адміністратор — та сама відмова (AC-STAFF-13): не розкриваємо, хто є.
  */
-export default async function EmployeePage({ params }: PageProps<"/staff/[id]">) {
+const SAVED: Record<string, string> = {
+  position: "Position saved.",
+  schedule: "Schedule saved. Existing records keep their hours.",
+  managers: "Responsible managers saved.",
+};
+
+export default async function EmployeePage({ params, searchParams }: PageProps<"/staff/[id]">) {
   const { supabase, userId, isAdmin } = await staffSession();
   if (!isAdmin) return <StaffDenied />;
 
@@ -26,6 +37,8 @@ export default async function EmployeePage({ params }: PageProps<"/staff/[id]">)
   if (!id || !employee || !isRole(employee.role) || !isEmployeeStatus(employee.status)) return <StaffDenied />;
 
   const own = employee.id === userId;
+  const positions = await loadStaffPositions(supabase, employee.id);
+  const saved = SAVED[String((await searchParams).saved ?? "")];
   const name = employee.full_name || employee.email;
 
   return (
@@ -40,6 +53,12 @@ export default async function EmployeePage({ params }: PageProps<"/staff/[id]">)
         }
         actions={<EmployeeStatus status={employee.status} />}
       />
+      {saved && (
+        <Alert variant="info" role="status">
+          <CircleCheck />
+          <AlertDescription>{saved}</AlertDescription>
+        </Alert>
+      )}
       <div className="grid gap-6 lg:grid-cols-2">
         <Card className="gap-4">
           <CardHeader>
@@ -71,6 +90,12 @@ export default async function EmployeePage({ params }: PageProps<"/staff/[id]">)
           </Card>
         </div>
       </div>
+      <PositionsCard
+        employeeId={employee.id}
+        positions={positions}
+        today={kyivDate(new Date())}
+        canAdd={employee.status !== "deactivated"}
+      />
     </>
   );
 }
