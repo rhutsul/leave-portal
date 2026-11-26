@@ -64,7 +64,7 @@ jobs:
           echo "Supabase CLI $v"
           [ -n "$SUPABASE_DB_URL" ] || { echo "::error title=backup::Немає секрету середовища production SUPABASE_DB_URL"; exit 1; }
           [ -n "$BACKUP_PASSPHRASE" ] || { echo "::error title=backup::Немає секрету середовища production BACKUP_PASSPHRASE — без шифрування копію не робимо"; exit 1; }
-      - name: Дамп (ролі, схема, дані; окремо — дані лише схеми public)
+      - name: Дамп (ролі, схема, дані; окремо — дані застосунку: схеми public і private)
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
         run: |
@@ -86,8 +86,10 @@ jobs:
             supabase db dump --db-url "$SUPABASE_DB_URL" -f "$d/schema.sql"
             supabase db dump --db-url "$SUPABASE_DB_URL" --data-only --use-copy \
               -x storage.buckets_vectors -x storage.vector_indexes -f "$d/data.sql"
-            # Лише таблиці застосунку — саме їх відновлює тренування (типовий scope=public).
-            supabase db dump --db-url "$SUPABASE_DB_URL" --data-only --use-copy -s public -f "$d/data-public.sql"
+            # Лише таблиці застосунку — саме їх відновлює тренування (типовий scope=public): схеми public і private.
+            # private — бо private.one_time_links (зріз 07) посилається на public.profiles: без неї TRUNCATE profiles
+            # у тренуванні падає на зовнішньому ключі (run 45797382666), а відновлена база губила б одноразові посилання.
+            supabase db dump --db-url "$SUPABASE_DB_URL" --data-only --use-copy -s public,private -f "$d/data-public.sql"
             after=$(migration_version) || { echo "::error title=backup::Не вдалося прочитати версію міграцій"; exit 1; }
             if [ "$before" = "$after" ]; then ok=1; echo "Схема незмінна під час дампів: міграція $after"; break; fi
             echo "::warning title=backup::Під час дампів застосовано міграцію ($before → $after), спроба $attempt — знімаю заново"

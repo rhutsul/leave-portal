@@ -14,8 +14,8 @@ workflow `backup` (`.github/workflows/backup.yml`). Взято з матеріа
 
 | Job | Що робить | Що бачить журнал |
 |---|---|---|
-| `dump` | `supabase db dump` (CLI 2.120.0 з `package-lock.json`) через `SUPABASE_DB_URL`: `roles.sql`, `schema.sql`, `data.sql` (разом зі схемами `auth` і `storage`), окремо `data-public.sql` (лише `public`); дампи — окремі з'єднання, тому версію останньої міграції читає до й після них і, якщо `db-deploy` встиг застосувати міграцію, знімає все заново (до 3 спроб, далі червоний без артефакту); рахує рядки кожної таблиці з блоків `COPY`; пакує в `tar.gz` і шифрує `gpg --symmetric --cipher-algo AES256` фразою `BACKUP_PASSPHRASE`; відкриті файли видаляє; артефакт `supabase-backup` — лише `backup-<дата>.tgz.gpg`, 7 днів | розміри файлів, кількість таблиць |
-| `restore-drill` | за розкладом або з `restore_drill` = увімкнено: `supabase db start` + `supabase db reset --local --no-seed` — одноразова база в раннері з міграцій репо (як `db-check`), адресу якої дає `supabase status`; розшифровує копію, у тій самій транзакції очищає таблиці дампу (міграції самі вставляють рядки) і завантажує дані з `session_replication_role = replica` — типово лише `public` (`data-public.sql`), `all` (`data.sql` разом з `auth.*`) лише явним вибором у Run workflow; порівнює кількість рядків кожної таблиці з копією | таблиця «від міграцій (очищено) / у копії / відновлено» в Summary прогону; червоний, якщо хоч одна таблиця не збіглась |
+| `dump` | `supabase db dump` (CLI 2.120.0 з `package-lock.json`) через `SUPABASE_DB_URL`: `roles.sql`, `schema.sql`, `data.sql` (разом зі схемами `auth` і `storage`), окремо `data-public.sql` (дані застосунку: `public` і `private` — `private.one_time_links` посилається на `public.profiles`); дампи — окремі з'єднання, тому версію останньої міграції читає до й після них і, якщо `db-deploy` встиг застосувати міграцію, знімає все заново (до 3 спроб, далі червоний без артефакту); рахує рядки кожної таблиці з блоків `COPY`; пакує в `tar.gz` і шифрує `gpg --symmetric --cipher-algo AES256` фразою `BACKUP_PASSPHRASE`; відкриті файли видаляє; артефакт `supabase-backup` — лише `backup-<дата>.tgz.gpg`, 7 днів | розміри файлів, кількість таблиць |
+| `restore-drill` | за розкладом або з `restore_drill` = увімкнено: `supabase db start` + `supabase db reset --local --no-seed` — одноразова база в раннері з міграцій репо (як `db-check`), адресу якої дає `supabase status`; розшифровує копію, у тій самій транзакції очищає таблиці дампу (міграції самі вставляють рядки) і завантажує дані з `session_replication_role = replica` — типово лише дані застосунку — `public` і `private` (`data-public.sql`), `all` (`data.sql` разом з `auth.*`) лише явним вибором у Run workflow; порівнює кількість рядків кожної таблиці з копією | таблиця «від міграцій (очищено) / у копії / відновлено» в Summary прогону; червоний, якщо хоч одна таблиця не збіглась |
 
 Коли: щодня о 01:41 UTC (≈ 03:41 за Києвом) і вручну. Цільовий **RPO** (скільки даних можна втратити) — 24 години.
 Це ціль, а не гарантія: фактичну втрату визначає вік останньої придатної копії, тож якщо нічний `dump` впав, вона
@@ -79,7 +79,7 @@ workflow `backup` (`.github/workflows/backup.yml`). Взято з матеріа
    LOCAL_DB="$(npx supabase status -o env | sed -n 's/^DB_URL="\{0,1\}\([^"]*\)"\{0,1\}$/\1/p')"
    ```
 
-4. Завантажити дані — `data-public.sql` (лише `public`, як у CI); `data.sql` (разом з `auth.*`) на локальну базу
+4. Завантажити дані — `data-public.sql` (`public` і `private`, як у CI); `data.sql` (разом з `auth.*`) на локальну базу
    CLI не лягає (розділ «Схема `auth`»). Міграції самі вставляють рядки (довідник `divisions` тощо), тож спершу, у
    тій самій транзакції, очистити рівно ті таблиці, що є в дампі, — інакше `duplicate key`:
 
