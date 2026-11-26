@@ -9,7 +9,7 @@ on_behalf_and_edit` — першим комітом (мітка пізніша �
 
 ## 1. Менеджер подає за працівника своєї посади, запис погоджено одразу
 
-- [ ] 1.1 База: `private.can_act_for_employee`, `private.decides_for_position` (D1, D2); ядро
+- [x] 1.1 База: `private.can_act_for_employee`, `private.decides_for_position` (D1, D2); ядро
       `private.create_leave_request` і тонке `private.submit_leave_request` (D3); `private.approval_split` і нове тіло
       `decide_leave_record` на ньому (D5); `submit_leave_request_on_behalf` з обгорткою; дія `submitted_on_behalf` у
       `leave_record_events_action_check` (D4); `on_behalf_employees`, `on_behalf_positions`, `on_behalf_record_dates`
@@ -23,7 +23,7 @@ on_behalf_and_edit` — першим комітом (мітка пізніша �
 
 ## 2. Посади інших менеджерів чекають рішення, адміністратор погоджує все
 
-- [ ] 2.1 База: погодження за `decides_for_position` по кожному запису (D3, крок 4). Код: колонка «Status after submit»
+- [x] 2.1 База: погодження за `decides_for_position` по кожному запису (D3, крок 4). Код: колонка «Status after submit»
       у підсумку з `on_behalf_positions.decides`; повідомлення про успіх з лічильниками (D10). Тести: PGlite (основна
       `approved`, додаткова `awaiting` у черзі manager2@ і не в черзі manager1@; адміністратор — обидві `approved`);
       e2e (колонка статусу в підсумку).
@@ -31,7 +31,7 @@ on_behalf_and_edit` — першим комітом (мітка пізніша �
 
 ## 3. Ті самі перевірки з «this employee»
 
-- [ ] 3.1 База: `private.on_behalf_message` і переклад винятків ядра (D6). Код: `forEmployee` у формі від імені
+- [x] 3.1 База: `private.on_behalf_message` і переклад винятків ядра (D6). Код: `forEmployee` у формі від імені
       (календар, години, попередження понад залишок), нагадування AC-LEAVE-23 дослівно. Тести: unit
       `src/lib/leave/on-behalf.test.ts` (таблиця D6 і збіг із SQL), PGlite (лише субота → текст AC, заявки немає;
       перетин → текст D6), e2e (клік по суботі показує текст AC).
@@ -39,7 +39,7 @@ on_behalf_and_edit` — першим комітом (мітка пізніша �
 
 ## 4. Хто може подавати від імені
 
-- [ ] 4.1 База: порядок перевірок D1 у `submit_leave_request_on_behalf` і функціях D8. Код: `EmptyState` відмов і
+- [x] 4.1 База: порядок перевірок D1 у `submit_leave_request_on_behalf` і функціях D8. Код: `EmptyState` відмов і
       порожнього списку на `/on-behalf/**`, пряме посилання на себе → `/requests/new` (D10, D11). Тести: PGlite
       (працівник, менеджер чужих посад, менеджер без посад — тексти й жодного запису); e2e (тексти AC без email; гість
       → сторінка входу без імен і дат).
@@ -47,7 +47,7 @@ on_behalf_and_edit` — першим комітом (мітка пізніша �
 
 ## 5. Правка в базі, закрита до перемикання рішення (крок 1 D9, той самий PR)
 
-- [ ] 5.1 База: `edit_leave_record` з обгорткою (D7) **без** `grant execute` для `authenticated`, дія `record_changed`
+- [x] 5.1 База: `edit_leave_record` з обгорткою (D7) **без** `grant execute` для `authenticated`, дія `record_changed`
       (D4), 9-параметрова `decide_leave_record` і стара як обгортка над спільним тілом з `p_check_fields => false` (D9). Код: `HISTORY_ACTIONS` і `RecordHistory` для
       `record_changed`; кнопки «Edit record» ще немає. Тести: PGlite від ролі з правом (дата, тип, заміна — по рядку на
       поле дослівно; кілька полів — у порядку D7; нічого не змінилось — жодного рядка; перетин сам із собою — ні, з

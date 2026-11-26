@@ -67,7 +67,14 @@ export const HISTORY_ACTIONS: Record<string, string> = {
   // Скасування погодженого запису (requirements/09-cancel-approved.md, Assumptions: хто й коли, до хвилини).
   cancellation_requested: "Cancellation requested",
   cancellation_declined: "Cancellation declined",
+  // Заявка від імені й правка до рішення (requirements/08-on-behalf-and-edit.md): рядок PM складає база в comment —
+  // «Submitted by … on behalf of …», «… changed the date: … → …»; ці назви — для зчитувача й запасний показ.
+  submitted_on_behalf: "Submitted on behalf",
+  record_changed: "Changed",
 };
+
+/** Дії, рядок яких — дослівний текст PM від бази (comment), а не «що · хто» (AC-BEHALF-01, AC-BEHALF-06…08). */
+export const VERBATIM_HISTORY_ACTIONS: ReadonlySet<string> = new Set(["submitted_on_behalf", "record_changed"]);
 
 export interface HistoryEvent {
   createdAt: string;

@@ -3,7 +3,6 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { isLimitedType, schoolYearOf } from "@/lib/leave/balance";
-import type { RequestPayload } from "@/lib/leave/draft";
 import {
   BLOCKING_STATUSES,
   buildRequestRecords,
@@ -14,13 +13,14 @@ import {
   toRpcRecords,
   type DraftRecord,
 } from "@/lib/leave/request";
-import { checkSubstitutes, substituteIdOf } from "@/lib/leave/substitutes";
+import { checkSubstitutes } from "@/lib/leave/substitutes";
 import { isCalendarDate } from "@/lib/leave/time";
 import { createClient } from "@/lib/supabase/server";
 import { loadRemaining } from "../../balances/load-balances";
 import { dateSpan, loadClosures } from "../../calendar/load-closures";
 import { loadOwnPositions } from "./load-positions";
 import { loadSubstituteOptions } from "./load-substitutes";
+import { parsePayload } from "./request-payload";
 import { submitRedirect } from "./submit-redirect";
 
 type Supabase = Awaited<ReturnType<typeof createClient>>;
@@ -30,39 +30,6 @@ export interface SubmitState {
 }
 
 const FAILED = "The request could not be saved. Please try again.";
-
-function parsePayload(raw: FormDataEntryValue | null): RequestPayload | null {
-  if (typeof raw !== "string") return null;
-  try {
-    const value = JSON.parse(raw) as Partial<RequestPayload>;
-    if (
-      !Array.isArray(value.dates) ||
-      !value.dates.every((d) => typeof d === "string") ||
-      typeof value.leaveType !== "string" ||
-      !Array.isArray(value.choices)
-    ) {
-      return null;
-    }
-    const choices = value.choices.map((c) => ({
-      date: String(c.date),
-      positionId: Number(c.positionId),
-      include: c.include === true,
-      wholeDay: c.wholeDay === true,
-      start: typeof c.start === "string" ? c.start : undefined,
-      end: typeof c.end === "string" ? c.end : undefined,
-      substituteId: substituteIdOf(c.substituteId),
-    }));
-    return {
-      dates: value.dates,
-      leaveType: value.leaveType,
-      relationship: String(value.relationship ?? ""),
-      comment: typeof value.comment === "string" ? value.comment : "",
-      choices,
-    };
-  } catch {
-    return null;
-  }
-}
 
 /**
  * Посади працівника й закриття шкільного календаря на дати заявки (AC-CAL-03 … AC-CAL-05) — для тих самих чистих

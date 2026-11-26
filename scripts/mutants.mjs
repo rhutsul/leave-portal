@@ -27,9 +27,6 @@ const CALENDAR_REQUEST_DB = "tests/db/school-calendar-request.test.ts";
 // Виправлення за рев'ю WS9: нові версії add_school_closure (вид закриття), fix_day_share і record_share (частка дати не
 // більша за 1.00) перекривають копії в CLARIFY і 20261021133002_leave_decisions.sql — їхні мутанти мутують цей файл.
 const REVIEW_FIXES = "supabase/migrations/20261115122625_day_share_cap_and_closure_kind.sql";
-// Погодження зі спільним lock календаря (друга думка до #75, знахідка 6): чинна версія private.decide_leave_record —
-// тут, вона перекриває копію в 20261021171135_leave_record_edit.sql, тож мутанти рішення мутують цей файл.
-const DECIDE = "supabase/migrations/20261117083144_decide_calendar_lock.sql";
 const RECORD_EDIT_DB = "tests/db/leave-record-edit.test.ts";
 // Денний ліміт запитів до моделі (рев'ю WS10, п. 1): лічильник private.ai_quota і private.take_ai_quota.
 const AI_QUOTA = "supabase/migrations/20261118083501_ai_quota.sql";
@@ -52,6 +49,11 @@ const STAFF_POSITIONS_DB = "tests/db/staff-positions.test.ts";
 const STAFF_DEPUTIES_DB = "tests/db/staff-deputies.test.ts";
 const STAFF_PRIVILEGES_DB = "tests/db/staff-privileges.test.ts";
 const STAFF_SUBSTITUTES_DB = "tests/db/staff-substitutes.test.ts";
+// Заявка від імені й правка до рішення (impl-on-behalf, D1–D9). Нові версії private.submit_leave_request (ядро
+// private.create_leave_request) і private.decide_leave_record (ядро private.decide_leave_record_core, частка —
+// private.approval_split) — тут, вони перекривають копії в SUBST і DECIDE, тож S20, S22, S31, S33 і S56 мутують цей файл.
+const ONB = "supabase/migrations/20261125200521_on_behalf_and_edit.sql";
+const ONB_DB = "tests/db/on-behalf.test.ts";
 const START_INSIDE = "p_start >= b.start_min and p_start < b.end_min\n  ) or not exists";
 
 export const mutants = [
@@ -189,7 +191,7 @@ export const mutants = [
     replace: "  select coalesce(sum(\n    b.end_min - b.start_min",
   },
   {
-    id: "S20", kind: "sql", ac: "AC-CAL-03", file: SUBST, tests: [CALENDAR_REQUEST_DB],
+    id: "S20", kind: "sql", ac: "AC-CAL-03", file: ONB, tests: [CALENDAR_REQUEST_DB],
     what: "submit_leave_request: закрита дата пояснюється як день без годин (текст AC-CAL-03 зник)",
     find: "                              then 'The school is closed on this day: ' || v_closed",
     replace: "                              then 'You have no working hours on this day'",
@@ -201,10 +203,10 @@ export const mutants = [
     replace: "  select b.start_min, b.end_min",
   },
   {
-    id: "S22", kind: "sql", ac: "AC-CAL-03", file: SUBST, tests: [CALENDAR_REQUEST_DB],
+    id: "S22", kind: "sql", ac: "AC-CAL-03", file: ONB, tests: [CALENDAR_REQUEST_DB],
     what: "submit_leave_request: закрита дата більше не відкидається з заявки на кілька дат (уся заявка падає)",
-    find: "      if v_closed is not null or (v_date is not null and private.working_minutes(v_uid, v_date) = 0) then",
-    replace: "      if v_date is not null and private.working_minutes(v_uid, v_date) = 0 and v_closed is null then",
+    find: "      if v_closed is not null or (v_date is not null and private.working_minutes(p_employee_id, v_date) = 0) then",
+    replace: "      if v_date is not null and private.working_minutes(p_employee_id, v_date) = 0 and v_closed is null then",
   },
   {
     id: "S23", kind: "sql", ac: "AC-CAL-16", file: STAFF, tests: [CALENDAR_REQUEST_DB],
@@ -256,10 +258,10 @@ export const mutants = [
     replace: "  if false then",
   },
   {
-    id: "S31", kind: "sql", ac: "AC-CAL-20", file: DECIDE, tests: [CALENDAR_DB],
-    what: "decide_leave_record: «Sick leave» / «Personal leave» більше не фіксують частку в paid_days при погодженні",
-    find: "    v_paid := least(v_share, greatest(v_remaining, 0));",
-    replace: "    v_paid := null;",
+    id: "S31", kind: "sql", ac: "AC-CAL-20", file: ONB, tests: [CALENDAR_DB],
+    what: "approval_split: «Sick leave» / «Personal leave» більше не фіксують частку в paid_days при погодженні",
+    find: "  share := private.record_share(p_record_id);\n  paid := least(share, greatest(",
+    replace: "  share := private.record_share(p_record_id);\n  return;\n  paid := least(share, greatest(",
   },
   {
     id: "S32", kind: "sql", ac: "AC-CAL-18", file: REVIEW_FIXES, tests: [CALENDAR_DB],
@@ -268,10 +270,10 @@ export const mutants = [
     replace: "  v_name text := btrim(p_name); -- ",
   },
   {
-    id: "S33", kind: "sql", ac: "AC-CAL-20", file: DECIDE, tests: [CALENDAR_DB],
+    id: "S33", kind: "sql", ac: "AC-CAL-20", file: ONB, tests: [CALENDAR_DB],
     what: "decide_leave_record: без спільного lock календаря — закриття, закомічене посеред рішення, розводить paid_days і day_share",
-    find: "  perform pg_advisory_xact_lock_shared(private.calendar_lock_key());",
-    replace: "  -- без lock календаря",
+    find: "посеред рішення (AC-CAL-20).\n  perform pg_advisory_xact_lock_shared(private.calendar_lock_key());",
+    replace: "посеред рішення (AC-CAL-20).\n  -- без lock календаря",
   },
   // Рев'ю викладача WS9 (16.11): по мутанту на AC-CAL-01, -09 і -15, щоб «здатен упасти» було на всіх 20 AC календаря.
   {
@@ -419,9 +421,9 @@ export const mutants = [
     replace: "  order by r.start_min desc, r.end_min, r.id\n  limit 1;",
   },
   {
-    id: "S56", kind: "sql", ac: "AC-SUBST-04", file: SUBST, tests: [SUBST_DB],
-    what: "submit_leave_request: заміна не зі списку працівника приймається",
-    find: "        if not exists (\n          select 1 from public.substitute_lists as s where s.employee_id = v_uid and s.substitute_id = v_substitute\n        ) then",
+    id: "S56", kind: "sql", ac: "AC-SUBST-04", file: ONB, tests: [SUBST_DB],
+    what: "create_leave_request: заміна не зі списку працівника приймається",
+    find: "        if not exists (\n          select 1 from public.substitute_lists as s where s.employee_id = p_employee_id and s.substitute_id = v_substitute\n        ) then",
     replace: "        if false then",
   },
   {
@@ -650,5 +652,84 @@ export const mutants = [
     what: "closuresInSchoolYear: закриття наступних років теж потрапляють у рік (немає межі 31 серпня)",
     find: ".filter((c) => c.startDate <= to && c.endDate >= from)",
     replace: ".filter((c) => c.endDate >= from)",
+  },
+  // ── Заявка від імені й правка до рішення (impl-on-behalf, D1–D9) ──
+  {
+    id: "S94", kind: "sql", ac: "AC-BEHALF-02", file: ONB, tests: [ONB_DB],
+    what: "decides_for_position: менеджер погоджує одразу й записи посад інших менеджерів працівника",
+    find: "           when 'manager' then private.manages_position(p_position_id)",
+    replace: "           when 'manager' then true",
+  },
+  {
+    id: "S95", kind: "sql", ac: "AC-BEHALF-11", file: ONB, tests: [ONB_DB],
+    what: "can_act_for_employee: менеджер подає від імені будь-якого працівника",
+    find: "           when 'manager' then private.manages_employee(p_employee_id)",
+    replace: "           when 'manager' then true",
+  },
+  {
+    id: "S96", kind: "sql", ac: "AC-BEHALF-12", file: ONB, tests: [ONB_DB],
+    what: "require_on_behalf_role: працівник проходить перевірку ролі",
+    find: "  if v_role not in ('manager', 'admin') then",
+    replace: "  if false then",
+  },
+  {
+    id: "S97", kind: "sql", ac: "AC-BEHALF-15", file: ONB, tests: [ONB_DB],
+    what: "require_on_behalf_role: менеджер без посад не отримує тексту AC-BEHALF-15",
+    find: "  if v_role = 'manager' and not exists (",
+    replace: "  if false and not exists (",
+  },
+  {
+    id: "S98", kind: "sql", ac: "AC-BEHALF-13", file: ONB, tests: [ONB_DB],
+    what: "edit_leave_record: менеджер чужої посади змінює запис",
+    find: "     or not private.decides_for_position(v_record.position_id, v_record.date)\n     or not private.decides_for_position(v_record.position_id, p_date) then",
+    replace: "     or false then",
+  },
+  {
+    id: "S99", kind: "sql", ac: "AC-BEHALF-10", file: ONB, tests: [ONB_DB],
+    what: "edit_leave_record: вирішений запис теж змінюється",
+    find: "  if v_record.status <> 'awaiting' then",
+    replace: "  if false then",
+  },
+  {
+    id: "S100", kind: "sql", ac: "AC-BEHALF-06", file: ONB, tests: [ONB_DB],
+    what: "edit_leave_record: текст перетину може назвати сам запис, що змінюється",
+    find: "         and r.id <> p_record_id\n",
+    replace: "",
+  },
+  {
+    id: "S101", kind: "sql", ac: "AC-BEHALF-07", file: ONB, tests: [ONB_DB],
+    what: "edit_leave_record: рядок «changed the leave type» і тоді, коли тип не змінився",
+    find: "  if v_record.leave_type <> p_leave_type or v_record.relationship is distinct from p_relationship then",
+    replace: "  if true then",
+  },
+  {
+    id: "S102", kind: "sql", ac: "AC-BEHALF-06", file: ONB, tests: [ONB_DB],
+    what: "decide_leave_record_core: рішення не помічає зміненої дати",
+    find: "     and (v_record.date <> p_date or v_record.leave_type <> p_leave_type",
+    replace: "     and (v_record.leave_type <> p_leave_type",
+  },
+  {
+    id: "S103", kind: "sql", ac: "AC-BEHALF-08", file: ONB, tests: [ONB_DB],
+    what: "decide_leave_record_core: заміна порівнюється через <>, тож перехід «No substitute» ↔ людина не помічається",
+    find: "          or v_record.substitute_id is distinct from p_substitute_id) then",
+    replace: "          or v_record.substitute_id <> p_substitute_id) then",
+  },
+  {
+    id: "S104", kind: "sql", ac: "AC-BEHALF-05", file: ONB, tests: [ONB_DB],
+    what: "on_behalf_message: «You have no working hours on this day» лишається «you»",
+    find: "             then 'This employee has no working hours on this day'",
+    replace: "             then p_text",
+  },
+  {
+    id: "S105", kind: "sql", ac: "AC-BEHALF-01", file: ONB, tests: [ONB_DB],
+    what: "create_leave_request: заявка від імені записує подію «submitted» без рядка «Submitted by … on behalf of …»",
+    find: "      if v_on_behalf is null then",
+    replace: "      if true then",
+  },
+  {
+    id: "S106", kind: "sql", ac: "AC-BEHALF-04", file: ONB, tests: [ONB_DB],
+    what: "submit_leave_request_on_behalf: погодження одразу без розподілу понад залишок (unpaid_days не пишеться)",
+    find: "          unpaid_days = case when v_paid is null then null else (v_share - v_paid) / 100.0 end,\n          updated_at",
+    replace: "          unpaid_days = null,\n          updated_at",
   },
 ];

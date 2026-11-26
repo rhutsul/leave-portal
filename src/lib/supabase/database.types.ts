@@ -425,6 +425,7 @@ isOneToOne: false
                            },
 "decide_leave_record":
 { Args: { "p_comment"?: string,"p_decision": string,"p_end_min": number,"p_record_id": number,"p_split"?: boolean,"p_start_min": number }; Returns: Json
+} | { Args: { "p_comment"?: string,"p_date": string,"p_decision": string,"p_end_min": number,"p_leave_type": string,"p_record_id": number,"p_split"?: boolean,"p_start_min": number,"p_substitute_id": string | null }; Returns: Json
                            },
 "decide_record_cancellation":
 { Args: { "p_comment"?: string,"p_decision": string,"p_record_id": number,"p_request_id": number }; Returns: string
@@ -436,6 +437,9 @@ isOneToOne: false
 { Args: Record<PropertyKey, never>; Returns: {
               "can_decide": boolean,"created_at": string,"date": string,"decided_at": string,"decided_by_name": string,"division_name": string,"employee_comment": string,"employee_email": string,"employee_id": string,"employee_name": string,"end_min": number,"id": number,"leave_type": string,"manager_comment": string,"minutes": number,"paid_days": number,"position_kind": string,"position_title": string,"relationship": string,"request_id": number,"start_min": number,"status": string,"unpaid_days": number
             }[]
+                           },
+"edit_leave_record":
+{ Args: { "p_date": string,"p_end_min": number,"p_leave_type": string,"p_record_id": number,"p_relationship": string | null,"p_start_min": number,"p_substitute_id": string | null }; Returns: undefined
                            },
 "get_balance_inputs":
 { Args: { "p_employee_id": string,"p_school_year": number }; Returns: Json
@@ -453,6 +457,21 @@ isOneToOne: false
 "my_substitutions":
 { Args: Record<PropertyKey, never>; Returns: {
               "date": string,"employee_email": string,"end_min": number,"record_id": number,"start_min": number,"status": string,"upgrade_minutes": number
+            }[]
+                           },
+"on_behalf_employees":
+{ Args: Record<PropertyKey, never>; Returns: {
+              "division_name": string,"email": string,"employee_id": string,"main_title": string
+            }[]
+                           },
+"on_behalf_positions":
+{ Args: { "p_employee_id": string }; Returns: {
+              "blocks": Json,"decides": boolean,"division_name": string,"id": number,"kind": string,"title": string
+            }[]
+                           },
+"on_behalf_record_dates":
+{ Args: { "p_employee_id": string,"p_from": string,"p_to": string }; Returns: {
+              "date": string
             }[]
                            },
 "record_histories":
@@ -489,6 +508,9 @@ isOneToOne: false
                            },
 "submit_leave_request":
 { Args: { "p_comment"?: string,"p_leave_type": string,"p_records": Json,"p_relationship"?: string }; Returns: number
+                           },
+"submit_leave_request_on_behalf":
+{ Args: { "p_comment"?: string,"p_employee_id": string,"p_leave_type": string,"p_records": Json,"p_relationship"?: string }; Returns: Json
                            },
 "substitute_candidates":
 { Args: { "p_employee_id": string }; Returns: {

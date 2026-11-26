@@ -9,7 +9,8 @@
 // Правка (D7) до кроку 4 D9 закрита для authenticated: її логіку тести кличуть від власника функцій з auth.uid()
 // менеджера (asOwner), а від authenticated — перевіряють, що права немає.
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
-import { computeBalances, formatDays, parseBalanceInputs } from "@/lib/leave/balance";
+import { computeBalances, employeeWarning, formatDays, parseBalanceInputs } from "@/lib/leave/balance";
+import { forEmployee } from "@/lib/leave/on-behalf";
 import { createLeaveDb, type LeaveDb } from "./supabase-pglite";
 
 let t: LeaveDb;
@@ -521,6 +522,14 @@ describe("changing a record before deciding (closed for authenticated until step
     });
   });
 
+  it("AC-BEHALF-06: the overlap message names the other record, never the record being changed", async () => {
+    const id = await givenAwaiting(THU, "sick", { start_min: 510, end_min: 600 });
+    await givenAwaiting(THU, "sick", { start_min: 600, end_min: 660 });
+    await expect(edit(manager1, id, { date: THU, start_min: 510, end_min: 720, leave_type: "sick" })).rejects.toThrow(
+      /^This employee already has a request for this time: 2026-12-03 10:00–11:00$/,
+    );
+  });
+
   it("AC-BEHALF-07: Sick leave → Personal leave, one history line verbatim", async () => {
     const id = await givenAwaiting(FRI);
     await edit(manager1, id, { date: FRI, ...WHOLE, leave_type: "personal" });
@@ -779,5 +788,24 @@ describe("deciding sees another manager's change (D9)", () => {
       [id],
     );
     expect(result.status).toBe("approved");
+  });
+});
+
+describe("'this employee' texts (D6)", () => {
+  it("AC-BEHALF-05: private.on_behalf_message and forEmployee give the same text for the same lines", async () => {
+    const lines = [
+      "You have no working hours on this day",
+      "Hours must be within your schedule: 08:30–12:00, 12:30–15:30",
+      "You already have a request for this time: 2026-12-03 09:00–11:00",
+      "This substitute is no longer on your substitute list",
+      employeeWarning("personal", 150, 50)!,
+      "The school is closed on this day: Holiday",
+      "The comment can be at most 500 characters",
+      "assistant1@example.test is not available at this time: 2026-12-04 09:00–11:00",
+    ];
+    for (const line of lines) {
+      const [{ text }] = await asOwner<{ text: string }>(manager1, "select private.on_behalf_message($1) as text", [line]);
+      expect(text).toBe(forEmployee(line));
+    }
   });
 });
