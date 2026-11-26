@@ -77,14 +77,15 @@ export async function cancelledWithNote(recordId: number, note: string): Promise
   if (error) throw error;
 }
 
-export type View = { width: number; height: number; theme?: "light" | "dark" };
+/** `touch` — емуляція дотику (`pointer: coarse`): поля й кнопки 44 px (ADR 0008). */
+export type View = { width: number; height: number; theme?: "light" | "dark"; touch?: boolean };
 
 /** Браузерний контекст синтетичного працівника: лише куки сесії (пароль у браузер і trace.zip не потрапляє). */
 export async function employeeContext(browser: Browser, employee: UatEmployee, view?: View): Promise<BrowserContext> {
   const baseURL = test.info().project.use.baseURL!;
   const context = await browser.newContext({
     storageState: { cookies: [], origins: [] },
-    ...(view ? { viewport: { width: view.width, height: view.height } } : {}),
+    ...(view ? { viewport: { width: view.width, height: view.height }, hasTouch: view.touch ?? false } : {}),
     colorScheme: view?.theme ?? "light",
     reducedMotion: "reduce",
   });
@@ -107,7 +108,7 @@ export async function roleContext(browser: Browser, role: string, view?: View): 
   const baseURL = test.info().project.use.baseURL!;
   const context = await browser.newContext({
     storageState: `playwright/.auth/${role}.json`,
-    ...(view ? { viewport: { width: view.width, height: view.height } } : {}),
+    ...(view ? { viewport: { width: view.width, height: view.height }, hasTouch: view.touch ?? false } : {}),
     colorScheme: view?.theme ?? "light",
     reducedMotion: "reduce",
   });

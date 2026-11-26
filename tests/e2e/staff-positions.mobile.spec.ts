@@ -16,7 +16,7 @@ for (const theme of ["light", "dark"] as const) {
   test(`positions and deputies on a 390 px phone, ${theme}`, { tag: ["@writes"] }, async ({ browser }) => {
     const shot = (page: Page, name: string, fullPage = false) =>
       cleanScreenshot(page, test.info().outputPath(`ws11-staff-${name}-390-${theme}.png`), fullPage);
-    const context = await roleContext(browser, "admin", { width: 390, height: 844, theme });
+    const context = await roleContext(browser, "admin", { width: 390, height: 844, theme, touch: true });
     const page = await context.newPage();
     try {
       const { id } = await createEmployeeViaPage(page, "Phone Position", staffEmail(`pos-${theme}`));

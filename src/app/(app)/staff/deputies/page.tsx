@@ -19,7 +19,7 @@ type Supabase = Awaited<ReturnType<typeof staffSession>>["supabase"];
 
 /** Хто може бути відсутнім менеджером: той, хто відповідає хоча б за одну посаду (D9). */
 async function loadResponsibleManagers(supabase: Supabase): Promise<Person[]> {
-  const { data, error } = await supabase.from("position_managers").select("manager:profiles(id, full_name, email)");
+  const { data, error } = await supabase.from("position_managers").select("manager:profiles!position_managers_manager_id_fkey(id, full_name, email)");
   if (error) throw error;
   const byId = new Map<string, Person>();
   for (const row of data ?? []) {
@@ -39,7 +39,7 @@ export default async function DeputiesPage() {
   if (!isAdmin) return <StaffDenied />;
   const today = kyivDate(new Date());
 
-  const [{ data: rows, error }, managers, people] = await Promise.all([
+  const [{ data: rows, error: rowsError }, managers, people, { data: managerRoles, error: rolesError }] = await Promise.all([
     supabase
       .from("deputy_assignments")
       .select(
@@ -48,10 +48,12 @@ export default async function DeputiesPage() {
       .order("start_date", { ascending: false }),
     loadResponsibleManagers(supabase),
     loadManagerCandidates(supabase),
+    // Заступник — активний менеджер (D9): адміністраторів з кандидатів у менеджери посад тут не пропонуємо.
+    supabase.from("profiles").select("id").eq("role", "manager").is("deactivated_at", null),
   ]);
+  // Збій ролей — помилка сторінки, а не форма без кандидатів.
+  const error = rowsError ?? rolesError;
   const assignments = rows ?? [];
-  // Заступник — активний менеджер (D9): адміністраторів з кандидатів у менеджери посад тут не пропонуємо.
-  const { data: managerRoles } = await supabase.from("profiles").select("id").eq("role", "manager").is("deactivated_at", null);
   const managerIds = new Set((managerRoles ?? []).map((r) => r.id));
   const deputies = people.filter((p) => managerIds.has(p.id));
 
@@ -104,15 +106,17 @@ export default async function DeputiesPage() {
           </Table>
         </div>
       )}
-      <Card className="max-w-3xl gap-4">
-        <CardHeader>
-          <CardTitle className="text-base font-semibold">Assign a deputy</CardTitle>
-          <CardDescription>The absent manager keeps their rights too.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <AssignDeputyForm managers={managers} deputies={deputies} today={today} />
-        </CardContent>
-      </Card>
+      {!rolesError && (
+        <Card className="max-w-3xl gap-4">
+          <CardHeader>
+            <CardTitle className="text-base font-semibold">Assign a deputy</CardTitle>
+            <CardDescription>The absent manager keeps their rights too.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <AssignDeputyForm managers={managers} deputies={deputies} today={today} />
+          </CardContent>
+        </Card>
+      )}
     </>
   );
 }

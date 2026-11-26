@@ -29,7 +29,9 @@ export async function assignDeputy(_prev: DeputyActionState, formData: FormData)
   const managerId = uuidOf(formData.get("manager_id"));
   const deputyId = uuidOf(formData.get("deputy_id"));
   const start = date(formData, "start");
-  const end = date(formData, "end") ?? start;
+  // Порожній кінець — одноденне призначення; непорожній, але не дата календаря, — помилка, а не день початку.
+  const rawEnd = formData.get("end");
+  const end = typeof rawEnd === "string" && rawEnd !== "" ? date(formData, "end") : start;
   if (!managerId) return { message: DEPUTY_MESSAGES.noManager, done: false };
   if (!deputyId) return { message: DEPUTY_MESSAGES.noDeputy, done: false };
   if (!start || !end) return { message: DEPUTY_MESSAGES.noDates, done: false };

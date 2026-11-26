@@ -38,7 +38,9 @@ export default async function EmployeePage({ params, searchParams }: PageProps<"
 
   const own = employee.id === userId;
   const positions = await loadStaffPositions(supabase, employee.id);
-  const saved = SAVED[String((await searchParams).saved ?? "")];
+  const savedKey = String((await searchParams).saved ?? "");
+  // Лише власні ключі: `?saved=__proto__` не дістане Object.prototype.
+  const saved = Object.hasOwn(SAVED, savedKey) ? SAVED[savedKey] : undefined;
   const name = employee.full_name || employee.email;
 
   return (

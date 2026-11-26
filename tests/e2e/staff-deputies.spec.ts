@@ -23,7 +23,7 @@ function addDays(date: string, days: number): string {
 
 async function choosePerson(page: Page, label: string, email: string) {
   await page.getByRole("combobox", { name: label }).click();
-  await page.getByRole("option", { name: new RegExp(email.replace(/[.@]/g, "\\$&")) }).click();
+  await page.getByRole("option", { name: email }).click();
 }
 
 async function assign(page: Page, start: string, end: string) {

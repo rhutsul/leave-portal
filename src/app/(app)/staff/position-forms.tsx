@@ -221,6 +221,8 @@ export function NewPositionForm({
   const [state, action] = useActionState(createPosition, INITIAL);
   const [kind, setKind] = useState<PositionKind>(hasMain ? "additional" : "main");
   const [division, setDivision] = useState<string | null>(null);
+  // Кероване поле: дія форми React скидає некеровані поля, і назва зникла б після помилки (наприклад, без відділу).
+  const [title, setTitle] = useState("");
   const [from, setFrom] = useState<string | null>(null);
   const [week, setWeek] = useState<WeekDraft>(() => Array.from({ length: 7 }, (_, d) => (d < 5 ? [{ start: "08:30", end: "15:30" }] : [])));
   const [managers, setManagersValue] = useState<string[]>([]);
@@ -273,7 +275,14 @@ export function NewPositionForm({
         </div>
         <div className="flex flex-col gap-1.5">
           <Label htmlFor={`${ids}-title`}>Job title</Label>
-          <Input id={`${ids}-title`} name="title" autoComplete="off" className={TOUCH} />
+          <Input
+            id={`${ids}-title`}
+            name="title"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            autoComplete="off"
+            className={TOUCH}
+          />
         </div>
       </div>
       <AppliesFrom value={from} onChange={setFrom} today={today} />

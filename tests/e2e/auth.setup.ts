@@ -17,6 +17,8 @@ const ROLES = {
   teacher2: "teacher2@example.test",
   // Шкільний календар: manager1@ погоджує запис (AC-CAL-06) і пробує закрити день напряму (AC-CAL-13).
   manager1: "manager1@example.test",
+  // Заступники: manager2@ заміщує manager1@ (AC-STAFF-09, AC-STAFF-10).
+  manager2: "manager2@example.test",
   admin: "admin@example.test",
 } as const;
 

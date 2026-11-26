@@ -28,7 +28,7 @@ export async function loadStaffPositions(supabase: Supabase, employeeId: string)
   const { data, error } = await supabase
     .from("positions")
     .select(
-      "id, kind, title, division:divisions(name), schedule_blocks(weekday, start_min, end_min, valid_from, valid_to), position_managers(manager:profiles(id, full_name, email))",
+      "id, kind, title, division:divisions(name), schedule_blocks(weekday, start_min, end_min, valid_from, valid_to), position_managers(manager:profiles!position_managers_manager_id_fkey(id, full_name, email))",
     )
     .eq("employee_id", employeeId)
     .order("kind", { ascending: false })
