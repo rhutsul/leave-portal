@@ -54,6 +54,10 @@ const STAFF_SUBSTITUTES_DB = "tests/db/staff-substitutes.test.ts";
 // private.approval_split) — тут, вони перекривають копії в SUBST і DECIDE, тож S20, S22, S31, S33 і S56 мутують цей файл.
 const ONB = "supabase/migrations/20261125200521_on_behalf_and_edit.sql";
 const ONB_DB = "tests/db/on-behalf.test.ts";
+// Lock людей проти гонки «відкликання права ↔ заявка від імені» (20261126152206_staff_manager_locks.sql): нові тіла
+// set_position_managers, remove_deputy і submit_leave_request_on_behalf — тож S106 мутує чинну версію тут.
+const STAFF_LOCKS = "supabase/migrations/20261126152206_staff_manager_locks.sql";
+const STAFF_LOCKS_DB = "tests/db/staff-locks.test.ts";
 const START_INSIDE = "p_start >= b.start_min and p_start < b.end_min\n  ) or not exists";
 
 export const mutants = [
@@ -647,6 +651,24 @@ export const mutants = [
     replace: "    where p.id <> p_employee_id\n",
   },
   {
+    id: "S109", kind: "sql", ac: "AC-STAFF-04", file: STAFF_LOCKS, tests: [STAFF_LOCKS_DB],
+    what: "set_position_managers: без lock працівника посади — заявка від імені проскакує зміну менеджерів",
+    find: "  perform private.lock_people(array[v_employee] || coalesce(p_manager_ids, '{}'));",
+    replace: "  perform private.lock_people(p_manager_ids);",
+  },
+  {
+    id: "S110", kind: "sql", ac: "AC-STAFF-09", file: STAFF_LOCKS, tests: [STAFF_LOCKS_DB],
+    what: "remove_deputy: без lock відсутнього менеджера — заявка заступника проскакує зняття",
+    find: "  perform private.lock_people(array[v_manager]);\n  delete from public.deputy_assignments",
+    replace: "  delete from public.deputy_assignments",
+  },
+  {
+    id: "S111", kind: "sql", ac: "AC-STAFF-09", file: STAFF_LOCKS, tests: [STAFF_LOCKS_DB],
+    what: "submit_leave_request_on_behalf: заступник не бере lock відсутнього менеджера",
+    find: "  perform private.lock_people(array[p_employee_id] || v_absent);",
+    replace: "  perform private.lock_people(array[p_employee_id]);",
+  },
+  {
     // Правило AC-CAL-15 живе в TS, а не в SQL: рік на /calendar — це closuresInSchoolYear над рядками бази.
     id: "T1", kind: "ts", ac: "AC-CAL-15", file: "src/lib/leave/calendar.ts", tests: ["src/lib/leave/calendar.test.ts"],
     what: "closuresInSchoolYear: закриття наступних років теж потрапляють у рік (немає межі 31 серпня)",
@@ -727,7 +749,7 @@ export const mutants = [
     replace: "      if true then",
   },
   {
-    id: "S106", kind: "sql", ac: "AC-BEHALF-04", file: ONB, tests: [ONB_DB],
+    id: "S106", kind: "sql", ac: "AC-BEHALF-04", file: STAFF_LOCKS, tests: [ONB_DB],
     what: "submit_leave_request_on_behalf: погодження одразу без розподілу понад залишок (unpaid_days не пишеться)",
     find: "          unpaid_days = case when v_paid is null then null else (v_share - v_paid) / 100.0 end,\n          updated_at",
     replace: "          unpaid_days = null,\n          updated_at",
