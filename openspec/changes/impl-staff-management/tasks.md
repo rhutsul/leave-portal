@@ -53,7 +53,7 @@ PR 1 — з тестом PGlite, у PR 2/3 додаються e2e.
       таблицею, ні функцією; `acting_manager_ids` на датах AC.
       Done when: AC-STAFF-09, AC-STAFF-10, AC-STAFF-14
 
-- [ ] 1.5 Мутанти, типи, рев'ю й staging (D14, D15). `scripts/mutants.mjs` — мутанти D15 (`npm run mutation:sql`,
+- [x] 1.5 Мутанти, типи, рев'ю й staging (D14, D15). `scripts/mutants.mjs` — мутанти D15 (`npm run mutation:sql`,
       таблиця в описі PR); `database.types.ts` з Summary `db-check`; рев'ю бази (CodeRabbit або звіт другої думки
       коментарем до злиття); після злиття — `db-deploy-staging`, перевірка на staging (створити працівника, задати
       пароль за посиланням, увійти; деактивувати — вхід відмовлено), потім `db-deploy`; рядки `docs/conformance.md`.
@@ -97,21 +97,21 @@ PR 1 — з тестом PGlite, у PR 2/3 додаються e2e.
 
 ## PR 3 — посади, розклади й заступники (`task/staff-positions`)
 
-- [ ] 3.1 Розклад «з дати» в коді (D7). `src/lib/leave/schedule.ts` (`blocksOnDate`, `scheduleVersions`,
+- [x] 3.1 Розклад «з дати» в коді (D7). `src/lib/leave/schedule.ts` (`blocksOnDate`, `scheduleVersions`,
       `formatSchedule`) з unit-тестами; `load-positions.ts`, `load-overview.ts`, `load-record-day.ts` — `valid_from`,
       `valid_to` і фільтр за датою; календар нової заявки рахує години дати за її версією; «Your weekly schedule» —
       поточна й наступна версія; `HoursBar` / `RecordDay` обрізають смугу межами дня. Тести: unit; e2e — після нового
       розкладу старий погоджений запис показує свої години, новий цілий день — нові.
       Done when: AC-STAFF-07
 
-- [ ] 3.2 Посади й менеджери (D8, D13). `/staff/[id]/positions/new`, `…/[positionId]/schedule`, `…/managers`: тип
+- [x] 3.2 Посади й менеджери (D8, D13). `/staff/[id]/positions/new`, `…/[positionId]/schedule`, `…/managers`: тип
       (`RadioGroup`), підрозділ (`Select`), назва, редактор розкладу, «Applies from» (`DatePickerField` `single`),
       менеджери (`Checkbox`-картки); картки посад на `/staff/[id]`. Тести: e2e `tests/e2e/staff-positions.spec.ts` —
       нова основна посада видна працівнику в «Your weekly schedule» і менеджеру на `/balances`; друга основна й
       перетин — тексти AC; `.mobile.spec.ts` редактора на 360 / 390 px.
       Done when: AC-STAFF-04, AC-STAFF-05, AC-STAFF-06
 
-- [ ] 3.3 Заступники (D9, D13). `/staff/deputies`: список, «No deputies assigned», форма «Assign a deputy» з
+- [x] 3.3 Заступники (D9, D13). `/staff/deputies`: список, «No deputies assigned», форма «Assign a deputy» з
       `DatePickerField` `range`, «Remove» з `Dialog`. Тести: e2e `tests/e2e/staff-deputies.spec.ts` — порожній список;
       призначення з періодом із сьогодні → manager2@ бачить і погоджує запис manager1@, manager1@ теж бачить; період
       із завтра — manager2@ не бачить; `negative-controls.spec.ts` — менеджер REST-ом не створює призначення.
