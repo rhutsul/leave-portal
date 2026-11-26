@@ -12,6 +12,7 @@ import {
   IdCard,
   List,
   UserRoundCheck,
+  UserRoundPlus,
   UsersRound,
 } from "lucide-react";
 import { markHydrated, Tick } from "@/components/ui/motion";
@@ -21,14 +22,15 @@ import { cn } from "@/lib/utils";
 
 // «New request» — не пункт меню, а окрема форма розділу «My requests»: її відкривають кнопки «New request» на Overview
 // і в My requests, а підсвітка на /requests/new стоїть на «My requests» (navSection). `deciders` — лише manager і
-// admin: «Decisions», «Register» (реєстр погоджених відсутностей, ADR 0012) і «Substitutes» (списки замін, вимога 06);
-// «My substitutions» — усім (матриця прав requirements/product.md). `admin` — лише адміністратор: «Employees»
-// (керування працівниками, вимога 07, AC-STAFF-13).
+// admin: «Decisions», «On behalf» (заявка від імені працівника, вимога 08), «Register» (реєстр погоджених
+// відсутностей, ADR 0012) і «Substitutes» (списки замін, вимога 06); «My substitutions» — усім (матриця прав
+// requirements/product.md). `admin` — лише адміністратор: «Employees» (керування працівниками, вимога 07, AC-STAFF-13).
 const LINKS: { href: string; label: string; icon: ReactNode; deciders?: true; admin?: true }[] = [
   { href: "/", label: "Overview", icon: <House /> },
   { href: "/requests", label: "My requests", icon: <List /> },
   { href: "/substitutions", label: "My substitutions", icon: <UserRoundCheck /> },
   { href: "/decisions", label: "Decisions", icon: <ClipboardCheck />, deciders: true },
+  { href: "/on-behalf", label: "On behalf", icon: <UserRoundPlus />, deciders: true },
   { href: "/register", label: "Register", icon: <FileSpreadsheet />, deciders: true },
   { href: "/substitutes", label: "Substitutes", icon: <UsersRound />, deciders: true },
   { href: "/balances", label: "Balances", icon: <ChartColumn /> },

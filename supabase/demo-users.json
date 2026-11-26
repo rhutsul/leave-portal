@@ -33,5 +33,10 @@
     "email": "teacher3@example.test",
     "full_name": "Петро Демо-Вчитель-Третій",
     "role": "employee"
+  },
+  {
+    "email": "manager3@example.test",
+    "full_name": "Демо-Менеджер-Третій",
+    "role": "manager"
   }
 ]

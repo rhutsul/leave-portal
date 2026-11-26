@@ -57,9 +57,12 @@ const SWATCH: Record<DayState, { className: string; label: string }> = {
 /** Легенда станів під календарем; `states` — які з них показувати (наприклад, без closed до зрізу календаря). */
 export function CalendarLegend({
   states = ["free", "selected", "record", "closed", "off"],
+  labels = {},
   className,
 }: {
   states?: DayState[];
+  /** Інші підписи станів — наприклад, «This employee already has a record» у заявці від імені. */
+  labels?: Partial<Record<DayState, string>>;
   className?: string;
 }) {
   return (
@@ -67,7 +70,7 @@ export function CalendarLegend({
       {states.map((s) => (
         <li key={s} className="inline-flex items-center gap-1.5">
           <span aria-hidden="true" className={cn("size-3.5 rounded-[4px]", SWATCH[s].className)} />
-          {SWATCH[s].label}
+          {labels[s] ?? SWATCH[s].label}
         </li>
       ))}
     </ul>

@@ -167,6 +167,15 @@
   employee is not offered» додасть зріз `staff-management` у `my_substitute_options`, `substitute_candidates` і
   `submit_leave_request`.
 
+- 2026-11-25 (реалізація `impl-on-behalf`, перший PR): кандидати в питання PM, поки закриті власними припущеннями
+  (розробник) за D6 і D13 плану. (1) **Нагадування AC-LEAVE-23 для менеджера:** Assumptions `01-leave-request.md`
+  кажуть «It is also shown to a manager submitting on behalf» — показуємо той самий текст дослівно, хоча в ньому «you»
+  («please talk to the administrator before you go»). (2) **Попередження понад залишок для менеджера:** PM не дає тексту
+  — за правилом Assumptions 08 «Your … balance is …» стає «This employee's … balance is …». (3) **«Returned for
+  revision» і правка:** PM каже «records … with status "Awaiting decision"» — повернутий на доопрацювання запис вважаємо
+  вирішеним (текст AC-BEHALF-10). (4) **Заступник і «approved at once»:** «or is a deputy for on that day» читаємо як
+  день подання (той самий хелпер `manages_position`, що й решта прав заступника зрізу 07), а не день запису.
+
 ## Що пропустив би без скіла / що скіл знайшов зайве
 
 - 2026-11-02 (Q6–Q8): Q6 і Q7 підказало рев'ю викладача WS7; Q8 знайшла мутація Stryker (вижилий мутант на межі, який

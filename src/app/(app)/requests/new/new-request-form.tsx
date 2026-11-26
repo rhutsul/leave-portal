@@ -68,6 +68,9 @@ import {
 } from "@/lib/leave/time";
 import { cn } from "@/lib/utils";
 import { submitLeaveRequest, type SubmitState } from "./actions";
+import { submitOnBehalf } from "../../on-behalf/actions";
+import { forEmployee, ON_BEHALF_MESSAGES } from "@/lib/leave/on-behalf";
+import { StatusBadge } from "@/components/ui/status-badge";
 import type { Closure } from "@/lib/leave/calendar";
 import { calendarDay } from "./calendar-view";
 
@@ -112,6 +115,7 @@ export function NewRequestForm({
   recordDates,
   closures,
   substitutes = null,
+  subject,
 }: {
   positions: PositionSchedule[];
   /** Власний список замін (AC-SUBST-04); [] — список порожній (AC-SUBST-11); null — не завантажився, поля немає. */
@@ -123,6 +127,11 @@ export function NewRequestForm({
   recordDates: string[] | null;
   /** Закриття шкільного календаря навколо сьогодні (AC-CAL-03 … AC-CAL-05); null — не завантажились (перевірить подання). */
   closures: Closure[] | null;
+  /**
+   * Заявка від імені працівника (D10 impl-on-behalf): тексти перевірок — «this employee» (forEmployee, D6), у підсумку —
+   * «Status after submit» за посадами, що погодяться одразу; без пропа — власна заявка.
+   */
+  subject?: { employeeId: string; email: string; decides: Record<number, boolean> };
 }) {
   const ids = useId();
   const [draft, dispatch] = useReducer(draftReducer, EMPTY_DRAFT);
@@ -132,7 +141,9 @@ export function NewRequestForm({
   const [typeError, setTypeError] = useState<string | null>(null);
   const [commentError, setCommentError] = useState<string | null>(null);
   const [showServerError, setShowServerError] = useState(false);
-  const [state, formAction, pending] = useActionState(submitLeaveRequest, INITIAL);
+  const [state, formAction, pending] = useActionState(subject ? submitOnBehalf : submitLeaveRequest, INITIAL);
+  // Тексти перевірок для менеджера, що подає від імені (AC-BEHALF-05, AC-BEHALF-09); для власної заявки — як є.
+  const say = (message: string) => (subject ? forEmployee(message) : message);
   const { step, maxStep, dates, leaveType, relationship, comment } = draft;
 
   const go = (next: Step) => {
@@ -168,7 +179,9 @@ export function NewRequestForm({
   const labelOf = (id: number) => positions.find((p) => p.id === id)?.label ?? "";
   // Поле «Substitute» на кожному записі (AC-SUBST-02, AC-SUBST-04, AC-SUBST-11) і попередній перегляд позначки
   // підвищення в підсумку (AC-SUBST-08); що записано, вирішує база.
-  const field = substituteField(substitutes);
+  const baseField = substituteField(substitutes);
+  const field: SubstituteField =
+    subject && baseField.kind === "empty" ? { kind: "empty", message: ON_BEHALF_MESSAGES.noSubstitutes } : baseField;
   const substituteOf = (id: string | undefined) => (id ? substitutes?.find((s) => s.id === id) : undefined);
   const upgradeOf = (r: DraftRecord) => {
     const substitute = substituteOf(r.substituteId);
@@ -180,7 +193,7 @@ export function NewRequestForm({
     if (!dates.includes(date)) {
       const day = positionsOnDate(positions, date, closures ?? []);
       if (!day.ok) {
-        setDateError(day.message);
+        setDateError(say(day.message));
         return;
       }
     }
@@ -232,7 +245,7 @@ export function NewRequestForm({
   const relationshipItems = RELATIONSHIPS.map((r) => ({ value: r, label: RELATIONSHIP_LABELS[r] }));
   const warnings =
     leaveType && isLimitedType(leaveType)
-      ? overBalance.map((o) => ({ key: o.schoolYear, text: employeeWarning(leaveType, o.share, o.remaining) }))
+      ? overBalance.map((o) => ({ key: o.schoolYear, text: say(employeeWarning(leaveType, o.share, o.remaining) ?? "") }))
       : [];
 
   return (
@@ -256,6 +269,7 @@ export function NewRequestForm({
                     closedOn={(date) => closedDayName(positions, date, closures ?? [])}
                     onMonth={(delta) => setMonth((m) => addMonths(m, delta))}
                     onPick={pickDate}
+                    owner={subject ? "employee" : "you"}
                   />
                   <div className="flex min-w-56 flex-1 flex-col gap-2.5">
                     <span className="text-[13px] font-medium">Selected dates</span>
@@ -286,7 +300,7 @@ export function NewRequestForm({
                     )}
                     <FieldError id={`${ids}-date-error`} message={dateError} />
                     <div className="mt-1 rounded-md border border-border bg-muted px-3.5 py-3 text-[13px] leading-relaxed">
-                      <div className="mb-1 font-medium">Your weekly schedule</div>
+                      <div className="mb-1 font-medium">{subject ? "Weekly schedule" : "Your weekly schedule"}</div>
                       {positions.map((p) => (
                         <div key={p.id} className="text-muted-foreground">
                           {p.label} — {weeklySchedule(p.blocks)}
@@ -302,7 +316,11 @@ export function NewRequestForm({
               <div className="flex flex-col gap-5 px-4 py-5 md:px-6">
                 <StepTitle
                   title="Positions and hours"
-                  hint="For each date, include the positions you will be absent from — for the whole day or for specific hours."
+                  hint={
+                    subject
+                      ? "For each date, include the positions the employee will be absent from — for the whole day or for specific hours."
+                      : "For each date, include the positions you will be absent from — for the whole day or for specific hours."
+                  }
                 />
                 {/* AC-SUBST-11: замість вибору — повідомлення дослівно; заявку подають із «No substitute». */}
                 {field.kind === "empty" && (
@@ -317,6 +335,7 @@ export function NewRequestForm({
                     idPrefix={`${ids}-${section.date}`}
                     section={section}
                     field={field}
+                    say={say}
                     showErrors={showPositionErrors}
                     onChange={(positionId, patch) => {
                       setShowServerError(false);
@@ -464,6 +483,7 @@ export function NewRequestForm({
                         <TableHead>Position</TableHead>
                         <TableHead>Hours</TableHead>
                         <TableHead className="text-right">Duration</TableHead>
+                        {subject && <TableHead>Status after submit</TableHead>}
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -483,6 +503,12 @@ export function NewRequestForm({
                           </TableCell>
                           <TableCell className="tabular-nums">{formatRange(r.start, r.end)}</TableCell>
                           <TableCell data-cell="end" className="text-right tabular-nums max-md:px-2 max-md:py-1.5">{formatDuration(r.minutes)}</TableCell>
+                          {/* Попередній перегляд (AC-BEHALF-01, AC-BEHALF-02): що погоджено, вирішує база на дату запису. */}
+                          {subject && (
+                            <TableCell data-testid="status-after-submit">
+                              <StatusBadge status={subject.decides[r.positionId] ? "approved" : "awaiting"} />
+                            </TableCell>
+                          )}
                         </TableRow>
                       ))}
                     </TableBody>
@@ -506,10 +532,13 @@ export function NewRequestForm({
                 {balanceUnchecked && (
                   <p className="flex items-center gap-1.5 text-[13px] text-muted-foreground">
                     <Info className="size-3.5 shrink-0" aria-hidden="true" />
-                    Your balance will be checked when you submit; if it is exceeded, you will see a warning.
+                    {subject
+                      ? "The employee's balance will be checked when you submit; if it is exceeded, you will see a warning."
+                      : "Your balance will be checked when you submit; if it is exceeded, you will see a warning."}
                   </p>
                 )}
                 <input type="hidden" name="payload" value={payload} />
+                {subject && <input type="hidden" name="employeeId" value={subject.employeeId} />}
                 {showServerError && state.message && (
                   <Alert variant="destructive" role="alert">
                     <CircleAlert />
@@ -528,9 +557,9 @@ export function NewRequestForm({
           </Card>
         </form>
 
-        <Card role="complementary" aria-label="Your request" className="sticky top-8 max-w-full flex-[1_1_300px] gap-3.5 px-5 py-4.5">
+        <Card role="complementary" aria-label={subject ? "This request" : "Your request"} className="sticky top-8 max-w-full flex-[1_1_300px] gap-3.5 px-5 py-4.5">
           <div className="flex items-center justify-between">
-            <h2 className="text-base font-semibold">Your request</h2>
+            <h2 className="text-base font-semibold">{subject ? "This request" : "Your request"}</h2>
             <span className="text-xs text-muted-foreground">{recordCount(records.length)}</span>
           </div>
           <div className="flex items-center justify-between gap-3">
@@ -560,7 +589,9 @@ export function NewRequestForm({
             <span>{totalMinutes ? formatDuration(totalMinutes) : "—"}</span>
           </div>
           <p className="text-xs leading-normal text-muted-foreground">
-            Each record goes to the manager of its position and is decided separately.
+            {subject
+              ? "Records you decide for are approved at once; each other record goes to the manager of its position."
+              : "Each record goes to the manager of its position and is decided separately."}
           </p>
         </Card>
       </div>
@@ -581,6 +612,7 @@ function DateCalendar({
   closedOn,
   onMonth,
   onPick,
+  owner,
 }: {
   month: string;
   today: string;
@@ -591,6 +623,8 @@ function DateCalendar({
   closedOn: (date: string) => string | null;
   onMonth: (delta: number) => void;
   onPick: (date: string) => void;
+  /** Чий календар — для підпису дня з записом (заявка від імені — «this employee»). */
+  owner: "you" | "employee";
 }) {
   return (
     // Телефон (ADR 0008): календар на всю ширину картки без її бічних полів, проміжок 2 px — клітинка ≥ 40 px на 360 px
@@ -620,6 +654,7 @@ function DateCalendar({
             recordDates: recordDates ?? [],
             works: works(date),
             closed: closedOn(date),
+            owner,
           });
           return (
             <CalendarDay
@@ -633,7 +668,11 @@ function DateCalendar({
           );
         })}
       </div>
-      <CalendarLegend states={["free", "selected", "record", "closed", "off"]} className="max-md:px-3" />
+      <CalendarLegend
+        states={["free", "selected", "record", "closed", "off"]}
+        labels={owner === "employee" ? { record: "This employee already has a record" } : {}}
+        className="max-md:px-3"
+      />
       {/* Перетин із наявними записами все одно перевіряє база під час подання (AC-LEAVE-16). */}
       {recordDates === null && (
         <p className="max-w-[60ch] text-xs text-muted-foreground">
@@ -649,12 +688,15 @@ function DaySectionView({
   idPrefix,
   section,
   field,
+  say,
   showErrors,
   onChange,
 }: {
   idPrefix: string;
   section: DaySection;
   field: SubstituteField;
+  /** Тексти помилок для менеджера, що подає від імені (forEmployee); для власної заявки — як є. */
+  say: (message: string) => string;
   showErrors: boolean;
   onChange: (positionId: number, patch: Partial<PositionChoice>) => void;
 }) {
@@ -678,6 +720,7 @@ function DaySectionView({
             idPrefix={`${idPrefix}-${e.position.id}`}
             item={e}
             field={field}
+            say={say}
             axis={axis}
             showError={showErrors || Boolean(e.choice.start && e.choice.end)}
             describedBy={noPosition ? `${idPrefix}-positions-error` : undefined}
@@ -694,6 +737,7 @@ function PositionCard({
   idPrefix,
   item,
   field,
+  say,
   axis,
   showError,
   describedBy,
@@ -702,6 +746,7 @@ function PositionCard({
   idPrefix: string;
   item: Evaluated;
   field: SubstituteField;
+  say: (message: string) => string;
   axis: { start: number; end: number; ticks: number[] };
   showError: boolean;
   /** Помилка всієї дати («обери посаду») — її id для aria-describedby чекбокса. */
@@ -709,7 +754,7 @@ function PositionCard({
   onChange: (patch: Partial<PositionChoice>) => void;
 }) {
   const { position, choice, result } = item;
-  const error = showError && result && !result.ok ? result.message : null;
+  const error = showError && result && !result.ok ? say(result.message) : null;
   const errorId = `${idPrefix}-error`;
   const pct = (m: number) => ((m - axis.start) / (axis.end - axis.start)) * 100;
   const selected: TimeBlock[] =

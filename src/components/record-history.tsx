@@ -1,5 +1,5 @@
 import { isRecordStatus, STATUS_DOT } from "@/components/ui/status-badge";
-import { historyLine } from "@/lib/leave/decision";
+import { historyLine, VERBATIM_HISTORY_ACTIONS } from "@/lib/leave/decision";
 import { cn } from "@/lib/utils";
 
 export interface HistoryRow {
@@ -35,6 +35,8 @@ export function RecordHistory({ history, collapsed = true }: { history: readonly
       {history.map((h, i) => {
         const line = historyLine({ createdAt: h.created_at, action: h.action, actorName: h.actor_name, comment: h.comment });
         const last = i === history.length - 1;
+        // «Submitted by … on behalf of …» і «… changed the date: … → …» — рядок PM цілком, без «· хто» і лапок.
+        const verbatim = VERBATIM_HISTORY_ACTIONS.has(h.action) && h.comment;
         return (
           <li key={i} className="grid grid-cols-[14px_1fr] gap-2.5">
             <span aria-hidden="true" className="flex flex-col items-center">
@@ -42,12 +44,16 @@ export function RecordHistory({ history, collapsed = true }: { history: readonly
               {!last && <span className="mt-1 w-px flex-1 bg-border" />}
             </span>
             <span className={cn("flex min-w-0 flex-col", !last && "pb-3.5")}>
-              <span>
-                {line.what} <span className="text-muted-foreground">· {line.who}</span>
-              </span>
+              {verbatim ? (
+                <span className="break-words">{h.comment}</span>
+              ) : (
+                <span>
+                  {line.what} <span className="text-muted-foreground">· {line.who}</span>
+                </span>
+              )}
               <span className="text-xs text-muted-foreground tabular-nums">{line.at}</span>
               {/* У «Hours changed» коментар — попередні й нові години від бази, а не слова людини: без лапок. */}
-              {h.comment && (
+              {h.comment && !verbatim && (
                 <span className="mt-0.5 break-words whitespace-pre-line text-muted-foreground">
                   {h.action === "hours_changed" ? h.comment : `“${h.comment}”`}
                 </span>

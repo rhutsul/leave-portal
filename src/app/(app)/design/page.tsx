@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { Ban, CalendarDays, CircleAlert, Clock, Eye, Info, Plus, RotateCcw, SearchX, ShieldX, TriangleAlert, UserRound, X } from "lucide-react";
+import { Ban, CalendarDays, CircleAlert, CircleCheck, Clock, Eye, Info, Plus, RotateCcw, SearchX, ShieldX, TriangleAlert, UserRound, UsersRound, X } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { BalanceCard } from "@/components/ui/balance-card";
 import { Button } from "@/components/ui/button";
@@ -26,6 +26,8 @@ import { CancellationMarkView } from "@/components/ui/cancellation-mark";
 import { EmptyState } from "@/components/ui/empty-state";
 import { SubstituteNote } from "@/components/ui/substitute-note";
 import { SUBSTITUTE_MESSAGES } from "@/lib/leave/substitutes";
+import { ON_BEHALF_MESSAGES } from "@/lib/leave/on-behalf";
+import { EmployeeList } from "../on-behalf/employee-list";
 import { HoursBar } from "@/components/ui/hours-bar";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -365,6 +367,67 @@ export default async function DesignPage() {
             icon={<UserRound className="size-5" aria-hidden="true" />}
             title={SUBSTITUTE_MESSAGES.notCovering}
             text="Records where you are chosen as the substitute will appear here."
+          />
+        </div>
+      </Section>
+
+      <Section title="Request on behalf">
+        {/* D11 openspec/changes/impl-on-behalf/design.md: список працівників — рядок-посилання зі стрілкою; над формою —
+            Alert info «хто погоджує»; у підсумку — «Status after submit» словом із крапкою; відмови й «немає
+            працівників» — EmptyState з текстом AC; рядки історії — дослівний текст PM. */}
+        <div className="grid gap-4 md:grid-cols-2" data-testid="design-on-behalf">
+          <EmployeeList
+            linkBase="/design#"
+            employees={[
+              { id: "teacher1", email: "teacher1@example.test", position: "Elementary school / Teacher" },
+              { id: "teacher2", email: "teacher2@example.test", position: "High school / Teacher" },
+            ]}
+          />
+          <div className="flex flex-col gap-3">
+            <Alert variant="info" role="note">
+              <Info />
+              <AlertDescription>{ON_BEHALF_MESSAGES.managerNote}</AlertDescription>
+            </Alert>
+            <Alert variant="info">
+              <CircleCheck />
+              <AlertDescription>Request submitted: 1 approved, 1 awaiting decision</AlertDescription>
+            </Alert>
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-[13px]">
+              <span className="text-muted-foreground">Status after submit</span>
+              <StatusBadge status="approved" />
+              <StatusBadge status="awaiting" />
+            </div>
+          </div>
+        </div>
+        <div className="grid gap-4 md:grid-cols-3">
+          <EmptyState
+            icon={<ShieldX className="size-5" aria-hidden="true" />}
+            title={ON_BEHALF_MESSAGES.employeeRole}
+            action={<Button variant="outline">Go to Overview</Button>}
+          />
+          <EmptyState
+            icon={<ShieldX className="size-5" aria-hidden="true" />}
+            title={ON_BEHALF_MESSAGES.notYourEmployee}
+            action={<Button variant="outline">Back to the list</Button>}
+          />
+          <EmptyState
+            icon={<UsersRound className="size-5" aria-hidden="true" />}
+            title={ON_BEHALF_MESSAGES.noEmployees}
+            text="Employees of the positions you are responsible for will appear here."
+          />
+        </div>
+        <div className="max-w-md">
+          <RecordHistory
+            collapsed={false}
+            history={[
+              {
+                created_at: "2026-11-25T07:40:00Z",
+                action: "submitted_on_behalf",
+                actor_name: "Manager One",
+                comment: "Submitted by manager1@example.test on behalf of teacher1@example.test",
+              },
+              { created_at: "2026-11-25T07:40:00Z", action: "approved", actor_name: "Manager One", comment: null },
+            ]}
           />
         </div>
       </Section>
