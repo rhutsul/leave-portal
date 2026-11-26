@@ -16,15 +16,11 @@ import {
   weekEmployee,
 } from "./support/substitutes";
 import { cleanScreenshot } from "./support/uat";
+import { expectNoSidewaysScroll } from "./support/layout";
 
 test.afterEach(async () => {
   if (hasAdminKey()) await cleanupRemembered();
 });
-
-async function noSidewaysScroll(page: Page) {
-  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
-  expect(overflow).toBeLessThanOrEqual(0);
-}
 
 for (const theme of ["light", "dark"] as const) {
   test(`substitutes states on a 390 px phone, ${theme}`, { tag: ["@prod-writes"] }, async ({ browser }) => {
@@ -59,29 +55,29 @@ for (const theme of ["light", "dark"] as const) {
       await shot(page, "options");
       await page.keyboard.press("Escape");
       await chooseSubstitute(page, assistant.email);
-      await noSidewaysScroll(page);
+      await expectNoSidewaysScroll(page);
       await shot(page, "choose", true);
       await toSummary(page);
       await expect(page.getByRole("main").getByTestId("upgrade-mark")).toHaveText("With upgrade: 210 min");
-      await noSidewaysScroll(page);
+      await expectNoSidewaysScroll(page);
       await shot(page, "summary", true);
 
       // Порожній список: повідомлення над картками кроку.
       await openPositionsStep(lonelyPage, requested);
       await expect(lonelyPage.getByTestId("substitutes-empty")).toBeVisible();
-      await noSidewaysScroll(lonelyPage);
+      await expectNoSidewaysScroll(lonelyPage);
       await shot(lonelyPage, "empty-list");
 
       // My requests: картка запису з заміною й позначкою.
       await page.goto("/requests");
       await expect(page.getByTestId("leave-record").getByTestId("upgrade-mark")).toHaveText("With upgrade: 210 min");
-      await noSidewaysScroll(page);
+      await expectNoSidewaysScroll(page);
       await shot(page, "my-requests", true);
 
       // My substitutions: картка з датою, годинами, працівником і статусом.
       await assistantPage.goto("/substitutions");
       await expect(assistantPage.getByTestId("substitution")).toHaveCount(1);
-      await noSidewaysScroll(assistantPage);
+      await expectNoSidewaysScroll(assistantPage);
       await shot(assistantPage, "my-substitutions", true);
 
       // Редактор списку менеджера: картки з «⋯», форма додавання під списком.
@@ -89,7 +85,7 @@ for (const theme of ["light", "dark"] as const) {
       await expect(managerPage.getByTestId("substitute-member")).toHaveCount(2);
       const add = (await managerPage.getByRole("button", { name: "Add to list" }).boundingBox())!;
       expect(add.height).toBeGreaterThanOrEqual(44);
-      await noSidewaysScroll(managerPage);
+      await expectNoSidewaysScroll(managerPage);
       await shot(managerPage, "editor", true);
     } finally {
       await context.close();
