@@ -26,7 +26,9 @@ function isPayloadShape(value: Partial<RequestPayload>): value is Partial<Reques
     Array.isArray(value.dates) &&
     value.dates.every((d) => typeof d === "string") &&
     typeof value.leaveType === "string" &&
-    Array.isArray(value.choices)
+    Array.isArray(value.choices) &&
+    // Кожен вибір — об'єкт: `[null]` від підробленого клієнта — не заявка, а не виняток у server action (рев'ю CodeRabbit).
+    value.choices.every((c: unknown) => typeof c === "object" && c !== null && !Array.isArray(c))
   );
 }
 

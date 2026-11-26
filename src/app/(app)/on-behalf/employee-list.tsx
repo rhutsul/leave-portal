@@ -21,7 +21,14 @@ export interface OnBehalfEmployee {
  * Працівники, за яких можна подати (D11): фільтр за email на клієнті; рядок цілком — посилання на форму, праворуч
  * стрілка, як черга «Decisions». Телефон — картки (Table stack).
  */
-export function EmployeeList({ employees }: { employees: OnBehalfEmployee[] }) {
+export function EmployeeList({
+  employees,
+  linkBase = "/on-behalf/",
+}: {
+  employees: OnBehalfEmployee[];
+  /** Початок адреси рядка: форма від імені; на вітрині /design — безпечне посилання на саму вітрину. */
+  linkBase?: string;
+}) {
   const id = useId();
   const [query, setQuery] = useState("");
   const q = query.trim().toLowerCase();
@@ -55,7 +62,7 @@ export function EmployeeList({ employees }: { employees: OnBehalfEmployee[] }) {
                 <TableRow key={e.id} data-testid="on-behalf-employee" className="relative cursor-pointer">
                   <TableCell className="min-w-44 whitespace-normal">
                     <Link
-                      href={`/on-behalf/${e.id}`}
+                      href={`${linkBase}${e.id}`}
                       className="font-medium break-all text-foreground outline-none after:absolute after:inset-0 after:rounded-sm focus-visible:after:outline-2 focus-visible:after:-outline-offset-2 focus-visible:after:outline-ring"
                     >
                       {e.email}

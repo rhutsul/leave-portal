@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { CalendarX, CircleAlert, CircleCheck, Info } from "lucide-react";
+import { CalendarX, CircleAlert, CircleCheck, Info, TriangleAlert } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
-import { schoolYearOf } from "@/lib/leave/balance";
+import { overBalanceWarnings, schoolYearOf } from "@/lib/leave/balance";
 import { employeeIdOf, forEmployee, ON_BEHALF_MESSAGES, parseSubmitted, refusalOf, submittedMessage } from "@/lib/leave/on-behalf";
 import { formatDateLong, isCalendarDate, kyivDate, TIME_MESSAGES } from "@/lib/leave/time";
 import { createClient } from "@/lib/supabase/server";
@@ -42,23 +42,38 @@ function Refused({ refusal }: { refusal: string | null }) {
   );
 }
 
-/** Успіх подання (D10): лічильники і дати без годин (AC-LEAVE-21) текстом для менеджера. */
-function Submitted({ submitted, skipped }: { submitted: unknown; skipped: unknown }) {
-  const counts = parseSubmitted(submitted);
+type Query = Record<string, string | string[] | undefined>;
+
+/** Успіх подання (D10): лічильники, дати без годин (AC-LEAVE-21) і попередження понад залишок — текстом для менеджера. */
+function Submitted({ query }: { query: Query }) {
+  const counts = parseSubmitted(query.submitted);
   if (!counts) return null;
-  const dates = typeof skipped === "string" ? skipped.split(",").filter(isCalendarDate) : [];
+  const dates = typeof query.skipped === "string" ? query.skipped.split(",").filter(isCalendarDate) : [];
+  const warnings = typeof query.over === "string" ? overBalanceWarnings(query.over).map(forEmployee) : [];
   return (
-    <Alert variant="info" role="status" data-testid="on-behalf-submitted">
-      <CircleCheck />
-      <AlertDescription>
-        <span className="text-foreground">{submittedMessage(counts.approved, counts.awaiting)}</span>
-        {dates.map((d) => (
-          <span key={d} className="block text-muted-foreground">
-            {formatDateLong(d)} was not accepted: {forEmployee(TIME_MESSAGES.noWorkingHours)}
-          </span>
-        ))}
-      </AlertDescription>
-    </Alert>
+    <>
+      <Alert variant="info" role="status" data-testid="on-behalf-submitted">
+        <CircleCheck />
+        <AlertDescription>
+          <span className="text-foreground">{submittedMessage(counts.approved, counts.awaiting)}</span>
+          {dates.map((d) => (
+            <span key={d} className="block text-muted-foreground">
+              {formatDateLong(d)} was not accepted: {forEmployee(TIME_MESSAGES.noWorkingHours)}
+            </span>
+          ))}
+          {query.balance === "unchecked" && (
+            <span className="block text-muted-foreground">The employee’s balance could not be checked for this request.</span>
+          )}
+        </AlertDescription>
+      </Alert>
+      {warnings.map((w) => (
+        // Попередження не зупинило заявку — виглядає як попередження, а не помилка (DESIGN.md, розділ 6).
+        <Alert key={w} variant="warning" role="status">
+          <TriangleAlert />
+          <AlertDescription>{w}</AlertDescription>
+        </Alert>
+      ))}
+    </>
   );
 }
 
@@ -93,7 +108,7 @@ export default async function OnBehalfRequestPage({
   searchParams,
 }: {
   params: Promise<{ employeeId: string }>;
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
+  searchParams: Promise<Query>;
 }) {
   const supabase = await createClient();
   const { data } = await supabase.auth.getClaims();
@@ -106,7 +121,7 @@ export default async function OnBehalfRequestPage({
   const loaded = await loadOnBehalfPositions(supabase, employeeId);
   if (!loaded.ok) return <Refused refusal={refusalOf(loaded.message)} />;
 
-  const { submitted, skipped } = await searchParams;
+  const query = await searchParams;
   const today = kyivDate(new Date());
   const form = await loadFormData(supabase, claims.sub, employeeId, today);
   return (
@@ -117,13 +132,13 @@ export default async function OnBehalfRequestPage({
         breadcrumb={BREADCRUMB}
       />
       <div className="flex flex-col gap-4">
-        <Submitted submitted={submitted} skipped={skipped} />
+        <Submitted query={query} />
         <Alert variant="info" role="note">
           <Info />
           <AlertDescription>{form.admin ? ON_BEHALF_MESSAGES.adminNote : ON_BEHALF_MESSAGES.managerNote}</AlertDescription>
         </Alert>
         <OnBehalfForm
-          formKey={typeof submitted === "string" ? submitted : "form"}
+          formKey={typeof query.request === "string" ? query.request : "form"}
           employeeId={employeeId}
           positions={loaded.positions}
           today={today}

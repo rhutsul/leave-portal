@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { Ban, CalendarDays, ChevronRight, CircleAlert, CircleCheck, Clock, Eye, Info, Plus, RotateCcw, SearchX, ShieldX, TriangleAlert, UserRound, UsersRound, X } from "lucide-react";
+import { Ban, CalendarDays, CircleAlert, CircleCheck, Clock, Eye, Info, Plus, RotateCcw, SearchX, ShieldX, TriangleAlert, UserRound, UsersRound, X } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { BalanceCard } from "@/components/ui/balance-card";
 import { Button } from "@/components/ui/button";
@@ -27,7 +27,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { SubstituteNote } from "@/components/ui/substitute-note";
 import { SUBSTITUTE_MESSAGES } from "@/lib/leave/substitutes";
 import { ON_BEHALF_MESSAGES } from "@/lib/leave/on-behalf";
-import { ListTableHeader } from "../substitutes/list-table-header";
+import { EmployeeList } from "../on-behalf/employee-list";
 import { HoursBar } from "@/components/ui/hours-bar";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -376,24 +376,13 @@ export default async function DesignPage() {
             Alert info «хто погоджує»; у підсумку — «Status after submit» словом із крапкою; відмови й «немає
             працівників» — EmptyState з текстом AC; рядки історії — дослівний текст PM. */}
         <div className="grid gap-4 md:grid-cols-2" data-testid="design-on-behalf">
-          <div className="overflow-x-auto rounded-lg border border-border bg-card max-md:overflow-visible max-md:border-0 max-md:bg-transparent">
-            <Table stack>
-              <ListTableHeader columns={["Employee"]} last="Open" />
-              <TableBody>
-                {["teacher1@example.test", "teacher2@example.test"].map((email) => (
-                  <TableRow key={email} className="cursor-pointer">
-                    <TableCell className="whitespace-normal">
-                      <span className="font-medium break-all">{email}</span>
-                      <span className="block text-xs text-muted-foreground">Elementary school / Teacher</span>
-                    </TableCell>
-                    <TableCell data-cell="end" className="w-px text-muted-foreground max-md:p-2.5!">
-                      <ChevronRight className="size-4" aria-hidden="true" />
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+          <EmployeeList
+            linkBase="/design#"
+            employees={[
+              { id: "teacher1", email: "teacher1@example.test", position: "Elementary school / Teacher" },
+              { id: "teacher2", email: "teacher2@example.test", position: "High school / Teacher" },
+            ]}
+          />
           <div className="flex flex-col gap-3">
             <Alert variant="info" role="note">
               <Info />

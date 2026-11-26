@@ -198,6 +198,23 @@ async function givenAwaiting(date = THU, leaveType = "sick", hours = WHOLE) {
   return id;
 }
 
+/** Given «Personal leave» used 17.50: погоджені вт–пт із 2027-01-05 і пів дня (210 хв). */
+async function usePersonal175() {
+  const dates: string[] = [];
+  for (const d = new Date("2027-01-05T00:00:00Z"); dates.length < 18; d.setUTCDate(d.getUTCDate() + 1)) {
+    if (![0, 1, 6].includes(d.getUTCDay())) dates.push(d.toISOString().slice(0, 10));
+  }
+  const records = dates.slice(0, 17).map((date) => ({ position_id: main1, date, ...WHOLE }));
+  records.push({
+    position_id: main1,
+    date: dates[17],
+    start_min: 540,
+    end_min: 750,
+  });
+  const ids = await ownRequest(teacher1, "personal", records);
+  await t.asService("update public.leave_records set status = 'approved' where id = any($1::bigint[])", [ids]);
+}
+
 beforeAll(async () => {
   t = await createLeaveDb();
   teacher1 = t.users["teacher1@example.test"];
@@ -320,20 +337,7 @@ describe("submitting on behalf of an employee", () => {
   });
 
   it("AC-BEHALF-04: a record over the balance is approved with the suggested split, as in AC-BALANCE-10", async () => {
-    // Given «Personal leave» used 17.50: погоджені вт–пт із 2027-01-05 і пів дня (210 хв).
-    const dates: string[] = [];
-    for (const d = new Date("2027-01-05T00:00:00Z"); dates.length < 18; d.setUTCDate(d.getUTCDate() + 1)) {
-      if (![0, 1, 6].includes(d.getUTCDay())) dates.push(d.toISOString().slice(0, 10));
-    }
-    const records = dates.slice(0, 17).map((date) => ({ position_id: main1, date, ...WHOLE }));
-    records.push({
-      position_id: main1,
-      date: dates[17],
-      start_min: 540,
-      end_min: 750,
-    });
-    const ids = await ownRequest(teacher1, "personal", records);
-    await t.asService("update public.leave_records set status = 'approved' where id = any($1::bigint[])", [ids]);
+    await usePersonal175();
 
     const result = await onBehalf(manager1, teacher1, "personal", [{ position_id: main1, date: THU, ...WHOLE }]);
     const [id] = await recordIdsOf(result.request_id);
@@ -373,7 +377,7 @@ describe("submitting on behalf of an employee", () => {
     );
   });
 
-  it("a substitute from the employee's list is kept; one outside it is refused with 'this employee'", async () => {
+  it("AC-BEHALF-05: a substitute from the employee's list is kept; one outside it is refused with 'this employee'", async () => {
     await t.asService("insert into public.substitute_lists (employee_id, substitute_id) values ($1, $2)", [
       teacher1,
       assistant1,
@@ -780,6 +784,28 @@ describe("deciding sees another manager's change (D9)", () => {
     expect((await recordOf(id)).status).toBe("awaiting");
   });
 
+  it("a session without a profile cannot decide any record", async () => {
+    const id = await givenAwaiting(FRI);
+    await expect(
+      t.asUser(
+        "a0000000-0000-0000-0000-999999999999",
+        "select public.decide_leave_record($1, 'approve', 510, 930) as result",
+        [id],
+      ),
+    ).rejects.toThrow("You can't decide on this record");
+    expect((await recordOf(id)).status).toBe("awaiting");
+  });
+
+  it("changed hours are reported before the balance check, even when the record is over the balance", async () => {
+    const id = await givenAwaiting(FRI, "personal");
+    await t.asService("update public.leave_records set start_min = 540, minutes = 390 where id = $1", [id]);
+    // Залишку бракує (17.50 з 18.00 використано): без перевірки годин спершу відповіла б підказка розподілу.
+    await usePersonal175();
+    await expect(decide9(manager1, id, { date: FRI, leave_type: "personal", substitute_id: null })).rejects.toThrow(
+      "The employee has changed the hours of this record. Check them again before deciding",
+    );
+  });
+
   it("the old six-parameter call still decides (until the contract step of D9)", async () => {
     const id = await givenAwaiting(FRI);
     const [{ result }] = await t.asUser<{ result: { status: string } }>(
@@ -804,7 +830,9 @@ describe("'this employee' texts (D6)", () => {
       "assistant1@example.test is not available at this time: 2026-12-04 09:00–11:00",
     ];
     for (const line of lines) {
-      const [{ text }] = await asOwner<{ text: string }>(manager1, "select private.on_behalf_message($1) as text", [line]);
+      const [{ text }] = await asOwner<{ text: string }>(manager1, "select private.on_behalf_message($1) as text", [
+        line,
+      ]);
       expect(text).toBe(forEmployee(line));
     }
   });

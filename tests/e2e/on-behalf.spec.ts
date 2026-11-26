@@ -143,7 +143,7 @@ test.describe("submitting on behalf of an employee", () => {
     { ...TAGS, annotation: { type: "ac", description: "AC-BEHALF-05" } },
     async ({ browser }) => {
       const employee = await weekEmployee();
-      const saturday = nextSaturday();
+      const saturday = await nextSaturday();
       const context = await roleContext(browser, "manager1");
       const page = await context.newPage();
       try {

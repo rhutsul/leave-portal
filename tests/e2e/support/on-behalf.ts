@@ -55,15 +55,23 @@ export async function makeManager(employee: UatEmployee): Promise<void> {
   if (error) throw error;
 }
 
-/** Найближча субота після сьогодні (Київ) — день без годин у розкладі пн–пт. */
-export function nextSaturday(): string {
+/**
+ * Найближча субота після сьогодні (Київ), яку не закриває шкільний календар: інакше перевірка закриття (AC-CAL-03)
+ * дала б інший текст, ніж «немає годин» (рев'ю CodeRabbit).
+ */
+export async function nextSaturday(): Promise<string> {
+  const { data: closures, error } = await adminClient().from("school_closures").select("start_date, end_date");
+  if (error) throw error;
+  const closed = (date: string) => (closures ?? []).some((c) => c.start_date <= date && date <= c.end_date);
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Kyiv", year: "numeric", month: "2-digit", day: "2-digit" }).format(
     new Date(),
   );
   const d = new Date(`${today}T00:00:00Z`);
-  do d.setUTCDate(d.getUTCDate() + 1);
-  while (d.getUTCDay() !== 6);
-  return d.toISOString().slice(0, 10);
+  for (;;) {
+    d.setUTCDate(d.getUTCDate() + 1);
+    const date = d.toISOString().slice(0, 10);
+    if (d.getUTCDay() === 6 && !closed(date)) return date;
+  }
 }
 
 /** Форма від імені: зі списку /on-behalf до кроку «Dates» для працівника. */

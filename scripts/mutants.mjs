@@ -732,4 +732,16 @@ export const mutants = [
     find: "          unpaid_days = case when v_paid is null then null else (v_share - v_paid) / 100.0 end,\n          updated_at",
     replace: "          unpaid_days = null,\n          updated_at",
   },
+  {
+    id: "S107", kind: "sql", ac: "AC-DECIDE-22", file: ONB, tests: [ONB_DB],
+    what: "decide_leave_record_core: змінені години помічаються лише після перевірки залишку (підказка розподілу для неперевірених годин)",
+    find: "  if v_record.status = 'awaiting' and (v_record.start_min <> p_start_min or v_record.end_min <> p_end_min) then",
+    replace: "  if false then",
+  },
+  {
+    id: "S108", kind: "sql", ac: "AC-DECIDE-08", file: ONB, tests: [ONB_DB],
+    what: "decide_leave_record_core: сесія без профілю (роль null) проходить перевірку права",
+    find: "  v_role := coalesce(private.current_app_role(), '');",
+    replace: "  v_role := private.current_app_role();",
+  },
 ];

@@ -437,6 +437,8 @@ declare
 begin
   perform private.check_on_behalf(p_employee_id);
   perform pg_advisory_xact_lock(hashtextextended(p_employee_id::text, 0));
+  -- Ще раз під lock працівника: право, відкликане між першою перевіркою і lock, не пропустить заявку (рев'ю CodeRabbit).
+  perform private.check_on_behalf(p_employee_id);
 
   begin
     v_request_id := private.create_leave_request(
@@ -653,7 +655,7 @@ begin
      or not private.decides_for_position(v_record.position_id, p_date) then
     raise exception 'You can''t change this record' using errcode = '42501';
   end if;
-  if private.current_app_role() <> 'admin' and v_record.employee_id = v_uid then
+  if coalesce(private.current_app_role(), '') <> 'admin' and v_record.employee_id = v_uid then
     raise exception 'Your own record is decided by an administrator';
   end if;
 
@@ -851,7 +853,9 @@ begin
     raise exception 'Not signed in' using errcode = '42501';
   end if;
 
-  v_role := private.current_app_role();
+  -- Без профілю current_app_role() дає null, і `not (null = 'admin' …)` пропустив би перевірку права (рев'ю CodeRabbit):
+  -- null — як жодної ролі.
+  v_role := coalesce(private.current_app_role(), '');
   select * into v_record from public.leave_records as r where r.id = p_record_id;
   -- Неіснуючий запис — та сама відповідь, що й чужий: не розкриваємо, чи запис існує.
   if not found
@@ -896,6 +900,11 @@ begin
      and (v_record.date <> p_date or v_record.leave_type <> p_leave_type
           or v_record.substitute_id is distinct from p_substitute_id) then
     raise exception 'This record has been changed. Check it again before deciding';
+  end if;
+  -- Змінені години — до перевірки залишку: підказку розподілу менеджер мав би бачити для годин, які переглянув
+  -- (рев'ю CodeRabbit). Update нижче звіряє години ще раз атомарно.
+  if v_record.status = 'awaiting' and (v_record.start_min <> p_start_min or v_record.end_min <> p_end_min) then
+    raise exception '%', v_hours_changed;
   end if;
 
   if p_decision = 'approve' then
