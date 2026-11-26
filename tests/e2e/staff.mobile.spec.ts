@@ -4,7 +4,8 @@
 // Без AC ID: вигляд — за розробником (поведінку доводить staff.spec.ts). Знімки — у test-results/ (артефакт CI).
 import { expect, test, type Page } from "@playwright/test";
 import { roleContext } from "./support/cancel";
-import { cleanupStaff, createEmployeeViaPage, noSidewaysScroll, staffEmail } from "./support/staff";
+import { cleanupStaff, createEmployeeViaPage, staffEmail } from "./support/staff";
+import { expectNoSidewaysScroll } from "./support/layout";
 import { cleanScreenshot } from "./support/uat";
 
 test.use({ trace: "off" });
@@ -30,24 +31,24 @@ for (const theme of ["light", "dark"] as const) {
       const { id, url } = await createEmployeeViaPage(page, "Phone Person", staffEmail(`phone-${theme}`));
       const copy = page.getByRole("button", { name: "Copy link" });
       expect((await copy.boundingBox())!.height).toBeGreaterThanOrEqual(44);
-      await noSidewaysScroll(page);
+      await expectNoSidewaysScroll(page);
       await shot(page, "new-link", true);
 
       await page.goto("/staff");
       await expect(page.getByTestId("staff-row").first()).toBeVisible();
-      await noSidewaysScroll(page);
+      await expectNoSidewaysScroll(page);
       await shot(page, "list", true);
 
       await page.goto(`/staff/${id}`);
       await expect(page.getByRole("button", { name: "Deactivate" })).toBeVisible();
-      await noSidewaysScroll(page);
+      await expectNoSidewaysScroll(page);
       await shot(page, "employee", true);
 
       await guest.goto(url);
       await expect(guest.getByTestId("set-password-form")).toBeVisible();
       const field = guest.getByLabel("New password", { exact: true });
       expect((await field.boundingBox())!.height).toBeGreaterThanOrEqual(44);
-      await noSidewaysScroll(guest);
+      await expectNoSidewaysScroll(guest);
       await shot(guest, "set-password");
     } finally {
       await context.close();

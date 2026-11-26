@@ -13,12 +13,12 @@ import {
   cleanupStaff,
   createEmployeeViaPage,
   giveMainPosition,
-  noSidewaysScroll,
   profileCount,
   setPasswordByLink,
   staffEmail,
   staffPassword,
 } from "./support/staff";
+import { expectNoSidewaysScroll } from "./support/layout";
 import { cleanScreenshot } from "./support/uat";
 
 test.use({ trace: "off", storageState: "playwright/.auth/admin.json", colorScheme: "light" });
@@ -41,14 +41,14 @@ test.describe("employees and sign-in @writes", () => {
     const until = formatDateLong(linkValidUntil(kyivDate(new Date())));
     await expect(page.getByTestId("link-valid-until")).toHaveText(`Valid until ${until}`);
     await expect(page.getByRole("status").filter({ hasText: "Employee created" })).toBeVisible();
-    await noSidewaysScroll(page);
+    await expectNoSidewaysScroll(page);
     await shot(page, "new-link", true);
 
     await page.goto("/staff");
     const row = page.getByTestId("staff-row").filter({ hasText: email });
     await expect(row).toContainText("Teacher Three");
     await expect(row).toContainText("Invited");
-    await noSidewaysScroll(page);
+    await expectNoSidewaysScroll(page);
     await shot(page, "list");
   });
 
@@ -96,7 +96,7 @@ test.describe("employees and sign-in @writes", () => {
     await details.getByLabel("Email").fill(renamed);
     await details.getByRole("button", { name: "Save changes" }).click();
     await expect(details.getByRole("status")).toContainText("Saved");
-    await noSidewaysScroll(page);
+    await expectNoSidewaysScroll(page);
     await shot(page, "employee", true);
 
     await page.goto("/staff");

@@ -71,10 +71,6 @@ export async function giveMainPosition(employeeId: string) {
   if (blocksError) throw blocksError;
 }
 
-export async function noSidewaysScroll(page: Page) {
-  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
-  expect(overflow).toBeLessThanOrEqual(0);
-}
 
 /** Кількість профілів — секретним ключем, лише де він є (CI); на UAT проду — null (перевіряємо лише відмову). */
 export async function profileCount(): Promise<number | null> {
