@@ -8,16 +8,12 @@ import { cleanupRemembered, hasAdminKey } from "./support/admin";
 import { freeWeekdays, roleContext } from "./support/cancel";
 import { addAdditionalPosition, openOnBehalf, pickDate, toSickSummary, withoutManager1 } from "./support/on-behalf";
 import { weekEmployee } from "./support/substitutes";
+import { expectNoSidewaysScroll } from "./support/layout";
 import { cleanScreenshot } from "./support/uat";
 
 test.afterEach(async () => {
   if (hasAdminKey()) await cleanupRemembered();
 });
-
-async function noSidewaysScroll(page: Page) {
-  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
-  expect(overflow).toBeLessThanOrEqual(0);
-}
 
 for (const [width, theme] of [
   [390, "light"],
@@ -39,21 +35,21 @@ for (const [width, theme] of [
       await page.goto("/on-behalf");
       await page.getByLabel("Find an employee").fill(employee.email);
       await expect(page.getByTestId("on-behalf-employee")).toHaveCount(1);
-      await noSidewaysScroll(page);
+      await expectNoSidewaysScroll(page);
       await shot(page, "list");
 
       await openOnBehalf(page, employee);
-      await noSidewaysScroll(page);
+      await expectNoSidewaysScroll(page);
       await shot(page, "form");
       await pickDate(page, date);
       await toSickSummary(page, date);
       await expect(page.getByTestId("status-after-submit")).toHaveText(["Approved", "Awaiting decision"]);
-      await noSidewaysScroll(page);
+      await expectNoSidewaysScroll(page);
       await shot(page, "summary", true);
 
       await page.goto(`/on-behalf/${other.id}`);
       await expect(page.getByRole("heading", { name: "You can submit requests only for employees of your positions" })).toBeVisible();
-      await noSidewaysScroll(page);
+      await expectNoSidewaysScroll(page);
       await shot(page, "not-yours");
     } finally {
       await context.close();
