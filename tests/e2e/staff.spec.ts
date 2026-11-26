@@ -149,7 +149,8 @@ test.describe("employees and sign-in @writes", () => {
     const manager = await managerContext.newPage();
     try {
       await manager.goto("/decisions?tab=history");
-      await expect(manager.getByText(renamed).first()).toBeVisible();
+      // Рядок «History» називає працівника на ім'я (email — у панелі запису).
+      await expect(manager.getByTestId("decision-record").filter({ hasText: "Teacher Three-Smith" })).toBeVisible();
     } finally {
       await managerContext.close();
     }
