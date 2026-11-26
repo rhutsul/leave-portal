@@ -665,8 +665,20 @@ export const mutants = [
   {
     id: "S111", kind: "sql", ac: "AC-STAFF-09", file: STAFF_LOCKS, tests: [STAFF_LOCKS_DB],
     what: "submit_leave_request_on_behalf: заступник не бере lock відсутнього менеджера",
-    find: "  perform private.lock_people(array[p_employee_id] || v_absent);",
-    replace: "  perform private.lock_people(array[p_employee_id]);",
+    find: "  perform private.lock_people(array[p_employee_id, v_uid] || v_absent);",
+    replace: "  perform private.lock_people(array[p_employee_id, v_uid]);",
+  },
+  {
+    id: "S112", kind: "sql", ac: "AC-STAFF-09", file: STAFF_LOCKS, tests: [STAFF_LOCKS_DB],
+    what: "submit_leave_request_on_behalf: без lock подавача — зміна його ролі чи деактивація проскакує подання",
+    find: "  perform private.lock_people(array[p_employee_id, v_uid] || v_absent);",
+    replace: "  perform private.lock_people(array[p_employee_id] || v_absent);",
+  },
+  {
+    id: "S113", kind: "sql", ac: "AC-BEHALF-04", file: STAFF_LOCKS, tests: [STAFF_LOCKS_DB],
+    what: "submit_leave_request_on_behalf: без повторної перевірки права після lock — відкликане під час очікування право ще подає",
+    find: "     for share of pm;\n  perform private.check_on_behalf(p_employee_id);\n",
+    replace: "     for share of pm;\n",
   },
   {
     // Правило AC-CAL-15 живе в TS, а не в SQL: рік на /calendar — це closuresInSchoolYear над рядками бази.
@@ -749,6 +761,8 @@ export const mutants = [
     replace: "      if true then",
   },
   {
+    // Перенесено з ONB на STAFF_LOCKS: чинне тіло submit_leave_request_on_behalf тепер у міграції lock людей
+    // (20261126152206), а мутація старого файлу нічого б не змінила — новіша міграція його перезаписує.
     id: "S106", kind: "sql", ac: "AC-BEHALF-04", file: STAFF_LOCKS, tests: [ONB_DB],
     what: "submit_leave_request_on_behalf: погодження одразу без розподілу понад залишок (unpaid_days не пишеться)",
     find: "          unpaid_days = case when v_paid is null then null else (v_share - v_paid) / 100.0 end,\n          updated_at",

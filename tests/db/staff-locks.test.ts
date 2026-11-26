@@ -99,8 +99,42 @@ describe("locks that close the race between revoking a manager's right and a req
       manager2,
       "select public.submit_leave_request_on_behalf($1, 'unpaid', $2::jsonb)",
       [teacher1, records],
-      { teacher1, manager1 },
+      { teacher1, manager2, manager1 },
     );
-    expect(held).toEqual(["teacher1", "manager1"]);
+    // Сам подавач теж: зміна його ролі чи деактивація (set_employee_role, deactivate_employee беруть lock цієї людини) не
+    // проскочить між перевіркою права і погодженням.
+    expect(held).toEqual(["teacher1", "manager2", "manager1"]);
+  });
+
+  it("AC-BEHALF-04: a right revoked while the request waited for the locks is seen by the second check", async () => {
+    // Відкликання, закомічене, поки подання чекало lock: у PGlite одне з'єднання, тож відтворюємо його всередині
+    // lock_people (тимчасове тіло в цій транзакції, rollback повертає справжнє) — manager1@ знято з посад teacher1@.
+    // Без повторної check_on_behalf після lock заявка пройшла б.
+    const records = JSON.stringify([{ position_id: teacher1Main, date: "2026-12-17", start_min: 510, end_min: 600 }]);
+    await t.db.exec("begin");
+    try {
+      await t.db.exec(`
+        create or replace function private.lock_people(p_people uuid[])
+        returns void language plpgsql volatile set search_path = '' as $fn$
+        begin
+          delete from public.position_managers as pm using public.positions as p
+           where pm.position_id = p.id and p.employee_id = '${teacher1}' and pm.manager_id = '${manager1}';
+        end;
+        $fn$;
+        set local role authenticated;
+      `);
+      await t.db.query("select set_config('request.jwt.claim.sub', $1, true)", [manager1]);
+      await expect(
+        t.db.query("select public.submit_leave_request_on_behalf($1, 'unpaid', $2::jsonb)", [teacher1, records]),
+      // manager1@ після зняття не має жодного працівника — повторна перевірка відповідає текстом require_on_behalf_role.
+      ).rejects.toThrow("You have no employees to submit requests for");
+    } finally {
+      await t.db.exec("rollback");
+    }
+    const [{ count }] = await asOwner<{ count: number }>(
+      "select count(*)::int as count from public.leave_records where employee_id = $1 and date = '2026-12-17'",
+      [teacher1],
+    );
+    expect(count).toBe(0);
   });
 });
