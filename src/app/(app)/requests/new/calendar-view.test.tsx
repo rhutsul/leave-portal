@@ -33,8 +33,14 @@ describe("New request calendar", () => {
       state: "free",
       label: "Mon, 2 Nov 2026",
     });
-    expect(calendarDay("2026-11-02", { selected: ["2026-11-02"], recordDates: ["2026-11-02"], works: true }).state).toBe(
-      "selected",
-    );
+    expect(
+      calendarDay("2026-11-02", { selected: ["2026-11-02"], recordDates: ["2026-11-02"], works: true }).state,
+    ).toBe("selected");
+  });
+
+  it("AC-BEHALF-05: in a request on behalf a day with a record speaks of this employee", () => {
+    expect(
+      calendarDay("2026-12-03", { selected: [], recordDates: ["2026-12-03"], works: true, owner: "employee" }).label,
+    ).toBe("Thu, 3 Dec 2026, this employee already has a record");
   });
 });

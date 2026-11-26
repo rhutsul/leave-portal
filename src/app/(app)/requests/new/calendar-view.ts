@@ -13,7 +13,15 @@ export function calendarDay(
     recordDates,
     works,
     closed = null,
-  }: { selected: readonly string[]; recordDates: readonly string[]; works: boolean; closed?: string | null },
+    owner = "you",
+  }: {
+    selected: readonly string[];
+    recordDates: readonly string[];
+    works: boolean;
+    closed?: string | null;
+    /** Чий календар: «you» — власна заявка, «employee» — заявка від імені (D6 impl-on-behalf). */
+    owner?: "you" | "employee";
+  },
 ): { state: DayState; label: string } {
   const hasRecord = recordDates.includes(date);
   const state: DayState = selected.includes(date)
@@ -26,7 +34,7 @@ export function calendarDay(
           ? "free"
           : "off";
   const notes = [
-    hasRecord && "you already have a record",
+    hasRecord && (owner === "you" ? "you already have a record" : "this employee already has a record"),
     closed && `the school is closed: ${closed}`,
     !closed && !works && "no working hours",
   ].filter(Boolean);

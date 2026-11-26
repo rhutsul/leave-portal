@@ -269,6 +269,7 @@ export function NewRequestForm({
                     closedOn={(date) => closedDayName(positions, date, closures ?? [])}
                     onMonth={(delta) => setMonth((m) => addMonths(m, delta))}
                     onPick={pickDate}
+                    owner={subject ? "employee" : "you"}
                   />
                   <div className="flex min-w-56 flex-1 flex-col gap-2.5">
                     <span className="text-[13px] font-medium">Selected dates</span>
@@ -611,6 +612,7 @@ function DateCalendar({
   closedOn,
   onMonth,
   onPick,
+  owner,
 }: {
   month: string;
   today: string;
@@ -621,6 +623,8 @@ function DateCalendar({
   closedOn: (date: string) => string | null;
   onMonth: (delta: number) => void;
   onPick: (date: string) => void;
+  /** Чий календар — для підпису дня з записом (заявка від імені — «this employee»). */
+  owner: "you" | "employee";
 }) {
   return (
     // Телефон (ADR 0008): календар на всю ширину картки без її бічних полів, проміжок 2 px — клітинка ≥ 40 px на 360 px
@@ -650,6 +654,7 @@ function DateCalendar({
             recordDates: recordDates ?? [],
             works: works(date),
             closed: closedOn(date),
+            owner,
           });
           return (
             <CalendarDay
@@ -663,7 +668,11 @@ function DateCalendar({
           );
         })}
       </div>
-      <CalendarLegend states={["free", "selected", "record", "closed", "off"]} className="max-md:px-3" />
+      <CalendarLegend
+        states={["free", "selected", "record", "closed", "off"]}
+        labels={owner === "employee" ? { record: "This employee already has a record" } : {}}
+        className="max-md:px-3"
+      />
       {/* Перетин із наявними записами все одно перевіряє база під час подання (AC-LEAVE-16). */}
       {recordDates === null && (
         <p className="max-w-[60ch] text-xs text-muted-foreground">
