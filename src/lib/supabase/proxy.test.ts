@@ -11,6 +11,16 @@ vi.mock("@supabase/ssr", () => ({
 const { guestRedirect, updateSession } = await import("./proxy");
 
 describe("guestRedirect", () => {
+  it("AC-STAFF-15: sends a guest who opens the employee pages by a direct link to sign in", () => {
+    for (const path of ["/staff", "/staff/new", "/staff/a0000000-0000-0000-0000-000000000004"]) {
+      expect(guestRedirect(path)).toBe("/login");
+    }
+  });
+
+  it("AC-STAFF-02: lets a guest open the one-time link page", () => {
+    expect(guestRedirect("/auth/set-password")).toBeNull();
+  });
+
   it("sends a guest who opens the root to the landing page", () => {
     expect(guestRedirect("/")).toBe("/welcome");
   });

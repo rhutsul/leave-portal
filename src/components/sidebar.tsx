@@ -29,6 +29,7 @@ export function Sidebar({
   awaiting,
   toDecide,
   canDecide,
+  isAdmin = false,
   theme,
   initialCollapsed,
 }: {
@@ -38,6 +39,7 @@ export function Sidebar({
   /** Записи «Awaiting decision», які користувач може вирішити (лічильник «Decisions»). */
   toDecide: number;
   canDecide: boolean;
+  isAdmin?: boolean;
   theme: Theme;
   initialCollapsed: boolean;
 }) {
@@ -106,7 +108,7 @@ export function Sidebar({
       </div>
 
       <div className="flex-1 overflow-x-hidden overflow-y-auto px-3 py-4">
-        <SidebarNav awaiting={awaiting} toDecide={toDecide} canDecide={canDecide} collapsed={collapsed} />
+        <SidebarNav awaiting={awaiting} toDecide={toDecide} canDecide={canDecide} isAdmin={isAdmin} collapsed={collapsed} />
       </div>
 
       <div

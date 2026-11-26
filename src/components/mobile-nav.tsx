@@ -55,6 +55,7 @@ export function MobileNav({
   awaiting,
   toDecide,
   canDecide,
+  isAdmin = false,
   theme,
 }: {
   name: string;
@@ -62,6 +63,7 @@ export function MobileNav({
   awaiting: number;
   toDecide: number;
   canDecide: boolean;
+  isAdmin?: boolean;
   theme: Theme;
 }) {
   const [open, setOpen] = useState(false);
@@ -121,7 +123,7 @@ export function MobileNav({
             </SheetClose>
           </div>
           <div className="flex-1 overflow-y-auto px-3 py-4" onClick={onNavClick}>
-            <SidebarNav awaiting={awaiting} toDecide={toDecide} canDecide={canDecide} collapsed={false} />
+            <SidebarNav awaiting={awaiting} toDecide={toDecide} canDecide={canDecide} isAdmin={isAdmin} collapsed={false} />
           </div>
           {/* Акаунт — посилання на /account (ADR 0011): як пункт меню, закриває меню й веде фокус на заголовок. */}
           <div

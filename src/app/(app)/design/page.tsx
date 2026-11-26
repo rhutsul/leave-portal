@@ -56,6 +56,7 @@ import { RegisterTable } from "@/components/ui/register-table";
 import { StatStrip } from "@/components/ui/stat-strip";
 import { UptimeBar } from "@/components/ui/uptime-bar";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { EmployeeStatus } from "@/components/ui/employee-status";
 import { WeekTimeline, type WeekTimelineRecord } from "@/components/ui/week-timeline";
 import { dayClosures, monthClosures, timelineDays, twoWeeks, type BlockingStatus } from "@/lib/leave/overview";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -287,6 +288,12 @@ export default async function DesignPage() {
           <StatusBadge status="rejected" />
           <StatusBadge status="returned" />
           <StatusBadge status="cancelled" />
+        </div>
+        {/* Статус працівника (вимога 07): те саме слово з крапкою — Invited, Active, Deactivated. */}
+        <div className="flex flex-wrap gap-x-5 gap-y-2">
+          <EmployeeStatus status="invited" />
+          <EmployeeStatus status="active" />
+          <EmployeeStatus status="deactivated" />
         </div>
         <div className="flex flex-wrap gap-3">
           <LeaveTypeTag type="sick" />
