@@ -38,7 +38,7 @@ export function ScheduleEditor({ week, onChange }: { week: WeekDraft; onChange: 
   const ids = useId();
   const setDay = (day: number, periods: WeekDraft[number]) => onChange(week.map((p, i) => (i === day ? periods : p)));
   return (
-    <fieldset className="flex flex-col gap-2" aria-labelledby={`${ids}-legend`}>
+    <fieldset className="flex min-w-0 flex-col gap-2" aria-labelledby={`${ids}-legend`}>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span id={`${ids}-legend`} className="text-[13px] font-medium">
           Weekly schedule
@@ -126,7 +126,7 @@ export function ManagersField({
 }) {
   const ids = useId();
   return (
-    <fieldset className="flex flex-col gap-2" aria-labelledby={`${ids}-legend`}>
+    <fieldset className="flex min-w-0 flex-col gap-2" aria-labelledby={`${ids}-legend`}>
       <span id={`${ids}-legend`} className="text-[13px] font-medium">
         Responsible managers
       </span>

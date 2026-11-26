@@ -25,6 +25,9 @@ for (const theme of ["light", "dark"] as const) {
       await expect(page.getByTestId("position-form")).toBeVisible();
       const start = page.getByLabel("Mon period 1 start");
       expect((await start.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+      // fieldset за замовчуванням не вужчий за вміст: день розкладу й кнопка «Remove» мають уміщатися в екран.
+      const remove = (await page.getByLabel("Remove Mon period 1").boundingBox())!;
+      expect(remove.x + remove.width).toBeLessThanOrEqual(390);
       await expectNoSidewaysScroll(page);
       await shot(page, "position-new", true);
 
