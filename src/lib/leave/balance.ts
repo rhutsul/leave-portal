@@ -4,7 +4,8 @@
 
 import { clipBlocks, closureOn, type Closure } from "./calendar";
 import type { LeaveType, ScheduleBlock } from "./request";
-import { isoWeekday } from "./time";
+
+import { blocksOnDate } from "./schedule";
 
 /** Днів «Sick leave» і «Personal leave» на навчальний рік, окремо (Assumptions 03-leave-balance). */
 export const ANNUAL_DAYS = 18;
@@ -253,10 +254,9 @@ export function workingMinutesOn(
   date: string,
   closures: readonly Closure[] = [],
 ): number {
-  const weekday = isoWeekday(date);
   // Скорочений день — лише незакриті хвилини (AC-CAL-06), як private.working_minutes у базі.
   return clipBlocks(
-    blocks.filter((b) => b.weekday === weekday),
+    blocksOnDate(blocks, date),
     closureOn(closures, date),
   ).reduce((sum, b) => sum + b.end - b.start, 0);
 }

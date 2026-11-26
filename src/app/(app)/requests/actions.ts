@@ -15,6 +15,7 @@ import {
 import { clipBlocks, closureOn } from "@/lib/leave/calendar";
 import { BLOCKING_STATUSES } from "@/lib/leave/request";
 import { isoWeekday } from "@/lib/leave/time";
+import { inEffect } from "@/lib/leave/schedule";
 import { createClient } from "@/lib/supabase/server";
 import { loadClosures } from "../calendar/load-closures";
 import { loadOwnPositions } from "./new/load-positions";
@@ -105,10 +106,9 @@ export async function changeRecordHours(_prev: RecordActionState, formData: Form
   } catch {
     return { message: FAILED, done: false };
   }
-  const weekday = isoWeekday(record.date);
   const blocks = clipBlocks(
     (positions.find((p) => p.id === record.positionId)?.blocks ?? [])
-      .filter((b) => b.weekday === weekday)
+      .filter((b) => inEffect(b, record.date) && b.weekday === isoWeekday(record.date))
       .map(({ start: s, end: e }) => ({ start: s, end: e })),
     closureOn(closures, record.date),
   );

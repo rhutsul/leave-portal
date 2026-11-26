@@ -7,7 +7,7 @@ type Supabase = Awaited<ReturnType<typeof createClient>>;
 export async function loadOwnPositions(supabase: Supabase, employeeId: string): Promise<PositionSchedule[]> {
   const { data, error } = await supabase
     .from("positions")
-    .select("id, kind, title, division:divisions(name), schedule_blocks(weekday, start_min, end_min)")
+    .select("id, kind, title, division:divisions(name), schedule_blocks(weekday, start_min, end_min, valid_from, valid_to)")
     .eq("employee_id", employeeId);
   if (error) throw error;
 
@@ -16,6 +16,13 @@ export async function loadOwnPositions(supabase: Supabase, employeeId: string): 
     label: positionLabel(p.division.name, p.title),
     title: p.title,
     kind: p.kind === "main" ? "main" : "additional",
-    blocks: p.schedule_blocks.map((b) => ({ weekday: b.weekday, start: b.start_min, end: b.end_min })),
+    // Розклад «з дати» (AC-STAFF-07): блок діє з valid_from до valid_to; яку версію брати, вирішує дата (blocksOnDate).
+    blocks: p.schedule_blocks.map((b) => ({
+      weekday: b.weekday,
+      start: b.start_min,
+      end: b.end_min,
+      validFrom: b.valid_from,
+      validTo: b.valid_to,
+    })),
   }));
 }

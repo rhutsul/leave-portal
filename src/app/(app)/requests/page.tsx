@@ -16,6 +16,7 @@ import { CALENDAR_MESSAGES, clipBlocks, closureOn, toClosure } from "@/lib/leave
 import { CancellationMarkView } from "@/components/ui/cancellation-mark";
 import { cancellationMark, canRequestCancellation } from "@/lib/leave/cancellation";
 import { employeeActions } from "@/lib/leave/decision";
+import { blocksOnDate } from "@/lib/leave/schedule";
 import {
   closedDayName,
   isLeaveType,
@@ -96,7 +97,7 @@ export default async function MyRequestsPage({ searchParams }: PageProps<"/reque
   ]);
   const blocksOf = (positionId: number, date: string) =>
     clipBlocks(
-      positions?.find((p) => p.id === positionId)?.blocks.filter((b) => b.weekday === isoWeekday(date)) ?? [],
+      blocksOnDate(positions?.find((p) => p.id === positionId)?.blocks ?? [], date),
       closureOn(closures, date),
     );
   // Чому дату не прийнято: закрита школою (AC-CAL-03, AC-CAL-16) чи без робочих годин (AC-LEAVE-21). Без

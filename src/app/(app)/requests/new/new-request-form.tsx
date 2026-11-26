@@ -72,6 +72,7 @@ import { submitOnBehalf } from "../../on-behalf/actions";
 import { forEmployee, ON_BEHALF_MESSAGES } from "@/lib/leave/on-behalf";
 import { StatusBadge } from "@/components/ui/status-badge";
 import type { Closure } from "@/lib/leave/calendar";
+import { scheduleSummary } from "@/lib/leave/schedule";
 import { calendarDay } from "./calendar-view";
 
 // Кроки без номерів у заголовках (DESIGN.md): лише назви; пройдений крок — з галочкою.
@@ -303,7 +304,7 @@ export function NewRequestForm({
                       <div className="mb-1 font-medium">{subject ? "Weekly schedule" : "Your weekly schedule"}</div>
                       {positions.map((p) => (
                         <div key={p.id} className="text-muted-foreground">
-                          {p.label} — {weeklySchedule(p.blocks)}
+                          {p.label} — {scheduleSummary(p.blocks, today, weeklySchedule)}
                         </div>
                       ))}
                     </div>

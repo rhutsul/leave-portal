@@ -3,6 +3,7 @@
 import { closureOn, formatClosureTime, type Closure } from "./calendar";
 import { BLOCKING_STATUSES } from "./request";
 import { formatDateLong, formatDateShort, isoWeekday, monthGrid, monthShort, WEEKDAY_SHORT } from "./time";
+import { blocksOnDate, type DatedBlock } from "./schedule";
 
 /** Статус, що блокує час (BLOCKING_STATUSES) — лише такі записи видно на діаграмі й у місяці. */
 export type BlockingStatus = (typeof BLOCKING_STATUSES)[number];
@@ -137,8 +138,8 @@ export interface DayScale {
 }
 
 /** Робочий день посади на дату: від початку першого блоку розкладу до кінця останнього; без блоків — null. */
-export function positionScale(blocks: readonly { weekday: number; start: number; end: number }[], date: string): DayScale | null {
-  const today = blocks.filter((b) => b.weekday === isoWeekday(date));
+export function positionScale(blocks: readonly DatedBlock[], date: string): DayScale | null {
+  const today = blocksOnDate(blocks, date);
   if (today.length === 0) return null;
   return { start: Math.min(...today.map((b) => b.start)), end: Math.max(...today.map((b) => b.end)) };
 }

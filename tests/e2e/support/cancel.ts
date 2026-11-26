@@ -77,7 +77,8 @@ export async function cancelledWithNote(recordId: number, note: string): Promise
   if (error) throw error;
 }
 
-export type View = { width: number; height: number; theme?: "light" | "dark" };
+/** `touch: true` вмикає дотик (`pointer: coarse`, 44 px, ADR 0008); без нього — дотик із налаштувань проєкту (Pixel 7 у `mobile`). */
+export type View = { width: number; height: number; theme?: "light" | "dark"; touch?: boolean };
 
 /** Браузерний контекст синтетичного працівника: лише куки сесії (пароль у браузер і trace.zip не потрапляє). */
 export async function employeeContext(browser: Browser, employee: UatEmployee, view?: View): Promise<BrowserContext> {
@@ -85,6 +86,7 @@ export async function employeeContext(browser: Browser, employee: UatEmployee, v
   const context = await browser.newContext({
     storageState: { cookies: [], origins: [] },
     ...(view ? { viewport: { width: view.width, height: view.height } } : {}),
+    ...(view?.touch ? { hasTouch: true } : {}),
     colorScheme: view?.theme ?? "light",
     reducedMotion: "reduce",
   });
@@ -108,6 +110,7 @@ export async function roleContext(browser: Browser, role: string, view?: View): 
   const context = await browser.newContext({
     storageState: `playwright/.auth/${role}.json`,
     ...(view ? { viewport: { width: view.width, height: view.height } } : {}),
+    ...(view?.touch ? { hasTouch: true } : {}),
     colorScheme: view?.theme ?? "light",
     reducedMotion: "reduce",
   });
