@@ -82,7 +82,7 @@ describe("locks that close the race between revoking a manager's right and a req
     }
   });
 
-  it("AC-STAFF-09: a deputy submitting on behalf locks the employee and the absent manager they act for", async () => {
+  it("AC-STAFF-09: a deputy submitting on behalf locks the employee, the deputy and the absent manager they act for", async () => {
     const today = kyivDate(new Date());
     // Посада teacher1@ лише з manager1@ (Given AC-STAFF-09): manager2@ діє як заступник.
     await asOwner(

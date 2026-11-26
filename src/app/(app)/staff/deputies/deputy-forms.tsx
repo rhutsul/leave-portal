@@ -85,6 +85,8 @@ export function AssignDeputyForm({ managers, deputies, today }: { managers: Pers
           onChange={setDates}
           today={today}
           placeholder="Choose the first and the last day"
+          // Діапазон із підсумком днів довший за одну дату: поле на всю ширину рядка форми, щоб підпис не обрізався.
+          className="sm:max-w-none"
           labelledBy={`${ids}-period`}
           describedBy={`${ids}-hint`}
         />
