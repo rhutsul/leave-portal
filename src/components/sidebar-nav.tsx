@@ -12,6 +12,7 @@ import {
   IdCard,
   List,
   UserRoundCheck,
+  UserRoundCog,
   UserRoundPlus,
   UsersRound,
 } from "lucide-react";
@@ -36,6 +37,7 @@ const LINKS: { href: string; label: string; icon: ReactNode; deciders?: true; ad
   { href: "/balances", label: "Balances", icon: <ChartColumn /> },
   { href: "/calendar", label: "School calendar", icon: <CalendarDays /> },
   { href: "/staff", label: "Employees", icon: <IdCard />, admin: true },
+  { href: "/staff/deputies", label: "Deputies", icon: <UserRoundCog />, admin: true },
 ];
 
 /**
