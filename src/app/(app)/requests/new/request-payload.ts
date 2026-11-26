@@ -11,8 +11,8 @@ const textOrUndefined = (value: unknown) => (typeof value === "string" ? value :
 
 function parseChoice(c: RawChoice): RequestPayload["choices"][number] {
   return {
-    date: String(c.date),
-    positionId: Number(c.positionId),
+    date: c.date as string,
+    positionId: c.positionId as number,
     include: c.include === true,
     wholeDay: c.wholeDay === true,
     start: textOrUndefined(c.start),
@@ -21,14 +21,22 @@ function parseChoice(c: RawChoice): RequestPayload["choices"][number] {
   };
 }
 
+function isChoiceShape(c: unknown): boolean {
+  if (typeof c !== "object" || c === null || Array.isArray(c)) return false;
+  const choice = c as RawChoice;
+  return typeof choice.date === "string" && typeof choice.positionId === "number";
+}
+
 function isPayloadShape(value: Partial<RequestPayload>): value is Partial<RequestPayload> & Pick<RequestPayload, "dates" | "leaveType" | "choices"> {
   return (
     Array.isArray(value.dates) &&
     value.dates.every((d) => typeof d === "string") &&
     typeof value.leaveType === "string" &&
     Array.isArray(value.choices) &&
-    // Кожен вибір — об'єкт: `[null]` від підробленого клієнта — не заявка, а не виняток у server action (рев'ю CodeRabbit).
-    value.choices.every((c: unknown) => typeof c === "object" && c !== null && !Array.isArray(c))
+    ["string", "undefined"].includes(typeof value.relationship) &&
+    // Кожен вибір — об'єкт із датою-рядком і числом посади: `[null]` чи `{date: {…}}` від підробленого клієнта — не
+    // заявка, а не виняток у server action (рев'ю CodeRabbit).
+    value.choices.every(isChoiceShape)
   );
 }
 

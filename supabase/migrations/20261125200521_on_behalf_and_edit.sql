@@ -437,7 +437,13 @@ declare
 begin
   perform private.check_on_behalf(p_employee_id);
   perform pg_advisory_xact_lock(hashtextextended(p_employee_id::text, 0));
-  -- Ще раз під lock працівника: право, відкликане між першою перевіркою і lock, не пропустить заявку (рев'ю CodeRabbit).
+  -- Право менеджера тримається на рядках position_managers посад працівника: for share не дає зняти менеджера, поки
+  -- заявка не закомічена, а зняття, закомічене раніше, бачить повторна перевірка нижче (рев'ю CodeRabbit).
+  perform 1
+    from public.position_managers as pm
+    join public.positions as p on p.id = pm.position_id
+   where p.employee_id = p_employee_id
+     for share of pm;
   perform private.check_on_behalf(p_employee_id);
 
   begin
