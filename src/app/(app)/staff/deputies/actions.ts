@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { DEPUTY_MESSAGES } from "@/lib/staff/deputy";
+import { DEPUTY_MESSAGES, deputyEnd } from "@/lib/staff/deputy";
 import { messageOfDbError, uuidOf } from "@/lib/staff/employee";
 import { isCalendarDate } from "@/lib/leave/time";
 import { createClient } from "@/lib/supabase/server";
@@ -29,9 +29,7 @@ export async function assignDeputy(_prev: DeputyActionState, formData: FormData)
   const managerId = uuidOf(formData.get("manager_id"));
   const deputyId = uuidOf(formData.get("deputy_id"));
   const start = date(formData, "start");
-  // Порожній кінець — одноденне призначення; непорожній, але не дата календаря, — помилка, а не день початку.
-  const rawEnd = formData.get("end");
-  const end = typeof rawEnd === "string" && rawEnd !== "" ? date(formData, "end") : start;
+  const end = deputyEnd(start, formData.get("end"));
   if (!managerId) return { message: DEPUTY_MESSAGES.noManager, done: false };
   if (!deputyId) return { message: DEPUTY_MESSAGES.noDeputy, done: false };
   if (!start || !end) return { message: DEPUTY_MESSAGES.noDates, done: false };

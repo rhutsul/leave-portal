@@ -1,6 +1,8 @@
 // Заступники (вимога PM 07, AC-STAFF-09, -10, -14, -19; D9 openspec/changes/impl-staff-management/design.md). Право й
 // правила — у базі (private.assign_deputy, private.acting_manager_ids); тут — стан призначення словом і тексти.
 
+import { isCalendarDate } from "@/lib/leave/time";
+
 export const DEPUTY_MESSAGES = {
   // AC-STAFF-19
   none: "No deputies assigned",
@@ -24,3 +26,12 @@ export const DEPUTY_STATE_LABELS: Record<DeputyState, string> = {
   upcoming: "Upcoming",
   ended: "Ended",
 };
+
+/**
+ * Кінець періоду з поля форми: відсутнє чи порожнє поле — одноденне призначення (день початку); будь-що інше, що не є
+ * датою календаря (зокрема файл), — null, і дія відповідає «noDates», а не тихо зберігає один день.
+ */
+export function deputyEnd(start: string | null, raw: FormDataEntryValue | null): string | null {
+  if (raw === null || raw === "") return start;
+  return typeof raw === "string" && isCalendarDate(raw) ? raw : null;
+}

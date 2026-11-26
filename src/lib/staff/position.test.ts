@@ -1,6 +1,6 @@
 // Редактор розкладу й заступники (вимога PM 07, D7–D9 impl-staff-management): ті самі правила й тексти, що в базі.
 import { describe, expect, it } from "vitest";
-import { deputyState, DEPUTY_MESSAGES } from "./deputy";
+import { deputyEnd, deputyState, DEPUTY_MESSAGES } from "./deputy";
 import { blocksFromWeek, copyMondayToWeekdays, defaultWeek, emptyWeek, POSITION_MESSAGES, readBlocks, weekFromBlocks } from "./position";
 
 describe("weekly schedule editor", () => {
@@ -52,6 +52,14 @@ describe("deputies", () => {
     expect(deputyState("2026-12-07", "2026-12-11", "2026-12-11")).toBe("current");
     expect(deputyState("2026-12-07", "2026-12-11", "2026-12-14")).toBe("ended");
     expect(deputyState("2026-12-07", "2026-12-11", "2026-12-06")).toBe("upcoming");
+  });
+
+  it("AC-STAFF-09: an empty or missing end is a one-day assignment; an invalid end or a file is rejected", () => {
+    expect(deputyEnd("2026-12-07", null)).toBe("2026-12-07");
+    expect(deputyEnd("2026-12-07", "")).toBe("2026-12-07");
+    expect(deputyEnd("2026-12-07", "2026-12-11")).toBe("2026-12-11");
+    expect(deputyEnd("2026-12-07", "2026-02-30")).toBeNull();
+    expect(deputyEnd("2026-12-07", new File(["x"], "end.txt"))).toBeNull();
   });
 
   it("AC-STAFF-19: the empty list says so verbatim", () => {
