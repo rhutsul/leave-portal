@@ -17,6 +17,7 @@ import { RecordSummary } from "@/components/ui/record-summary";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { DECISION_MESSAGES } from "@/lib/leave/decision";
 import { decideRecord, type DecideState } from "./actions";
+import type { Reviewed } from "./load-reviewed";
 import { CommentToggle } from "./comment-toggle";
 import { decisionErrorPlacement } from "./decisions-view";
 import { useDecisionMotion } from "./use-decision-motion";
@@ -136,7 +137,7 @@ function ConfirmDialog({
  */
 export function DecisionForm({
   recordId,
-  hours,
+  reviewed,
   split = false,
   summary,
   before,
@@ -144,8 +145,11 @@ export function DecisionForm({
   children,
 }: {
   recordId: number;
-  /** Години, які бачить менеджер (reviewedHours): рішення стосується саме їх. */
-  hours: string;
+  /**
+   * Що бачить менеджер: години (reviewedHours) і дата, тип та заміна (reviewedRecord, D9 impl-on-behalf) — рішення
+   * стосується саме їх, чужа зміна дає повідомлення, а не рішення.
+   */
+  reviewed: Reviewed;
   split?: boolean;
   /** Що показати в діалозі підтвердження (RecordSummary). */
   summary: { date: string; hours: string; meta: string };
@@ -182,7 +186,8 @@ export function DecisionForm({
   return (
     <form id={formId} action={action} className="flex flex-1 flex-col gap-6.5">
       <input type="hidden" name="record_id" value={recordId} />
-      <input type="hidden" name="hours" value={hours} />
+      <input type="hidden" name="hours" value={reviewed.hours} />
+      <input type="hidden" name="reviewed" value={reviewed.record} />
       {split && <input type="hidden" name="split" value="1" />}
 
       {placement === "form" && (

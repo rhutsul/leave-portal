@@ -8,6 +8,7 @@ import {
   DECISION_MESSAGES,
   isDecision,
   parseRecordId,
+  parseReviewedRecord,
   reviewedHours,
   type Role,
 } from "@/lib/leave/decision";
@@ -76,6 +77,14 @@ export async function decideRecord(_prev: DecideState, formData: FormData): Prom
     revalidatePath("/decisions");
     return { message: DECISION_MESSAGES.hoursChanged };
   }
+  // Так само дата, тип і заміна, які бачив менеджер (D9 impl-on-behalf): інший менеджер міг змінити запис. Дату й тип
+  // звіряємо тут для повідомлення; усі три decide_leave_record звіряє ще раз під lock працівника.
+  const reviewed = parseReviewedRecord(formData.get("reviewed"));
+  if (!reviewed) return { message: FAILED };
+  if (reviewed.date !== row.date || reviewed.leaveType !== row.leave_type) {
+    revalidatePath("/decisions");
+    return { message: DECISION_MESSAGES.recordChanged };
+  }
 
   const { error } = await supabase.rpc("decide_leave_record", {
     p_record_id: recordId,
@@ -84,6 +93,9 @@ export async function decideRecord(_prev: DecideState, formData: FormData): Prom
     p_split: split,
     p_start_min: row.start_min,
     p_end_min: row.end_min,
+    p_date: reviewed.date,
+    p_leave_type: reviewed.leaveType,
+    p_substitute_id: reviewed.substituteId,
   });
   if (error) {
     // Інший менеджер вирішив чи працівник скасував між читанням і rpc: те саме, що вище, — панель запису за статусом.

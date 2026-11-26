@@ -23,7 +23,7 @@ import {
   schoolYearOf,
 } from "@/lib/leave/balance";
 import { canCancelWithNote, cancellationRequestLine, type CancellationMark } from "@/lib/leave/cancellation";
-import { DECISION_MESSAGES, reviewedHours } from "@/lib/leave/decision";
+import { DECISION_MESSAGES } from "@/lib/leave/decision";
 import {
   isLeaveType,
   isRelationship,
@@ -55,6 +55,7 @@ import {
 import { loadRecordDay } from "./load-record-day";
 import { RecordSheet } from "./record-sheet";
 import { loadRecordSubstitutes, substituteLookup, type RecordSubstitute } from "../requests/load-record-substitutes";
+import { loadReviewed, type Reviewed } from "./load-reviewed";
 
 type DecisionRow = Database["public"]["Functions"]["decision_records"]["Returns"][number];
 
@@ -153,7 +154,7 @@ export default async function DecisionsPage({ searchParams }: PageProps<"/decisi
   // Історія вибраного запису з іменами (public.record_histories), робочий день посади на його дату (смуга годин) і,
   // якщо запис можна вирішити, залишок на цей момент (public.decision_balance) — той самий, за яким
   // decide_leave_record порахує розподіл (AC-BALANCE-14).
-  const [historyResult, balance, day, substitutes] = await Promise.all([
+  const [historyResult, balance, day, substitutes, reviewed] = await Promise.all([
     selected
       ? supabase.rpc("record_histories", { p_record_ids: [selected.id] })
       : Promise.resolve({ data: [], error: null }),
@@ -163,6 +164,8 @@ export default async function DecisionsPage({ searchParams }: PageProps<"/decisi
     selected ? loadRecordDay(supabase, selected.id, selected.date) : Promise.resolve(null),
     // Заміна й позначка підвищення (AC-SUBST-02, AC-SUBST-03, AC-SUBST-08) показаних записів і вибраного; збій — без них.
     loadRecordSubstitutes(supabase, recordIds(shown, selected)),
+    // Дата, тип і заміна вибраного запису для форми рішення (D9 impl-on-behalf).
+    loadReviewed(supabase, selected),
   ]);
   const substituteOf = substituteLookup(substitutes);
   const selectedHistory = historyResult.error ? null : (groupHistories(historyResult.data ?? []).get(selected?.id ?? -1) ?? []);
@@ -276,7 +279,7 @@ export default async function DecisionsPage({ searchParams }: PageProps<"/decisi
               recordKey={selected.id}
             >
               <RecordPanel
-                record={selected}
+                record={{ ...selected, reviewed }}
                 substitute={substituteOf(selected.id)}
                 history={selectedHistory}
                 balance={balance}
@@ -562,7 +565,8 @@ function RecordPanel({
   today,
   notice,
 }: {
-  record: DecisionRow;
+  /** Запис і те, що з нього бачить менеджер для рішення (reviewed: години, дата, тип, заміна — D9 impl-on-behalf). */
+  record: DecisionRow & { reviewed: Reviewed };
   /** Заміна запису; null — «No substitute»; undefined — не завантажились. */
   substitute: RecordSubstitute | null | undefined;
   history: HistoryRow[] | null;
@@ -600,7 +604,7 @@ function RecordPanel({
       <DecisionForm
         key={r.id}
         recordId={r.id}
-        hours={reviewedHours(r.start_min, r.end_min)}
+        reviewed={r.reviewed}
         split={Boolean(balance && balance !== "error" && balance.warning)}
         summary={summary}
         before={before}
