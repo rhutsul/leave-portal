@@ -188,6 +188,8 @@ describe("only the administrator assigns deputies", () => {
       "select distinct position_id from public.leave_records where employee_id <> $1",
       [manager1],
     );
+    // Порожній список довів би «every» без жодного запису — тож спершу: manager1@ справді бачить чужі записи.
+    expect(visible.length).toBeGreaterThan(0);
     expect(visible.every((r) => managed.some((m) => Number(m.id) === Number(r.position_id)))).toBe(true);
   });
 
