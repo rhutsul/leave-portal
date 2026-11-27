@@ -61,6 +61,12 @@ import { loadReviewed, type Reviewed } from "./load-reviewed";
 
 type DecisionRow = Database["public"]["Functions"]["decision_records"]["Returns"][number];
 
+/** Підказка під порожньою чергою: адміністратор бачить записи всіх посад, менеджер — лише своїх. */
+const EMPTY_QUEUE_HINT = {
+  admin: "New records of every position will appear here.",
+  manager: "New records of your positions will appear here.",
+} as const;
+
 const TABS: { id: DecisionsTab; label: string; href: string }[] = [
   { id: "awaiting", label: "Awaiting decision", href: "/decisions" },
   { id: "history", label: "History", href: "/decisions?tab=history" },
@@ -250,7 +256,7 @@ export default async function DecisionsPage({ searchParams }: PageProps<"/decisi
               <EmptyState
                 icon={<ClipboardCheck className="size-5" aria-hidden="true" />}
                 title="No records awaiting decision"
-                text="New records of your positions will appear here."
+                text={EMPTY_QUEUE_HINT[profile.role]}
               />
             ) : (
               <EmptyState title="No decisions yet" text="Records you or another manager decided will appear here." />
