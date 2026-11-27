@@ -85,6 +85,11 @@ const TYPE_HINTS: Record<LeaveType, string> = {
   family: "A celebration of a close relative",
 };
 
+/** Підказка типу; у заявці від імені — залишок працівника, а не менеджера («this employee», D6 impl-on-behalf). */
+function typeHint(type: LeaveType, onBehalf: boolean): string {
+  return onBehalf && type === "personal" ? "Counts against this employee's Personal leave balance" : TYPE_HINTS[type];
+}
+
 const TYPE_ICONS: Record<LeaveType, ReactNode> = {
   sick: <HeartPulse />,
   personal: <UserRound />,
@@ -386,7 +391,7 @@ export function NewRequestForm({
                         </span>
                         <span className="flex flex-col gap-0.5">
                           <span className="text-sm font-semibold">{LEAVE_TYPES[type]}</span>
-                          <span className="text-[13px] text-muted-foreground">{TYPE_HINTS[type]}</span>
+                          <span className="text-[13px] text-muted-foreground">{typeHint(type, Boolean(subject))}</span>
                         </span>
                       </Label>
                     ))}
