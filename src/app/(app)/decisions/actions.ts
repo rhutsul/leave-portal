@@ -19,9 +19,12 @@ import {
   managerCancelCheck,
 } from "@/lib/leave/cancellation";
 import type { RecordStatus } from "@/lib/leave/request";
-import { kyivDate } from "@/lib/leave/time";
+import { EDIT_MESSAGES, editErrorMessage, parseEditForm } from "@/lib/leave/record-edit";
+import { forEmployee } from "@/lib/leave/on-behalf";
+import { kyivDate, TIME_MESSAGES } from "@/lib/leave/time";
 import { createClient } from "@/lib/supabase/server";
 import { afterCancellationDecision, afterDecision } from "./decisions-view";
+import { loadWholeDay } from "./load-record-day";
 
 export interface DecideState {
   message: string;
@@ -234,4 +237,47 @@ export async function cancelApprovedRecord(_prev: CancellationState, formData: F
   revalidatePath("/decisions");
   revalidatePath("/requests");
   redirect(`/decisions?tab=history&record=${recordId}&decided=cancelled`);
+}
+
+/** Відповідь правки: текст бази чи перевірки дослівно над формою; введене лишається (форма кероване). */
+export interface EditState {
+  message: string;
+}
+
+/** Години «Whole day» на нову дату: робочий день посади; інакше — текст для форми. */
+async function wholeDayHours(supabase: Supabase, recordId: number, date: string): Promise<{ start: number; end: number } | string> {
+  const day = await loadWholeDay(supabase, recordId, date);
+  if (day === null) return EDIT_MESSAGES.failed;
+  return day === "none" ? forEmployee(TIME_MESSAGES.noWorkingHours) : day;
+}
+
+/**
+ * Правка запису до рішення (крок 4 D9, D7 і D10 impl-on-behalf; AC-BEHALF-06…10). Форма шле всі поля; тут — лише
+ * формат і години «Whole day» на нову дату, усе інше (хто може, статус, розклад, закриття, перетин, список замін) звіряє
+ * edit_leave_record під lock працівника й відповідає текстами PM. Успіх — та сама панель запису з новими значеннями,
+ * рядками історії й «Record updated».
+ */
+export async function editRecord(_prev: EditState, formData: FormData): Promise<EditState> {
+  const { supabase, recordId } = await signedInFor(formData);
+  if (recordId === null) return { message: DECISION_MESSAGES.noAccess };
+  const parsed = parseEditForm((name) => formData.get(name));
+  if (!parsed.ok) return { message: forEmployee(parsed.message) };
+  const f = parsed.fields;
+
+  const hours = f.wholeDay ? await wholeDayHours(supabase, recordId, f.date) : { start: f.start!, end: f.end! };
+  if (typeof hours === "string") return { message: hours };
+
+  const { error } = await supabase.rpc("edit_leave_record", {
+    p_record_id: recordId,
+    p_date: f.date,
+    p_start_min: hours.start,
+    p_end_min: hours.end,
+    p_leave_type: f.leaveType,
+    p_relationship: f.relationship,
+    p_substitute_id: f.substituteId,
+  });
+  if (error) return { message: editErrorMessage(error) };
+  revalidatePath("/decisions");
+  revalidatePath("/requests");
+  redirect(`/decisions?record=${recordId}&updated=1`);
 }

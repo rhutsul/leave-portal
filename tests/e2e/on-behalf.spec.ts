@@ -1,5 +1,5 @@
 // UAT зрізу «заявка від імені працівника» (requirements/08-on-behalf-and-edit.md, AC-BEHALF-01, -02, -05, -11, -12, -14,
-// -15; openspec/changes/impl-on-behalf/design.md, D10–D12). «Дано» — синтетичні працівники uat-<run>-…@example.test
+// -15; openspec/changes/archive/2026-11-27-impl-on-behalf/design.md, D10–D12). «Дано» — синтетичні працівники uat-<run>-…@example.test
 // (менеджер основної посади — manager1@example.test, як у teacher1@; tests/e2e/support/on-behalf.ts), дати — вільні
 // робочі дні від сьогодні. Створює й прибирає за собою секретним ключем — @prod-writes. AC-BEHALF-03, -04 і -13 (база)
 // доводять тести PGlite (tests/db/on-behalf.test.ts): адміністратор, залишок і обхід сторінок — без нових станів

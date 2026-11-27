@@ -1,4 +1,4 @@
-// Заявка від імені працівника — тексти й чисті правила (D1, D6, D10 openspec/changes/impl-on-behalf/design.md; вимога
+// Заявка від імені працівника — тексти й чисті правила (D1, D6, D10 openspec/changes/archive/2026-11-27-impl-on-behalf/design.md; вимога
 // PM requirements/08-on-behalf-and-edit.md). Що записано й хто має право, вирішує база
 // (20261125200521_on_behalf_and_edit.sql); тут — тексти сторінок і перевірок форми до подання.
 

@@ -75,28 +75,30 @@ on_behalf_and_edit` — першим комітом (мітка пізніша �
 
 ## 8. Менеджер змінює запис у «Decisions» (крок 4 D9)
 
-- [ ] 8.1 Окремий PR «Реалізація», коли contract 7.1 застосовано на проді (`/api/health`): міграція з `grant execute`
+- [x] 8.1 Окремий PR «Реалізація», коли contract 7.1 застосовано на проді (`/api/health`): міграція з `grant execute`
       на `edit_leave_record` для `authenticated`; кнопка «Edit record» і `edit-record-form.tsx` у `Sheet` «Decisions»,
       server action `editRecord`, смуга «Cancel» / «Save changes»; приклади на `/design`. Тести: PGlite від
       `authenticated` (manager1@ змінює дату, тип, заміну — рядки дослівно); e2e `tests/e2e/on-behalf-edit.spec.ts`
       (правка в «Decisions», працівник бачить рядок у «My requests»).
       Done when: AC-BEHALF-06, AC-BEHALF-07, AC-BEHALF-08
-- [ ] 8.2 Той самий PR: `Alert` з текстом бази над формою правки, межа поля годин. Тести: e2e (години поза розкладом →
+- [x] 8.2 Той самий PR: `Alert` з текстом бази над формою правки, межа поля годин. Тести: e2e (години поза розкладом →
       текст AC; запис погоджено `adminClient()` у фоні → текст AC-BEHALF-10;
       `tests/e2e/negative-controls.spec.ts` — RPC `edit_leave_record` сесією manager2@ → відмова, запис без змін).
+      Примітка: доказ AC-BEHALF-13 через Data API — у `tests/e2e/on-behalf-edit.spec.ts`, а не в
+      `negative-controls.spec.ts`: там лише навмисно хибні перевірки NC-*, які не рахуються як покриття AC.
       Done when: AC-BEHALF-09, AC-BEHALF-10, AC-BEHALF-13
 
 ## 9. Телефон, знімки, матриця, archive
 
-- [ ] 9.1 `tests/e2e/on-behalf.mobile.spec.ts` (проєкт `mobile`, 360 і 390 px: список і форма — у PR задач 1–5; панель
+- [x] 9.1 `tests/e2e/on-behalf.mobile.spec.ts` (проєкт `mobile`, 360 і 390 px: список і форма — у PR задач 1–5; панель
       правки на весь екран — у PR 8.1) і знімки станів D11 у світлій і темній темі, 390 і 1280 px —
       `tests/e2e/on-behalf-screenshots.spec.ts` → `docs/img/`.
       Done when: AC-BEHALF-01, AC-BEHALF-02, AC-BEHALF-06, AC-BEHALF-11, AC-BEHALF-15
-- [ ] 9.2 Рядки `docs/conformance.md` (`/conformance`) — у PR, що доводить AC: AC-BEHALF-01…05, -11, -12, -14, -15 і
+- [x] 9.2 Рядки `docs/conformance.md` (`/conformance`) — у PR, що доводить AC: AC-BEHALF-01…05, -11, -12, -14, -15 і
       -13 (база) у першому PR; AC-BEHALF-06…10 — у PR 8.1. Кандидати в питання PM (D13) — у `docs/spec-reading.md`;
       `database.types.ts` із Summary `db-check`; `npm run check:design`, `npm run check:ui`, `npm run ac:coverage`,
       `npm run gates`, `npm test`. PR з міграцією й функціями `security definer` — рев'ю CodeRabbit або звіт другої
       думки до злиття.
       Done when: AC-BEHALF-01, AC-BEHALF-02, AC-BEHALF-03, AC-BEHALF-04, AC-BEHALF-05, AC-BEHALF-06, AC-BEHALF-07, AC-BEHALF-08, AC-BEHALF-09, AC-BEHALF-10, AC-BEHALF-11, AC-BEHALF-12, AC-BEHALF-13, AC-BEHALF-14, AC-BEHALF-15
-- [ ] 9.3 У PR 8.1 (останньому PR зрізу): `npx openspec archive impl-on-behalf -y`.
+- [x] 9.3 У PR 8.1 (останньому PR зрізу): `npx openspec archive impl-on-behalf -y`.
       Done when: AC-BEHALF-01, AC-BEHALF-02, AC-BEHALF-03, AC-BEHALF-04, AC-BEHALF-05, AC-BEHALF-06, AC-BEHALF-07, AC-BEHALF-08, AC-BEHALF-09, AC-BEHALF-10, AC-BEHALF-11, AC-BEHALF-12, AC-BEHALF-13, AC-BEHALF-14, AC-BEHALF-15

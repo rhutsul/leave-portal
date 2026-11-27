@@ -1,4 +1,4 @@
-// Заявка від імені на телефоні 360 і 390 px (ADR 0008, DESIGN.md розділ 12; D11 openspec/changes/impl-on-behalf/design.md):
+// Заявка від імені на телефоні 360 і 390 px (ADR 0008, DESIGN.md розділ 12; D11 openspec/changes/archive/2026-11-27-impl-on-behalf/design.md):
 // список працівників — картки зі стрілкою, форма нової заявки з банером «хто погоджує» і колонкою «Status after
 // submit» у картці запису, відмова — EmptyState. Світла й темна тема — лише токени; без прокрутки вбік. Без AC ID:
 // вигляд — за розробником (поведінку доводить on-behalf.spec.ts). Знімки — у test-results/ (артефакт CI). Дані —
