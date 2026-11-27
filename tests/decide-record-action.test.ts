@@ -1,4 +1,4 @@
-// Рішення в «Decisions» (server action decideRecord, крок 2 D9 openspec/changes/impl-on-behalf/design.md): що бачив
+// Рішення в «Decisions» (server action decideRecord, крок 2 D9 openspec/changes/archive/2026-11-27-impl-on-behalf/design.md): що бачив
 // менеджер (приховане поле reviewed) звіряється з рядком черги й іде в decide_leave_record як p_date, p_leave_type,
 // p_substitute_id. Підмінено лише зовнішнє: серверний клієнт Supabase, next/cache і next/navigation. Без AC ID у назвах:
 // AC-BEHALF-06…08 (правка запису) ще «відкладено»; саму відмову бази після чужої правки доводить tests/db/on-behalf.test.ts.

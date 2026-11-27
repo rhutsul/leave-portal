@@ -28,6 +28,8 @@ import { SubstituteNote } from "@/components/ui/substitute-note";
 import { SUBSTITUTE_MESSAGES } from "@/lib/leave/substitutes";
 import { ON_BEHALF_MESSAGES } from "@/lib/leave/on-behalf";
 import { EmployeeList } from "../on-behalf/employee-list";
+import { EditRecordForm } from "../decisions/edit-record-form";
+import { EDIT_MESSAGES } from "@/lib/leave/record-edit";
 import { HoursBar } from "@/components/ui/hours-bar";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -372,7 +374,7 @@ export default async function DesignPage() {
       </Section>
 
       <Section title="Request on behalf">
-        {/* D11 openspec/changes/impl-on-behalf/design.md: список працівників — рядок-посилання зі стрілкою; над формою —
+        {/* D11 openspec/changes/archive/2026-11-27-impl-on-behalf/design.md: список працівників — рядок-посилання зі стрілкою; над формою —
             Alert info «хто погоджує»; у підсумку — «Status after submit» словом із крапкою; відмови й «немає
             працівників» — EmptyState з текстом AC; рядки історії — дослівний текст PM. */}
         <div className="grid gap-4 md:grid-cols-2" data-testid="design-on-behalf">
@@ -429,6 +431,61 @@ export default async function DesignPage() {
               { created_at: "2026-11-25T07:40:00Z", action: "approved", actor_name: "Manager One", comment: null },
             ]}
           />
+        </div>
+        {/* Правка запису до рішення (крок 4 D9): форма замість розділу «Record» у панелі «Decisions», смуга
+            «Cancel» / «Save changes»; відповідь бази — Alert над формою, про години — ще й під полем; рядки історії —
+            дослівно з AC-BEHALF-06…08. Запис вигаданий: «Save changes» тут відповість відмовою. */}
+        <div className="grid gap-4 md:grid-cols-2" data-testid="design-record-edit">
+          <div className="flex flex-col rounded-lg border border-border bg-popover p-5">
+            <EditRecordForm
+              recordId={0}
+              reviewed={{ hours: "", record: "" }}
+              initial={{
+                date: "2026-12-04",
+                wholeDay: true,
+                start: 510,
+                end: 930,
+                leaveType: "sick",
+                relationship: null,
+                substituteId: null,
+              }}
+              substitutes={[{ value: "a0000000-0000-0000-0000-000000000005", label: "teacher2@example.test" }]}
+              today="2026-11-27"
+              cancelHref="/design#"
+            >
+              <RecordHistory
+                collapsed={false}
+                history={[
+                  {
+                    created_at: "2026-11-27T09:10:00Z",
+                    action: "record_changed",
+                    actor_name: "Manager One",
+                    comment: "manager1@example.test changed the date: 2026-12-03 → 2026-12-04",
+                  },
+                  {
+                    created_at: "2026-11-27T09:12:00Z",
+                    action: "record_changed",
+                    actor_name: "Manager One",
+                    comment: "manager1@example.test changed the substitute: No substitute → teacher2@example.test",
+                  },
+                ]}
+              />
+            </EditRecordForm>
+          </div>
+          <div className="flex flex-col gap-3">
+            <Alert variant="info" role="note">
+              <CircleCheck />
+              <AlertDescription>{EDIT_MESSAGES.saved}</AlertDescription>
+            </Alert>
+            <Alert variant="destructive" role="note">
+              <CircleAlert />
+              <AlertDescription>Hours must be within the schedule: 08:30–15:30</AlertDescription>
+            </Alert>
+            <Alert variant="destructive" role="note">
+              <CircleAlert />
+              <AlertDescription>{ON_BEHALF_MESSAGES.alreadyDecided}</AlertDescription>
+            </Alert>
+          </div>
         </div>
       </Section>
 

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ChevronRight, CircleAlert, CircleCheck, ClipboardCheck, Info, ShieldX, TriangleAlert, X } from "lucide-react";
+import { ChevronRight, CircleAlert, CircleCheck, ClipboardCheck, Info, Pencil, ShieldX, TriangleAlert, X } from "lucide-react";
 import { groupHistories, type HistoryRow, RecordHistory } from "@/components/record-history";
 import { Alert, AlertAction, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { buttonVariants } from "@/components/ui/button";
@@ -23,7 +23,8 @@ import {
   schoolYearOf,
 } from "@/lib/leave/balance";
 import { canCancelWithNote, cancellationRequestLine, type CancellationMark } from "@/lib/leave/cancellation";
-import { DECISION_MESSAGES } from "@/lib/leave/decision";
+import { DECISION_MESSAGES, parseReviewedRecord } from "@/lib/leave/decision";
+import { EDIT_MESSAGES } from "@/lib/leave/record-edit";
 import {
   isLeaveType,
   isRelationship,
@@ -40,6 +41,7 @@ import type { Database } from "@/lib/supabase/database.types";
 import { loadBalances } from "../balances/load-balances";
 import { CancellationForm, CancelWithNote } from "./cancellation-form";
 import { DecisionForm } from "./decision-form";
+import { EditRecordForm } from "./edit-record-form";
 import {
   balanceShift,
   dayBar,
@@ -168,6 +170,7 @@ export default async function DecisionsPage({ searchParams }: PageProps<"/decisi
     loadReviewed(supabase, selected),
   ]);
   const substituteOf = substituteLookup(substitutes);
+  const edit = await loadEdit(supabase, selected, tab, first(params.edit) === "1", first(params.updated) === "1", reviewed.record);
   const selectedHistory = historyResult.error ? null : (groupHistories(historyResult.data ?? []).get(selected?.id ?? -1) ?? []);
 
   return (
@@ -278,8 +281,8 @@ export default async function DecisionsPage({ searchParams }: PageProps<"/decisi
               nextHref={around?.next ? recordHref(tab, around.next.id) : null}
               recordKey={selected.id}
             >
-              <RecordPanel
-                record={{ ...selected, reviewed }}
+              <RecordBody
+                record={{ ...selected, reviewed, edit }}
                 substitute={substituteOf(selected.id)}
                 history={selectedHistory}
                 balance={balance}
@@ -431,6 +434,57 @@ function RecordTable({
   );
 }
 
+/** Правка запису в панелі: посилання, стан форми й список замін працівника. */
+type EditInfo = {
+  href: string;
+  cancelHref: string;
+  open: boolean;
+  /** Правку щойно збережено — «Record updated» над записом. */
+  updated: boolean;
+  substitutes: { value: string; label: string }[];
+};
+
+/** Запис панелі: що бачить менеджер для рішення (reviewed: години, дата, тип, заміна — D9 impl-on-behalf) і правка. */
+type PanelRecord = DecisionRow & { reviewed: Reviewed; edit: EditInfo | null };
+
+/**
+ * Правка запису до рішення (крок 4 D9 impl-on-behalf): лише «Awaiting decision» і запис, який можна вирішувати (власний
+ * запис менеджера — ні, D7); список замін працівника — лише коли форму відкрито. Збій читання списку — лише «No
+ * substitute» і нинішня заміна: база все одно звірить вибір.
+ */
+async function loadEdit(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  selected: DecisionRow | null,
+  tab: DecisionsTab,
+  open: boolean,
+  updated: boolean,
+  reviewed: string,
+): Promise<EditInfo | null> {
+  if (!selected || !canEdit(selected, reviewed)) return null;
+  return {
+    href: `${recordHref(tab, selected.id)}&edit=1`,
+    cancelHref: recordHref(tab, selected.id),
+    open,
+    updated,
+    substitutes: open ? await substituteOptions(supabase, selected.employee_id) : [],
+  };
+}
+
+/**
+ * Чи можна змінити запис: «Awaiting decision», запис, який можна вирішувати, і відомо, що бачить менеджер (reviewed —
+ * дата, тип, заміна; збій читання — порожньо). Без reviewed форма відкрилась би з «No substitute» і мовчки прибрала б
+ * заміну (друга думка до PR 144).
+ */
+function canEdit(selected: DecisionRow, reviewed: string): boolean {
+  return selected.status === "awaiting" && selected.can_decide && reviewed !== "";
+}
+
+/** Список замін працівника для форми правки: email і id; збій — порожньо. */
+async function substituteOptions(supabase: Awaited<ReturnType<typeof createClient>>, employeeId: string) {
+  const { data } = await supabase.rpc("substitute_list", { p_employee_id: employeeId });
+  return (data ?? []).map((s) => ({ value: s.substitute_id, label: s.email }));
+}
+
 /** Id записів списку й вибраного (він може бути поза вкладкою) — для заміни й позначки одним викликом. */
 function recordIds(shown: readonly DecisionRow[], selected: DecisionRow | null): number[] {
   return [...new Set([...shown.map((r) => r.id), ...(selected ? [selected.id] : [])])];
@@ -446,13 +500,36 @@ function Detail({ label, children }: { label: string; children: React.ReactNode 
   );
 }
 
+/** «Record updated» після правки і заголовок розділу «Record» з «Edit record» праворуч (D11); запис, який змінити не можна, — без них. */
+function EditRecordLink({ edit }: { edit?: EditInfo | null }) {
+  if (!edit) return null;
+  return (
+    <>
+      <UpdatedNotice show={edit.updated} />
+      <div className="-mb-1 flex items-center justify-between gap-2">
+        <h3 className="font-mono text-[11px] font-normal tracking-wide text-muted-foreground uppercase">Record</h3>
+        <Link
+          href={edit.href}
+          replace
+          scroll={false}
+          className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "-mr-2 pointer-coarse:h-11")}
+        >
+          <Pencil aria-hidden="true" />
+          Edit record
+        </Link>
+      </div>
+    </>
+  );
+}
+
 /** Розділ «Record»: дата, тип і години смугою дня; нижче — деталі без рамок. */
 function RecordSection({
   record: r,
   day,
   substitute,
 }: {
-  record: DecisionRow;
+  /** Запис; edit — «Edit record» (AC-BEHALF-06…08) лише для запису, який можна змінити. */
+  record: DecisionRow & { edit?: EditInfo | null };
   day: PositionDay | null;
   substitute: RecordSubstitute | null | undefined;
 }) {
@@ -462,6 +539,7 @@ function RecordSection({
   const split = approvedSplit(r);
   return (
     <section aria-label="Record" className="flex flex-col gap-2.5">
+      <EditRecordLink edit={r.edit} />
       <RecordDay
         date={formatDateLong(r.date)}
         type={<LeaveTypeTag type={r.leave_type} variant="inline" />}
@@ -555,6 +633,68 @@ function HistorySection({ history }: { history: HistoryRow[] | null }) {
   );
 }
 
+/** «Record updated» над записом після збереженої правки (D11). */
+function UpdatedNotice({ show }: { show: boolean }) {
+  if (!show) return null;
+  return (
+    <Alert variant="info" role="status">
+      <CircleCheck />
+      <AlertDescription>{EDIT_MESSAGES.saved}</AlertDescription>
+    </Alert>
+  );
+}
+
+/**
+ * Панель запису на час правки (крок 4 D9, D11 impl-on-behalf): форма замість розділу «Record» і залишку, нижче —
+ * коментарі й історія; дії рішення сховані — одна основна дія «Save changes».
+ */
+function EditPanel({
+  record: r,
+  substitute,
+  history,
+  day,
+  today,
+  edit,
+}: {
+  record: DecisionRow & { reviewed: Reviewed };
+  substitute: RecordSubstitute | null | undefined;
+  history: HistoryRow[] | null;
+  day: PositionDay | null;
+  today: string;
+  edit: EditInfo;
+}) {
+  return (
+    <EditRecordForm
+      key={r.id}
+      recordId={r.id}
+      initial={{
+        date: r.date,
+        wholeDay: isWholeDay(r, day),
+        start: r.start_min,
+        end: r.end_min,
+        leaveType: r.leave_type,
+        relationship: r.relationship,
+        substituteId: parseReviewedRecord(r.reviewed.record)?.substituteId ?? null,
+      }}
+      reviewed={r.reviewed}
+      substitutes={edit.substitutes}
+      currentSubstitute={substitute?.email}
+      today={today}
+      cancelHref={edit.cancelHref}
+    >
+      <section aria-label="Comments" className="flex flex-col gap-2.5">
+        <CommentLines record={r} />
+      </section>
+      <HistorySection history={history} />
+    </EditRecordForm>
+  );
+}
+
+/** Запис на весь робочий день посади на свою дату — форма правки відкривається з «Whole day». */
+function isWholeDay(r: DecisionRow, day: PositionDay | null): boolean {
+  return day !== null && r.start_min === day.start && r.end_min === day.end;
+}
+
 function RecordPanel({
   record: r,
   substitute,
@@ -566,7 +706,7 @@ function RecordPanel({
   notice,
 }: {
   /** Запис і те, що з нього бачить менеджер для рішення (reviewed: години, дата, тип, заміна — D9 impl-on-behalf). */
-  record: DecisionRow & { reviewed: Reviewed };
+  record: PanelRecord;
   /** Заміна запису; null — «No substitute»; undefined — не завантажились. */
   substitute: RecordSubstitute | null | undefined;
   history: HistoryRow[] | null;
@@ -582,6 +722,7 @@ function RecordPanel({
 }) {
   const awaiting = r.status === "awaiting";
   const summary = { date: formatDateLong(r.date), hours: formatRange(r.start_min, r.end_min), meta: recordMeta(r) };
+
   // Ім'я, email, посада й статус — у шапці панелі (RecordSheet); тут — сам запис, залишок, коментарі й історія.
   // Розділи тримає відступ, без меж і ліній (v2).
   const before = (
@@ -670,5 +811,21 @@ function RecordPanel({
       <HistorySection history={history} />
       {cancellable && <CancelWithNote key={r.id} recordId={r.id} summary={summary} />}
     </div>
+  );
+}
+
+/** Панель запису: форма правки, коли її відкрито (крок 4 D9), інакше — запис і рішення щодо нього. */
+function RecordBody(props: Parameters<typeof RecordPanel>[0]) {
+  const { edit } = props.record;
+  if (!edit?.open) return <RecordPanel {...props} />;
+  return (
+    <EditPanel
+      record={props.record}
+      substitute={props.substitute}
+      history={props.history}
+      day={props.day}
+      today={props.today}
+      edit={edit}
+    />
   );
 }

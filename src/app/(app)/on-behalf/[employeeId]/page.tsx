@@ -100,7 +100,7 @@ async function loadFormData(supabase: Supabase, userId: string, employeeId: stri
   };
 }
 
-// Форма заявки від імені (D10, D11 openspec/changes/impl-on-behalf/design.md): та сама форма, що в «New request», з
+// Форма заявки від імені (D10, D11 openspec/changes/archive/2026-11-27-impl-on-behalf/design.md): та сама форма, що в «New request», з
 // пропом subject — тексти для менеджера, колонка «Status after submit», список замін працівника. Хто має право, вирішує
 // база (on_behalf_positions). Гостя веде на /login src/proxy.ts ще до рендеру (AC-BEHALF-14).
 export default async function OnBehalfRequestPage({

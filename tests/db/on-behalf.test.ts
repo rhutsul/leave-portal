@@ -1,6 +1,6 @@
 // Заявка від імені працівника і правка запису до рішення на справжньому Postgres (PGlite,
 // docs/decisions/0001-pglite-db-tests.md): міграція 20261125200521_on_behalf_and_edit.sql (D1–D9
-// openspec/changes/impl-on-behalf/design.md).
+// openspec/changes/archive/2026-11-27-impl-on-behalf/design.md).
 //
 // Тестові дані: teacher1@ — основна «Elementary school / Teacher» (manager1@) Mon–Fri 08:30–15:30 і додаткова
 // «High school / Math teacher» (manager2@) Mon 15:45–17:00 — для AC-BEHALF-02 тест додає четвер 15:45–17:00;
@@ -162,7 +162,8 @@ type Edit = {
 
 /** Правка запису (D7): усі поля, як шле форма. */
 async function edit(actor: string, id: number, e: Edit) {
-  await asOwner(actor, "select private.edit_leave_record($1, $2::date, $3, $4, $5, $6, $7::uuid)", [
+  // Справжній шлях сторінки: authenticated через public.edit_leave_record (грант — крок 4 D9, 20261127093233).
+  await t.asUser(actor, "select public.edit_leave_record($1, $2::date, $3, $4, $5, $6, $7::uuid)", [
     id,
     e.date,
     e.start_min,
@@ -670,13 +671,18 @@ describe("changing a record before deciding (closed for authenticated until step
     await expect(edit(manager2, id, { date: FRI, ...WHOLE, leave_type: "sick" })).rejects.toThrow(
       "You can't change this record",
     );
-    // В обхід сторінок через Data API: функції правки authenticated не має (крок 1 D9), update таблиці — теж.
+    // В обхід сторінок через Data API: функція правки відкрита authenticated (крок 4 D9), але відмовляє manager2@ на
+    // першому кроці (D7) — і для приватної функції напряму; update таблиці authenticated не має зовсім.
     await expect(
       t.asUser(manager2, "select public.edit_leave_record($1, $2::date, 510, 930, 'sick', null, null)", [id, FRI]),
-    ).rejects.toThrow(/permission denied/);
+    ).rejects.toThrow("You can't change this record");
     await expect(
-      t.asUser(manager1, "select public.edit_leave_record($1, $2::date, 510, 930, 'sick', null, null)", [id, FRI]),
-    ).rejects.toThrow(/permission denied/);
+      t.asUser(manager2, "select private.edit_leave_record($1, $2::date, 510, 930, 'sick', null, $3::uuid)", [
+        id,
+        FRI,
+        teacher2,
+      ]),
+    ).rejects.toThrow("You can't change this record");
     await expect(
       t.asUser(manager2, "update public.leave_records set date = $2 where id = $1", [id, FRI]),
     ).rejects.toThrow(/permission denied/);

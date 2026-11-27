@@ -10,7 +10,7 @@ import { OnBehalfRefusal } from "./refusal";
 
 export const metadata: Metadata = { title: "Request on behalf · Leave portal" };
 
-// Заявка від імені (D10 openspec/changes/impl-on-behalf/design.md): менеджер — працівники його посад, адміністратор —
+// Заявка від імені (D10 openspec/changes/archive/2026-11-27-impl-on-behalf/design.md): менеджер — працівники його посад, адміністратор —
 // усі, крім себе (on_behalf_employees()). Працівник за прямим посиланням — текст AC-BEHALF-12, менеджер без посад —
 // AC-BEHALF-15: обидва тексти дає база, сторінка показує їх дослівно без даних.
 type EmployeeRow = { employee_id: string; email: string; main_title: string | null; division_name: string | null };

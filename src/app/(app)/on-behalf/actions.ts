@@ -79,7 +79,7 @@ function submittedUrl(employeeId: string, result: unknown, request: CheckedReque
   return `/on-behalf/${employeeId}?${params}`;
 }
 
-// Подання від імені працівника (D10 openspec/changes/impl-on-behalf/design.md). Тексти — для менеджера (forEmployee,
+// Подання від імені працівника (D10 openspec/changes/archive/2026-11-27-impl-on-behalf/design.md). Тексти — для менеджера (forEmployee,
 // D6). Перетин із записами працівника TS не перевіряє (менеджер не бачить усіх його записів) — його ловить база з
 // текстом D6. submit_leave_request_on_behalf ще раз перевіряє право (D1) і все інше, створює записи цілком або нічого
 // й погоджує записи посад подавача (D2).
