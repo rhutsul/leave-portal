@@ -280,11 +280,11 @@ test.describe("changing a record before the decision", () => {
   );
 });
 
-/** Дата, години, тип, заміна й кількість рядків історії запису (читає секретний ключ). */
+/** Дата, години, тип, заміна й кількість рядків історії запису (читає секретний ключ; FK названо — PGRST201). */
 async function recordSnapshot(id: number) {
   const { data, error } = await adminClient()
     .from("leave_records")
-    .select("date, start_min, end_min, leave_type, substitute_id, leave_record_events(count)")
+    .select("date, start_min, end_min, leave_type, substitute_id, leave_record_events!leave_record_events_record_id_fkey(count)")
     .eq("id", id)
     .single();
   if (error) throw error;
