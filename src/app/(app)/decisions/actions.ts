@@ -246,7 +246,7 @@ export interface EditState {
 
 /**
  * Чи змінився запис, поки форму правки було відкрито: години, дата, тип чи заміна не ті, що бачив менеджер (друга думка
- * до #144). Без цього форма, що шле всі поля, мовчки повернула б чужу зміну. Звіряємо, як decideRecord (D9); вікно
+ * до PR 144). Без цього форма, що шле всі поля, мовчки повернула б чужу зміну. Звіряємо, як decideRecord (D9); вікно
  * між цим читанням і rpc лишається — атомарна звірка в базі потребує нової сигнатури edit_leave_record (expand → contract).
  */
 async function changedSinceOpened(supabase: Supabase, recordId: number, formData: FormData): Promise<string | null> {

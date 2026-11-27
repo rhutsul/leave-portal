@@ -473,7 +473,7 @@ async function loadEdit(
 /**
  * Чи можна змінити запис: «Awaiting decision», запис, який можна вирішувати, і відомо, що бачить менеджер (reviewed —
  * дата, тип, заміна; збій читання — порожньо). Без reviewed форма відкрилась би з «No substitute» і мовчки прибрала б
- * заміну (друга думка до #144).
+ * заміну (друга думка до PR 144).
  */
 function canEdit(selected: DecisionRow, reviewed: string): boolean {
   return selected.status === "awaiting" && selected.can_decide && reviewed !== "";
