@@ -7,6 +7,7 @@
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
 import { computeBalances, formatDays, parseBalanceInputs } from "@/lib/leave/balance";
 import { kyivDate } from "@/lib/leave/time";
+import { decideAsSeen } from "./decide";
 import { createLeaveDb, type LeaveDb } from "./supabase-pglite";
 
 let t: LeaveDb;
@@ -235,11 +236,7 @@ describe("decide_record_cancellation: confirm", () => {
     await approved(teacher1, teacher1Main, dates.slice(0, 17));
     await approved(teacher1, teacher1Main, [dates[17]], "personal", { start_min: 540, end_min: 750 });
     const [id] = await submit(teacher1, teacher1Main, "personal", [weekday(1)]);
-    const [{ result }] = await t.asUser<{ result: { paid_days: number; unpaid_days: number } }>(
-      manager1,
-      "select public.decide_leave_record($1, 'approve', 510, 930, null, true) as result",
-      [id],
-    );
+    const result = await decideAsSeen(t, manager1, id, "approve", 510, 930, null, true);
     expect([result.paid_days, result.unpaid_days]).toEqual([0.5, 0.5]);
     const before = await balancesOf(teacher1);
     expect([before.personal.used, before.unpaid]).toEqual(["18.00", "0.50"]);

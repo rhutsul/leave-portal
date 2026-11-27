@@ -5,6 +5,7 @@
 // teacher2@ (manager2@) — Mon–Fri, перенесено 5.00 днів Sick leave на 2026–2027; manager1@ відповідає й за власну посаду.
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
 import { computeBalances, formatDays, parseBalanceInputs } from "@/lib/leave/balance";
+import { decideAsSeen } from "./decide";
 import { createLeaveDb, type LeaveDb } from "./supabase-pglite";
 
 let t: LeaveDb;
@@ -51,12 +52,7 @@ async function decide(userId: string, recordId: number, decision: string, commen
     "select start_min, end_min from public.leave_records where id = $1",
     [recordId],
   );
-  const [row] = await t.asUser<{ result: { status: string; paid_days: number | null; unpaid_days: number | null } }>(
-    userId,
-    "select public.decide_leave_record($1, $2, $3, $4, $5, $6) as result",
-    [recordId, decision, hours?.start_min ?? 510, hours?.end_min ?? 930, comment, split],
-  );
-  return row.result;
+  return decideAsSeen(t, userId, recordId, decision, hours?.start_min ?? 510, hours?.end_min ?? 930, comment, split);
 }
 
 const statusOf = async (recordId: number) =>
@@ -181,7 +177,7 @@ describe("who decides", () => {
       code: "42501",
       message: "You can't decide on this record",
     });
-    await expect(t.asAnon("select public.decide_leave_record(1, 'approve', 510, 930)")).rejects.toMatchObject({ code: "42501" });
+    await expect(t.asAnon("select public.decide_leave_record(1, 'approve', 510, 930, null, null, null)")).rejects.toMatchObject({ code: "42501" });
   });
 
   it("AC-DECIDE-18: manager1@ cannot approve their own record of a position they manage", async () => {

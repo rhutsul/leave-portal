@@ -4,6 +4,7 @@
 // Тестові дані D7: teacher1@ — основна посада Teacher в elementary (manager1@) і додаткова Math teacher у high
 // (manager2@); teacher2@ — Teacher у high (manager2@); manager1@ веде й власну посаду в elementary.
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { decideAsSeen } from "./decide";
 import { createLeaveDb, type LeaveDb } from "./supabase-pglite";
 
 let t: LeaveDb;
@@ -248,7 +249,7 @@ describe("approved_register — columns", () => {
       "select id from public.leave_records where request_id = $1",
       [requestId],
     );
-    await t.asUser(manager1, "select public.decide_leave_record($1, 'approve', 510, 930)", [recordId]);
+    await decideAsSeen(t, manager1, recordId, "approve", 510, 930);
 
     const [row] = await register(manager1, elementary, "2026-11-01");
     expect(row.record_id).toBe(recordId);
