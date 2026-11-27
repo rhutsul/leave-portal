@@ -4,6 +4,7 @@ import { CalendarX } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { schoolYearOf } from "@/lib/leave/balance";
+import { BLOCKING_STATUSES } from "@/lib/leave/request";
 import { kyivDate } from "@/lib/leave/time";
 import { createClient } from "@/lib/supabase/server";
 import { loadRemaining } from "../../balances/load-balances";
@@ -31,7 +32,7 @@ export default async function NewRequestPage() {
     supabase
       .from("my_leave_records")
       .select("date")
-      .in("status", ["awaiting", "returned", "approved"])
+      .in("status", BLOCKING_STATUSES)
       .gte("date", `${year - 1}-09-01`)
       .lte("date", `${year + 2}-08-31`),
     // Закриття шкільного календаря на ті самі три навчальні роки: місяць у формі перемикається на клієнті, тож
