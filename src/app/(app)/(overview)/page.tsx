@@ -132,7 +132,7 @@ export default async function Overview({ searchParams }: PageProps<"/">) {
         />
       </section>
 
-      <div className="grid grid-cols-[repeat(auto-fit,minmax(320px,1fr))] items-start gap-6">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(320px,1fr))] items-stretch gap-6">
         <NextLeave groups={groups} selected={selected} />
         {decider ? <ToDecide records={decider.toDecide} count={decider.toDecideCount} /> : <NeedsAttention records={data.returned} />}
       </div>

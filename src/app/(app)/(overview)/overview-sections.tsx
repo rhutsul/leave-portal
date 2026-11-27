@@ -95,10 +95,13 @@ export function TimelinePager({ page }: { page: number }) {
 export function NextLeave({ groups, selected }: { groups: readonly (readonly Upcoming[])[]; selected: readonly Upcoming[] | undefined }) {
   return (
     <section aria-labelledby="next-title" className="flex flex-col gap-2.5">
-      <SectionTitle id="next-title">Next leave</SectionTitle>
-      <div className="flex flex-col rounded-lg border border-border bg-card">
+      {/* Той самий рядок заголовка, що в «To decide» (min-h-8 — висота кнопки «All»): картки поруч починаються врівень. */}
+      <div className="flex min-h-8 items-center">
+        <SectionTitle id="next-title">Next leave</SectionTitle>
+      </div>
+      <div className="flex flex-1 flex-col rounded-lg border border-border bg-card">
         {selected ? <NextLeaveCard group={selected} /> : (
-          <p className="px-4 py-6 text-center text-[13px] text-muted-foreground">
+          <p className="my-auto px-4 py-6 text-center text-[13px] text-muted-foreground">
             No upcoming leave. Records you submit for future dates appear here.
           </p>
         )}
@@ -129,7 +132,7 @@ export function NextLeave({ groups, selected }: { groups: readonly (readonly Upc
 export function ToDecide({ records, count }: { records: readonly Decide[]; count: number }) {
   return (
     <section aria-labelledby="decide-title" className="flex flex-col gap-2.5">
-      <div className="flex items-baseline justify-between">
+      <div className="flex min-h-8 items-center justify-between">
         <SectionTitle id="decide-title">
           To decide <span className="font-mono font-normal text-muted-foreground">{count}</span>
         </SectionTitle>
@@ -137,7 +140,7 @@ export function ToDecide({ records, count }: { records: readonly Decide[]; count
           All
         </Link>
       </div>
-      <div className="rounded-lg border border-border bg-card">
+      <div className="flex flex-1 flex-col rounded-lg border border-border bg-card">
         {records.length ? (
           <ul>
             {records.map((r) => (
@@ -157,7 +160,7 @@ export function ToDecide({ records, count }: { records: readonly Decide[]; count
             ))}
           </ul>
         ) : (
-          <p className="px-4 py-6 text-center text-[13px] text-muted-foreground">No records awaiting decision</p>
+          <p className="my-auto px-4 py-6 text-center text-[13px] text-muted-foreground">No records awaiting decision</p>
         )}
       </div>
     </section>
