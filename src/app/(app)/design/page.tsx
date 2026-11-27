@@ -439,6 +439,7 @@ export default async function DesignPage() {
           <div className="flex flex-col rounded-lg border border-border bg-popover p-5">
             <EditRecordForm
               recordId={0}
+              reviewed={{ hours: "", record: "" }}
               initial={{
                 date: "2026-12-04",
                 wholeDay: true,

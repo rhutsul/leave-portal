@@ -11,6 +11,8 @@ export const EDIT_MESSAGES = {
   chooseDate: "Choose a date",
   saved: "Record updated",
   failed: "The record could not be saved. Please try again.",
+  /** Хтось змінив запис, поки форму було відкрито (як recordChanged у рішенні, D9). */
+  changed: "This record has been changed. Check it again before changing it",
 } as const;
 
 export interface EditFields {

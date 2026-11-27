@@ -244,6 +244,31 @@ export interface EditState {
   message: string;
 }
 
+/**
+ * Чи змінився запис, поки форму правки було відкрито: години, дата, тип чи заміна не ті, що бачив менеджер (друга думка
+ * до #144). Без цього форма, що шле всі поля, мовчки повернула б чужу зміну. Звіряємо, як decideRecord (D9); вікно
+ * між цим читанням і rpc лишається — атомарна звірка в базі потребує нової сигнатури edit_leave_record (expand → contract).
+ */
+async function changedSinceOpened(supabase: Supabase, recordId: number, formData: FormData): Promise<string | null> {
+  const seen = parseReviewedRecord(formData.get("reviewed"));
+  if (!seen) return EDIT_MESSAGES.failed;
+  const { data: row, error } = await supabase
+    .from("leave_records")
+    .select("date, start_min, end_min, leave_type, substitute_id")
+    .eq("id", recordId)
+    .maybeSingle();
+  if (error) return EDIT_MESSAGES.failed;
+  if (!row) return DECISION_MESSAGES.noAccess;
+  const same =
+    formData.get("hours_seen") === reviewedHours(row.start_min, row.end_min) &&
+    seen.date === row.date &&
+    seen.leaveType === row.leave_type &&
+    seen.substituteId === (row.substitute_id ?? null);
+  if (same) return null;
+  revalidatePath("/decisions");
+  return EDIT_MESSAGES.changed;
+}
+
 /** Години «Whole day» на нову дату: робочий день посади; інакше — текст для форми. */
 async function wholeDayHours(supabase: Supabase, recordId: number, date: string): Promise<{ start: number; end: number } | string> {
   const day = await loadWholeDay(supabase, recordId, date);
@@ -262,6 +287,8 @@ export async function editRecord(_prev: EditState, formData: FormData): Promise<
   if (recordId === null) return { message: DECISION_MESSAGES.noAccess };
   const parsed = parseEditForm((name) => formData.get(name));
   if (!parsed.ok) return { message: forEmployee(parsed.message) };
+  const stale = await changedSinceOpened(supabase, recordId, formData);
+  if (stale) return { message: stale };
   const f = parsed.fields;
 
   const hours = f.wholeDay ? await wholeDayHours(supabase, recordId, f.date) : { start: f.start!, end: f.end! };

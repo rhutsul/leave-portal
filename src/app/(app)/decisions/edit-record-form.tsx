@@ -100,6 +100,37 @@ function TimeInput({ id, name, value, errorId, onChange }: { id: string; name: s
   );
 }
 
+/** Перемикач «Whole day / Specific hours» — той самий, що в кроці годин нової заявки. */
+function HoursModeToggle({ labelledBy, wholeDay, onChange }: { labelledBy: string; wholeDay: boolean; onChange: (whole: boolean) => void }) {
+  return (
+    <div role="group" aria-labelledby={labelledBy} className="inline-flex gap-1 rounded-md bg-muted p-1">
+      {HOURS_MODES.map((mode) => (
+        <Button
+          key={mode.label}
+          type="button"
+          variant="ghost"
+          size="sm"
+          aria-pressed={wholeDay === mode.whole}
+          onClick={() => onChange(mode.whole)}
+          className={cn("pointer-coarse:h-11", wholeDay === mode.whole && "bg-card text-foreground shadow-sm hover:bg-card")}
+        >
+          {mode.label}
+        </Button>
+      ))}
+    </div>
+  );
+}
+
+/** Текст про години під полем (його id — у aria-describedby полів часу); без тексту — нічого. */
+function FieldMessage({ id, message }: { id: string | null; message: string | null }) {
+  if (!id || !message) return null;
+  return (
+    <p id={id} className="text-[13px] text-destructive">
+      {message}
+    </p>
+  );
+}
+
 /** Години: «Whole day» чи «Specific hours» з полями часу — ті самі компоненти, що в кроці годин нової заявки. */
 function HoursField({ initial, error }: { initial: EditValues; error: string | null }) {
   const ids = useId();
@@ -112,21 +143,7 @@ function HoursField({ initial, error }: { initial: EditValues; error: string | n
       <input type="hidden" name="whole_day" value={wholeDay ? "1" : "0"} />
       <Label id={`${ids}-label`}>Hours</Label>
       <div className="flex flex-wrap items-center gap-3">
-        <div role="group" aria-labelledby={`${ids}-label`} className="inline-flex gap-1 rounded-md bg-muted p-1">
-          {HOURS_MODES.map((mode) => (
-            <Button
-              key={mode.label}
-              type="button"
-              variant="ghost"
-              size="sm"
-              aria-pressed={wholeDay === mode.whole}
-              onClick={() => setWholeDay(mode.whole)}
-              className={cn("pointer-coarse:h-11", wholeDay === mode.whole && "bg-card text-foreground shadow-sm hover:bg-card")}
-            >
-              {mode.label}
-            </Button>
-          ))}
-        </div>
+        <HoursModeToggle labelledBy={`${ids}-label`} wholeDay={wholeDay} onChange={setWholeDay} />
         {!wholeDay && (
           <div className="flex items-center gap-2 max-md:w-full">
             <Label htmlFor={`${ids}-from`}>From</Label>
@@ -136,11 +153,84 @@ function HoursField({ initial, error }: { initial: EditValues; error: string | n
           </div>
         )}
       </div>
-      {errorId && (
-        <p id={errorId} className="text-[13px] text-destructive">
-          {error}
-        </p>
+      <FieldMessage id={errorId} message={error} />
+    </div>
+  );
+}
+
+/** Дата запису: календар у спливній панелі (DatePickerField), одна дата. */
+function DateField({ value, today, onChange }: { value: string; today: string; onChange: (date: string) => void }) {
+  const id = useId();
+  return (
+    <div className="flex flex-col gap-1.5">
+      <Label id={id}>Date</Label>
+      <DatePickerField
+        mode="single"
+        value={[value]}
+        onChange={(next) => next[0] && onChange(next[0])}
+        today={today}
+        placeholder="Choose a date"
+        labelledBy={id}
+        className="sm:max-w-none"
+      />
+    </div>
+  );
+}
+
+/** Тип відсутності, а для «Family celebration» — ще й стосунок (порядок з вимоги PM). */
+function TypeFields({
+  leaveType,
+  relationship,
+  onType,
+  onRelationship,
+}: {
+  leaveType: string;
+  relationship: string;
+  onType: (value: string) => void;
+  onRelationship: (value: string) => void;
+}) {
+  const ids = useId();
+  return (
+    <>
+      <ChoiceField id={`${ids}-type`} label="Leave type" items={TYPE_ITEMS} value={leaveType} onChange={onType} />
+      {leaveType === "family" && (
+        <ChoiceField
+          id={`${ids}-relationship`}
+          label="Relationship"
+          items={RELATIONSHIP_ITEMS}
+          value={relationship}
+          placeholder="Choose…"
+          onChange={onRelationship}
+        />
       )}
+    </>
+  );
+}
+
+/** Відповідь бази над формою — дослівно (Alert destructive); без відповіді — нічого. */
+function EditError({ message }: { message: string }) {
+  if (!message) return null;
+  return (
+    <Alert variant="destructive" role="alert">
+      <CircleAlert />
+      <AlertDescription>{message}</AlertDescription>
+    </Alert>
+  );
+}
+
+/** Смуга дій унизу панелі на час правки: тихий «Cancel» ліворуч, «Save changes» праворуч; на телефоні — два стовпці. */
+function EditActions({ cancelHref }: { cancelHref: string }) {
+  return (
+    <div
+      data-slot="decision-actions"
+      className="sticky bottom-0 z-10 -mx-5 mt-auto flex items-center gap-1 border-t border-border bg-popover/95 px-5 py-3.5 backdrop-blur-md max-md:grid max-md:grid-cols-2 max-md:gap-2 max-md:pb-[calc(0.875rem+env(safe-area-inset-bottom))] max-md:*:h-11"
+    >
+      <Link href={cancelHref} replace scroll={false} className={cn(buttonVariants({ variant: "ghost" }), "-ml-3.5 max-md:ml-0")}>
+        Cancel
+      </Link>
+      <SubmitButton pendingLabel="Saving…" className="ml-auto h-10 min-w-33 max-md:ml-0">
+        Save changes
+      </SubmitButton>
     </div>
   );
 }
@@ -154,6 +244,7 @@ function HoursField({ initial, error }: { initial: EditValues; error: string | n
  */
 export function EditRecordForm({
   recordId,
+  reviewed,
   initial,
   substitutes,
   currentSubstitute,
@@ -162,6 +253,8 @@ export function EditRecordForm({
   children,
 }: {
   recordId: number;
+  /** Що менеджер бачив, коли відкрив форму (години й «дата|тип|заміна») — правка звіряє з базою, як рішення (D9). */
+  reviewed: { hours: string; record: string };
   initial: EditValues;
   /** Список замін працівника (substitute_list): email і id. */
   substitutes: Item[];
@@ -173,56 +266,31 @@ export function EditRecordForm({
   children: ReactNode;
 }) {
   const [state, action] = useActionState(editRecord, INITIAL);
-  const ids = useId();
+  const substituteId = useId();
   const [date, setDate] = useState(initial.date);
   const [leaveType, setLeaveType] = useState(initial.leaveType);
   const [relationship, setRelationship] = useState(initial.relationship ?? "");
   const [substitute, setSubstitute] = useState(initial.substituteId ?? NO_SUBSTITUTE);
-  const family = leaveType === "family";
 
   return (
     <form action={action} className="flex flex-1 flex-col gap-6.5">
       <input type="hidden" name="record_id" value={recordId} />
+      <input type="hidden" name="hours_seen" value={reviewed.hours} />
+      <input type="hidden" name="reviewed" value={reviewed.record} />
       <input type="hidden" name="date" value={date} />
       <input type="hidden" name="leave_type" value={leaveType} />
-      <input type="hidden" name="relationship" value={family ? relationship : ""} />
+      <input type="hidden" name="relationship" value={leaveType === "family" ? relationship : ""} />
       <input type="hidden" name="substitute_id" value={substitute} />
 
-      {state.message && (
-        <Alert variant="destructive" role="alert">
-          <CircleAlert />
-          <AlertDescription>{state.message}</AlertDescription>
-        </Alert>
-      )}
+      <EditError message={state.message} />
 
       <section aria-label="Edit record" className="flex flex-col gap-4">
         <h3 className="font-mono text-[11px] font-normal tracking-wide text-muted-foreground uppercase">Edit record</h3>
-        <div className="flex flex-col gap-1.5">
-          <Label id={`${ids}-date`}>Date</Label>
-          <DatePickerField
-            mode="single"
-            value={[date]}
-            onChange={(next) => next[0] && setDate(next[0])}
-            today={today}
-            placeholder="Choose a date"
-            labelledBy={`${ids}-date`}
-            className="sm:max-w-none"
-          />
-        </div>
+        <DateField value={date} today={today} onChange={setDate} />
         <HoursField initial={initial} error={isHoursMessage(state.message) ? state.message : null} />
-        <ChoiceField id={`${ids}-type`} label="Leave type" items={TYPE_ITEMS} value={leaveType} onChange={setLeaveType} />
-        {family && (
-          <ChoiceField
-            id={`${ids}-relationship`}
-            label="Relationship"
-            items={RELATIONSHIP_ITEMS}
-            value={relationship}
-            placeholder="Choose…"
-            onChange={setRelationship}
-          />
-        )}
+        <TypeFields leaveType={leaveType} relationship={relationship} onType={setLeaveType} onRelationship={setRelationship} />
         <ChoiceField
-          id={`${ids}-substitute`}
+          id={substituteId}
           label="Substitute"
           items={substituteItems(substitutes, initial.substituteId, currentSubstitute)}
           value={substitute}
@@ -232,17 +300,7 @@ export function EditRecordForm({
 
       {children}
 
-      <div
-        data-slot="decision-actions"
-        className="sticky bottom-0 z-10 -mx-5 mt-auto flex items-center gap-1 border-t border-border bg-popover/95 px-5 py-3.5 backdrop-blur-md max-md:grid max-md:grid-cols-2 max-md:gap-2 max-md:pb-[calc(0.875rem+env(safe-area-inset-bottom))] max-md:*:h-11"
-      >
-        <Link href={cancelHref} replace scroll={false} className={cn(buttonVariants({ variant: "ghost" }), "-ml-3.5 max-md:ml-0")}>
-          Cancel
-        </Link>
-        <SubmitButton pendingLabel="Saving…" className="ml-auto h-10 min-w-33 max-md:ml-0">
-          Save changes
-        </SubmitButton>
-      </div>
+      <EditActions cancelHref={cancelHref} />
     </form>
   );
 }

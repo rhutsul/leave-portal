@@ -170,7 +170,7 @@ export default async function DecisionsPage({ searchParams }: PageProps<"/decisi
     loadReviewed(supabase, selected),
   ]);
   const substituteOf = substituteLookup(substitutes);
-  const edit = await loadEdit(supabase, selected, tab, first(params.edit) === "1", first(params.updated) === "1");
+  const edit = await loadEdit(supabase, selected, tab, first(params.edit) === "1", first(params.updated) === "1", reviewed.record);
   const selectedHistory = historyResult.error ? null : (groupHistories(historyResult.data ?? []).get(selected?.id ?? -1) ?? []);
 
   return (
@@ -458,16 +458,31 @@ async function loadEdit(
   tab: DecisionsTab,
   open: boolean,
   updated: boolean,
+  reviewed: string,
 ): Promise<EditInfo | null> {
-  if (!selected || selected.status !== "awaiting" || !selected.can_decide) return null;
-  const list = open ? await supabase.rpc("substitute_list", { p_employee_id: selected.employee_id }) : null;
+  if (!selected || !canEdit(selected, reviewed)) return null;
   return {
     href: `${recordHref(tab, selected.id)}&edit=1`,
     cancelHref: recordHref(tab, selected.id),
     open,
     updated,
-    substitutes: (list?.data ?? []).map((s) => ({ value: s.substitute_id, label: s.email })),
+    substitutes: open ? await substituteOptions(supabase, selected.employee_id) : [],
   };
+}
+
+/**
+ * Чи можна змінити запис: «Awaiting decision», запис, який можна вирішувати, і відомо, що бачить менеджер (reviewed —
+ * дата, тип, заміна; збій читання — порожньо). Без reviewed форма відкрилась би з «No substitute» і мовчки прибрала б
+ * заміну (друга думка до #144).
+ */
+function canEdit(selected: DecisionRow, reviewed: string): boolean {
+  return selected.status === "awaiting" && selected.can_decide && reviewed !== "";
+}
+
+/** Список замін працівника для форми правки: email і id; збій — порожньо. */
+async function substituteOptions(supabase: Awaited<ReturnType<typeof createClient>>, employeeId: string) {
+  const { data } = await supabase.rpc("substitute_list", { p_employee_id: employeeId });
+  return (data ?? []).map((s) => ({ value: s.substitute_id, label: s.email }));
 }
 
 /** Id записів списку й вибраного (він може бути поза вкладкою) — для заміни й позначки одним викликом. */
@@ -661,6 +676,7 @@ function EditPanel({
         relationship: r.relationship,
         substituteId: parseReviewedRecord(r.reviewed.record)?.substituteId ?? null,
       }}
+      reviewed={r.reviewed}
       substitutes={edit.substitutes}
       currentSubstitute={substitute?.email}
       today={today}
