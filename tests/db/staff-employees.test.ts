@@ -5,6 +5,7 @@
 // Дати AC (2026-12-01 → до 2026-12-08) — сталі дати сценаріїв: функції рахують від now() за Києвом, тож строк
 // перевіряємо від сьогодні (сьогодні + 7, учора — прострочене).
 import { beforeAll, describe, expect, it } from "vitest";
+import { decideAsSeen } from "./decide";
 import { createLeaveDb, DEMO_PASSWORD, type LeaveDb } from "./supabase-pglite";
 
 let t: LeaveDb;
@@ -532,7 +533,7 @@ describe("deactivate_employee: a person who leaves", () => {
       await t.asUser(created.employee_id, "select id from public.decision_records() where id = $1", [record.id]),
     ).toEqual([]);
     await expect(
-      t.asUser(created.employee_id, "select public.decide_leave_record($1, 'approve', 600, 660)", [record.id]),
+      decideAsSeen(t, created.employee_id, record.id, "approve", 600, 660),
     ).rejects.toMatchObject({ code: "42501", message: "You can't decide on this record" });
     const [state] = await asOwner<{ status: string }>("select status from public.leave_records where id = $1", [
       record.id,

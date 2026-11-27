@@ -424,8 +424,7 @@ isOneToOne: false
 { Args: { "p_record_id": number }; Returns: undefined
                            },
 "decide_leave_record":
-{ Args: { "p_comment"?: string,"p_decision": string,"p_end_min": number,"p_record_id": number,"p_split"?: boolean,"p_start_min": number }; Returns: Json
-} | { Args: { "p_comment"?: string,"p_date": string,"p_decision": string,"p_end_min": number,"p_leave_type": string,"p_record_id": number,"p_split"?: boolean,"p_start_min": number,"p_substitute_id": string | null }; Returns: Json
+{ Args: { "p_comment"?: string,"p_date": string,"p_decision": string,"p_end_min": number,"p_leave_type": string,"p_record_id": number,"p_split"?: boolean,"p_start_min": number,"p_substitute_id": string | null }; Returns: Json
                            },
 "decide_record_cancellation":
 { Args: { "p_comment"?: string,"p_decision": string,"p_record_id": number,"p_request_id": number }; Returns: string

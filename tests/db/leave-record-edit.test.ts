@@ -4,6 +4,7 @@
 // Тестові дані D7: teacher1@ — основна посада (manager1@) Mon–Fri 08:30–15:30 і додаткова (manager2@) Mon 15:45–17:00.
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
 import { formatRange } from "@/lib/leave/time";
+import { decideAsSeen } from "./decide";
 import { createLeaveDb, type LeaveDb } from "./supabase-pglite";
 
 let t: LeaveDb;
@@ -188,7 +189,7 @@ describe("changing the hours of an own record", () => {
 describe("resubmitting and cancelling", () => {
   it("AC-DECIDE-06: a returned record changed to 09:00–12:00 and resubmitted is again in manager1@'s Awaiting decision list", async () => {
     const [id] = await submit([{ date: "2026-11-02", ...WHOLE }]);
-    await t.asUser(manager1, "select public.decide_leave_record($1, 'return', 510, 930, 'Enter hours instead of a whole day')", [id]);
+    await decideAsSeen(t, manager1, id, "return", 510, 930, "Enter hours instead of a whole day");
     expect(await awaitingFor(manager1)).toEqual([]);
 
     await changeHours(teacher1, id, 540, 720);
@@ -245,7 +246,7 @@ describe("the manager decides on the hours they saw", () => {
     await changeHours(teacher1, id, 540, 720);
     // Менеджер бачив 08:30–15:30: рішення не зберігається, запис чекає далі.
     await expect(
-      t.asUser(manager1, "select public.decide_leave_record($1, 'approve', p_start_min => 510, p_end_min => 930)", [id]),
+      decideAsSeen(t, manager1, id, "approve", 510, 930),
     ).rejects.toMatchObject({
       code: "P0001",
       message: "The employee has changed the hours of this record. Check them again before deciding",
@@ -253,15 +254,18 @@ describe("the manager decides on the hours they saw", () => {
     expect((await recordOf(id)).status).toBe("awaiting");
     // Без годин — відмова, а не рішення без перевірки (rpc доступна й напряму).
     await expect(
-      t.asUser(manager1, "select public.decide_leave_record($1, 'approve', null, null)", [id]),
+      decideAsSeen(t, manager1, id, "approve", null, null),
     ).rejects.toMatchObject({ code: "22023" });
-    // Старої сигнатури без годин більше немає (42883 undefined_function), а не будь-яка інша помилка.
-    await expect(t.asUser(manager1, "select public.decide_leave_record($1, 'approve')", [id])).rejects.toMatchObject({
-      code: "42883",
-    });
+    // Старих сигнатур — без годин і без дати, типу й заміни (contract, крок 3 D9) — більше немає: 42883
+    // undefined_function, а не будь-яка інша помилка.
+    for (const call of ["($1, 'approve')", "($1, 'approve', 510, 930)", "($1, 'approve', 540, 720, null, false)"]) {
+      await expect(t.asUser(manager1, `select public.decide_leave_record${call}`, [id])).rejects.toMatchObject({
+        code: "42883",
+      });
+    }
     expect((await recordOf(id)).status).toBe("awaiting");
     // З новими годинами — погоджено.
-    await t.asUser(manager1, "select public.decide_leave_record($1, 'approve', p_start_min => 540, p_end_min => 720)", [id]);
+    await decideAsSeen(t, manager1, id, "approve", 540, 720);
     expect((await recordOf(id)).status).toBe("approved");
   });
 });

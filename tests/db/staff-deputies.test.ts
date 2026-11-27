@@ -7,6 +7,7 @@
 // «Given … a position whose only manager is manager1»: у демоданих manager2@ веде додаткову посаду teacher1@ — прибираємо.
 import { beforeAll, describe, expect, it } from "vitest";
 import { kyivDate } from "@/lib/leave/time";
+import { decideAsSeen } from "./decide";
 import { createLeaveDb, type LeaveDb } from "./supabase-pglite";
 
 let t: LeaveDb;
@@ -97,7 +98,7 @@ describe("deputy rights while today is inside the assignment period", () => {
     expect(deputyQueue).toEqual([{ id: record, can_decide: true }]);
     expect(await queueIds(manager1, teacher1)).toContain(record);
 
-    await t.asUser(manager2, "select public.decide_leave_record($1, 'approve', 510, 930)", [record]);
+    await decideAsSeen(t, manager2, record, "approve", 510, 930);
 
     const [state] = await asOwner<{ status: string; actor: string }>(
       `select r.status, e.actor_id as actor from public.leave_records as r
@@ -132,7 +133,7 @@ describe("deputy rights while today is inside the assignment period", () => {
     const [assignment] = await assign(admin, manager1, manager2, today(), today());
 
     await expect(
-      t.asUser(manager2, "select public.decide_leave_record($1, 'approve', 510, 930)", [record]),
+      decideAsSeen(t, manager2, record, "approve", 510, 930),
     ).rejects.toThrow("Your own record is decided by an administrator");
     await t.asUser(admin, "select public.remove_deputy($1)", [assignment.id]);
   });

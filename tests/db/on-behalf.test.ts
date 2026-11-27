@@ -789,10 +789,18 @@ describe("deciding sees another manager's change (D9)", () => {
     await expect(
       t.asUser(
         "a0000000-0000-0000-0000-999999999999",
-        "select public.decide_leave_record($1, 'approve', 510, 930) as result",
-        [id],
+        "select public.decide_leave_record($1, 'approve', 510, 930, $2::date, 'sick', null) as result",
+        [id, FRI],
       ),
     ).rejects.toThrow("You can't decide on this record");
+    expect((await recordOf(id)).status).toBe("awaiting");
+  });
+
+  it("the old six-parameter call is gone after the contract step of D9 — a decision always names the date, type and substitute", async () => {
+    const id = await givenAwaiting(FRI);
+    await expect(
+      t.asUser(manager1, "select public.decide_leave_record($1, 'approve', 510, 930) as result", [id]),
+    ).rejects.toMatchObject({ code: "42883" });
     expect((await recordOf(id)).status).toBe("awaiting");
   });
 
@@ -806,15 +814,6 @@ describe("deciding sees another manager's change (D9)", () => {
     );
   });
 
-  it("the old six-parameter call still decides (until the contract step of D9)", async () => {
-    const id = await givenAwaiting(FRI);
-    const [{ result }] = await t.asUser<{ result: { status: string } }>(
-      manager1,
-      "select public.decide_leave_record($1, 'approve', 510, 930) as result",
-      [id],
-    );
-    expect(result.status).toBe("approved");
-  });
 });
 
 describe("'this employee' texts (D6)", () => {

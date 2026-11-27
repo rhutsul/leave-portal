@@ -7,6 +7,7 @@
 // 2026-12-29 — вівторок.
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
 import { computeBalances, formatDays, parseBalanceInputs } from "@/lib/leave/balance";
+import { decideAsSeen } from "./decide";
 import { createLeaveDb, type LeaveDb } from "./supabase-pglite";
 
 let t: LeaveDb;
@@ -372,7 +373,7 @@ describe("day share without closed minutes", () => {
       requestId,
     ]);
     // Погоджує менеджер основної посади — так само, як на /decisions.
-    await t.asUser(manager1, "select public.decide_leave_record($1, 'approve', $2, $3) as result", [recordId, 510, NOON]);
+    await decideAsSeen(t, manager1, recordId, "approve", 510, NOON);
     expect(
       (await asOwner<{ status: string }>("select status from public.leave_records where id = $1", [recordId]))[0].status,
     ).toBe("approved");
@@ -417,7 +418,7 @@ describe("day share fixed at approval", () => {
     const [{ id }] = await asOwner<{ id: number }>("select id from public.leave_records where request_id = $1", [
       requestId,
     ]);
-    await t.asUser(manager1, "select public.decide_leave_record($1, 'approve', $2, $3) as result", [id, start, end]);
+    await decideAsSeen(t, manager1, id, "approve", start, end);
     return id;
   }
 
@@ -462,7 +463,7 @@ describe("day share fixed at approval", () => {
       await t.db.query("select set_config('request.jwt.claim.sub', $1, true)", [manager1]);
       expect((await t.db.query(calendarLocks, [key])).rows).toEqual([]);
       const { rows } = await t.db.query<{ result: { status: string; paid_days: number } }>(
-        "select public.decide_leave_record($1, 'approve', 510, 660) as result",
+        "select public.decide_leave_record(r.id, 'approve', 510, 660, r.date, r.leave_type, r.substitute_id) as result from public.leave_records r where r.id = $1",
         [id],
       );
       expect(rows[0].result).toMatchObject({ status: "approved", paid_days: 0.36 });

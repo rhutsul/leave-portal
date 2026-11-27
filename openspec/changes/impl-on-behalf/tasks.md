@@ -68,7 +68,7 @@ on_behalf_and_edit` — першим комітом (мітка пізніша �
 
 ## 7. Contract до відкриття правки (крок 3 D9)
 
-- [ ] 7.1 Окремий PR, коли код 6.1 на проді (`sha` = `main`): міграція `drop` 6-параметрових
+- [x] 7.1 Окремий PR, коли код 6.1 на проді (`sha` = `main`): міграція `drop` 6-параметрових
       `private.decide_leave_record` і `public.decide_leave_record`; тест старого виклику прибрано в тому самому PR;
       `edit_leave_record` усе ще без гранту.
       Done when: AC-BEHALF-06, AC-BEHALF-07, AC-BEHALF-08
