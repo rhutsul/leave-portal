@@ -191,7 +191,7 @@ export function RecordActions({
     <div className="flex flex-col items-end gap-1">
       <RowMenu items={items} label={`Actions for record ${label}`} />
       {panel !== "details" &&
-        status("text-xs whitespace-nowrap text-status-approved-foreground outline-none empty:hidden")}
+        status("max-w-24 text-right text-xs text-status-approved-foreground outline-none empty:hidden lg:max-w-none lg:whitespace-nowrap")}
       {rowError && (
         // Клітинка дій — за вмістом і без переносу: стала ширина й перенос, щоб текст ліг у два рядки.
         <p role="alert" className="w-44 text-right text-xs whitespace-normal text-destructive">
