@@ -796,6 +796,14 @@ describe("deciding sees another manager's change (D9)", () => {
     expect((await recordOf(id)).status).toBe("awaiting");
   });
 
+  it("the old six-parameter call is gone after the contract step of D9 — a decision always names the date, type and substitute", async () => {
+    const id = await givenAwaiting(FRI);
+    await expect(
+      t.asUser(manager1, "select public.decide_leave_record($1, 'approve', 510, 930) as result", [id]),
+    ).rejects.toMatchObject({ code: "42883" });
+    expect((await recordOf(id)).status).toBe("awaiting");
+  });
+
   it("changed hours are reported before the balance check, even when the record is over the balance", async () => {
     const id = await givenAwaiting(FRI, "personal");
     await t.asService("update public.leave_records set start_min = 540, minutes = 390 where id = $1", [id]);
