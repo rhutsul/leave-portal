@@ -118,7 +118,7 @@ export default async function MyRequestsPage({ searchParams }: PageProps<"/reque
   const shown = records.filter((r) => !tab.statuses || tab.statuses.includes(r.status as RecordStatus));
   // Записи щойно поданої заявки (найбільший request_id) після redirect спалахують один раз.
   const newest = submitted === "1" && records.length > 0 ? Math.max(...records.map((r) => r.request_id!)) : null;
-  // «Request submitted» — лише поки в щойно поданій заявці є записи, що чекають рішення: після скасування текст уже неправда.
+  // «Request submitted» — лише поки всі записи щойно поданої заявки чекають рішення: інакше текст уже неправда.
   const justSubmitted = awaitsDecision(records, newest);
 
   // Історія показаних записів з іменами тих, хто вирішував, одним запитом (public.record_histories, AC-DECIDE-15):
@@ -265,7 +265,7 @@ export default async function MyRequestsPage({ searchParams }: PageProps<"/reque
                           className={cn(flashes(r, newest, requestedId) && "animate-row-flash")}
                         >
                           <TableCell className="whitespace-nowrap tabular-nums">{dayLabel(r.date!)}</TableCell>
-                          <TableCell className="lg:whitespace-nowrap">{position}</TableCell>
+                          <TableCell className="whitespace-normal lg:whitespace-nowrap">{position}</TableCell>
                           <TableCell>
                             <HoursBar
                               start={r.start_min!}
@@ -417,7 +417,11 @@ function splitOf(r: {
     : null;
 }
 
-/** Чи є в заявці requestId записи «Awaiting decision» (банер «Request submitted» після redirect). */
+/**
+ * Чи всі записи заявки requestId ще «Awaiting decision» (банер «Request submitted» після redirect каже саме це: «Each
+ * record is now awaiting a decision»). Скасований чи вже вирішений запис — банера немає (рев'ю CodeRabbit PR 147).
+ */
 function awaitsDecision(records: readonly { request_id: number | null; status: string | null }[], requestId: number | null): boolean {
-  return requestId !== null && records.some((r) => r.request_id === requestId && r.status === "awaiting");
+  const own = records.filter((r) => r.request_id === requestId);
+  return requestId !== null && own.length > 0 && own.every((r) => r.status === "awaiting");
 }
