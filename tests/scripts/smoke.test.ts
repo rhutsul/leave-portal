@@ -75,11 +75,26 @@ function smokeWith(extraEnv: Record<string, string>, ...responses: Array<Record<
   calls = 0;
   const env: NodeJS.ProcessEnv = { ...process.env, SMOKE_PAUSE_MS: "1", SMOKE_MIGRATIONS_DIR: migrations, ...extraEnv };
   // Змінні WS11 з оточення розробника не мають впливати на тести.
-  for (const k of ["VERCEL_AUTOMATION_BYPASS_SECRET", "SMOKE_TARGET", "SMOKE_SCHEMA", "SMOKE_EXPECT_REF", "SMOKE_EXPECT_APP_ENV", "SMOKE_FAIL_FILE"]) {
+  for (const k of ["VERCEL_AUTOMATION_BYPASS_SECRET", "SMOKE_TARGET", "SMOKE_SCHEMA", "SMOKE_EXPECT_REF", "SMOKE_EXPECT_APP_ENV", "SMOKE_FAIL_FILE", "SMOKE_BYPASS_PROJECT", "SMOKE_BYPASS_TEAM", "SMOKE_BYPASS_DOMAIN", "PROD_URL"]) {
     if (!(k in extraEnv)) delete env[k];
   }
   return new Promise<{ code: number | null; out: string }>((resolve) => {
     const child = spawn(process.execPath, [path.join(repoRoot, "scripts", "smoke.mjs"), base, SHA], { env });
+    let out = "";
+    child.stdout.on("data", (d) => (out += d));
+    child.stderr.on("data", (d) => (out += d));
+    child.on("close", (code) => resolve({ code, out }));
+  });
+}
+
+/** Скрипт на іншій адресі (не макет) — для перевірки, кому йде заголовок обходу. */
+function runAt(url: string, extraEnv: Record<string, string>) {
+  const env: NodeJS.ProcessEnv = { ...process.env, SMOKE_PAUSE_MS: "1", SMOKE_MIGRATIONS_DIR: migrations, ...extraEnv };
+  for (const k of ["VERCEL_AUTOMATION_BYPASS_SECRET", "SMOKE_TARGET", "SMOKE_FAIL_FILE", "SMOKE_BYPASS_PROJECT", "SMOKE_BYPASS_TEAM", "SMOKE_BYPASS_DOMAIN", "PROD_URL"]) {
+    if (!(k in extraEnv)) delete env[k];
+  }
+  return new Promise<{ code: number | null; out: string }>((resolve) => {
+    const child = spawn(process.execPath, [path.join(repoRoot, "scripts", "smoke.mjs"), url, SHA], { env });
     let out = "";
     child.stdout.on("data", (d) => (out += d));
     child.stderr.on("data", (d) => (out += d));
@@ -154,6 +169,47 @@ describe("smoke of every deployment (WS11): bypass header, database ref, app env
       expect(out).not.toContain(BYPASS);
     } finally {
       requiredBypass = "";
+    }
+  });
+
+  it("does not send the bypass secret to a foreign host: no request, bypass false and a clear reason (WS11 review)", async () => {
+    const file = path.join(os.tmpdir(), `smoke-foreign-${process.pid}.txt`);
+    rmSync(file, { force: true });
+    const { code, out } = await runAt("https://example.invalid", {
+      VERCEL_AUTOMATION_BYPASS_SECRET: BYPASS,
+      SMOKE_TARGET: "deploy",
+      SMOKE_FAIL_FILE: file,
+    });
+    expect(code).toBe(1);
+    expect(out).toContain('"bypass":false');
+    expect(out).toContain("адреса не наша (хост example.invalid)");
+    expect(out).not.toContain(BYPASS);
+    expect(readFileSync(file, "utf8")).toContain("заголовок обходу Vercel не надіслано");
+    rmSync(file, { force: true });
+  });
+
+  // Домен .invalid замість vercel.app: адреси не резолвляться, тож запит падає мережею, але вже з заголовком —
+  // у підсумку bypass: true; мережі тест не потребує.
+  const DOMAIN = { SMOKE_BYPASS_DOMAIN: "invalid" };
+
+  it("sends the bypass secret to our project's deployment and branch hosts and to the PROD_URL host (with or without a scheme)", async () => {
+    for (const host of ["leave-portal-ab12cd34e-rh-3ddc.invalid", "leave-portal-git-staging-rh-3ddc.invalid"]) {
+      const { out } = await runAt(`https://${host}`, { VERCEL_AUTOMATION_BYPASS_SECRET: BYPASS, ...DOMAIN });
+      expect(out).toContain('"bypass":true');
+      expect(out).not.toContain(BYPASS);
+    }
+    for (const prodUrl of ["https://prod-host.invalid", "prod-host.invalid"]) {
+      const { out } = await runAt("https://prod-host.invalid", { VERCEL_AUTOMATION_BYPASS_SECRET: BYPASS, PROD_URL: prodUrl });
+      expect(out).toContain('"bypass":true');
+    }
+  });
+
+  it("refuses another team whose slug only ends like ours (audit-rh-3ddc) and another project of our team", async () => {
+    for (const host of ["probe-123456789-audit-rh-3ddc.invalid", "other-app-ab12cd34e-rh-3ddc.invalid"]) {
+      const { code, out } = await runAt(`https://${host}`, { VERCEL_AUTOMATION_BYPASS_SECRET: BYPASS, ...DOMAIN });
+      expect(code).toBe(1);
+      expect(out).toContain('"bypass":false');
+      expect(out).toContain(`адреса не наша (хост ${host})`);
     }
   });
 
