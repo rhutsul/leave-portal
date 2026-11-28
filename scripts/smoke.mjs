@@ -15,7 +15,7 @@
 //                      новіша за код (Instant Rollback коду після міграції), — попередження: за правилом expand → contract
 //                      (AGENTS.md, «База даних») старий код працює з новою схемою ще один реліз.
 // Змінні середовища (WS11, .github/workflows/smoke.yml; локально всі необов'язкові):
-//   VERCEL_AUTOMATION_BYPASS_SECRET — кожен запит несе заголовок x-vercel-protection-bypass (захищені preview і
+//   VERCEL_AUTOMATION_BYPASS_SECRET — кожен запит на наш хост несе заголовок x-vercel-protection-bypass (захищені preview і
 //                      staging); значення ніде не друкується, у підсумку лише "bypass": true;
 //   SMOKE_TARGET     — prod (типово) або deploy: лише слова в повідомленнях;
 //   SMOKE_SCHEMA     — strict (типово: схема, старша за код, — збій після очікування) або warn (PR-preview: міграції
@@ -57,7 +57,30 @@ const SHA_ATTEMPTS = 6;
 const SCHEMA_ATTEMPTS = 25;
 // SMOKE_PAUSE_MS — лише для перевірки скрипту локально (макет проду без 20-секундних пауз).
 const PAUSE_MS = Number(process.env.SMOKE_PAUSE_MS) || 20_000;
-const BYPASS = process.env.VERCEL_AUTOMATION_BYPASS_SECRET ?? "";
+const BYPASS_SECRET = process.env.VERCEL_AUTOMATION_BYPASS_SECRET ?? "";
+// Секрет обходу йде лише на наші хости (рев'ю викладача WS11, пункт 1): деплої команди Vercel (суфікс
+// SMOKE_BYPASS_HOST_SUFFIX, типово -rh-3ddc.vercel.app — preview і staging), точний хост PROD_URL (job prod) і
+// локальний макет у тестах. Чужа адреса в client_payload.url чи в полі url ручного запуску не отримає секрет.
+const BYPASS_SUFFIX = (process.env.SMOKE_BYPASS_HOST_SUFFIX ?? "-rh-3ddc.vercel.app").trim();
+const LOOPBACK = new Set(["localhost", "127.0.0.1", "[::1]"]);
+function hostOf(url) {
+  try {
+    return new URL(url).hostname.toLowerCase();
+  } catch {
+    return "";
+  }
+}
+function bypassAllowed(url) {
+  const host = hostOf(url);
+  if (!host) return false;
+  if (LOOPBACK.has(host)) return true;
+  if (BYPASS_SUFFIX && host.endsWith(BYPASS_SUFFIX.toLowerCase())) return true;
+  const prodHost = hostOf(process.env.PROD_URL ?? "");
+  return prodHost !== "" && host === prodHost;
+}
+const BYPASS = BYPASS_SECRET && bypassAllowed(base) ? BYPASS_SECRET : "";
+/** Секрет є, а адреса чужа — заголовок не шлемо і падаємо з поясненням (без самої адреси й значення секрету). */
+const BYPASS_REFUSED = Boolean(BYPASS_SECRET && base && !BYPASS);
 const TARGET = process.env.SMOKE_TARGET === "deploy" ? "деплой" : "прод";
 const SCHEMA_WARN_ONLY = process.env.SMOKE_SCHEMA === "warn";
 const EXPECT_REF = (process.env.SMOKE_EXPECT_REF ?? "").trim();
@@ -297,6 +320,13 @@ if (baseError) {
 } else if (!base) {
   console.error("Використання: node scripts/smoke.mjs <base-url> [expected-sha]  (або змінна PROD_URL)");
   process.exitCode = 2;
+} else if (BYPASS_REFUSED) {
+  // Хост — не секрет (на кшталт example.invalid); повну адресу не друкуємо, як і вище.
+  const reason = `адреса не наша (хост ${hostOf(base)}) — заголовок обходу Vercel не надіслано: секрет іде лише на *${BYPASS_SUFFIX} і хост PROD_URL`;
+  console.log(JSON.stringify({ base: hostOf(base), bypass: false }));
+  console.error(`::error title=smoke::${reason}`);
+  writeFailures([reason]);
+  process.exitCode = 1;
 } else {
   process.exitCode = await main();
 }
